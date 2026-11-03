@@ -1,3 +1,4 @@
+import AstridCore
 import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
@@ -413,6 +414,10 @@ struct CommentSectionViewEnhanced: View {
                                                                updatedAt: Date(), to: comments)
                         }
                     )
+                    // A question's cards answer in this thread (AITD-579). Your own question's
+                    // cards only show the options.
+                    .environment(\.decisionResponse,
+                                 comment.authorId == AuthManager.shared.userId ? nil : decisionResponse(to: comment))
                     }
                 }
             }
@@ -751,24 +756,7 @@ struct CommentSectionViewEnhanced: View {
 
         insertedReferences = []
 
-        // Build author from all available sources - currentUser, UserDefaults, or fallback
-        let userId = AuthManager.shared.userId ?? UserDefaults.standard.string(forKey: Constants.UserDefaults.userId) ?? "me"
-        let userName = AuthManager.shared.currentUser?.name
-            ?? UserDefaults.standard.string(forKey: Constants.UserDefaults.userName)
-        let userEmail = AuthManager.shared.currentUser?.email
-            ?? UserDefaults.standard.string(forKey: Constants.UserDefaults.userEmail)
-        let userImage = AuthManager.shared.currentUser?.image
-            ?? UserDefaults.standard.string(forKey: Constants.UserDefaults.userImage)
-
-        // Use "Me" as fallback name if we have no user info at all
-        let displayName = userName ?? userEmail ?? "Me"
-
-        let author = User(
-            id: userId,
-            email: userEmail,
-            name: displayName,  // Always have a name
-            image: userImage
-        )
+        let author = currentAuthor()
 
         AppLog.debug("📝 [Comment] Creating \(drafts.count) optimistic comment(s) for author: \(author.displayName)")
 
@@ -840,6 +828,55 @@ struct CommentSectionViewEnhanced: View {
         }
 
         isSubmitting = false
+    }
+
+    /// Build author from all available sources - currentUser, UserDefaults, or fallback
+    private func currentAuthor() -> User {
+        let userId = AuthManager.shared.userId ?? UserDefaults.standard.string(forKey: Constants.UserDefaults.userId) ?? "me"
+        let userName = AuthManager.shared.currentUser?.name
+            ?? UserDefaults.standard.string(forKey: Constants.UserDefaults.userName)
+        let userEmail = AuthManager.shared.currentUser?.email
+            ?? UserDefaults.standard.string(forKey: Constants.UserDefaults.userEmail)
+        let userImage = AuthManager.shared.currentUser?.image
+            ?? UserDefaults.standard.string(forKey: Constants.UserDefaults.userImage)
+
+        // Use "Me" as fallback name if we have no user info at all
+        let displayName = userName ?? userEmail ?? "Me"
+
+        return User(
+            id: userId,
+            email: userEmail,
+            name: displayName,  // Always have a name
+            image: userImage
+        )
+    }
+
+    /// The cards of a question in this thread (AITD-579): what answered it, and how a tap answers.
+    private func decisionResponse(to comment: Comment) -> DecisionResponse {
+        DecisionResponse(answer: DecisionThread.answer(to: comment, in: comments)) { option in
+            _Concurrency.Task { await answerDecision(with: option.reply) }
+        }
+    }
+
+    /// Post a tapped option as an ordinary reply — on screen at once, like any comment — leaving
+    /// whatever is in the composer alone.
+    private func answerDecision(with reply: String) async {
+        let author = currentAuthor()
+        let optimistic = Comment(
+            id: "temp_\(UUID().uuidString)", content: reply, type: .MARKDOWN,
+            authorId: author.id, author: author, taskId: taskId,
+            createdAt: Date(), updatedAt: Date(),
+            attachmentUrl: nil, attachmentName: nil, attachmentType: nil, attachmentSize: nil,
+            parentCommentId: nil, replies: nil, secureFiles: nil)
+        comments = CommentThread.upsert(optimistic, into: comments)
+        do {
+            _ = try await commentService.createComment(
+                taskId: taskId, content: reply, type: .MARKDOWN, authorId: author.id,
+                clientRequestId: optimistic.id)
+        } catch {
+            comments = CommentThread.remove(id: optimistic.id, from: comments)
+            sendError = error.localizedDescription
+        }
     }
 
     /// Retry syncing all pending comments and attachments

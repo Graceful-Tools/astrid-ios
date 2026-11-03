@@ -1595,3 +1595,14 @@
 "listInsights.duration.minutes" = "%@ 分钟";
 "listInsights.duration.hours" = "%@ 小时";
 "listInsights.duration.days" = "%@ 天";
+
+/* Decisions and trade-off grids (AITD-579, AITD-578) */
+"decision.confirm_title" = "用这个选项回答？";
+"decision.confirm_send" = "发送“%@”";
+"decision.recommended" = "推荐";
+"tradeoff.very_poor" = "很差";
+"tradeoff.poor" = "差";
+"tradeoff.mixed" = "一般";
+"tradeoff.good" = "好";
+"tradeoff.very_good" = "很好";
+"tradeoff.unrated" = "未评分";

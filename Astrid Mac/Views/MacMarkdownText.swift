@@ -45,6 +45,7 @@ struct MacMarkdownText: View {
             body: MacTypography.detailBody.font(scale: textScale),
             heading: { [textScale] in .system(size: Self.headingSize($0) * textScale, weight: .semibold) },
             code: .system(size: 12 * textScale, design: .monospaced),
+            small: .system(size: 11 * textScale),
             text: Theme.textPrimary,
             muted: Theme.textMuted,
             codeBackground: Theme.bgTertiary,

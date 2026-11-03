@@ -29,6 +29,7 @@ struct MarkdownText: View {
             body: Theme.Typography.body(),
             heading: Self.headingFont,
             code: .system(.footnote, design: .monospaced),
+            small: Theme.Typography.footnote(),
             text: defaultColor,
             muted: defaultColor.opacity(0.6),
             // Tinted from the text colour rather than a fixed Theme background: this sits inside

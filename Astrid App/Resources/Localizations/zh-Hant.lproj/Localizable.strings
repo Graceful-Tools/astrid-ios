@@ -1597,3 +1597,14 @@
 "listInsights.duration.minutes" = "%@ 分鐘";
 "listInsights.duration.hours" = "%@ 小時";
 "listInsights.duration.days" = "%@ 天";
+
+/* Decisions and trade-off grids (AITD-579, AITD-578) */
+"decision.confirm_title" = "用這個選項回答？";
+"decision.confirm_send" = "傳送「%@」";
+"decision.recommended" = "推薦";
+"tradeoff.very_poor" = "很差";
+"tradeoff.poor" = "差";
+"tradeoff.mixed" = "普通";
+"tradeoff.good" = "好";
+"tradeoff.very_good" = "很好";
+"tradeoff.unrated" = "未評分";
