@@ -18,6 +18,24 @@ struct CommentDraft: Equatable {
     let type: Comment.CommentType
 }
 
+/// One comment a task copy will post (AITD-586): what the original said, who said it, and the
+/// file it carries — the original's record, whose bytes are fetched and uploaded again for the
+/// copy, since a secure file belongs to one comment.
+struct CopiedCommentDraft: Equatable {
+    let content: String
+    let type: Comment.CommentType
+    let authorId: String?
+    let file: SecureFile?
+
+    /// What to send when the file's bytes cannot be fetched: the text as a plain comment, or
+    /// nothing if the file was all there was.
+    var withoutFile: CopiedCommentDraft? {
+        guard file != nil else { return self }
+        guard !content.isEmpty else { return nil }
+        return CopiedCommentDraft(content: content, type: .TEXT, authorId: authorId, file: nil)
+    }
+}
+
 enum CommentAttachmentBatch {
 
     /// How many photos the picker will let you take at once. A ceiling exists because each pick
@@ -44,6 +62,23 @@ enum CommentAttachmentBatch {
             CommentDraft(content: index == 0 ? trimmed : "",
                          fileId: fileId,
                          type: .ATTACHMENT)
+        }
+    }
+
+    /// The comments a task copy posts, in order (AITD-586). System comments (no author) stay with
+    /// the original. A comment with files fans out like the composer — one file per comment, the
+    /// text on the first — because the API takes one `fileId` per comment.
+    static func copyDrafts(of comments: [Comment]) -> [CopiedCommentDraft] {
+        comments.filter { $0.authorId != nil }.flatMap { comment -> [CopiedCommentDraft] in
+            let files = comment.secureFiles ?? []
+            guard !files.isEmpty else {
+                return [CopiedCommentDraft(content: comment.content, type: comment.type,
+                                           authorId: comment.authorId, file: nil)]
+            }
+            return files.enumerated().map { index, file in
+                CopiedCommentDraft(content: index == 0 ? comment.content : "", type: .ATTACHMENT,
+                                   authorId: comment.authorId, file: file)
+            }
         }
     }
 }
