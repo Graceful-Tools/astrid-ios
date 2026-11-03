@@ -63,4 +63,22 @@ final class DecisionThreadTests: XCTestCase {
     func testAITD579_aDescriptionOrYourOwnQuestionOnlyShowsTheCards() {
         XCTAssertEqual(DecisionResponse.state(nil, for: decision), .readOnly)
     }
+
+    /// AITD-584: no "Answer with this option?" sheet on iPhone — a tap sends, as a click does on the Mac.
+    func testAITD584_tappingAnOpenOptionSendsItAtOnce() {
+        var sent: [String] = []
+        let response = DecisionResponse(answer: nil, choose: { sent.append($0.letter) })
+        response.tap(decision.options[1], in: decision)
+        XCTAssertEqual(sent, ["B"])
+    }
+
+    func testAITD584_tappingAnAnsweredQuestionSendsNothing() {
+        var sent: [String] = []
+        let asked = comment("q", question, by: agent, at: 1)
+        let thread = [asked, comment("r", "A", by: jon, at: 2)]
+        let response = DecisionResponse(answer: DecisionThread.answer(to: asked, in: thread),
+                                        choose: { sent.append($0.letter) })
+        response.tap(decision.options[1], in: decision)
+        XCTAssertEqual(sent, [])
+    }
 }

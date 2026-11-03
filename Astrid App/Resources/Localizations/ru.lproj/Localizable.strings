@@ -1597,8 +1597,6 @@
 "listInsights.duration.days" = "%@ д";
 
 /* Decisions and trade-off grids (AITD-579, AITD-578) */
-"decision.confirm_title" = "Ответить этим вариантом?";
-"decision.confirm_send" = "Отправить «%@»";
 "decision.recommended" = "Рекомендуется";
 "tradeoff.very_poor" = "Очень плохо";
 "tradeoff.poor" = "Плохо";

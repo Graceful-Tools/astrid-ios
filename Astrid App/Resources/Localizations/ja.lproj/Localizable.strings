@@ -1597,8 +1597,6 @@
 "listInsights.duration.days" = "%@ 日";
 
 /* Decisions and trade-off grids (AITD-579, AITD-578) */
-"decision.confirm_title" = "この選択肢で回答しますか？";
-"decision.confirm_send" = "「%@」を送信";
 "decision.recommended" = "おすすめ";
 "tradeoff.very_poor" = "非常に悪い";
 "tradeoff.poor" = "悪い";

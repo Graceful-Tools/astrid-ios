@@ -29,8 +29,6 @@ struct DecisionCardsView: View {
     let style: MarkdownStyle
     let inline: ([MarkdownInline]) -> Text
     @Environment(\.decisionResponse) private var response
-    /// iOS asks before sending: a tap while scrolling must not answer for you.
-    @State private var pending: DecisionOption?
 
     private var state: DecisionResponse.State { DecisionResponse.state(response, for: decision) }
 
@@ -43,24 +41,12 @@ struct DecisionCardsView: View {
                 card(option)
             }
         }
-        .confirmationDialog(
-            NSLocalizedString("decision.confirm_title", comment: "Asked before a tapped option is sent"),
-            isPresented: Binding(get: { pending != nil }, set: { if !$0 { pending = nil } }),
-            titleVisibility: .visible,
-            presenting: pending
-        ) { option in
-            Button(String(format: NSLocalizedString("decision.confirm_send", comment: "Send the chosen option"),
-                          option.reply)) {
-                response?.choose(option)
-            }
-            Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) {}
-        }
     }
 
     private func card(_ option: DecisionOption) -> some View {
         let chosen = state == .chosen(option.letter)
         let dimmed = !chosen && state != .open && state != .readOnly
-        return Button { tap(option) } label: {
+        return Button { response?.tap(option, in: decision) } label: {
             HStack(alignment: .firstTextBaseline, spacing: style.markerSpacing * 1.5) {
                 Text(verbatim: option.letter)
                     .font(style.body.bold())
@@ -92,16 +78,6 @@ struct DecisionCardsView: View {
         // Not `.disabled`: that greys the chosen card too, the one that should stand out.
         .allowsHitTesting(state == .open)
         .accessibilityIdentifier("decision.option.\(option.letter)")
-    }
-
-    private func tap(_ option: DecisionOption) {
-        guard state == .open else { return }
-        #if os(iOS)
-        pending = option
-        #else
-        // A click on the Mac is deliberate; the reply shows in the thread and can be edited.
-        response?.choose(option)
-        #endif
     }
 }
 
