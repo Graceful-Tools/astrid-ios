@@ -580,11 +580,26 @@ class TaskService: ObservableObject {
         if includeComments {
             do {
                 let comments = try await CommentService.shared.fetchComments(taskId: id)
-                // System comments (no author) stay with the original.
-                for comment in comments where comment.authorId != nil {
+                for draft in CommentAttachmentBatch.copyDrafts(of: comments) {
+                    // A secure file belongs to one comment, so the copy's file is a fresh upload
+                    // of the same bytes, staged and sent through the Outbox like a picked one
+                    // (AITD-586).
+                    var send: CopiedCommentDraft? = draft
+                    var fileId: String?
+                    if let file = draft.file {
+                        if let data = await AttachmentService.shared.fileData(for: file) {
+                            fileId = AttachmentService.shared.saveLocallyAndUploadAsync(
+                                fileData: data, fileName: file.name, mimeType: file.mimeType,
+                                taskId: copiedTask.id)
+                        } else {
+                            AppLog.debug("⚠️ [TaskService] Could not fetch attachment \(file.id) for the copy")
+                            send = draft.withoutFile
+                        }
+                    }
+                    guard let send else { continue }
                     _ = try? await CommentService.shared.createComment(
-                        taskId: copiedTask.id, content: comment.content, type: comment.type,
-                        authorId: comment.authorId)
+                        taskId: copiedTask.id, content: send.content, type: send.type,
+                        fileId: fileId, authorId: send.authorId)
                 }
             } catch {
                 AppLog.debug("⚠️ [TaskService] Failed to fetch comments for copying: \(Self.safeErrorSummary(error))")
