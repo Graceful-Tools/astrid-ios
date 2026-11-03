@@ -13,6 +13,7 @@
 //  `MacBoardCommentParityTests` exists to catch.
 
 #if os(macOS)
+import AstridCore
 import SwiftUI
 import AppKit
 import Combine
@@ -409,6 +410,7 @@ struct MacCommentThreadList: View {
                         // bubble stays the size of what was said.
                         MacMarkdownText(source: c.content, fillsWidth: false)
                             .environment(\.taskIdentifierLinks, identifierLinks)
+                            .environment(\.decisionResponse, mine ? nil : decisionResponse(to: c))
                     }
                 }
                 .padding(.horizontal, 12).padding(.vertical, 8)
@@ -474,6 +476,19 @@ struct MacCommentThreadList: View {
     private func commentAvatar(_ who: MacAuthorDisplay, authorId: String?) -> some View {
         MacAuthorAvatar(display: who, size: 20)
             .macOpensProfile(authorId, target: $profileTarget)
+    }
+
+    /// A question's cards answer in this thread (AITD-579): a click posts the option as an
+    /// ordinary reply, which is the reply that wakes the agent that asked.
+    private func decisionResponse(to c: Comment) -> DecisionResponse {
+        DecisionResponse(answer: DecisionThread.answer(to: c, in: comments)) { option in
+            let author = MacCommentPost.authorId(currentUserId: AuthManager.shared.userId)
+            AppActions.perform("Answer decision") {
+                _ = try await CommentService.shared.createComment(
+                    taskId: taskId, content: option.reply, authorId: author)
+                comments = (try? await CommentService.shared.fetchComments(taskId: taskId)) ?? []
+            }
+        }
     }
 
     private func deleteComment(_ c: Comment) {

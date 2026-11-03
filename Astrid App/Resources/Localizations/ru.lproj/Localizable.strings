@@ -1595,3 +1595,14 @@
 "listInsights.duration.minutes" = "%@ мин";
 "listInsights.duration.hours" = "%@ ч";
 "listInsights.duration.days" = "%@ д";
+
+/* Decisions and trade-off grids (AITD-579, AITD-578) */
+"decision.confirm_title" = "Ответить этим вариантом?";
+"decision.confirm_send" = "Отправить «%@»";
+"decision.recommended" = "Рекомендуется";
+"tradeoff.very_poor" = "Очень плохо";
+"tradeoff.poor" = "Плохо";
+"tradeoff.mixed" = "Неоднозначно";
+"tradeoff.good" = "Хорошо";
+"tradeoff.very_good" = "Очень хорошо";
+"tradeoff.unrated" = "Без оценки";

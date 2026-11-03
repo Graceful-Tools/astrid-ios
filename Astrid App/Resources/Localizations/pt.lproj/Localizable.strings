@@ -1595,3 +1595,14 @@
 "listInsights.duration.minutes" = "%@ min";
 "listInsights.duration.hours" = "%@ h";
 "listInsights.duration.days" = "%@ d";
+
+/* Decisions and trade-off grids (AITD-579, AITD-578) */
+"decision.confirm_title" = "Responder com esta opção?";
+"decision.confirm_send" = "Enviar “%@”";
+"decision.recommended" = "Recomendada";
+"tradeoff.very_poor" = "Muito ruim";
+"tradeoff.poor" = "Ruim";
+"tradeoff.mixed" = "Misto";
+"tradeoff.good" = "Bom";
+"tradeoff.very_good" = "Muito bom";
+"tradeoff.unrated" = "Sem avaliação";

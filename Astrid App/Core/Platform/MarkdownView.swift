@@ -18,6 +18,8 @@ struct MarkdownStyle {
     var body: Font
     var heading: (Int) -> Font
     var code: Font
+    /// A dense table's cells and a colour key (AITD-578).
+    var small: Font
     var text: Color
     var muted: Color
     var codeBackground: Color
@@ -48,8 +50,17 @@ struct MarkdownView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: style.blockSpacing) {
-            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
-                self.block(block)
+            // A decision's options and a trade-off grid are markdown too, drawn richer
+            // (AITD-579, AITD-578); everything else is the block as rendered.
+            ForEach(Array(Decisions.blocks(blocks).enumerated()), id: \.offset) { _, block in
+                switch block {
+                case .markdown(let block):
+                    self.block(block)
+                case .decision(let decision):
+                    DecisionCardsView(decision: decision, style: style, inline: inline)
+                case .tradeOff(let grid):
+                    TradeOffGridView(grid: grid, style: style, inline: inline)
+                }
             }
         }
         .multilineTextAlignment(.leading)
