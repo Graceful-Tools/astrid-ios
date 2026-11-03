@@ -1,6 +1,6 @@
 //  DecisionViews.swift
 //  A decision's options as cards you tap (AITD-579), and a trade-off grid of coloured cells
-//  (AITD-578) — on iOS and on the Mac.
+//  (AITD-578) — on iOS and on the Mac. Options are numbered, criteria lettered (AITD-585).
 //
 //  Both are ordinary markdown that `Decisions` (AstridCore) picks out of the rendered blocks;
 //  `MarkdownView` hands them here. What a card does when tapped belongs to the comment thread
@@ -44,11 +44,11 @@ struct DecisionCardsView: View {
     }
 
     private func card(_ option: DecisionOption) -> some View {
-        let chosen = state == .chosen(option.letter)
+        let chosen = state == .chosen(option.number)
         let dimmed = !chosen && state != .open && state != .readOnly
         return Button { response?.tap(option, in: decision) } label: {
             HStack(alignment: .firstTextBaseline, spacing: style.markerSpacing * 1.5) {
-                Text(verbatim: option.letter)
+                Text(verbatim: "\(option.number)")
                     .font(style.body.bold())
                     .foregroundColor(chosen ? .white : Theme.accent)
                     .frame(minWidth: 24, minHeight: 24)
@@ -77,7 +77,7 @@ struct DecisionCardsView: View {
         .buttonStyle(.plain)
         // Not `.disabled`: that greys the chosen card too, the one that should stand out.
         .allowsHitTesting(state == .open)
-        .accessibilityIdentifier("decision.option.\(option.letter)")
+        .accessibilityIdentifier("decision.option.\(option.number)")
     }
 }
 
@@ -88,22 +88,26 @@ struct TradeOffGridView: View {
     let style: MarkdownStyle
     let inline: ([MarkdownInline]) -> Text
 
+    /// A cell wraps within these before the grid grows sideways and scrolls (AITD-585), so a
+    /// word is never broken across lines to squeeze one more column onto a phone.
+    private let cellWidth: ClosedRange<CGFloat> = 84...150
+    private let optionWidth: ClosedRange<CGFloat> = 64...120
+
     var body: some View {
         VStack(alignment: .leading, spacing: style.blockSpacing * 2) {
-            Grid(alignment: .topLeading, horizontalSpacing: 3, verticalSpacing: 3) {
-                GridRow {
-                    ForEach(Array(grid.header.enumerated()), id: \.offset) { _, cell in
-                        inline(cell).font(style.small.bold())
-                            .padding(.horizontal, 6).padding(.vertical, 4)
-                    }
-                }
-                ForEach(Array(grid.rows.enumerated()), id: \.offset) { _, row in
+            ScrollView(.horizontal, showsIndicators: false) {
+                Grid(alignment: .center, horizontalSpacing: 3, verticalSpacing: 3) {
                     GridRow {
-                        inline(row.option).font(style.small.bold())
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.horizontal, 6).padding(.vertical, 6)
-                        ForEach(Array(row.cells.enumerated()), id: \.offset) { _, cell in
-                            ratedCell(cell)
+                        ForEach(Array(grid.header.enumerated()), id: \.offset) { index, cell in
+                            header(cell, column: index)
+                        }
+                    }
+                    ForEach(Array(grid.rows.enumerated()), id: \.offset) { index, row in
+                        GridRow {
+                            option(row, number: index + 1)
+                            ForEach(Array(row.cells.enumerated()), id: \.offset) { _, cell in
+                                ratedCell(cell)
+                            }
                         }
                     }
                 }
@@ -112,14 +116,40 @@ struct TradeOffGridView: View {
         }
     }
 
+    /// The options column's name as written; each criterion after it under its letter, A, B, C.
+    private func header(_ cell: [MarkdownInline], column: Int) -> some View {
+        let title = column == 0
+            ? inline(cell)
+            : Text(verbatim: Decisions.columnLetter(column - 1) + "  ").foregroundColor(style.muted)
+                + inline(cell)
+        return title.font(style.small.bold())
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 6).padding(.vertical, 4)
+            .frame(minWidth: column == 0 ? optionWidth.lowerBound : cellWidth.lowerBound,
+                   maxWidth: column == 0 ? optionWidth.upperBound : cellWidth.upperBound)
+            .frame(maxWidth: .infinity, maxHeight: .infinity,
+                   alignment: column == 0 ? .leading : .center)
+    }
+
+    /// Numbered like the cards, whatever marker the row was written with.
+    private func option(_ row: TradeOffRow, number: Int) -> some View {
+        (Text(verbatim: "\(number). ") + inline(row.name)).font(style.small.bold())
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 6).padding(.vertical, 6)
+            .frame(minWidth: optionWidth.lowerBound, maxWidth: optionWidth.upperBound, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+
     private func ratedCell(_ cell: TradeOffCell) -> some View {
         Text(MarkdownRendering.attributed(cell.reason, defaultColor: TradeOffPalette.text(for: cell.rating),
                                           referenceFont: nil))
             .font(style.small)
-            .minimumScaleFactor(0.8)
+            .multilineTextAlignment(.center)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 6).padding(.vertical, 6)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .frame(minWidth: cellWidth.lowerBound, maxWidth: cellWidth.upperBound)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .background(RoundedRectangle(cornerRadius: 4)
                 .fill(cell.rating.map(TradeOffPalette.fill) ?? style.text.opacity(0.05)))
             .accessibilityLabel(Text(TradeOffPalette.label(for: cell.rating) + ". "

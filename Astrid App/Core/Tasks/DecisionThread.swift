@@ -2,7 +2,7 @@
 //  Whether a question asked in a comment is still open, and what answered it (AITD-579).
 //
 //  An agent's question is an ordinary comment; its `**Decision:**` options draw as cards
-//  (`Decisions` in AstridCore). Tapping one posts its letter and words as an ordinary reply — the
+//  (`Decisions` in AstridCore). Tapping one posts its number and words as an ordinary reply — the
 //  reply that already wakes the agent — so the server holds no decision state, and the thread is
 //  the only record of whether one was made. These rules read it, for iOS and the Mac alike.
 
@@ -39,15 +39,15 @@ struct DecisionResponse {
         /// No thread to answer in, or the viewer asked the question.
         case readOnly
         case open
-        case chosen(String)
+        /// The chosen option's number (AITD-585).
+        case chosen(Int)
         /// Someone replied without leading with a letter.
         case answeredInWords
     }
 
     func state(for decision: Decision) -> State {
         guard let answer else { return .open }
-        let letters = decision.options.map(\.letter)
-        return Decisions.chosenLetter(in: answer.content, letters: letters).map(State.chosen)
+        return Decisions.chosenNumber(in: answer.content, options: decision.options).map(State.chosen)
             ?? .answeredInWords
     }
 

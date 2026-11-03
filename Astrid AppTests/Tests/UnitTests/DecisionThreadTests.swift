@@ -44,7 +44,15 @@ final class DecisionThreadTests: XCTestCase {
         let asked = comment("q", question, by: agent, at: 1)
         let thread = [asked, comment("r", "b", by: jon, at: 2), comment("x", "A", by: jon, at: 3)]
         let response = DecisionResponse(answer: DecisionThread.answer(to: asked, in: thread), choose: { _ in })
-        XCTAssertEqual(response.state(for: decision), .chosen("B"))
+        XCTAssertEqual(response.state(for: decision), .chosen(2))
+    }
+
+    /// AITD-585: a tapped card replies with its number, and that reply marks the card chosen.
+    func testAITD585_aReplyStartingWithANumberShowsThatCardChosen() {
+        let asked = comment("q", question, by: agent, at: 1)
+        let thread = [asked, comment("r", decision.options[1].reply, by: jon, at: 2)]
+        let response = DecisionResponse(answer: DecisionThread.answer(to: asked, in: thread), choose: { _ in })
+        XCTAssertEqual(response.state(for: decision), .chosen(2))
     }
 
     func testAITD579_aReplyInWordsClosesTheCardsWithoutChoosingOne() {
@@ -67,9 +75,9 @@ final class DecisionThreadTests: XCTestCase {
     /// AITD-584: no "Answer with this option?" sheet on iPhone — a tap sends, as a click does on the Mac.
     func testAITD584_tappingAnOpenOptionSendsItAtOnce() {
         var sent: [String] = []
-        let response = DecisionResponse(answer: nil, choose: { sent.append($0.letter) })
+        let response = DecisionResponse(answer: nil, choose: { sent.append($0.reply) })
         response.tap(decision.options[1], in: decision)
-        XCTAssertEqual(sent, ["B"])
+        XCTAssertEqual(sent, ["2 — Wait"])
     }
 
     func testAITD584_tappingAnAnsweredQuestionSendsNothing() {
@@ -77,7 +85,7 @@ final class DecisionThreadTests: XCTestCase {
         let asked = comment("q", question, by: agent, at: 1)
         let thread = [asked, comment("r", "A", by: jon, at: 2)]
         let response = DecisionResponse(answer: DecisionThread.answer(to: asked, in: thread),
-                                        choose: { sent.append($0.letter) })
+                                        choose: { sent.append($0.reply) })
         response.tap(decision.options[1], in: decision)
         XCTAssertEqual(sent, [])
     }
