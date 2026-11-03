@@ -35,8 +35,24 @@ final class DecisionTests: XCTestCase {
     }
 
     func testAITD579_tappingAnOptionRepliesWithItsLetterAndWords() {
-        let option = DecisionOption(letter: "B", label: [], text: "iOS first", recommended: false)
-        XCTAssertEqual(option.reply, "B — iOS first")
+        let option = DecisionOption(letter: "B", number: 2, label: [], text: "iOS first", recommended: false)
+        XCTAssertEqual(option.reply, "2 — iOS first")
+    }
+
+    /// AITD-585: options are a numbered list — the cards and the reply carry 1, 2, 3, whatever
+    /// marker the asker wrote, and an option may be written `**1.**` as well as `**A.**`.
+    func testAITD585_optionsAreNumberedInOrderWhicheverMarkerTheyWereWrittenWith() {
+        for source in [
+            "**Decision:** Which way?\n- **A.** Go\n- **B.** Wait\n- **C.** Neither",
+            "**Decision:** Which way?\n1. **1.** Go\n2. **2.** Wait\n3. **3.** Neither",
+            "**Decision:** Which way?\n- **1)** Go\n- **2)** Wait\n- **3)** Neither",
+        ] {
+            guard case .decision(let decision)? = Decisions.blocks(CoreRules.markdown(source)).first else {
+                XCTFail("a decision: \(source)"); continue
+            }
+            XCTAssertEqual(decision.options.map(\.number), [1, 2, 3], source)
+            XCTAssertEqual(decision.options.map(\.reply), ["1 — Go", "2 — Wait", "3 — Neither"], source)
+        }
     }
 
     func testAITD579_theWordsAroundADecisionStayMarkdown() {
@@ -68,15 +84,31 @@ final class DecisionTests: XCTestCase {
         }
     }
 
+    private var lettered: [DecisionOption] {
+        ["A", "B", "C"].enumerated().map {
+            DecisionOption(letter: $1, number: $0 + 1, label: [], text: "", recommended: false)
+        }
+    }
+
     func testAITD579_aReplyChoosesTheOptionItStartsWith() {
-        let letters = ["A", "B", "C"]
-        XCTAssertEqual(Decisions.chosenLetter(in: "A", letters: letters), "A")
-        XCTAssertEqual(Decisions.chosenLetter(in: "b", letters: letters), "B")
-        XCTAssertEqual(Decisions.chosenLetter(in: "C — Something else", letters: letters), "C")
-        XCTAssertEqual(Decisions.chosenLetter(in: "  A. go", letters: letters), "A")
-        XCTAssertNil(Decisions.chosenLetter(in: "Also, what about D?", letters: letters))
-        XCTAssertNil(Decisions.chosenLetter(in: "D", letters: letters))
-        XCTAssertNil(Decisions.chosenLetter(in: "Let me think", letters: letters))
+        XCTAssertEqual(Decisions.chosenNumber(in: "A", options: lettered), 1)
+        XCTAssertEqual(Decisions.chosenNumber(in: "b", options: lettered), 2)
+        XCTAssertEqual(Decisions.chosenNumber(in: "C — Something else", options: lettered), 3)
+        XCTAssertEqual(Decisions.chosenNumber(in: "  A. go", options: lettered), 1)
+        XCTAssertNil(Decisions.chosenNumber(in: "Also, what about D?", options: lettered))
+        XCTAssertNil(Decisions.chosenNumber(in: "D", options: lettered))
+        XCTAssertNil(Decisions.chosenNumber(in: "Let me think", options: lettered))
+    }
+
+    /// AITD-585: a tap now replies "2 — Wait"; a reply in the old letter form still chooses.
+    func testAITD585_aReplyStartingWithTheOptionsNumberChoosesIt() {
+        XCTAssertEqual(Decisions.chosenNumber(in: "2 — Wait", options: lettered), 2)
+        XCTAssertEqual(Decisions.chosenNumber(in: "3", options: lettered), 3)
+        XCTAssertEqual(Decisions.chosenNumber(in: "1. go", options: lettered), 1)
+        XCTAssertNil(Decisions.chosenNumber(in: "4", options: lettered))
+        XCTAssertNil(Decisions.chosenNumber(in: "0", options: lettered))
+        XCTAssertNil(Decisions.chosenNumber(in: "2nd thoughts", options: lettered))
+        XCTAssertNil(Decisions.chosenNumber(in: "10 minutes", options: lettered))
     }
 
     // MARK: - AITD-578 trade-off grid
@@ -121,5 +153,23 @@ final class DecisionTests: XCTestCase {
             let blocks = Decisions.blocks(CoreRules.markdown(source))
             guard case .markdown(.table)? = blocks.first else { return XCTFail("\(source): \(blocks)") }
         }
+    }
+
+    /// AITD-585: grid rows are numbered like the options, so the asker's own "A." comes off the
+    /// row's name, and the criteria columns are lettered A, B, C.
+    func testAITD585_gridRowsDropTheirMarkerAndColumnsAreLettered() {
+        let blocks = Decisions.blocks(CoreRules.markdown("""
+            | Option | Cost | Travel |
+            |---|---|---|
+            | A. Lisbon | ~ flights | - long |
+            | 2) Cabin | + rental | + 3h |
+            | Pizza | ++ cheap | ++ none |
+            | B | + x | + y |
+            """))
+        guard case .tradeOff(let grid)? = blocks.first else { return XCTFail("a grid, got \(blocks)") }
+        XCTAssertEqual(grid.rows.map { plain($0.name) }, ["Lisbon", "Cabin", "Pizza", ""])
+        XCTAssertEqual((0..<3).map(Decisions.columnLetter), ["A", "B", "C"])
+        XCTAssertEqual(Decisions.columnLetter(25), "Z")
+        XCTAssertEqual(Decisions.columnLetter(26), "AA")
     }
 }

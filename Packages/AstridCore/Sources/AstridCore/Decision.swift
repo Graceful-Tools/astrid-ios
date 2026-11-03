@@ -4,15 +4,17 @@ import Foundation
 /// agent can lay a choice in front of someone in a way they can answer on a phone.
 ///
 /// A **decision** (AITD-579): a `**Decision:**` line followed by a list whose items start with a
-/// bold letter. Each option draws as a card; tapping one replies with its letter and words.
+/// bold letter or number. Each option draws as a card numbered in order (AITD-585); tapping one
+/// replies with its number and words.
 ///
 ///     **Decision:** Which way?
 ///     - **A.** Go with the format (recommended)
 ///     - **B.** iOS first
 ///
 /// A **trade-off grid** (AITD-578): a table whose cells, after the first column, each start with a
-/// rating — `++` `+` `~` `-` `--`, or 🟢 🟡 🔴 — then a short reason. Options are rows, criteria
-/// are columns, and each cell draws on its rating's colour.
+/// rating — `++` `+` `~` `-` `--`, or 🟢 🟡 🔴 — then a short reason. Options are rows, numbered
+/// like the cards; criteria are columns, lettered A, B, C (AITD-585); each cell draws on its
+/// rating's colour.
 ///
 ///     | Option   | Cost            | Risk  |
 ///     |----------|-----------------|-------|
@@ -39,24 +41,28 @@ public struct Decision: Equatable, Sendable {
 }
 
 public struct DecisionOption: Equatable, Sendable {
-    /// Upper case, as the reply carries it.
+    /// The marker as the asker wrote it, upper case: "A", or "1". A reply leading with it still
+    /// chooses this option.
     public let letter: String
+    /// Its place in the list, from 1 — what the card shows and the reply leads with (AITD-585).
+    public let number: Int
     /// The option's words, marks and references kept, without the letter or "(recommended)".
     public let label: [MarkdownInline]
     /// The same words as plain text, for the reply.
     public let text: String
     public let recommended: Bool
 
-    public init(letter: String, label: [MarkdownInline], text: String, recommended: Bool) {
+    public init(letter: String, number: Int, label: [MarkdownInline], text: String, recommended: Bool) {
         self.letter = letter
+        self.number = number
         self.label = label
         self.text = text
         self.recommended = recommended
     }
 
-    /// What tapping the card posts. It leads with the letter, which is what `chosenLetter` and a
-    /// human typing "A" both rely on.
-    public var reply: String { text.isEmpty ? letter : "\(letter) — \(text)" }
+    /// What tapping the card posts. It leads with the number, which is what `chosenNumber` and a
+    /// human typing "1" both rely on.
+    public var reply: String { text.isEmpty ? "\(number)" : "\(number) — \(text)" }
 }
 
 /// How an option does on one criterion, worst to best.
@@ -74,6 +80,10 @@ public struct TradeOffRow: Equatable, Sendable {
     public let option: [MarkdownInline]
     /// One per criterion.
     public let cells: [TradeOffCell]
+
+    /// The option without the marker its writer put in front ("A. Lisbon" → "Lisbon"); the grid
+    /// numbers its rows itself, like the cards (AITD-585).
+    public var name: [MarkdownInline] { Decisions.droppingMarker(option) }
 }
 
 public struct TradeOffCell: Equatable, Sendable {
@@ -106,15 +116,29 @@ public enum Decisions {
         return result
     }
 
-    /// The option a reply picks: the letter it starts with, alone or followed by a space or
-    /// punctuation. "A", "b", "C — Something else" and "A. go" choose; "Also…" does not.
-    public static func chosenLetter(in reply: String, letters: [String]) -> String? {
+    /// The number of the option a reply picks: the number it starts with, or the letter the asker
+    /// wrote, alone or followed by a space or punctuation. "2 — Wait", "1. go", "b" and
+    /// "C — Something else" choose; "Also…", "2nd thoughts" and "10 minutes" do not.
+    public static func chosenNumber(in reply: String, options: [DecisionOption]) -> Int? {
         let trimmed = reply.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let first = trimmed.first, first.isLetter else { return nil }
-        let rest = trimmed.dropFirst()
-        if let next = rest.first, next.isLetter || next.isNumber { return nil }
-        let letter = String(first).uppercased()
-        return letters.contains(letter) ? letter : nil
+        let lead = trimmed.prefix { ($0.isLetter || $0.isNumber) && $0.isASCII }
+        guard !lead.isEmpty, trimmed.dropFirst(lead.count).first.map({ $0.isLetter || $0.isNumber }) != true
+        else { return nil }
+        if let number = Int(lead) {
+            return options.contains { $0.number == number } ? number : nil
+        }
+        return options.first { $0.letter == lead.uppercased() }?.number
+    }
+
+    /// The letter over a grid's criterion column, from 0: A … Z, then AA, AB, as a spreadsheet does.
+    public static func columnLetter(_ index: Int) -> String {
+        let letters = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+        var index = index, name = ""
+        repeat {
+            name = String(letters[index % 26]) + name
+            index = index / 26 - 1
+        } while index >= 0
+        return name
     }
 
     // MARK: - Decisions
@@ -124,28 +148,44 @@ public enum Decisions {
               case .text(let lead)? = inlines.first, lead.bold, !lead.code,
               lead.text.trimmingCharacters(in: .whitespaces).lowercased() == "decision:",
               case .list(_, _, let items) = options else { return nil }
-        let parsed = items.compactMap(option)
+        let parsed = items.enumerated().compactMap { option($1, number: $0 + 1) }
         guard parsed.count == items.count, parsed.count >= 2 else { return nil }
         return Decision(question: trimmingLeadingSpace(Array(inlines.dropFirst())), options: parsed)
     }
 
-    private static func option(_ item: MarkdownListItem) -> DecisionOption? {
+    private static func option(_ item: MarkdownListItem, number: Int) -> DecisionOption? {
         guard item.checked == nil,
               case .paragraph(let inlines)? = item.blocks.first,
               case .text(let lead)? = inlines.first, lead.bold, !lead.code,
               let letter = optionLetter(lead.text) else { return nil }
         var label = trimmingLeadingSpace(Array(inlines.dropFirst()))
         let recommended = stripRecommended(&label)
-        return DecisionOption(letter: letter, label: label, text: plainText(label),
+        return DecisionOption(letter: letter, number: number, label: label, text: plainText(label),
                               recommended: recommended)
     }
 
-    /// "A", "A." "A)" or "A:" — one letter, then at most one mark.
+    /// "A", "A." "A)" or "A:" — one letter or a number of up to two digits, then at most one mark.
     private static func optionLetter(_ text: String) -> String? {
         var chars = Array(text.trimmingCharacters(in: .whitespaces))
         if let last = chars.last, ".):".contains(last) { chars.removeLast() }
-        guard chars.count == 1, chars[0].isLetter, chars[0].isASCII else { return nil }
-        return String(chars[0]).uppercased()
+        guard chars.allSatisfy(\.isASCII) else { return nil }
+        if chars.count == 1, chars[0].isLetter { return String(chars[0]).uppercased() }
+        guard (1...2).contains(chars.count), chars.allSatisfy(\.isNumber) else { return nil }
+        return String(chars)
+    }
+
+    /// `inlines` without a leading option marker — "A. ", "2) ", "C: " or a marker standing alone.
+    static func droppingMarker(_ inlines: [MarkdownInline]) -> [MarkdownInline] {
+        guard case .text(var run)? = inlines.first, !run.code else { return inlines }
+        let text = run.text.drop { $0.isWhitespace }
+        let token = text.prefix { !$0.isWhitespace }
+        let alone = inlines.count == 1 && text.dropFirst(token.count).allSatisfy(\.isWhitespace)
+        let marked = token.last.map { ".):".contains($0) } == true
+        guard alone || marked, optionLetter(String(token)) != nil else { return inlines }
+        run.text = String(text.dropFirst(token.count))
+        var rest = Array(inlines.dropFirst())
+        if !run.text.isEmpty { rest.insert(.text(run), at: 0) }
+        return trimmingLeadingSpace(rest)
     }
 
     /// Takes a trailing "(recommended)" off the label and says whether it was there.
