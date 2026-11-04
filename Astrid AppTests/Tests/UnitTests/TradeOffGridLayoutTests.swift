@@ -50,3 +50,65 @@ final class TradeOffGridLayoutTests: XCTestCase {
         XCTAssertGreaterThan(longName, short + 60, "the row grows to fit its option (short \(short), long \(longName))")
     }
 }
+
+// MARK: - Task AITD-591 — "make the traffic light rows and columns all the same height (e.g.
+// distribute) but make sure that all the text fits. the option (first column) can be wider if
+// needed"
+//
+// The grid sized each row and column to its own content, so one long reason made one tall row
+// and one wide column beside short ones. Every option row is now as tall as the tallest, and
+// every rated column as wide as the widest; the options column keeps its own width.
+
+@MainActor
+final class TradeOffGridUniformTests: XCTestCase {
+
+    private func height(of source: String) -> CGFloat {
+        let host = UIHostingController(rootView: MarkdownText(source: source))
+        return host.sizeThatFits(in: CGSize(width: 360, height: CGFloat.greatestFiniteMagnitude)).height
+    }
+
+    private func grid(_ first: String, _ second: String) -> String {
+        """
+        | Option | Cost | Speed |
+        |---|---|---|
+        | A. Rust core | ++ \(first) | + fast |
+        | B. Swift | -- \(second) | - slower |
+        """
+    }
+
+    private let long = String(repeating: "one codebase for every platform ", count: 6)
+
+    func testAITD591_oneTallRowMakesEveryRowThatTall() {
+        let oneLong = height(of: grid(long, "two codebases"))
+        let bothLong = height(of: grid(long, long))
+
+        // With equal rows the short row is already as tall as the long one, so making it long
+        // too changes nothing; with rows sized to their own text it adds several lines.
+        XCTAssertEqual(oneLong, bothLong, accuracy: 1,
+                       "rows share the tallest row's height (one long \(oneLong), both long \(bothLong))")
+    }
+
+    func testAITD591_columnsShareTheWidestWidthAndRowsTheTallestHeight() {
+        // Column 0 is the options column; 1 and 2 are criteria. Natural widths and the height
+        // each cell needs at a width, as a layout would measure them.
+        let natural: [[CGFloat]] = [[50, 40, 40], [100, 150, 60], [70, 90, 60]]
+        let metrics = TradeOffGridMetrics(
+            columns: 3, rows: 3, optionWidth: 64...180, cellWidth: 84...150,
+            naturalWidth: { natural[$0][$1] },
+            height: { row, column, width in row == 1 && column == 1 ? 80 : (width < 90 ? 40 : 20) })
+
+        XCTAssertEqual(metrics.widths, [100, 150, 150], "criteria share the widest; options keep their own")
+        XCTAssertEqual(metrics.heights[1], metrics.heights[2], "option rows share one height")
+        XCTAssertEqual(metrics.heights[1], 80, "the tallest cell's text fits")
+        XCTAssertEqual(metrics.heights[0], 20, "the header row keeps its own height")
+    }
+
+    func testAITD591_theOptionsColumnMayBeWiderThanACriterion() {
+        let metrics = TradeOffGridMetrics(
+            columns: 2, rows: 2, optionWidth: 64...180, cellWidth: 84...150,
+            naturalWidth: { _, column in column == 0 ? 400 : 30 },
+            height: { _, _, _ in 20 })
+
+        XCTAssertEqual(metrics.widths, [180, 84])
+    }
+}

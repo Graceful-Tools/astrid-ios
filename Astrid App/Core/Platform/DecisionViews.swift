@@ -89,25 +89,26 @@ struct TradeOffGridView: View {
     let inline: ([MarkdownInline]) -> Text
 
     /// A cell wraps within these before the grid grows sideways and scrolls (AITD-585), so a
-    /// word is never broken across lines to squeeze one more column onto a phone.
+    /// word is never broken across lines to squeeze one more column onto a phone. The options
+    /// column may run wider than a criterion (AITD-591).
     private let cellWidth: ClosedRange<CGFloat> = 84...150
-    private let optionWidth: ClosedRange<CGFloat> = 64...120
+    private let optionWidth: ClosedRange<CGFloat> = 64...180
+
+    /// The header's; a row written with fewer cells is padded with empty ones.
+    private var columns: Int { max(grid.header.count, 1 + (grid.rows.map(\.cells.count).max() ?? 0)) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: style.blockSpacing * 2) {
             ScrollView(.horizontal, showsIndicators: false) {
-                Grid(alignment: .center, horizontalSpacing: 3, verticalSpacing: 3) {
-                    GridRow {
-                        ForEach(Array(grid.header.enumerated()), id: \.offset) { index, cell in
-                            header(cell, column: index)
-                        }
+                TradeOffGridLayout(columns: columns, optionWidth: optionWidth, cellWidth: cellWidth,
+                                   spacing: 3) {
+                    ForEach(0..<columns, id: \.self) { column in
+                        header(column < grid.header.count ? grid.header[column] : [], column: column)
                     }
                     ForEach(Array(grid.rows.enumerated()), id: \.offset) { index, row in
-                        GridRow {
-                            option(row, number: index + 1)
-                            ForEach(Array(row.cells.enumerated()), id: \.offset) { _, cell in
-                                ratedCell(cell)
-                            }
+                        option(row, number: index + 1)
+                        ForEach(0..<columns - 1, id: \.self) { column in
+                            ratedCell(column < row.cells.count ? row.cells[column] : nil)
                         }
                     }
                 }
@@ -125,7 +126,6 @@ struct TradeOffGridView: View {
         return title.font(style.small.bold())
             .multilineTextAlignment(.center)
             .padding(.horizontal, 6).padding(.vertical, 4)
-            .wrapped(within: column == 0 ? optionWidth : cellWidth)
             .frame(maxWidth: .infinity, maxHeight: .infinity,
                    alignment: column == 0 ? .leading : .center)
     }
@@ -134,22 +134,21 @@ struct TradeOffGridView: View {
     private func option(_ row: TradeOffRow, number: Int) -> some View {
         (Text(verbatim: "\(number). ") + inline(row.name)).font(style.small.bold())
             .padding(.horizontal, 6).padding(.vertical, 6)
-            .wrapped(within: optionWidth)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 
-    private func ratedCell(_ cell: TradeOffCell) -> some View {
-        Text(MarkdownRendering.attributed(cell.reason, defaultColor: TradeOffPalette.text(for: cell.rating),
+    /// `nil` past the end of a row written with fewer cells than the header, drawn as an empty one.
+    private func ratedCell(_ cell: TradeOffCell?) -> some View {
+        Text(MarkdownRendering.attributed(cell?.reason ?? [], defaultColor: TradeOffPalette.text(for: cell?.rating),
                                           referenceFont: nil))
             .font(style.small)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 6).padding(.vertical, 6)
-            .wrapped(within: cellWidth)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .background(RoundedRectangle(cornerRadius: 4)
-                .fill(cell.rating.map(TradeOffPalette.fill) ?? style.text.opacity(0.05)))
-            .accessibilityLabel(Text(TradeOffPalette.label(for: cell.rating) + ". "
-                                     + Decisions.plainText(cell.reason)))
+                .fill(cell?.rating.map(TradeOffPalette.fill) ?? style.text.opacity(0.05)))
+            .accessibilityLabel(Text(TradeOffPalette.label(for: cell?.rating) + ". "
+                                     + Decisions.plainText(cell?.reason ?? [])))
     }
 
     /// The colour key, for the ratings this grid uses, worst to best.
@@ -173,37 +172,84 @@ struct TradeOffGridView: View {
     }
 }
 
-/// Lays its content out at a definite width inside `range` — its own width when that is
-/// narrower, never wider than it is offered — and reports the height that width needs.
-///
-/// `frame(minWidth:maxWidth:)` cannot do this inside a sideways ScrollView: the scroll view
-/// measures with no width, the frame passes none on, and the text answers with its one-line
-/// height. The row kept that height while the text drew wrapped at `range.upperBound`, so
-/// everything after the first line was clipped (AITD-588).
-private struct WrapWithin: Layout {
-    let range: ClosedRange<CGFloat>
+/// The grid's column widths and row heights (AITD-591): every criterion column as wide as the
+/// widest, within `cellWidth`; the options column its own width, within `optionWidth`, which may
+/// be wider; every option row as tall as the tallest at those widths, so all of its text fits.
+/// Row 0 is the header and keeps its own height.
+struct TradeOffGridMetrics: Equatable {
+    let widths: [CGFloat]
+    let heights: [CGFloat]
 
-    private func width(for proposal: ProposedViewSize, _ child: LayoutSubview) -> CGFloat {
-        let natural = child.sizeThatFits(.unspecified).width
-        return min(natural, proposal.width ?? range.upperBound, range.upperBound)
-            .clamped(to: range)
-    }
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        guard let child = subviews.first else { return .zero }
-        let width = width(for: proposal, child)
-        return CGSize(width: width, height: child.sizeThatFits(ProposedViewSize(width: width, height: nil)).height)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        guard let child = subviews.first else { return }
-        child.place(at: bounds.origin, proposal: ProposedViewSize(width: bounds.width, height: nil))
+    init(columns: Int, rows: Int, optionWidth: ClosedRange<CGFloat>, cellWidth: ClosedRange<CGFloat>,
+         naturalWidth: (_ row: Int, _ column: Int) -> CGFloat,
+         height: (_ row: Int, _ column: Int, _ width: CGFloat) -> CGFloat) {
+        func widest(_ columns: Range<Int>) -> CGFloat {
+            columns.flatMap { column in (0..<rows).map { naturalWidth($0, column) } }.max() ?? 0
+        }
+        let option = widest(0..<min(1, columns)).clamped(to: optionWidth)
+        let cell = widest(min(1, columns)..<columns).clamped(to: cellWidth)
+        let widths = (0..<columns).map { $0 == 0 ? option : cell }
+        let natural = (0..<rows).map { row in
+            (0..<columns).map { height(row, $0, widths[$0]) }.max() ?? 0
+        }
+        let body = natural.dropFirst().max() ?? 0
+        self.widths = widths
+        self.heights = natural.indices.map { $0 == 0 ? natural[0] : body }
     }
 }
 
-private extension View {
-    func wrapped(within range: ClosedRange<CGFloat>) -> some View {
-        WrapWithin(range: range) { self }
+/// Lays the grid out row by row, `columns` subviews to a row, at `TradeOffGridMetrics`' sizes.
+///
+/// Every cell is measured at the definite width it will be drawn at. SwiftUI's `Grid` could not do
+/// this inside a sideways ScrollView: the scroll view measures with no width, and text answers
+/// with its one-line height while drawing wrapped, so everything after the first line was clipped
+/// (AITD-588). Nor could it give every row the tallest row's height (AITD-591).
+struct TradeOffGridLayout: Layout {
+    let columns: Int
+    let optionWidth: ClosedRange<CGFloat>
+    let cellWidth: ClosedRange<CGFloat>
+    let spacing: CGFloat
+
+    func makeCache(subviews: Subviews) -> TradeOffGridMetrics? { nil }
+
+    private func metrics(_ subviews: Subviews, _ cache: inout TradeOffGridMetrics?) -> TradeOffGridMetrics {
+        if let cache { return cache }
+        let rows = columns > 0 ? (subviews.count + columns - 1) / columns : 0
+        func cell(_ row: Int, _ column: Int) -> LayoutSubview? {
+            let index = row * columns + column
+            return index < subviews.count ? subviews[index] : nil
+        }
+        let metrics = TradeOffGridMetrics(
+            columns: columns, rows: rows, optionWidth: optionWidth, cellWidth: cellWidth,
+            naturalWidth: { cell($0, $1)?.sizeThatFits(.unspecified).width ?? 0 },
+            height: { cell($0, $1)?.sizeThatFits(ProposedViewSize(width: $2, height: nil)).height ?? 0 })
+        cache = metrics
+        return metrics
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout TradeOffGridMetrics?) -> CGSize {
+        let metrics = metrics(subviews, &cache)
+        func total(_ sizes: [CGFloat]) -> CGFloat {
+            sizes.reduce(0, +) + spacing * CGFloat(max(sizes.count - 1, 0))
+        }
+        return CGSize(width: total(metrics.widths), height: total(metrics.heights))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews,
+                       cache: inout TradeOffGridMetrics?) {
+        let metrics = metrics(subviews, &cache)
+        var y = bounds.minY
+        for (row, height) in metrics.heights.enumerated() {
+            var x = bounds.minX
+            for (column, width) in metrics.widths.enumerated() {
+                let index = row * columns + column
+                guard index < subviews.count else { return }
+                subviews[index].place(at: CGPoint(x: x, y: y),
+                                      proposal: ProposedViewSize(width: width, height: height))
+                x += width + spacing
+            }
+            y += height + spacing
+        }
     }
 }
 
