@@ -1606,3 +1606,4 @@
 "tradeoff.good" = "좋음";
 "tradeoff.very_good" = "매우 좋음";
 "tradeoff.unrated" = "평가 없음";
+"tasks.tradeoff_grid.full_screen" = "전체 화면";

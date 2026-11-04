@@ -1604,3 +1604,4 @@
 "tradeoff.good" = "Gut";
 "tradeoff.very_good" = "Sehr gut";
 "tradeoff.unrated" = "Nicht bewertet";
+"tasks.tradeoff_grid.full_screen" = "Vollbild";

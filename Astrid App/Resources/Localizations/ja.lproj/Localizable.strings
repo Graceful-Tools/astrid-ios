@@ -1604,3 +1604,4 @@
 "tradeoff.good" = "良い";
 "tradeoff.very_good" = "非常に良い";
 "tradeoff.unrated" = "未評価";
+"tasks.tradeoff_grid.full_screen" = "全画面表示";
