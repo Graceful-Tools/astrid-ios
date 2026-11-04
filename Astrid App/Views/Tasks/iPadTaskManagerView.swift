@@ -76,6 +76,8 @@ struct iPadTaskManagerView: View {
 
     // Selected task for detail panel
     @State private var selectedTask: Task?
+    /// Where a decision matrix sits in the detail panel, so its sideways scroll keeps the panel open (AITD-594).
+    @State private var sidewaysScrollRegions: [CGRect] = []
     /// What the list column is currently drawing, reported by TaskListView's rotator. The pane
     /// layout turns on it: messages ride beside a LIST, and stand down for a board (a34d0163).
     @State private var listViewMode: HeaderToggleSegment = .list
@@ -603,6 +605,8 @@ struct iPadTaskManagerView: View {
                         withAnimation(Self.panelAnimation) { detailFullScreen.toggle() }
                     }
                 )
+                // Read inside the stack, which does not pass preferences out.
+                .onPreferenceChange(SidewaysScrollRegions.self) { sidewaysScrollRegions = $0 }
             }
             .background(themeBackground)  // Fills BEHIND the rounded card only (inside the clip)
             .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -617,11 +621,14 @@ struct iPadTaskManagerView: View {
             .padding(.trailing, 8) // Right margin (matches left side of screen)
             // Swipe left-to-right on the open task closes it (matches iPhone
             // swipe-back). The detail panel is a side panel on iPad, not a pushed
-            // view, so this gesture is what dismisses it.
+            // view, so this gesture is what dismisses it. Not from a decision
+            // matrix, whose sideways scroll it would otherwise steal (AITD-594).
             .simultaneousGesture(
-                DragGesture(minimumDistance: 20)
+                DragGesture(minimumDistance: 20, coordinateSpace: .global)
                     .onEnded { value in
-                        if isRightwardSwipeGesture(
+                        if shouldSwipeCloseTaskPanel(
+                            start: value.startLocation,
+                            sidewaysScrollRegions: sidewaysScrollRegions,
                             translationWidth: value.translation.width,
                             translationHeight: value.translation.height,
                             predictedEndTranslationWidth: value.predictedEndTranslation.width

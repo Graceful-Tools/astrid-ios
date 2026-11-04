@@ -83,6 +83,24 @@ struct DecisionCardsView: View {
 
 // MARK: - Trade-off grid
 
+/// Global frames of content that scrolls sideways: the iPad task panel's swipe-to-close
+/// leaves a swipe that starts on one to it (AITD-594).
+enum SidewaysScrollRegions: PreferenceKey {
+    static let defaultValue: [CGRect] = []
+    static func reduce(value: inout [CGRect], nextValue: () -> [CGRect]) {
+        value.append(contentsOf: nextValue())
+    }
+}
+
+extension View {
+    func reportsSidewaysScrollRegion() -> some View {
+        background(GeometryReader { proxy in
+            Color.clear.preference(key: SidewaysScrollRegions.self,
+                                   value: [proxy.frame(in: .global)])
+        })
+    }
+}
+
 struct TradeOffGridView: View {
     let grid: TradeOff
     let style: MarkdownStyle
@@ -114,6 +132,7 @@ struct TradeOffGridView: View {
                     }
                 }
             }
+            .reportsSidewaysScrollRegion()
             legend
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { available = $0 }
