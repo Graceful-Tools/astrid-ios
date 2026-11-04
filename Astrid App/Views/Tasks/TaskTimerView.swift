@@ -23,10 +23,8 @@ struct TaskTimerView: View {
         self._task = task
         self.onUpdate = onUpdate
 
-        // Use task's saved duration, or default to 25 minutes
-        // Timer duration is per-task, not global
-        let taskDuration = task.wrappedValue.timerDuration
-        let initialDuration = (taskDuration != nil && taskDuration! > 0) ? taskDuration! : 25
+        // The task's saved duration, or — for a new timer — the last one set (AITD-593)
+        let initialDuration = TimerDurationMemory().initialDuration(for: task.wrappedValue.timerDuration)
 
         _duration = State(initialValue: initialDuration)
         _timeLeft = State(initialValue: initialDuration * 60)
@@ -201,6 +199,7 @@ struct TaskTimerView: View {
         isEditingDuration = false
         // Cancel any pending save task since we'll save immediately
         saveTask?.cancel()
+        TimerDurationMemory().remember(duration)
 
         isActive = true
         isFinished = false
@@ -549,7 +548,8 @@ struct TaskTimerView: View {
     }
 
     private func saveDuration() {
-        // Save timer duration to this specific task (per-task, not global)
+        // Save timer duration to this task, and remember it for the next new timer (AITD-593)
+        TimerDurationMemory().remember(duration)
         // Debounce server update to avoid spamming while scrolling the picker
         saveTask?.cancel()
         saveTask = _Concurrency.Task {
