@@ -50,6 +50,24 @@ func isRightwardSwipeGesture(
     return isHorizontal && isRight && meetsThreshold
 }
 
+/// The iPad task panel's swipe-to-close (AITD-594). A swipe that starts on content
+/// that scrolls sideways, a decision matrix, scrolls it instead of closing the task.
+/// `regions` are those frames in the gesture's coordinate space.
+func shouldSwipeCloseTaskPanel(
+    start: CGPoint,
+    sidewaysScrollRegions regions: [CGRect],
+    translationWidth: CGFloat,
+    translationHeight: CGFloat,
+    predictedEndTranslationWidth: CGFloat
+) -> Bool {
+    guard !regions.contains(where: { $0.contains(start) }) else { return false }
+    return isRightwardSwipeGesture(
+        translationWidth: translationWidth,
+        translationHeight: translationHeight,
+        predictedEndTranslationWidth: predictedEndTranslationWidth
+    )
+}
+
 /// Completion gate for the UIKit leading-edge recognizer used by list roots.
 /// Edge origin and horizontal intent are enforced by UIKit; this helper keeps
 /// the distance/velocity policy deterministic and unit-testable.

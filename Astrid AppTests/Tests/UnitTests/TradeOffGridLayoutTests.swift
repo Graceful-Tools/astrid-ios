@@ -112,3 +112,22 @@ final class TradeOffGridUniformTests: XCTestCase {
         XCTAssertEqual(metrics.widths, [180, 84])
     }
 }
+
+// MARK: - Task AITD-592 — "Trade-off grid: option rows one height and criteria columns one
+// width, all text fitting (follow web AWTD-1536)"
+//
+// Web's contract (PRODUCT_CONTRACT §8): the option column fits its longest name between about
+// 96 and 192, and never more than a third of the width the grid is given; past that it wraps.
+
+final class TradeOffGridOptionWidthTests: XCTestCase {
+
+    func testAITD592_theOptionColumnRunsFrom96To192() {
+        XCTAssertEqual(TradeOffGridMetrics.optionWidth(available: 1000), 96...192)
+        XCTAssertEqual(TradeOffGridMetrics.optionWidth(available: nil), 96...192, "unmeasured: the plain range")
+    }
+
+    func testAITD592_theOptionColumnTakesAtMostAThirdOfTheWidth() {
+        XCTAssertEqual(TradeOffGridMetrics.optionWidth(available: 390), 96...130, "a phone: a third of 390")
+        XCTAssertEqual(TradeOffGridMetrics.optionWidth(available: 240), 96...96, "never below the floor")
+    }
+}

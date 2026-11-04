@@ -83,6 +83,24 @@ struct DecisionCardsView: View {
 
 // MARK: - Trade-off grid
 
+/// Global frames of content that scrolls sideways: the iPad task panel's swipe-to-close
+/// leaves a swipe that starts on one to it (AITD-594).
+enum SidewaysScrollRegions: PreferenceKey {
+    static let defaultValue: [CGRect] = []
+    static func reduce(value: inout [CGRect], nextValue: () -> [CGRect]) {
+        value.append(contentsOf: nextValue())
+    }
+}
+
+extension View {
+    func reportsSidewaysScrollRegion() -> some View {
+        background(GeometryReader { proxy in
+            Color.clear.preference(key: SidewaysScrollRegions.self,
+                                   value: [proxy.frame(in: .global)])
+        })
+    }
+}
+
 struct TradeOffGridView: View {
     let grid: TradeOff
     let style: MarkdownStyle
@@ -90,9 +108,10 @@ struct TradeOffGridView: View {
 
     /// A cell wraps within these before the grid grows sideways and scrolls (AITD-585), so a
     /// word is never broken across lines to squeeze one more column onto a phone. The options
-    /// column may run wider than a criterion (AITD-591).
+    /// column may run wider than a criterion (AITD-591), up to a third of the width (AITD-592).
     private let cellWidth: ClosedRange<CGFloat> = 84...150
-    private let optionWidth: ClosedRange<CGFloat> = 64...180
+    @State private var available: CGFloat?
+    private var optionWidth: ClosedRange<CGFloat> { TradeOffGridMetrics.optionWidth(available: available) }
 
     /// The header's; a row written with fewer cells is padded with empty ones.
     private var columns: Int { max(grid.header.count, 1 + (grid.rows.map(\.cells.count).max() ?? 0)) }
@@ -113,8 +132,10 @@ struct TradeOffGridView: View {
                     }
                 }
             }
+            .reportsSidewaysScrollRegion()
             legend
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { available = $0 }
     }
 
     /// The options column's name as written; each criterion after it under its letter, A, B, C.
@@ -179,6 +200,14 @@ struct TradeOffGridView: View {
 struct TradeOffGridMetrics: Equatable {
     let widths: [CGFloat]
     let heights: [CGFloat]
+
+    /// The options column's range, as web's (PRODUCT_CONTRACT §8): its longest name between 96
+    /// and 192, never more than a third of the `available` width, and wrapping past that (AITD-592).
+    static func optionWidth(available: CGFloat?) -> ClosedRange<CGFloat> {
+        let floor: CGFloat = 96
+        guard let available, available > 0 else { return floor...192 }
+        return floor...max(floor, min(192, (available / 3).rounded(.down)))
+    }
 
     init(columns: Int, rows: Int, optionWidth: ClosedRange<CGFloat>, cellWidth: ClosedRange<CGFloat>,
          naturalWidth: (_ row: Int, _ column: Int) -> CGFloat,
