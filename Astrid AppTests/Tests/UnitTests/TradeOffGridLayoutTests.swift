@@ -131,3 +131,21 @@ final class TradeOffGridOptionWidthTests: XCTestCase {
         XCTAssertEqual(TradeOffGridMetrics.optionWidth(available: 240), 96...96, "never below the floor")
     }
 }
+
+// MARK: - Task AITD-595 — "Trade-off grid: a sideways drag scrolls the grid instead of closing the
+// task, and the grid opens full screen (iOS half of web AWTD-1534)"
+//
+// Web's full-screen grid draws wider cells (at least ~9rem) in a view that scrolls both ways.
+
+final class TradeOffGridFullScreenTests: XCTestCase {
+
+    func testAITD595_inlineCellsKeepTheirWidth() {
+        XCTAssertEqual(TradeOffGridMetrics.cellWidth(fullScreen: false), 84...150)
+    }
+
+    func testAITD595_fullScreenCellsAreAtLeastNineRemWide() {
+        let full = TradeOffGridMetrics.cellWidth(fullScreen: true)
+        XCTAssertGreaterThanOrEqual(full.lowerBound, 144)
+        XCTAssertGreaterThan(full.upperBound, TradeOffGridMetrics.cellWidth(fullScreen: false).upperBound)
+    }
+}

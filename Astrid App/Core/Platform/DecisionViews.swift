@@ -84,7 +84,8 @@ struct DecisionCardsView: View {
 // MARK: - Trade-off grid
 
 /// Global frames of content that scrolls sideways: the iPad task panel's swipe-to-close
-/// leaves a swipe that starts on one to it (AITD-594).
+/// leaves a swipe that starts on one to it (AITD-594). Only content that is wider than its
+/// space reports itself; a grid that fits has nothing to scroll (AITD-595).
 enum SidewaysScrollRegions: PreferenceKey {
     static let defaultValue: [CGRect] = []
     static func reduce(value: inout [CGRect], nextValue: () -> [CGRect]) {
@@ -93,10 +94,10 @@ enum SidewaysScrollRegions: PreferenceKey {
 }
 
 extension View {
-    func reportsSidewaysScrollRegion() -> some View {
+    func reportsSidewaysScrollRegion(_ scrolls: Bool = true) -> some View {
         background(GeometryReader { proxy in
             Color.clear.preference(key: SidewaysScrollRegions.self,
-                                   value: [proxy.frame(in: .global)])
+                                   value: scrolls ? [proxy.frame(in: .global)] : [])
         })
     }
 }
@@ -105,37 +106,81 @@ struct TradeOffGridView: View {
     let grid: TradeOff
     let style: MarkdownStyle
     let inline: ([MarkdownInline]) -> Text
+    /// Drawn by `TradeOffGridFullScreenView` (AITD-595): wider cells, no scroller of its own (the
+    /// full-screen view scrolls both ways), and no control to open full screen again.
+    var fullScreen = false
+    /// The width the grid is shown in, when the caller knows it better than the grid can: inside
+    /// the full-screen view's two-way scroller the grid's own width is its content's.
+    var availableWidth: CGFloat?
 
     /// A cell wraps within these before the grid grows sideways and scrolls (AITD-585), so a
     /// word is never broken across lines to squeeze one more column onto a phone. The options
     /// column may run wider than a criterion (AITD-591), up to a third of the width (AITD-592).
-    private let cellWidth: ClosedRange<CGFloat> = 84...150
-    @State private var available: CGFloat?
+    private var cellWidth: ClosedRange<CGFloat> { TradeOffGridMetrics.cellWidth(fullScreen: fullScreen) }
+    @State private var measured: CGFloat?
+    @State private var contentWidth: CGFloat?
+    @State private var showsFullScreen = false
+    private var available: CGFloat? { availableWidth ?? measured }
     private var optionWidth: ClosedRange<CGFloat> { TradeOffGridMetrics.optionWidth(available: available) }
+    /// Is there anything to scroll? Only then does a sideways drag belong to the grid (AITD-595).
+    private var scrollsSideways: Bool {
+        guard let contentWidth, let measured else { return false }
+        return contentWidth > measured + 0.5
+    }
 
     /// The header's; a row written with fewer cells is padded with empty ones.
     private var columns: Int { max(grid.header.count, 1 + (grid.rows.map(\.cells.count).max() ?? 0)) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: style.blockSpacing * 2) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                TradeOffGridLayout(columns: columns, optionWidth: optionWidth, cellWidth: cellWidth,
-                                   spacing: 3) {
-                    ForEach(0..<columns, id: \.self) { column in
-                        header(column < grid.header.count ? grid.header[column] : [], column: column)
-                    }
-                    ForEach(Array(grid.rows.enumerated()), id: \.offset) { index, row in
-                        option(row, number: index + 1)
-                        ForEach(0..<columns - 1, id: \.self) { column in
-                            ratedCell(column < row.cells.count ? row.cells[column] : nil)
-                        }
-                    }
+            if fullScreen {
+                table
+            } else {
+                fullScreenButton
+                ScrollView(.horizontal, showsIndicators: false) {
+                    table.onGeometryChange(for: CGFloat.self) { $0.size.width } action: { contentWidth = $0 }
                 }
+                .reportsSidewaysScrollRegion(scrollsSideways)
             }
-            .reportsSidewaysScrollRegion()
             legend
         }
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { available = $0 }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { measured = $0 }
+        #if os(iOS)
+        .fullScreenCover(isPresented: $showsFullScreen) {
+            TradeOffGridFullScreenView(grid: grid, style: style)
+        }
+        #else
+        .sheet(isPresented: $showsFullScreen) {
+            TradeOffGridFullScreenView(grid: grid, style: style)
+                .frame(minWidth: 720, minHeight: 480)
+        }
+        #endif
+    }
+
+    private var table: some View {
+        TradeOffGridLayout(columns: columns, optionWidth: optionWidth, cellWidth: cellWidth,
+                           spacing: 3) {
+            ForEach(0..<columns, id: \.self) { column in
+                header(column < grid.header.count ? grid.header[column] : [], column: column)
+            }
+            ForEach(Array(grid.rows.enumerated()), id: \.offset) { index, row in
+                option(row, number: index + 1)
+                ForEach(0..<columns - 1, id: \.self) { column in
+                    ratedCell(column < row.cells.count ? row.cells[column] : nil)
+                }
+            }
+        }
+    }
+
+    /// Web's "⤢ Full screen" above every grid (AITD-595, PRODUCT_CONTRACT §8).
+    private var fullScreenButton: some View {
+        Button { showsFullScreen = true } label: {
+            Label(NSLocalizedString("tasks.tradeoff_grid.full_screen", comment: ""),
+                  systemImage: "arrow.up.left.and.arrow.down.right")
+        }
+        .buttonStyle(.plain)
+        .font(style.small)
+        .foregroundColor(style.muted)
     }
 
     /// The options column's name as written; each criterion after it under its letter, A, B, C.
@@ -193,6 +238,46 @@ struct TradeOffGridView: View {
     }
 }
 
+/// A trade-off grid on a screen of its own (AITD-595, web AWTD-1534): the grid and its colour key
+/// in a view that scrolls both ways, with wider cells, closed with ✕. Drawn in the system's own
+/// colours rather than the caller's, which may be a sender's bubble with white text.
+struct TradeOffGridFullScreenView: View {
+    let grid: TradeOff
+    let style: MarkdownStyle
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.taskIdentifierLinks) private var identifiers
+    @State private var width: CGFloat?
+
+    private var plain: MarkdownStyle {
+        var plain = style
+        plain.text = .primary
+        plain.muted = .secondary
+        return plain
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView([.horizontal, .vertical]) {
+                TradeOffGridView(grid: grid, style: plain, inline: inline, fullScreen: true,
+                                 availableWidth: width)
+                    .padding()
+            }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button { dismiss() } label: { Image(systemName: "xmark") }
+                        .accessibilityLabel(Text(NSLocalizedString("misc.close", comment: "")))
+                }
+            }
+        }
+    }
+
+    private func inline(_ inlines: [MarkdownInline]) -> Text {
+        Text(MarkdownRendering.attributed(inlines, defaultColor: .primary, referenceFont: nil,
+                                          identifiers: identifiers))
+    }
+}
+
 /// The grid's column widths and row heights (AITD-591): every criterion column as wide as the
 /// widest, within `cellWidth`; the options column its own width, within `optionWidth`, which may
 /// be wider; every option row as tall as the tallest at those widths, so all of its text fits.
@@ -203,6 +288,12 @@ struct TradeOffGridMetrics: Equatable {
 
     /// The options column's range, as web's (PRODUCT_CONTRACT §8): its longest name between 96
     /// and 192, never more than a third of the `available` width, and wrapping past that (AITD-592).
+    /// A criterion cell's range: 84-150 in a comment (AITD-585), and at least web's 9rem with room
+    /// to grow in the full-screen view (AITD-595).
+    static func cellWidth(fullScreen: Bool) -> ClosedRange<CGFloat> {
+        fullScreen ? 144...240 : 84...150
+    }
+
     static func optionWidth(available: CGFloat?) -> ClosedRange<CGFloat> {
         let floor: CGFloat = 96
         guard let available, available > 0 else { return floor...192 }

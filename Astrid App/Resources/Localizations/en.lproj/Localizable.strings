@@ -1612,3 +1612,4 @@
 "tradeoff.good" = "Good";
 "tradeoff.very_good" = "Very good";
 "tradeoff.unrated" = "Not rated";
+"tasks.tradeoff_grid.full_screen" = "Full screen";

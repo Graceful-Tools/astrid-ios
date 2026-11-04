@@ -72,19 +72,50 @@ final class TaskPanelSwipeCloseTests: XCTestCase {
     func testAITD594_aSwipeElsewhereStillClosesTheTask() {
         XCTAssertTrue(closes(from: CGPoint(x: 100, y: 100)))
     }
+
+    // MARK: Task AITD-595 — "Trade-off grid: a sideways drag scrolls the grid instead of closing
+    // the task" (web AWTD-1534, PRODUCT_CONTRACT §8)
+
+    func testAITD595_aSwipeFromTheScreensLeftEdgeClosesTheTaskEvenOverAGrid() {
+        let flush = CGRect(x: 0, y: 300, width: 500, height: 200)
+        XCTAssertTrue(shouldSwipeCloseTaskPanel(start: CGPoint(x: 8, y: 400),
+                                                sidewaysScrollRegions: [flush],
+                                                translationWidth: 150, translationHeight: 5,
+                                                predictedEndTranslationWidth: 300),
+                      "the edge swipe is back, wherever it starts")
+    }
 }
 
 @MainActor
 final class SidewaysScrollRegionReportTests: XCTestCase {
     func testAITD594_theDecisionMatrixReportsWhereItIs() {
+        let reported = regions(reportedBy: Self.wideGrid)
+        XCTAssertEqual(reported.count, 1, "one grid, one region")
+        XCTAssertGreaterThan(reported.first?.height ?? 0, 20)
+    }
+
+    /// AITD-595: a grid with nothing to scroll leaves the swipe to close the task (web: "a grid
+    /// that fits needs no scroll, so a swipe across it still goes back").
+    func testAITD595_aGridThatFitsReportsNoRegion() {
+        XCTAssertEqual(regions(reportedBy: """
+            | Option | Cost |
+            |---|---|
+            | A. Rust core | ++ one codebase |
+            """), [])
+    }
+
+    /// Eight criteria at 84pt or more each cannot fit in 600.
+    private static let wideGrid = """
+        | Option | Cost | Speed | Risk | Reach | Effort | Fit | Fun | Time |
+        |---|---|---|---|---|---|---|---|---|
+        | A. Rust core | ++ one codebase | + fast | ~ new | + all | - big | + yes | ++ fun | - long |
+        """
+
+    private func regions(reportedBy source: String) -> [CGRect] {
         var reported: [CGRect] = []
         let view = NavigationStack {
             ScrollView {
-                MarkdownText(source: """
-                    | Option | Cost |
-                    |---|---|
-                    | A. Rust core | ++ one codebase |
-                    """)
+                MarkdownText(source: source)
             }
             .onPreferenceChange(SidewaysScrollRegions.self) { reported = $0 }
         }
@@ -93,8 +124,6 @@ final class SidewaysScrollRegionReportTests: XCTestCase {
         window.makeKeyAndVisible()
         window.layoutIfNeeded()
         RunLoop.main.run(until: Date().addingTimeInterval(0.3))
-
-        XCTAssertEqual(reported.count, 1, "one grid, one region")
-        XCTAssertGreaterThan(reported.first?.height ?? 0, 20)
+        return reported
     }
 }

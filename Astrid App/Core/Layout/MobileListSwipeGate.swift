@@ -50,9 +50,14 @@ func isRightwardSwipeGesture(
     return isHorizontal && isRight && meetsThreshold
 }
 
+/// How far in from the screen's leading edge a swipe still counts as "back" over a
+/// sideways-scrolling grid (AITD-595, as web's edge swipe).
+let taskPanelEdgeSwipeWidth: CGFloat = 20
+
 /// The iPad task panel's swipe-to-close (AITD-594). A swipe that starts on content
-/// that scrolls sideways, a decision matrix, scrolls it instead of closing the task.
-/// `regions` are those frames in the gesture's coordinate space.
+/// that scrolls sideways, a decision matrix, scrolls it instead of closing the task —
+/// unless it starts at the screen's leading edge, which is always back (AITD-595).
+/// `regions` are those frames in the gesture's (global) coordinate space.
 func shouldSwipeCloseTaskPanel(
     start: CGPoint,
     sidewaysScrollRegions regions: [CGRect],
@@ -60,7 +65,8 @@ func shouldSwipeCloseTaskPanel(
     translationHeight: CGFloat,
     predictedEndTranslationWidth: CGFloat
 ) -> Bool {
-    guard !regions.contains(where: { $0.contains(start) }) else { return false }
+    let fromEdge = start.x <= taskPanelEdgeSwipeWidth
+    guard fromEdge || !regions.contains(where: { $0.contains(start) }) else { return false }
     return isRightwardSwipeGesture(
         translationWidth: translationWidth,
         translationHeight: translationHeight,
