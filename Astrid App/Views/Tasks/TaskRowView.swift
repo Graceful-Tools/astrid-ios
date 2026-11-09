@@ -390,33 +390,26 @@ struct TaskRowView: View {
         // the mode without the row knowing what the modes are.
         else if let assignee = effectiveAssignee,
            showsAssigneeFace {
-            // Show assignee avatar instead of checkbox for shared list tasks
-            // Use cachedImageURL to leverage UserImageCache from list member data
-            CachedAsyncImage(url: assignee.cachedImageURL.flatMap { URL(string: $0) }) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                // Show initials placeholder for loading or failed states
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Theme.accent)
-                    Text(assignee.initials)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white)
+            // Show assignee avatar instead of checkbox for shared list tasks.
+            // A repeating task puts the photo, round, inside the repeat arrows (AITD-602) —
+            // the same arrows your own repeating checkbox shows.
+            Group {
+                if showsRepeatFrame {
+                    RepeatFramedMark(priority: task.priority) {
+                        assigneePhoto(assignee, initialsSize: 10)
+                    }
+                } else {
+                    assigneePhoto(assignee, initialsSize: 14)
+                        .frame(width: 34, height: 34)
+                        // Rounded rectangle with a priority-colored border — matches the
+                        // web's assigned-task avatar (rounded-lg square, border-2).
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(priorityColor, lineWidth: 2)
+                        )
                 }
             }
-            // Keyed on the person: CachedAsyncImage keeps its loaded image while its identity
-            // holds, so without this a reassignment could keep the old face (AITD-442).
-            .id(AssigneeResolver.avatarIdentity(for: assignee.id))
-            .frame(width: 34, height: 34)
-            // Rounded rectangle with a priority-colored border — matches the
-            // web's assigned-task avatar (rounded-lg square, border-2).
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(priorityColor, lineWidth: 2)
-            )
             .assigneeOverflowBadge(for: task, avatarSize: 34)
             // The avatar had NO gesture, which was harmless while a face only ever meant
             // someone else's task. In project mode your own task is a face too, so without
@@ -429,14 +422,25 @@ struct TaskRowView: View {
         // still completes the task — the mark changes, the action does not.
         else if leadingKind == .unassigned {
             Button(action: { handleLeadingTap() }) {
-                Text(TaskLeadingControl.unassignedGlyph)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(priorityColor)
-                    .frame(width: 34, height: 34)
-                    .overlay(RoundedRectangle(cornerRadius: 8)
-                        .stroke(priorityColor, lineWidth: 2))
-                    .strikethrough(task.completed)
-                    .opacity(task.completed ? 0.5 : 1)
+                Group {
+                    if showsRepeatFrame {
+                        // Repeating: the U sits inside the repeat arrows (AITD-602).
+                        RepeatFramedMark(priority: task.priority) {
+                            Text(TaskLeadingControl.unassignedGlyph)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(priorityColor)
+                        }
+                    } else {
+                        Text(TaskLeadingControl.unassignedGlyph)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(priorityColor)
+                            .frame(width: 34, height: 34)
+                            .overlay(RoundedRectangle(cornerRadius: 8)
+                                .stroke(priorityColor, lineWidth: 2))
+                    }
+                }
+                .strikethrough(task.completed)
+                .opacity(task.completed ? 0.5 : 1)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Text(NSLocalizedString("assignee.unassigned", comment: "")))
@@ -448,6 +452,34 @@ struct TaskRowView: View {
             }
             .buttonStyle(.plain)
         }
+    }
+
+    /// Whether the face or U is drawn inside the repeat arrows (AITD-602). The shared rule decides.
+    private var showsRepeatFrame: Bool {
+        TaskLeadingControl.showsRepeatFrame(kind: leadingKind, repeating: task.repeating)
+    }
+
+    /// The assignee's photo, or their initials while it loads. Unsized and unclipped: the square
+    /// and the repeat frame each give it their own shape.
+    private func assigneePhoto(_ assignee: User, initialsSize: CGFloat) -> some View {
+        // Use cachedImageURL to leverage UserImageCache from list member data
+        CachedAsyncImage(url: assignee.cachedImageURL.flatMap { URL(string: $0) }) { image in
+            image
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+        } placeholder: {
+            // Show initials placeholder for loading or failed states
+            ZStack {
+                Rectangle()
+                    .fill(Theme.accent)
+                Text(assignee.initials)
+                    .font(.system(size: initialsSize, weight: .semibold))
+                    .foregroundColor(.white)
+            }
+        }
+        // Keyed on the person: CachedAsyncImage keeps its loaded image while its identity
+        // holds, so without this a reassignment could keep the old face (AITD-442).
+        .id(AssigneeResolver.avatarIdentity(for: assignee.id))
     }
 
     /// Get card background color (20% transparent white on Ocean theme for subtle cyan show-through)

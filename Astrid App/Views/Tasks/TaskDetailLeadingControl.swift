@@ -66,35 +66,64 @@ struct TaskDetailLeadingControl: View {
     /// row shows, decided by the same helper (42013da7).
     @ViewBuilder private var face: some View {
         if let assignee = effectiveAssignee, showsAssigneeFace {
-            CachedAsyncImage(url: assignee.cachedImageURL.flatMap { URL(string: $0) }) { image in
-                image.resizable().aspectRatio(contentMode: .fill)
-            } placeholder: {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8).fill(Theme.accent)
-                    Text(assignee.initials)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white)
+            Group {
+                if showsRepeatFrame {
+                    // Repeating: the photo sits inside the repeat arrows (AITD-602).
+                    RepeatFramedMark(priority: priority) {
+                        assigneePhoto(assignee, initialsSize: 10)
+                    }
+                } else {
+                    assigneePhoto(assignee, initialsSize: 14)
+                        .frame(width: 34, height: 34)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8)
+                            .stroke(priorityColor, lineWidth: 2))
                 }
             }
-            .frame(width: 34, height: 34)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8)
-                .stroke(priorityColor, lineWidth: 2))
             // Keyed on the assignee: SwiftUI reuses a view whose identity has not changed, which
             // is the other half of "the photo didn't change" (42013da7).
             .id(AssigneeResolver.avatarIdentity(for: assigneeId))
             .accessibilityLabel(Text(assignee.displayName))
         } else if leadingKind == .unassigned {
             // Nobody assigned gets "U", the same mark the assignee list uses (42013da7).
-            Text(TaskLeadingControl.unassignedGlyph)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(priorityColor)
-                .frame(width: 34, height: 34)
-                .overlay(RoundedRectangle(cornerRadius: 8)
-                    .stroke(priorityColor, lineWidth: 2))
-                .accessibilityLabel(Text(NSLocalizedString("assignee.unassigned", comment: "")))
+            Group {
+                if showsRepeatFrame {
+                    RepeatFramedMark(priority: priority) {
+                        Text(TaskLeadingControl.unassignedGlyph)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(priorityColor)
+                    }
+                } else {
+                    Text(TaskLeadingControl.unassignedGlyph)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(priorityColor)
+                        .frame(width: 34, height: 34)
+                        .overlay(RoundedRectangle(cornerRadius: 8)
+                            .stroke(priorityColor, lineWidth: 2))
+                }
+            }
+            .accessibilityLabel(Text(NSLocalizedString("assignee.unassigned", comment: "")))
         } else {
             checkboxImage
+        }
+    }
+
+    /// Whether the face or U is drawn inside the repeat arrows (AITD-602). Uses the EDITED
+    /// repeat setting, so changing it here redraws the mark straight away.
+    private var showsRepeatFrame: Bool {
+        TaskLeadingControl.showsRepeatFrame(kind: leadingKind, repeating: repeating)
+    }
+
+    private func assigneePhoto(_ assignee: User, initialsSize: CGFloat) -> some View {
+        CachedAsyncImage(url: assignee.cachedImageURL.flatMap { URL(string: $0) }) { image in
+            image.resizable().aspectRatio(contentMode: .fill)
+        } placeholder: {
+            ZStack {
+                Rectangle().fill(Theme.accent)
+                Text(assignee.initials)
+                    .font(.system(size: initialsSize, weight: .semibold))
+                    .foregroundColor(.white)
+            }
         }
     }
 
