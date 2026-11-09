@@ -3,6 +3,16 @@
     {
       "filename" : "copilot.svg",
       "idiom" : "universal"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "filename" : "copilot-dark.svg",
+      "idiom" : "universal"
     }
   ],
   "info" : {
