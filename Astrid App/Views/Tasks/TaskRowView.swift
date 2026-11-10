@@ -3,6 +3,7 @@ import SwiftUI
 struct TaskRowView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.usesSplitLayout) private var usesSplitLayout
+    @Environment(\.selectedRowReporter) private var selectedRowReporter
     @AppStorage("themeMode") private var themeMode: String = "ocean"
     @EnvironmentObject var authManager: AuthManager
     /// The row follows the display mode too (task 132d7b3f) — the task box in rows and boards
@@ -274,21 +275,27 @@ struct TaskRowView: View {
         .padding(.horizontal, embeddedInCard ? 10 : Theme.spacing16)
         .frame(minHeight: 76)  // Min height: title(~22pt) + spacing(6pt) + metadata(~18pt) + padding(28pt)
         .background(
-            // Main card background + selection arrow for iPad.
-            // Suppressed when embedded in a board card — the host
+            // Main card background. Suppressed when embedded in a board card — the host
             // supplies the single card background there.
-            ZStack(alignment: .trailing) {
+            ZStack {
                 if !embeddedInCard {
                     cardBackground
                 }
-
-                // Arrow indicator pointing to task details (iPad only, when selected)
-                if isSelected && usesSplitLayout {
-                    SelectionArrow(color: getCardBackground())
-                        .offset(x: 20)  // Position arrow at right edge, extending into gap
-                }
             }
         )
+        // The arrow to the details belongs to the PANEL now, as on the Mac and web (AITD-607):
+        // the row only says where it is, and the panel points at it and follows it.
+        .background {
+            if isSelected && usesSplitLayout, let selectedRowReporter {
+                GeometryReader { g in
+                    let midY = g.frame(in: .global).midY
+                    Color.clear
+                        .onAppear { selectedRowReporter.report(taskId: task.id, midY: midY) }
+                        .onChange(of: midY) { _, y in selectedRowReporter.report(taskId: task.id, midY: y) }
+                        .onDisappear { selectedRowReporter.clear(taskId: task.id) }
+                }
+            }
+        }
         .contentShape(Rectangle())
         .overlay(
             // Card border with rounded corners. Suppressed when
@@ -298,7 +305,7 @@ struct TaskRowView: View {
                     embeddedInCard
                         ? Color.clear
                         : (isSelected ? Color.accentColor : getBorderColor()),
-                    lineWidth: isSelected ? 2.5 : 0.5
+                    lineWidth: isSelected ? Self.selectedBorderWidth : 0.5
                 )
         )
         .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -322,6 +329,9 @@ struct TaskRowView: View {
             }
         }
     }
+
+    /// The selected row's outline — the same one the iPad details panel wears (AITD-607).
+    static let selectedBorderWidth: CGFloat = DetailPanelChrome.selectionOutlineWidth
 
     /// What a UI test matches on to find task rows. Referenced by `UITestLaunch.taskRows`.
     static let accessibilityIdentifier = "taskRow"
@@ -562,32 +572,8 @@ struct TaskRowView: View {
 
 }
 
-// MARK: - Selection Arrow (points to task details on iPad)
 
 /// Arrow indicator that points from selected task row to task details pane
-struct SelectionArrow: View {
-    let color: Color
-
-    var body: some View {
-        Triangle()
-            .fill(color)
-            .frame(width: 12, height: 24)
-            .shadow(color: .black.opacity(0.1), radius: 2, x: 1, y: 0)
-    }
-}
-
-/// Triangle shape pointing to the right
-struct Triangle: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: 0, y: 0))
-        path.addLine(to: CGPoint(x: rect.width, y: rect.midY))
-        path.addLine(to: CGPoint(x: 0, y: rect.height))
-        path.closeSubpath()
-        return path
-    }
-}
-
 #Preview {
     let task = Task(
         id: "1",

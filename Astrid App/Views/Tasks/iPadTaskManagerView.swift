@@ -93,9 +93,18 @@ struct iPadTaskManagerView: View {
     @State private var dragOffset: CGFloat = 0
     @State private var hasScrolledDuringDrag = false
 
-    /// One canonical curve for the detail panel's slide, so every close path
-    /// (tap-again, swipe, close button, list switch) feels identical and smooth.
-    private static let panelAnimation: Animation = .spring(response: 0.36, dampingFraction: 0.92)
+    /// One canonical curve for the detail panel, so every open and close path (tap-again, swipe,
+    /// close button, list switch) feels identical: `motion.panel`, as on the Mac and web (AITD-607).
+    private static var panelAnimation: Animation { DetailPanelChrome.panelAnimation }
+
+    /// The panel opens OUT OF the selected row — from the list side, fading in — and closes back
+    /// into it, like web's `slideInFromLeft`. It used to slide in from the screen's trailing edge,
+    /// which read as a sheet arriving rather than the row unfolding (AITD-607).
+    private static let panelTransition: AnyTransition =
+        .offset(x: -DetailPanelChrome.arrowWidth * 2).combined(with: .opacity)
+
+    /// Where the selected row is, so the panel's arrow can point at it (AITD-607).
+    @StateObject private var selectedRowReporter = SelectedRowReporter()
 
     /// One canonical curve for the picker drawer, shared by every open and close path.
     private static let drawerAnimation: Animation = .spring(response: 0.25, dampingFraction: 0.85)
@@ -163,6 +172,7 @@ struct iPadTaskManagerView: View {
                 }
             }
         }
+        .environment(\.selectedRowReporter, selectedRowReporter)
         .withReminderPresentation()
         // Route presenter-driven task opens (subtask rows, parent-task links,
         // deep links) into the side detail panel instead of the list column's
@@ -273,7 +283,7 @@ struct iPadTaskManagerView: View {
                     if let task = selectedTask {
                         taskDetailPanel(for: task)
                             .frame(width: detailWidth)
-                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                            .transition(Self.panelTransition)
                     }
                 }
                 .frame(width: width - panes.sidebar)
@@ -436,7 +446,7 @@ struct iPadTaskManagerView: View {
                 if let task = selectedTask {
                     taskDetailPanel(for: task)
                         .frame(width: detailWidth)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                        .transition(Self.panelTransition)
                 }
             }
             .frame(width: width)
@@ -610,12 +620,37 @@ struct iPadTaskManagerView: View {
             }
             .background(themeBackground)  // Fills BEHIND the rounded card only (inside the clip)
             .clipShape(RoundedRectangle(cornerRadius: 16))
+            // The SELECTION outline — the one the selected row wears — not a bare card: the panel
+            // unfolds out of that row, as on the Mac and web (AITD-607, register DS7).
+            .overlay(RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.accentColor, lineWidth: DetailPanelChrome.selectionOutlineWidth))
             // compositingGroup so the shadow is cached and translated during the
             // slide, not re-rasterized from the clipped alpha every frame.
             .compositingGroup()
             // Shadow on the rounded card; the area outside it (padding + corners)
             // stays clear so the list/board shows through.
             .shadow(color: .black.opacity(0.18), radius: 10, x: -4, y: 0)
+            // The arrow on the panel's leading edge points at the selected row and follows it.
+            // Drawn over the card, overlapping its edge, so its base merges into the card face
+            // and the outline runs on around the notch's two outer edges (the Mac's AITD-302).
+            .overlay(alignment: .topLeading) {
+                GeometryReader { g in
+                    ZStack {
+                        themeBackground.clipShape(DetailPanelArrow())
+                        DetailPanelArrowEdges()
+                            .stroke(Color.accentColor, lineWidth: DetailPanelChrome.selectionOutlineWidth)
+                    }
+                    .frame(width: DetailPanelChrome.arrowWidth, height: DetailPanelChrome.arrowHeight)
+                    .position(x: -DetailPanelChrome.arrowWidth / 2 + DetailPanelChrome.arrowOverlap,
+                              y: DetailPanelChrome.arrowLocalY(rowMidY: selectedRowReporter.midY,
+                                                               panelOriginY: g.frame(in: .global).minY,
+                                                               panelHeight: g.size.height))
+                    .animation(DetailPanelChrome.arrowFollowAnimation, value: selectedRowReporter.midY)
+                }
+                .accessibilityHidden(true)
+            }
+            // Room for the arrow between the list and the card.
+            .padding(.leading, DetailPanelChrome.arrowWidth)
             .padding(.top, 8)      // Top margin (aligns with floating header)
             .padding(.bottom, 4)   // Bottom margin (aligns with quick add input)
             .padding(.trailing, 8) // Right margin (matches left side of screen)
