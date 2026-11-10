@@ -68,8 +68,8 @@ struct MacAssigneeAvatar: View {
         ZStack {
             Rectangle().fill(Theme.accent)
             Text(user.initials)
-                .font(.system(size: (repeating ? RepeatFrameGeometry.innerSize(control: size) : size) * 0.5,
-                              weight: .semibold))
+                .macFont(.system(size: (repeating ? RepeatFrameGeometry.innerSize(control: size) : size) * 0.5,
+                                 weight: .semibold))
                 .foregroundStyle(.white)
         }
     }
