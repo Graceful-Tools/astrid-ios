@@ -44,6 +44,25 @@ enum DetailPanelChrome {
         guard let rowMidY else { return panelHeight / 2 }
         return arrowY(rowMidY: rowMidY - panelOriginY, panelHeight: panelHeight, inset: inset)
     }
+
+    // MARK: - Full-screen details (iPhone, forced push) — AITD-609
+
+    /// A row tap that pushes the details full screen has no row beside them to outline or point
+    /// at, so DS7 is carried by the motion: the details zoom out of the tapped row. The split
+    /// layout's side panel keeps its own treatment above.
+    static func zoomsFromRow(usesSplitLayout: Bool, forcePushNavigation: Bool) -> Bool {
+        !usesSplitLayout || forcePushNavigation
+    }
+
+    /// How long the row the details closed back into wears the selection outline — one
+    /// `motion.panel`, the beat the iPad panel opens over.
+    static let returnFlashDuration: Double = panelDuration
+
+    /// Whether a list row wears the selection outline: it is the iPad panel's task, or the
+    /// full-screen details just closed back into it.
+    static func rowIsOutlined(taskId: String, panelSelectionId: String?, returningTaskId: String?) -> Bool {
+        taskId == panelSelectionId || taskId == returningTaskId
+    }
 }
 
 /// Where the selected row sits on screen, so the details panel can aim its arrow at it.

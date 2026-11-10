@@ -47,6 +47,11 @@ struct TaskListView: View {
     @State private var showingListSettings = false
     @State private var showingMyTasksFilter = false
     @State private var taskToNavigateTo: Task?
+    /// iPhone: the row the pushed details zoom out of, and the row they just closed back into,
+    /// which wears the selection outline for one `motion.panel` (AITD-609).
+    @Namespace private var detailZoomNamespace
+    @State private var zoomSourceTaskId: String?
+    @State private var returningTaskId: String?
     @State private var taskToShowInSheet: Task?  // For iPad modal presentation
     @State private var featuredListTasks: [Task] = []  // Tasks for featured public list
     @State private var isLoadingFeaturedTasks = false
@@ -666,12 +671,17 @@ struct TaskListView: View {
             .navigationTitle("")
             .navigationDestination(item: $taskToNavigateTo) { task in
                 getTaskDetailView(for: task)
+                    .zoomsOutOfRow(zoomSourceTaskId == task.id ? task.id : nil, in: detailZoomNamespace)
                     .onAppear {
                         NotificationCenter.default.post(name: .taskDetailDidAppear, object: nil)
                     }
                     .onDisappear {
                         NotificationCenter.default.post(name: .taskDetailDidDisappear, object: nil)
                     }
+            }
+            // Popped back to the list (not pushed deeper): flash the row the details closed into.
+            .onChange(of: taskToNavigateTo?.id) { closedId, openId in
+                if openId == nil, let closedId { flashReturningRow(closedId) }
             }
             .withTaskPresentation()  // Handle global TaskPresenter navigation
             .navigationBarTitleDisplayMode(.inline)
@@ -849,7 +859,9 @@ struct TaskListView: View {
                         taskToCopy = task
                         showingCopySheet = true
                     },
-                    isSelected: selectedTaskForPanel?.id == task.id,
+                    isSelected: DetailPanelChrome.rowIsOutlined(taskId: task.id,
+                                                                panelSelectionId: selectedTaskForPanel?.id,
+                                                                returningTaskId: returningTaskId),
                     compactMode: usesSplitLayout,  // Always truncate in the split layout
                     hiddenListIds: rowHiddenListIds
                 )
@@ -875,9 +887,13 @@ struct TaskListView: View {
                     if usesSplitLayout && !forcePushNavigation {
                         selectedTaskForPanel = (selectedTaskForPanel?.id == task.id) ? nil : task
                     } else {
+                        zoomSourceTaskId = DetailPanelChrome.zoomsFromRow(
+                            usesSplitLayout: usesSplitLayout, forcePushNavigation: forcePushNavigation
+                        ) ? task.id : nil
                         taskToNavigateTo = task
                     }
                 }
+                .matchedTransitionSource(id: task.id, in: detailZoomNamespace)
                 // Re-nesting by drag. Extracted into one modifier because inlining it here
                 // pushed the row body past what the type-checker will solve.
                 .modifier(TaskRowNestingDrop(task: task,
@@ -1159,6 +1175,17 @@ struct TaskListView: View {
     }
 
     // MARK: - Helper Methods
+
+    /// The row the zoomed details just closed into wears the selection outline for one beat.
+    private func flashReturningRow(_ taskId: String) {
+        guard zoomSourceTaskId == taskId else { return }
+        zoomSourceTaskId = nil
+        returningTaskId = taskId
+        DispatchQueue.main.asyncAfter(deadline: .now() + DetailPanelChrome.returnFlashDuration) {
+            guard returningTaskId == taskId else { return }
+            withAnimation(DetailPanelChrome.panelAnimation) { returningTaskId = nil }
+        }
+    }
 
     @ViewBuilder
     private func getTaskDetailView(for task: Task) -> some View {
