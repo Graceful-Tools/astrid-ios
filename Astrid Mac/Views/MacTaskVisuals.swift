@@ -15,8 +15,8 @@ enum MacTaskVisuals {
     // than staying 2pt at every size.
     /// Checkbox sizes. 20/22 read chunky next to macOS's 13pt body text — the box should sit with
     /// the type, not dominate the row.
-    static let rowCheckboxSize: CGFloat = 17
-    static let detailCheckboxSize: CGFloat = 19
+    static let rowCheckboxSize = AstridTokens.Size.Compact.leadingControl   // 17 (AITD-610: core tokens)
+    static let detailCheckboxSize = AstridTokens.Size.Compact.leadingControlDetail   // 19
 
     static let checkmarkRatio: CGFloat = 0.78
     static let checkboxCornerRatio: CGFloat = 0.28
