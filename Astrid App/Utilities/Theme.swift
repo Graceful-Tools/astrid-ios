@@ -1,8 +1,13 @@
 import SwiftUI
 
-/// Theme system matching the web app's design tokens
-/// Based on styles/themes/light-theme.css and dark-theme.css
+/// Theme system: every palette value, spacing step, radius and shadow is read from
+/// `AstridTokens` — astrid-core's `design/tokens.json`, vendored (AITD-605, AITD-610). A value
+/// that should differ changes in core first, never here and never in the vendored copy.
+/// Brand colours stay `Brand.*` (the tokens themselves resolve the accent through `Brand`).
 struct Theme {
+    /// The light palette, which iOS uses for its fixed values and the Mac for its `light` mode.
+    static let light = AstridTokens.light
+
 #if os(macOS)
     // On macOS the base surface/text/border tokens resolve to the SELECTED theme (ocean/light/dark/
     // auto), so the Mac app renders every theme — not just the light palette (Task: Mac themes).
@@ -65,55 +70,55 @@ struct Theme {
     }
 
     // MARK: - Background Colors
-    static var bgPrimary: Color { themed(light: .init(red: 1, green: 1, blue: 1), dark: Dark.bgPrimary, ocean: Ocean.bgPrimary) }
-    static var bgSecondary: Color { themed(light: .init(red: 249/255, green: 250/255, blue: 251/255), dark: Dark.bgSecondary, ocean: Ocean.bgSecondary) }
-    static var bgTertiary: Color { themed(light: .init(red: 243/255, green: 244/255, blue: 246/255), dark: Dark.bgTertiary, ocean: Ocean.bgTertiary) }
-    static var bgHover: Color { themed(light: .init(red: 1, green: 1, blue: 1), dark: Dark.bgHover, ocean: Ocean.bgHover) }
-    static var bgActive: Color { themed(light: .init(red: 229/255, green: 231/255, blue: 235/255), dark: Dark.bgActive, ocean: Ocean.bgActive) }
-    static var bgSelected: Color { themed(light: .init(red: 239/255, green: 246/255, blue: 255/255), dark: Dark.bgSelected, ocean: Ocean.bgSelected) }
-    static let bgSelectedBorder = Color(red: 191/255, green: 219/255, blue: 254/255)
+    static var bgPrimary: Color { themed(light: light.bgPrimary, dark: Dark.bgPrimary, ocean: Ocean.bgPrimary) }
+    static var bgSecondary: Color { themed(light: light.bgSecondary, dark: Dark.bgSecondary, ocean: Ocean.bgSecondary) }
+    static var bgTertiary: Color { themed(light: light.bgTertiary, dark: Dark.bgTertiary, ocean: Ocean.bgTertiary) }
+    static var bgHover: Color { themed(light: light.bgHover, dark: Dark.bgHover, ocean: Ocean.bgHover) }
+    static var bgActive: Color { themed(light: light.bgActive, dark: Dark.bgActive, ocean: Ocean.bgActive) }
+    static var bgSelected: Color { themed(light: light.bgSelected, dark: Dark.bgSelected, ocean: Ocean.bgSelected) }
+    static let bgSelectedBorder = light.bgSelectedBorder
 
     // MARK: - Border Colors
-    static var border: Color { themed(light: .init(red: 229/255, green: 231/255, blue: 235/255), dark: Dark.border, ocean: Ocean.border) }
-    static var borderHover: Color { themed(light: .init(red: 209/255, green: 213/255, blue: 219/255), dark: Dark.borderHover, ocean: Ocean.borderHover) }
-    static let borderFocus = Brand.accentColor
-    static let borderInput = Color(red: 209/255, green: 213/255, blue: 219/255)
+    static var border: Color { themed(light: light.border, dark: Dark.border, ocean: Ocean.border) }
+    static var borderHover: Color { themed(light: light.borderHover, dark: Dark.borderHover, ocean: Ocean.borderHover) }
+    static let borderFocus = light.borderFocus
+    static let borderInput = light.borderInput
 
     // MARK: - Input Colors (themed like iOS: chrome silver on Ocean, black on Dark)
-    static var inputBg: Color { themed(light: .init(red: 1, green: 1, blue: 1), dark: Dark.inputBg, ocean: Ocean.inputBg) }
-    static var inputBorder: Color { themed(light: .init(red: 209/255, green: 213/255, blue: 219/255), dark: Dark.inputBorder, ocean: Ocean.inputBorder) }
+    static var inputBg: Color { themed(light: light.inputBg, dark: Dark.inputBg, ocean: Ocean.inputBg) }
+    static var inputBorder: Color { themed(light: light.inputBorder, dark: Dark.inputBorder, ocean: Ocean.inputBorder) }
 
     // MARK: - Text Colors
-    static var textPrimary: Color { themed(light: .init(red: 17/255, green: 24/255, blue: 39/255), dark: Dark.textPrimary, ocean: Ocean.textPrimary) }
-    static var textSecondary: Color { themed(light: .init(red: 75/255, green: 85/255, blue: 99/255), dark: Dark.textSecondary, ocean: Ocean.textSecondary) }
-    static var textMuted: Color { themed(light: .init(red: 107/255, green: 114/255, blue: 128/255), dark: Dark.textMuted, ocean: Ocean.textMuted) }
-    static let textInverted = Color(red: 255/255, green: 255/255, blue: 255/255)
-    static var textSelected: Color { themed(light: .init(red: 17/255, green: 24/255, blue: 39/255), dark: Dark.textSelected, ocean: Ocean.textSelected) }
+    static var textPrimary: Color { themed(light: light.textPrimary, dark: Dark.textPrimary, ocean: Ocean.textPrimary) }
+    static var textSecondary: Color { themed(light: light.textSecondary, dark: Dark.textSecondary, ocean: Ocean.textSecondary) }
+    static var textMuted: Color { themed(light: light.textMuted, dark: Dark.textMuted, ocean: Ocean.textMuted) }
+    static let textInverted = light.textInverted
+    static var textSelected: Color { themed(light: light.textSelected, dark: Dark.textSelected, ocean: Ocean.textSelected) }
 #else
     // MARK: - Background Colors
 
-    static let bgPrimary = Color(red: 255/255, green: 255/255, blue: 255/255)
-    static let bgSecondary = Color(red: 249/255, green: 250/255, blue: 251/255)
-    static let bgTertiary = Color(red: 243/255, green: 244/255, blue: 246/255)
-    static let bgHover = Color(red: 255/255, green: 255/255, blue: 255/255)
-    static let bgActive = Color(red: 229/255, green: 231/255, blue: 235/255)
-    static let bgSelected = Color(red: 239/255, green: 246/255, blue: 255/255)
-    static let bgSelectedBorder = Color(red: 191/255, green: 219/255, blue: 254/255)
+    static let bgPrimary = light.bgPrimary
+    static let bgSecondary = light.bgSecondary
+    static let bgTertiary = light.bgTertiary
+    static let bgHover = light.bgHover
+    static let bgActive = light.bgActive
+    static let bgSelected = light.bgSelected
+    static let bgSelectedBorder = light.bgSelectedBorder
 
     // MARK: - Border Colors
 
-    static let border = Color(red: 229/255, green: 231/255, blue: 235/255)
-    static let borderHover = Color(red: 209/255, green: 213/255, blue: 219/255)
-    static let borderFocus = Brand.accentColor
-    static let borderInput = Color(red: 209/255, green: 213/255, blue: 219/255)
+    static let border = light.border
+    static let borderHover = light.borderHover
+    static let borderFocus = light.borderFocus
+    static let borderInput = light.borderInput
 
     // MARK: - Text Colors
 
-    static let textPrimary = Color(red: 17/255, green: 24/255, blue: 39/255)
-    static let textSecondary = Color(red: 75/255, green: 85/255, blue: 99/255)
-    static let textMuted = Color(red: 107/255, green: 114/255, blue: 128/255)
-    static let textInverted = Color(red: 255/255, green: 255/255, blue: 255/255)
-    static let textSelected = Color(red: 17/255, green: 24/255, blue: 39/255)
+    static let textPrimary = light.textPrimary
+    static let textSecondary = light.textSecondary
+    static let textMuted = light.textMuted
+    static let textInverted = light.textInverted
+    static let textSelected = light.textSelected
 #endif
 
     // MARK: - Interactive Colors
@@ -121,81 +126,64 @@ struct Theme {
     // The accent is the BRAND colour, so it comes from Brand rather than being written
     // out per theme variant (task 97208a72). Theme abstracts light vs dark vs ocean; it
     // must also abstract *whose* blue, or a partner theme is a find-and-replace.
-    static let accent = Brand.accentColor
-    static let accentHover = Brand.accentHoverColor
-    static let accentText = Brand.accentTextColor
+    static let accent = light.accent
+    static let accentHover = light.accentHover
+    static let accentText = light.accentText
 
     // MARK: - Status Colors
 
-    static let success = Color(red: 34/255, green: 197/255, blue: 94/255)
-    static let warning = Color(red: 245/255, green: 158/255, blue: 11/255)
-    static let error = Color(red: 239/255, green: 68/255, blue: 68/255)
-    static let info = Color(red: 6/255, green: 182/255, blue: 212/255)
+    static let success = light.success
+    static let warning = light.warning
+    static let error = light.error
+    static let info = light.info
 
     // MARK: - Priority Colors (matching web app exactly)
 
-    static let priorityNone = Color(red: 107/255, green: 114/255, blue: 128/255)     // rgb(107, 114, 128) - Gray
-    static let priorityLow = Brand.accentColor                                       // the brand accent
-    static let priorityMedium = Color(red: 251/255, green: 191/255, blue: 36/255)    // rgb(251, 191, 36) - Yellow
-    static let priorityHigh = Color(red: 239/255, green: 68/255, blue: 68/255)       // rgb(239, 68, 68) - Red
+    static let priorityNone = light.priorityNone
+    static let priorityLow = light.priorityLow
+    static let priorityMedium = light.priorityMedium
+    static let priorityHigh = light.priorityHigh
 
     // MARK: - Component Specific Colors
 
-    static let headerBg = Color(red: 249/255, green: 250/255, blue: 251/255)
-    static let headerBorder = Color(red: 229/255, green: 231/255, blue: 235/255)
+    static let headerBg = light.headerBg
+    static let headerBorder = light.headerBorder
 
 #if !os(macOS)
-    static let inputBg = Color(red: 255/255, green: 255/255, blue: 255/255)
-    static let inputBorder = Color(red: 209/255, green: 213/255, blue: 219/255)
+    static let inputBg = light.inputBg
+    static let inputBorder = light.inputBorder
 #endif
-    static let inputPlaceholder = Color(red: 156/255, green: 163/255, blue: 175/255)
+    static let inputPlaceholder = light.inputPlaceholder
 
-    static let buttonBg = Color(red: 255/255, green: 255/255, blue: 255/255)
-    static let buttonHover = Color(red: 243/255, green: 244/255, blue: 246/255)
-    static let buttonBorder = Color(red: 209/255, green: 213/255, blue: 219/255)
+    static let buttonBg = light.buttonBg
+    static let buttonHover = light.buttonHover
+    static let buttonBorder = light.buttonBorder
 
     // MARK: - Spacing (matching web app patterns)
 
-    static let spacing2: CGFloat = 2
-    static let spacing4: CGFloat = 4
-    static let spacing8: CGFloat = 8
-    static let spacing12: CGFloat = 12
-    static let spacing16: CGFloat = 16
-    static let spacing20: CGFloat = 20
-    static let spacing24: CGFloat = 24
-    static let spacing32: CGFloat = 32
-    static let spacing40: CGFloat = 40
-    static let spacing48: CGFloat = 48
+    static let spacing2 = AstridTokens.Space.s2
+    static let spacing4 = AstridTokens.Space.s4
+    static let spacing8 = AstridTokens.Space.s8
+    static let spacing12 = AstridTokens.Space.s12
+    static let spacing16 = AstridTokens.Space.s16
+    static let spacing20 = AstridTokens.Space.s20
+    static let spacing24 = AstridTokens.Space.s24
+    static let spacing32 = AstridTokens.Space.s32
+    static let spacing40 = AstridTokens.Space.s40
+    static let spacing48 = AstridTokens.Space.s48
 
     // MARK: - Corner Radius (matching web app)
 
-    static let radiusSmall: CGFloat = 6
-    static let radiusMedium: CGFloat = 8
-    static let radiusLarge: CGFloat = 12
-    static let radiusXLarge: CGFloat = 16
+    static let radiusSmall = AstridTokens.Radius.sm
+    static let radiusMedium = AstridTokens.Radius.md
+    static let radiusLarge = AstridTokens.Radius.lg
+    static let radiusXLarge = AstridTokens.Radius.xl
 
     // MARK: - Shadows
 
-    static let shadowSmall: (color: Color, radius: CGFloat, x: CGFloat, y: CGFloat) = (
-        Color.black.opacity(0.05),
-        2,
-        0,
-        1
-    )
-
-    static let shadowMedium: (color: Color, radius: CGFloat, x: CGFloat, y: CGFloat) = (
-        Color.black.opacity(0.1),
-        3,
-        0,
-        1
-    )
-
-    static let shadowLarge: (color: Color, radius: CGFloat, x: CGFloat, y: CGFloat) = (
-        Color.black.opacity(0.1),
-        15,
-        0,
-        10
-    )
+    static let shadowSmall = AstridTokens.Shadow.sm
+    static let shadowMedium = AstridTokens.Shadow.md
+    static let shadowLarge = AstridTokens.Shadow.lg
 
     // MARK: - Typography (matching web app font weights and sizes)
     // Now supports iOS Dynamic Type for accessibility
@@ -258,85 +246,85 @@ struct Theme {
 extension Theme {
     struct Dark {
         // Background colors
-        static let bgPrimary = Color(red: 17/255, green: 24/255, blue: 39/255)
-        static let bgSecondary = Color(red: 31/255, green: 41/255, blue: 55/255)
-        static let bgTertiary = Color(red: 55/255, green: 65/255, blue: 81/255)
-        static let bgHover = Color(red: 55/255, green: 65/255, blue: 81/255)
-        static let bgActive = Color(red: 75/255, green: 85/255, blue: 99/255)
-        static let bgSelected = Color(red: 30/255, green: 58/255, blue: 138/255)
-        static let bgSelectedBorder = Brand.accentColor
+        static let bgPrimary = AstridTokens.dark.bgPrimary
+        static let bgSecondary = AstridTokens.dark.bgSecondary
+        static let bgTertiary = AstridTokens.dark.bgTertiary
+        static let bgHover = AstridTokens.dark.bgHover
+        static let bgActive = AstridTokens.dark.bgActive
+        static let bgSelected = AstridTokens.dark.bgSelected
+        static let bgSelectedBorder = AstridTokens.dark.bgSelectedBorder
 
         // Border colors
-        static let border = Color(red: 75/255, green: 85/255, blue: 99/255)
-        static let borderHover = Color(red: 107/255, green: 114/255, blue: 128/255)
-        static let borderFocus = Brand.accentColor
-        static let borderInput = Color(red: 75/255, green: 85/255, blue: 99/255)
+        static let border = AstridTokens.dark.border
+        static let borderHover = AstridTokens.dark.borderHover
+        static let borderFocus = AstridTokens.dark.borderFocus
+        static let borderInput = AstridTokens.dark.borderInput
 
         // Text colors
-        static let textPrimary = Color(red: 255/255, green: 255/255, blue: 255/255)
-        static let textSecondary = Color(red: 209/255, green: 213/255, blue: 219/255)
-        static let textMuted = Color(red: 156/255, green: 163/255, blue: 175/255)
-        static let textInverted = Color(red: 17/255, green: 24/255, blue: 39/255)
-        static let textSelected = Color(red: 255/255, green: 255/255, blue: 255/255)
+        static let textPrimary = AstridTokens.dark.textPrimary
+        static let textSecondary = AstridTokens.dark.textSecondary
+        static let textMuted = AstridTokens.dark.textMuted
+        static let textInverted = AstridTokens.dark.textInverted
+        static let textSelected = AstridTokens.dark.textSelected
 
         // Interactive colors (same as light)
-        static let accent = Brand.accentColor
-        static let accentHover = Brand.accentHoverColor
-        static let accentText = Brand.accentTextColor
+        static let accent = AstridTokens.dark.accent
+        static let accentHover = AstridTokens.dark.accentHover
+        static let accentText = AstridTokens.dark.accentText
 
         // Component colors
-        static let headerBg = Color(red: 31/255, green: 41/255, blue: 55/255)
-        static let headerBorder = Color(red: 75/255, green: 85/255, blue: 99/255)
+        static let headerBg = AstridTokens.dark.headerBg
+        static let headerBorder = AstridTokens.dark.headerBorder
 
-        static let inputBg = Color.black  // pure black input fields (dark mode)
-        static let inputBorder = Color(red: 75/255, green: 85/255, blue: 99/255)
-        static let inputPlaceholder = Color(red: 156/255, green: 163/255, blue: 175/255)
+        static let inputBg = AstridTokens.dark.inputBg
+        static let inputBorder = AstridTokens.dark.inputBorder
+        static let inputPlaceholder = AstridTokens.dark.inputPlaceholder
 
-        static let buttonBg = Color(red: 55/255, green: 65/255, blue: 81/255)
-        static let buttonHover = Color(red: 75/255, green: 85/255, blue: 99/255)
-        static let buttonBorder = Color(red: 75/255, green: 85/255, blue: 99/255)
+        static let buttonBg = AstridTokens.dark.buttonBg
+        static let buttonHover = AstridTokens.dark.buttonHover
+        static let buttonBorder = AstridTokens.dark.buttonBorder
     }
 
     struct Ocean {
         // Background colors - Cyan ocean background (#88DCF8) - same as light except primary
-        static let bgPrimary = Color(red: 136/255, green: 220/255, blue: 248/255)
-        static let bgSecondary = Color(red: 249/255, green: 250/255, blue: 251/255)
-        static let bgTertiary = Color(red: 243/255, green: 244/255, blue: 246/255)
-        static let bgHover = Color(red: 255/255, green: 255/255, blue: 255/255)
-        static let bgActive = Color(red: 229/255, green: 231/255, blue: 235/255)
-        static let bgSelected = Color(red: 239/255, green: 246/255, blue: 255/255)
-        static let bgSelectedBorder = Color(red: 191/255, green: 219/255, blue: 254/255)
+        static let bgPrimary = AstridTokens.ocean.bgPrimary
+        static let bgSecondary = AstridTokens.ocean.bgSecondary
+        static let bgTertiary = AstridTokens.ocean.bgTertiary
+        static let bgHover = AstridTokens.ocean.bgHover
+        static let bgActive = AstridTokens.ocean.bgActive
+        static let bgSelected = AstridTokens.ocean.bgSelected
+        static let bgSelectedBorder = AstridTokens.ocean.bgSelectedBorder
 
         // Border colors - Cyan-tinted for Ocean theme
-        static let border = Color(red: 136/255, green: 220/255, blue: 248/255)
-        static let borderHover = Color(red: 209/255, green: 213/255, blue: 219/255)
-        static let borderFocus = Brand.accentColor
-        static let borderInput = Color(red: 209/255, green: 213/255, blue: 219/255)
+        static let border = AstridTokens.ocean.border
+        static let borderHover = AstridTokens.ocean.borderHover
+        static let borderFocus = AstridTokens.ocean.borderFocus
+        static let borderInput = AstridTokens.ocean.borderInput
 
-        // Text colors (same as light)
-        static let textPrimary = Color(red: 17/255, green: 24/255, blue: 39/255)
-        static let textSecondary = Color(red: 75/255, green: 85/255, blue: 99/255)
-        static let textMuted = Color(red: 107/255, green: 114/255, blue: 128/255)
-        static let textInverted = Color(red: 255/255, green: 255/255, blue: 255/255)
-        static let textSelected = Color(red: 17/255, green: 24/255, blue: 39/255)
+        // Text colors — darker than light's: grey on cyan measured 3.1:1 (register DS1, web AWTD-1496)
+        static let textPrimary = AstridTokens.ocean.textPrimary
+        static let textSecondary = AstridTokens.ocean.textSecondary
+        static let textMuted = AstridTokens.ocean.textMuted
+        static let textInverted = AstridTokens.ocean.textInverted
+        static let textSelected = AstridTokens.ocean.textSelected
 
         // Interactive colors (same as light)
-        static let accent = Brand.accentColor
-        static let accentHover = Brand.accentHoverColor
-        static let accentText = Brand.accentTextColor
+        static let accent = AstridTokens.ocean.accent
+        static let accentHover = AstridTokens.ocean.accentHover
+        static let accentText = AstridTokens.ocean.accentText
 
         // Component colors - Cyan headers (matching ocean background) and chrome inputs
-        static let headerBg = Color(red: 136/255, green: 220/255, blue: 248/255)  // Cyan (same as bgPrimary)
-        static let headerBorder = Color(red: 136/255, green: 220/255, blue: 248/255)  // Cyan border (same as bgPrimary)
+        static let headerBg = AstridTokens.ocean.headerBg
+        static let headerBorder = AstridTokens.ocean.headerBorder
 
         // Chrome/silver styling for inputs (metallic silver-gray)
-        static let inputBg = Color(red: 220/255, green: 223/255, blue: 228/255)  // Silver #DCE0E4
-        static let inputBorder = Color(red: 180/255, green: 184/255, blue: 188/255)  // Chrome border #B4B8BC
-        static let inputPlaceholder = Color(red: 107/255, green: 114/255, blue: 128/255)
+        static let inputBg = AstridTokens.ocean.inputBg
+        static let inputBorder = AstridTokens.ocean.inputBorder
+        static let inputPlaceholder = AstridTokens.ocean.inputPlaceholder
 
-        static let buttonBg = Color(red: 220/255, green: 223/255, blue: 228/255)  // Silver
-        static let buttonHover = Color(red: 200/255, green: 204/255, blue: 209/255)  // Darker silver on hover
-        static let buttonBorder = Color(red: 180/255, green: 184/255, blue: 188/255)  // Chrome border
+        static let buttonBg = AstridTokens.ocean.buttonBg
+        static let buttonHover = AstridTokens.ocean.buttonHover
+        static let buttonBorder = AstridTokens.ocean.buttonBorder
     }
 
     struct LiquidGlass {
