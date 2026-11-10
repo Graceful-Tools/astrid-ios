@@ -175,8 +175,8 @@ struct SignInPromptView: View {
                 .frame(height: 50)
             }
             .buttonStyle(.plain)
-            .background(colorScheme == .dark ? Color(white: 0.2) : Color(white: 0.95))
-            .foregroundColor(colorScheme == .dark ? Color.white : Color.black)
+            .background(palette.bgTertiary)
+            .foregroundColor(palette.textPrimary)
             .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLarge))
             .disabled(isLoading)
             .opacity(isLoading ? 0.6 : 1.0)

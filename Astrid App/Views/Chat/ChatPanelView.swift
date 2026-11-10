@@ -38,10 +38,7 @@ struct ChatPanelView: View {
     }
 
     private var effectiveTheme: String {
-        if themeMode == "auto" {
-            return colorScheme == .dark ? "dark" : "light"
-        }
-        return themeMode
+        ThemeMode.resolvedName(themeMode, colorScheme: colorScheme)
     }
 
     var body: some View {

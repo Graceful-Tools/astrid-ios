@@ -8,10 +8,7 @@ struct SplashView: View {
 
     // Effective theme - Auto resolves to Light or Dark based on time of day
     private var effectiveTheme: String {
-        if themeMode == "auto" {
-            return colorScheme == .dark ? "dark" : "light"
-        }
-        return themeMode
+        ThemeMode.resolvedName(themeMode, colorScheme: colorScheme)
     }
 
     private var isOceanTheme: Bool {

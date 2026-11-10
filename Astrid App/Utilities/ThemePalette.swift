@@ -20,11 +20,10 @@ extension AstridTokens {
     /// The palette for a theme. `auto` follows the system appearance; every other mode is fixed,
     /// whatever the system says.
     static func palette(for mode: ThemeMode, colorScheme: ColorScheme) -> Palette {
-        switch mode {
+        switch mode.resolved(for: colorScheme) {
         case .ocean: return ocean
-        case .light: return light
         case .dark:  return dark
-        case .auto:  return colorScheme == .dark ? dark : light
+        case .light, .auto: return light
         }
     }
 }

@@ -112,7 +112,7 @@ struct LoginView: View {
                                 HStack(spacing: Theme.spacing12) {
                                     if isCreatingLocalUser {
                                         ProgressView()
-                                            .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
+                                            .progressViewStyle(CircularProgressViewStyle(tint: palette.textPrimary))
                                     } else {
                                         Image(systemName: "iphone")
                                             .font(Theme.Typography.headline())
@@ -124,8 +124,8 @@ struct LoginView: View {
                                 .frame(height: 50)
                             }
                             .buttonStyle(.plain)
-                            .background(colorScheme == .dark ? Color(white: 0.15) : Color(white: 0.9))
-                            .foregroundColor(colorScheme == .dark ? Color.white : Color.black)
+                            .background(palette.bgTertiary)
+                            .foregroundColor(palette.textPrimary)
                             .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLarge))
                             .disabled(isLoading || isCreatingLocalUser)
                             .opacity(isLoading || isCreatingLocalUser ? 0.6 : 1.0)
@@ -197,8 +197,8 @@ struct LoginView: View {
 
     @ViewBuilder
     private func signInButton(for provider: SignInProvider) -> some View {
-        let neutralBackground = colorScheme == .dark ? Color(white: 0.2) : Color(white: 0.95)
-        let neutralForeground = colorScheme == .dark ? Color.white : Color.black
+        let neutralBackground = palette.bgTertiary
+        let neutralForeground = palette.textPrimary
         switch provider {
         case .google:
             providerButton(icon: "globe", titleKey: "auth.continue_with_google",
@@ -427,7 +427,7 @@ struct PasskeyEmailSheet: View {
                     if isLoading {
                         ProgressView()
                             .progressViewStyle(.circular)
-                            .tint(colorScheme == .dark ? Color.white : Color.black)
+                            .tint(palette.textPrimary)
                     } else {
                         Image(systemName: "person.badge.key.fill")
                     }
@@ -438,8 +438,8 @@ struct PasskeyEmailSheet: View {
                 .frame(height: 50)
             }
             .buttonStyle(.plain)
-            .background(colorScheme == .dark ? Color(white: 0.2) : Color(white: 0.95))
-            .foregroundColor(colorScheme == .dark ? Color.white : Color.black)
+            .background(palette.bgTertiary)
+            .foregroundColor(palette.textPrimary)
             .clipShape(RoundedRectangle(cornerRadius: Theme.radiusLarge))
             .disabled(isLoading)
             .padding(.horizontal, Theme.spacing24)

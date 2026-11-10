@@ -1242,10 +1242,7 @@ struct CommentRowViewEnhanced: View {
 
     // Effective theme
     private var effectiveTheme: String {
-        if themeMode == "auto" {
-            return colorScheme == .dark ? "dark" : "light"
-        }
-        return themeMode
+        ThemeMode.resolvedName(themeMode, colorScheme: colorScheme)
     }
 
     // Check if this comment is from the current user

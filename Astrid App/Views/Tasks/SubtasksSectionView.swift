@@ -16,7 +16,7 @@ struct SubtasksSectionView: View {
     @FocusState private var isAddFieldFocused: Bool
 
     private var effectiveTheme: String {
-        themeMode == "auto" ? (colorScheme == .dark ? "dark" : "light") : themeMode
+        ThemeMode.resolvedName(themeMode, colorScheme: colorScheme)
     }
     private var textPrimary: Color {
         effectiveTheme == "dark" ? Theme.Dark.textPrimary : Theme.textPrimary

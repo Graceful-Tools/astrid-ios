@@ -94,10 +94,7 @@ struct TaskListView: View {
 
     // Effective theme - Auto resolves to Light or Dark based on time of day
     private var effectiveTheme: String {
-        if themeMode == "auto" {
-            return colorScheme == .dark ? "dark" : "light"
-        }
-        return themeMode
+        ThemeMode.resolvedName(themeMode, colorScheme: colorScheme)
     }
 
     init(
@@ -406,7 +403,7 @@ struct TaskListView: View {
         .padding(.horizontal, Theme.spacing4)
         .background(
             RoundedRectangle(cornerRadius: Theme.radiusLarge)
-                .fill(colorScheme == .dark ? Theme.Dark.bgSecondary : Color.white)
+                .fill(palette.bgSecondary)
                 .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
         )
         .padding(.horizontal, 8)

@@ -15,10 +15,7 @@ struct ChatMessageBubble: View {
     @State private var showingDeleteAlert = false
 
     private var effectiveTheme: String {
-        if themeMode == "auto" {
-            return colorScheme == .dark ? "dark" : "light"
-        }
-        return themeMode
+        ThemeMode.resolvedName(themeMode, colorScheme: colorScheme)
     }
 
     private var hasTextContent: Bool {

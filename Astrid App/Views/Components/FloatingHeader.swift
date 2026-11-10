@@ -14,10 +14,7 @@ struct FloatingHeader<Content: View>: View {
 
     // Effective theme - Auto resolves to Light or Dark based on time of day
     private var effectiveTheme: String {
-        if themeMode == "auto" {
-            return colorScheme == .dark ? "dark" : "light"
-        }
-        return themeMode
+        ThemeMode.resolvedName(themeMode, colorScheme: colorScheme)
     }
 
     var body: some View {
@@ -74,10 +71,7 @@ struct FloatingTextHeader: View {
     /// Ocean and Light themes always use dark text (light backgrounds)
     /// Dark theme always uses light text (dark background)
     private var effectiveTheme: String {
-        if themeMode == "auto" {
-            return colorScheme == .dark ? "dark" : "light"
-        }
-        return themeMode
+        ThemeMode.resolvedName(themeMode, colorScheme: colorScheme)
     }
 
     /// Text color based on effective theme (not system colorScheme)

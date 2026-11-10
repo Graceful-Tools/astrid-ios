@@ -32,10 +32,7 @@ struct ListSidebarView: View {
 
     // Effective theme - Auto resolves to Light or Dark based on time of day
     private var effectiveTheme: ThemeMode {
-        if themeMode == .auto {
-            return colorScheme == .dark ? .dark : .light
-        }
-        return themeMode
+        themeMode.resolved(for: colorScheme)
     }
 
     // Theme-aware background color
@@ -500,14 +497,14 @@ struct ListSidebarView: View {
                     .padding(.vertical, Theme.spacing4)
                     .background(
                         Capsule()
-                            .fill(colorScheme == .dark ? Theme.Dark.bgTertiary : Color.gray.opacity(0.1))
+                            .fill(palette.bgTertiary)
                     )
             }
             .padding(.vertical, Theme.spacing8)
             .padding(.trailing, Theme.spacing4)
             .contentShape(Rectangle())  // Make entire row area tappable
         }
-        .buttonStyle(ListRowButtonStyle(isSelected: selectedListId == "my-tasks"))
+        .buttonStyle(ListRowButtonStyle(isSelected: selectedListId == "my-tasks", palette: palette))
         .accessibilityIdentifier("sidebar.myTasks")
     }
 
