@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ListSidebarView: View {
     @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @AppStorage("themeMode") private var themeMode: ThemeMode = .ocean
     @EnvironmentObject var authManager: AuthManager
     @StateObject private var listService = ListService.shared
@@ -141,8 +142,8 @@ struct ListSidebarView: View {
     private var brandHeaderSection: some View {
         Section {
             SidebarBrandHeader(
-                primary: colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary,
-                muted: colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted,
+                primary: palette.textPrimary,
+                muted: palette.textMuted,
                 isSearchActive: selectedListId == "search"
             ) {
                 openSearch(.headerIcon)
@@ -219,7 +220,7 @@ struct ListSidebarView: View {
                                 .foregroundColor(Theme.accent)
                             Text(NSLocalizedString("profile.sign_in_to_sync", comment: "Sign in to sync"))
                                 .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                         } else if let user = authManager.currentUser {
                             // Name only. The email wrapped onto a second line in the sidebar's
                             // narrow column ("jonparis@gmail.-\ncom") and told the signed-in
@@ -227,7 +228,7 @@ struct ListSidebarView: View {
                             // this row opens, on the profile and under Account.
                             Text(user.displayName)
                                 .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .foregroundColor(palette.textPrimary)
                                 .lineLimit(1)
                         }
                     }
@@ -243,7 +244,7 @@ struct ListSidebarView: View {
             } label: {
                 Image(systemName: "gearshape")
                     .font(.system(size: 18))
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    .foregroundColor(palette.textMuted)
                     .padding(Theme.spacing8)
                     .contentShape(Rectangle())
             }
@@ -357,7 +358,7 @@ struct ListSidebarView: View {
                 // Header
                 Text(NSLocalizedString("navigation.public_shared_lists", comment: ""))
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
                     .textCase(.uppercase)
                     .listRowInsets(EdgeInsets(top: 0, leading: Theme.spacing12, bottom: Theme.spacing4, trailing: Theme.spacing12))
 
@@ -398,7 +399,7 @@ struct ListSidebarView: View {
                 // Header
                 Text(NSLocalizedString("navigation.public_lists", comment: ""))
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
                     .textCase(.uppercase)
                     .listRowInsets(EdgeInsets(top: 0, leading: Theme.spacing12, bottom: Theme.spacing4, trailing: Theme.spacing12))
 
@@ -482,19 +483,19 @@ struct ListSidebarView: View {
 
                 Text(NSLocalizedString("navigation.my_tasks", comment: ""))
                     .font(Theme.Typography.body())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
 
                 Spacer()
 
                 // Filter icon to indicate this is a filtered view
                 Image(systemName: "line.3.horizontal.decrease.circle")
                     .font(Theme.Typography.footnote())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    .foregroundColor(palette.textMuted)
 
                 // Count of tasks assigned to current user (always show, even when 0)
                 Text("\(badges.myTasks)")
                     .font(Theme.Typography.callout())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
                     .padding(.horizontal, Theme.spacing8)
                     .padding(.vertical, Theme.spacing4)
                     .background(

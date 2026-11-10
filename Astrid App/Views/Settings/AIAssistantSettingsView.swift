@@ -8,7 +8,7 @@ import SwiftUI
  * - Apple Reminders sync
  */
 struct AIAssistantSettingsView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
 
     var body: some View {
         Form {
@@ -26,10 +26,10 @@ struct AIAssistantSettingsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("\(Brand.appName)'s AI")
                                 .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .foregroundColor(palette.textPrimary)
                             Text("Choose which AI model powers \(Brand.appName)")
                                 .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                         }
                         Spacer()
                     }
@@ -45,10 +45,10 @@ struct AIAssistantSettingsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(NSLocalizedString("settings.ai.manage_keys", comment: ""))
                                 .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .foregroundColor(palette.textPrimary)
                             Text(NSLocalizedString("settings.ai.manage_keys_subtitle", comment: ""))
                                 .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                         }
                         Spacer()
                     }
@@ -64,10 +64,10 @@ struct AIAssistantSettingsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(NSLocalizedString("settings.openclaw.title", comment: ""))
                                 .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .foregroundColor(palette.textPrimary)
                             Text(NSLocalizedString("settings.openclaw.subtitle", comment: ""))
                                 .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                         }
                         Spacer()
                     }
@@ -83,10 +83,10 @@ struct AIAssistantSettingsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(NSLocalizedString("settings.reminders.configure_sync", comment: ""))
                                 .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .foregroundColor(palette.textPrimary)
                             Text(NSLocalizedString("settings.reminders.sync_subtitle", comment: ""))
                                 .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                         }
                         Spacer()
                     }

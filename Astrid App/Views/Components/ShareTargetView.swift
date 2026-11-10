@@ -11,6 +11,7 @@ struct ShareTargetView: View {
     }
 
     @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) private var dismiss
 
     let target: Target
@@ -89,13 +90,13 @@ struct ShareTargetView: View {
                         .foregroundColor(Theme.accent)
                     Text(title)
                         .font(Theme.Typography.headline())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
                 }
                 .padding(.top, Theme.spacing16)
 
                 Text(name)
                     .font(Theme.Typography.body())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, Theme.spacing16)
@@ -121,11 +122,11 @@ struct ShareTargetView: View {
                         ProgressView()
                         Text(NSLocalizedString("share.generating_link", comment: "Generating share link..."))
                             .font(Theme.Typography.caption1())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(Theme.spacing20)
-                    .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                    .background(palette.bgSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                     .padding(.horizontal, Theme.spacing16)
                 } else if let errorMessage = errorMessage {
@@ -148,10 +149,10 @@ struct ShareTargetView: View {
                         HStack(spacing: Theme.spacing8) {
                             Image(systemName: "link")
                                 .font(.system(size: 14))
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                .foregroundColor(palette.textMuted)
                             Text(shareUrl)
                                 .font(.system(size: 13, design: .monospaced))
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .foregroundColor(palette.textPrimary)
                                 .lineLimit(1)
                                 .truncationMode(.middle)
                         }
@@ -187,14 +188,14 @@ struct ShareTargetView: View {
                                     Text(NSLocalizedString("actions.share", comment: "Share"))
                                 }
                                 .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .foregroundColor(palette.textPrimary)
                                 .frame(maxWidth: .infinity)
                                 .padding(Theme.spacing12)
-                                .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                                .background(palette.bgSecondary)
                                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: Theme.radiusMedium)
-                                        .stroke(colorScheme == .dark ? Theme.Dark.border : Theme.border, lineWidth: 1)
+                                        .stroke(palette.border, lineWidth: 1)
                                 )
                             }
                             .buttonStyle(.plain)
@@ -205,21 +206,21 @@ struct ShareTargetView: View {
                                 Text("🔗")
                                 Text(linkHint)
                                     .font(Theme.Typography.caption1())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             HStack(alignment: .top, spacing: Theme.spacing8) {
                                 Text("📌")
                                 Text(redirectHint)
                                     .font(Theme.Typography.caption1())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .padding(Theme.spacing16)
-                    .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                    .background(palette.bgSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                     .padding(.horizontal, Theme.spacing16)
                 }

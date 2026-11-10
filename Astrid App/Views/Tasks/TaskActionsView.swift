@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Task action buttons: Copy, Share, Delete
 struct TaskActionsView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) var dismiss
 
     let task: Task
@@ -27,10 +27,10 @@ struct TaskActionsView: View {
                     Text(NSLocalizedString("tasks.copy_task", comment: ""))
                 }
                 .font(Theme.Typography.body())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                .foregroundColor(palette.textPrimary)
                 .frame(maxWidth: .infinity)
                 .padding(Theme.spacing12)
-                .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                .background(palette.bgSecondary)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
             }
             .buttonStyle(.plain)
@@ -47,10 +47,10 @@ struct TaskActionsView: View {
                     Text(NSLocalizedString("tasks.share_task", comment: ""))
                 }
                 .font(Theme.Typography.body())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                .foregroundColor(palette.textPrimary)
                 .frame(maxWidth: .infinity)
                 .padding(Theme.spacing12)
-                .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                .background(palette.bgSecondary)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
             }
             .buttonStyle(.plain)
@@ -71,10 +71,10 @@ struct TaskActionsView: View {
                         Text(NSLocalizedString("subtasks.move_out_of_parent", comment: ""))
                     }
                     .font(Theme.Typography.body())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
                     .frame(maxWidth: .infinity)
                     .padding(Theme.spacing12)
-                    .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                    .background(palette.bgSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                 }
                 .buttonStyle(.plain)
@@ -92,7 +92,7 @@ struct TaskActionsView: View {
                 .foregroundColor(Theme.error)
                 .frame(maxWidth: .infinity)
                 .padding(Theme.spacing12)
-                .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                .background(palette.bgSecondary)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
             }
             .buttonStyle(.plain)
@@ -132,7 +132,7 @@ struct TaskActionsView: View {
 // MARK: - Copy Task View
 
 struct CopyTaskView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) private var dismiss
 
     let task: Task

@@ -3,7 +3,7 @@ import SwiftUI
 /// List Edit View with inline editing (matching TaskDetailViewNew design)
 struct ListEditView: View {
     @Environment(\.dismiss) var dismiss
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @StateObject private var listService = ListService.shared
 
     let list: TaskList?
@@ -35,23 +35,23 @@ struct ListEditView: View {
                     VStack(alignment: .leading, spacing: Theme.spacing8) {
                         Text(NSLocalizedString("lists.list_name", comment: ""))
                             .font(Theme.Typography.caption1())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                            .foregroundColor(palette.textSecondary)
                             .padding(.horizontal, Theme.spacing16)
 
                         TextField(NSLocalizedString("lists.enter_name", comment: ""), text: $name)
                             .accessibilityIdentifier("listEdit.name")
                             .font(.system(size: 19, weight: .medium))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .foregroundColor(palette.textPrimary)
                             .textFieldStyle(.plain)
                             .padding(Theme.spacing12)
-                            .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                            .background(palette.bgSecondary)
                             .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                             .padding(.horizontal, Theme.spacing16)
                     }
                     .padding(.top, Theme.spacing16)
 
                     Divider()
-                        .background(colorScheme == .dark ? Theme.Dark.border : Theme.border)
+                        .background(palette.border)
 
                     // 2. Description
                     InlineTextAreaEditor(
@@ -63,7 +63,7 @@ struct ListEditView: View {
                     .padding(.horizontal, Theme.spacing16)
 
                     Divider()
-                        .background(colorScheme == .dark ? Theme.Dark.border : Theme.border)
+                        .background(palette.border)
 
                     // 3. Members (only for new lists)
                     if list == nil {
@@ -71,7 +71,7 @@ struct ListEditView: View {
                             HStack {
                                 Text(NSLocalizedString("lists.members", comment: ""))
                                     .font(Theme.Typography.caption1())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                    .foregroundColor(palette.textSecondary)
 
                                 Spacer()
 
@@ -106,10 +106,10 @@ struct ListEditView: View {
                                             VStack(alignment: .leading, spacing: 2) {
                                                 Text(member.email)
                                                     .font(Theme.Typography.body())
-                                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                                    .foregroundColor(palette.textPrimary)
                                                 Text(member.role.capitalized)
                                                     .font(Theme.Typography.caption2())
-                                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                                    .foregroundColor(palette.textSecondary)
                                             }
 
                                             Spacer()
@@ -122,7 +122,7 @@ struct ListEditView: View {
                                             }
                                         }
                                         .padding(Theme.spacing12)
-                                        .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                                        .background(palette.bgSecondary)
                                         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                                     }
                                 }
@@ -130,7 +130,7 @@ struct ListEditView: View {
                             } else {
                                 Text(NSLocalizedString("lists.no_members", comment: ""))
                                     .font(Theme.Typography.caption2())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
                                     .padding(.horizontal, Theme.spacing16)
                             }
                         }
@@ -150,7 +150,7 @@ struct ListEditView: View {
                     Spacer().frame(height: Theme.spacing24)
                 }
             }
-            .background(colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
+            .background(palette.bgPrimary)
             .navigationTitle(list == nil ? NSLocalizedString("lists.new_list", comment: "") : NSLocalizedString("lists.edit_list", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

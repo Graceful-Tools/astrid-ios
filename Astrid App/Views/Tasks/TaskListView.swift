@@ -21,6 +21,7 @@ private struct ConditionalRefreshable: ViewModifier {
 
 struct TaskListView: View {
     @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.usesSplitLayout) private var usesSplitLayout
     @AppStorage("themeMode") private var themeMode: String = "ocean"
     @StateObject private var taskService = TaskService.shared
@@ -290,7 +291,7 @@ struct TaskListView: View {
                         } else {
                             // Regular text
                             Text(part)
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .foregroundColor(palette.textPrimary)
                         }
                     }
                 }
@@ -299,7 +300,7 @@ struct TaskListView: View {
             // Default rendering without colors
             return AnyView(
                 Text(title)
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
             )
         }
     }
@@ -378,11 +379,11 @@ struct TaskListView: View {
             HStack(spacing: Theme.spacing8) {
                 Image(systemName: "magnifyingglass")
                     .font(Theme.Typography.body())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    .foregroundColor(palette.textMuted)
 
                 TextField(NSLocalizedString("tasks.search_tasks_placeholder", comment: "Search tasks"), text: $searchText)
                     .font(Theme.Typography.headline())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
                     .focused($isSearchFieldFocused)
@@ -393,7 +394,7 @@ struct TaskListView: View {
                         searchText = ""
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                     .buttonStyle(.plain)
                 }
@@ -499,7 +500,7 @@ struct TaskListView: View {
                               ? "arrow.down.right.and.arrow.up.left"
                               : "arrow.up.left.and.arrow.down.right")
                             .font(Theme.Typography.headline())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .foregroundColor(palette.textPrimary)
                             .accessibilityLabel(Text(NSLocalizedString(
                                 boardFullScreen ? "board.exit_full_screen" : "board.full_screen",
                                 comment: "")))
@@ -514,7 +515,7 @@ struct TaskListView: View {
                     } label: {
                         Image(systemName: "line.3.horizontal.decrease.circle")
                             .font(Theme.Typography.headline())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .foregroundColor(palette.textPrimary)
                     }
                     .buttonStyle(.plain)
                 } else if selectedList != nil && canShowListSettings {
@@ -523,7 +524,7 @@ struct TaskListView: View {
                     } label: {
                         Image(systemName: "gearshape")
                             .font(Theme.Typography.headline())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .foregroundColor(palette.textPrimary)
                     }
                     .buttonStyle(.plain).accessibilityIdentifier("listSettingsButton")
                 }

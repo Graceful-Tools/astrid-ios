@@ -4,7 +4,7 @@ import SwiftUI
 struct ListAdminTab: View {
     private static let newGoogleTasklistSelection = "__new_google_tasklist__"
 
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
 
     let list: TaskList
     let onUpdate: (TaskList) -> Void
@@ -114,11 +114,11 @@ struct ListAdminTab: View {
                     VStack(alignment: .leading, spacing: Theme.spacing4) {
                         Text(NSLocalizedString("lists.list_image", comment: ""))
                             .font(Theme.Typography.body())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .foregroundColor(palette.textPrimary)
 
                         Text(NSLocalizedString("lists.list_image_description", comment: ""))
                             .font(Theme.Typography.caption2())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                            .foregroundColor(palette.textSecondary)
                     }
 
                     Spacer()
@@ -136,7 +136,7 @@ struct ListAdminTab: View {
                 VStack(alignment: .leading, spacing: Theme.spacing8) {
                     Text(NSLocalizedString("lists.list_color", comment: ""))
                         .font(Theme.Typography.body())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
 
                     ListColorSwatches(color: list.displayColor, onPick: saveColor)
                 }
@@ -149,7 +149,7 @@ struct ListAdminTab: View {
                 HStack {
                     Text(NSLocalizedString("tasks.priority", comment: ""))
                         .font(Theme.Typography.body())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
 
                     Spacer()
 
@@ -222,7 +222,7 @@ struct ListAdminTab: View {
                     VStack(alignment: .leading, spacing: Theme.spacing8) {
                         Text(NSLocalizedString("lists.link_repo_description", comment: ""))
                             .font(Theme.Typography.caption1())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                            .foregroundColor(palette.textSecondary)
 
                         if loadingRepositories {
                             HStack {
@@ -230,7 +230,7 @@ struct ListAdminTab: View {
                                     .scaleEffect(0.8)
                                 Text(NSLocalizedString("lists.loading_repositories", comment: ""))
                                     .font(Theme.Typography.caption2())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
                             }
                         } else if let error = repositoriesError {
                             VStack(alignment: .leading, spacing: Theme.spacing4) {
@@ -277,7 +277,7 @@ struct ListAdminTab: View {
                             if availableRepositories.isEmpty {
                                 Text(NSLocalizedString("lists.no_repositories_found", comment: ""))
                                     .font(Theme.Typography.caption2())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
                             }
 
                             Button {
@@ -471,7 +471,7 @@ struct ListAdminTab: View {
             }
         })
         .scrollContentBackground(.hidden)
-        .background(colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
+        .background(palette.bgPrimary)
         .task {
             await loadMembers()
             await loadAIProviderStatus()

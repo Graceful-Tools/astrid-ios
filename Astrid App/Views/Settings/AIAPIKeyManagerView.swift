@@ -15,7 +15,7 @@ struct APIKeyUIStatus {
 
 /// View for managing AI API keys
 struct AIAPIKeyManagerView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.openURL) var openURL
 
     @State private var keyStatuses: [AIService: APIKeyUIStatus] = [:]
@@ -42,7 +42,7 @@ struct AIAPIKeyManagerView: View {
 
                     Text(NSLocalizedString("settings.ai.api_keys_description", comment: ""))
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                 }
             }
 
@@ -79,7 +79,7 @@ struct AIAPIKeyManagerView: View {
                             .scaleEffect(0.8)
                         Text(NSLocalizedString("settings.ai.loading_keys", comment: ""))
                             .font(Theme.Typography.body())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                            .foregroundColor(palette.textSecondary)
                     }
                 }
             } else {
@@ -93,15 +93,15 @@ struct AIAPIKeyManagerView: View {
                 VStack(alignment: .leading, spacing: Theme.spacing8) {
                     Text(NSLocalizedString("settings.ai.about_keys", comment: ""))
                         .font(Theme.Typography.subheadline())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
 
                     Text(Brand.localized("settings.ai.about_description"))
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
 
                     Text(Brand.localized("settings.ai.encryption_info"))
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                 }
             }
         }
@@ -149,7 +149,7 @@ struct AIAPIKeyManagerView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(service.displayName)
                             .font(Theme.Typography.body())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .foregroundColor(palette.textPrimary)
 
                         if status.hasKey {
                             HStack(spacing: 4) {
@@ -158,18 +158,18 @@ struct AIAPIKeyManagerView: View {
                                     .frame(width: 6, height: 6)
                                 Text(statusText(for: status))
                                     .font(Theme.Typography.caption2())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                    .foregroundColor(palette.textSecondary)
 
                                 if let preview = status.keyPreview {
                                     Text("(\(preview))")
                                         .font(Theme.Typography.caption2())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                        .foregroundColor(palette.textMuted)
                                 }
                             }
                         } else {
                             Text(NSLocalizedString("settings.ai.not_configured", comment: ""))
                                 .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                .foregroundColor(palette.textMuted)
                         }
                     }
 
@@ -177,7 +177,7 @@ struct AIAPIKeyManagerView: View {
 
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.system(size: 14))
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
                 }
                 .contentShape(Rectangle())
             }
@@ -188,7 +188,7 @@ struct AIAPIKeyManagerView: View {
                 VStack(alignment: .leading, spacing: Theme.spacing12) {
                     Text(service.description)
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
 
                     // API Key input
                     if status.hasKey && !showKeyInput {
@@ -299,7 +299,7 @@ struct AIAPIKeyManagerView: View {
                                     }) {
                                         Text(NSLocalizedString("actions.cancel", comment: ""))
                                             .font(Theme.Typography.caption1())
-                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                            .foregroundColor(palette.textSecondary)
                                     }
                                     .buttonStyle(.plain)
                                 }

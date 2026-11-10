@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Sort & Filters tab for list settings
 struct ListSortFiltersTab: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @StateObject private var listService = ListService.shared
     @ObservedObject private var memberService = ListMemberService.shared
 
@@ -172,9 +172,9 @@ struct ListSortFiltersTab: View {
                 Toggle(isOn: $showSubtasks) {
                     HStack(spacing: Theme.spacing8) {
                         Image(systemName: "list.bullet.indent")
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                         Text(NSLocalizedString("lists.show_subtasks", comment: ""))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .foregroundColor(palette.textPrimary)
                     }
                 }
                 .onChange(of: showSubtasks) { _, newValue in
@@ -183,7 +183,7 @@ struct ListSortFiltersTab: View {
 
                 Text(NSLocalizedString("lists.show_subtasks_footer", comment: ""))
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    .foregroundColor(palette.textMuted)
             }
 
             // Favorite Toggle
@@ -191,9 +191,9 @@ struct ListSortFiltersTab: View {
                 Toggle(isOn: $isFavorite) {
                     HStack(spacing: Theme.spacing8) {
                         Image(systemName: isFavorite ? "star.fill" : "star")
-                            .foregroundColor(isFavorite ? .yellow : (colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted))
+                            .foregroundColor(isFavorite ? .yellow : (palette.textMuted))
                         Text(NSLocalizedString("lists.favorite", comment: ""))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .foregroundColor(palette.textPrimary)
                     }
                 }
                 .onChange(of: isFavorite) { _, newValue in
@@ -213,7 +213,7 @@ struct ListSortFiltersTab: View {
                 if isFavorite {
                     Text(NSLocalizedString("lists.favorite_description", comment: ""))
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
                 }
             }
 
@@ -222,9 +222,9 @@ struct ListSortFiltersTab: View {
                 Toggle(isOn: $isVirtual) {
                     HStack(spacing: Theme.spacing8) {
                         Image(systemName: "line.3.horizontal.decrease.circle")
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .foregroundColor(palette.textPrimary)
                         Text(NSLocalizedString("lists.saved_filter", comment: ""))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .foregroundColor(palette.textPrimary)
                     }
                 }
                 .onChange(of: isVirtual) { _, newValue in
@@ -247,12 +247,12 @@ struct ListSortFiltersTab: View {
                 if isVirtual {
                     Text(NSLocalizedString("lists.saved_filter_description", comment: ""))
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
                 }
             }
         }
         .scrollContentBackground(.hidden)
-        .background(colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
+        .background(palette.bgPrimary)
         .task {
             await loadMembers()
         }

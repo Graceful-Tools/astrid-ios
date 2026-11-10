@@ -3,7 +3,7 @@ import SwiftUI
 /// Full-screen reminder view shown when user taps notification
 /// Matches the web app's AstridReminderPopover design
 struct ReminderView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var authManager: AuthManager
 
@@ -58,7 +58,7 @@ struct ReminderView: View {
                         }) {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 28))
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                .foregroundColor(palette.textMuted)
                         }
                         .padding(Theme.spacing16)
                     }
@@ -92,7 +92,7 @@ struct ReminderView: View {
                     .padding(.bottom, Theme.spacing24)
                 }
                 .frame(maxWidth: 500)
-                .background(colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
+                .background(palette.bgPrimary)
                 .cornerRadius(16)
                 .shadow(radius: 20)
                 .padding(.horizontal, Theme.spacing16)
@@ -195,12 +195,12 @@ struct ReminderView: View {
                         .fontWeight(.semibold)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, Theme.spacing16)
-                        .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .background(palette.bgSecondary)
+                        .foregroundColor(palette.textPrimary)
                         .cornerRadius(12)
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(colorScheme == .dark ? Theme.Dark.border : Theme.border, lineWidth: 1)
+                                .stroke(palette.border, lineWidth: 1)
                         )
                 }
 
@@ -220,12 +220,12 @@ struct ReminderView: View {
                             .fontWeight(.semibold)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, Theme.spacing16)
-                            .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .background(palette.bgSecondary)
+                            .foregroundColor(palette.textPrimary)
                             .cornerRadius(12)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(colorScheme == .dark ? Theme.Dark.border : Theme.border, lineWidth: 1)
+                                    .stroke(palette.border, lineWidth: 1)
                             )
                     }
                     .frame(maxWidth: .infinity)
@@ -244,12 +244,12 @@ struct ReminderView: View {
                             .fontWeight(.semibold)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, Theme.spacing16)
-                            .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .background(palette.bgSecondary)
+                            .foregroundColor(palette.textPrimary)
                             .cornerRadius(12)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(colorScheme == .dark ? Theme.Dark.border : Theme.border, lineWidth: 1)
+                                    .stroke(palette.border, lineWidth: 1)
                             )
                     }
                     .frame(maxWidth: .infinity)

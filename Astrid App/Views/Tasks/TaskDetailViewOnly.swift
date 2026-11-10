@@ -3,7 +3,7 @@ import SwiftUI
 /// View-only task detail for public lists (matching web's task-detail-viewonly.tsx)
 /// Shows task information in a read-only format with no edit affordances
 struct TaskDetailViewOnly: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) var dismiss
 
     @State private var task: Task
@@ -22,18 +22,18 @@ struct TaskDetailViewOnly: View {
                 HStack(alignment: .center, spacing: Theme.spacing12) {
                     Text(task.title)
                         .font(.system(size: 19, weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
                         .strikethrough(task.completed)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(Theme.spacing12)
-                        .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                        .background(palette.bgSecondary)
                         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                 }
                 .padding(.horizontal, Theme.spacing16)
                 .padding(.top, Theme.spacing16)
 
                 Divider()
-                    .background(colorScheme == .dark ? Theme.Dark.border : Theme.border)
+                    .background(palette.border)
 
                 // Created By - always show creator for public list tasks
                 if let creator = task.creator {
@@ -69,7 +69,7 @@ struct TaskDetailViewOnly: View {
                         HStack(spacing: Theme.spacing8) {
                             Image(systemName: "calendar")
                                 .font(.system(size: 14))
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                .foregroundColor(palette.textMuted)
 
                             Text(date, style: .date)
                                 .font(Theme.Typography.body())
@@ -79,7 +79,7 @@ struct TaskDetailViewOnly: View {
                             if !task.isAllDay {
                                 Image(systemName: "clock")
                                     .font(.system(size: 14))
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
 
                                 Text(date, style: .time)
                                     .font(Theme.Typography.body())
@@ -121,7 +121,7 @@ struct TaskDetailViewOnly: View {
                     ViewOnlyTwoColumnRow(label: "Description") {
                         Text(task.description)
                             .font(Theme.Typography.body())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .foregroundColor(palette.textPrimary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
@@ -142,19 +142,19 @@ struct TaskDetailViewOnly: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, Theme.spacing16)
-                        .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .background(palette.bgSecondary)
+                        .foregroundColor(palette.textPrimary)
                         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                         .overlay(
                             RoundedRectangle(cornerRadius: Theme.radiusMedium)
-                                .stroke(colorScheme == .dark ? Theme.Dark.border : Theme.border, lineWidth: 1)
+                                .stroke(palette.border, lineWidth: 1)
                         )
                     }
 
                     if let lastTimerValue = task.lastTimerValue {
                         Text(String(format: NSLocalizedString("task_edit.last_timer", comment: "Last timer value"), lastTimerValue))
                             .font(.system(size: 14))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                             .multilineTextAlignment(.center)
                     }
                 }
@@ -182,7 +182,7 @@ struct TaskDetailViewOnly: View {
         .refreshable {
             await refreshTaskDetails()
         }
-        .background(colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
+        .background(palette.bgPrimary)
         .navigationTitle(NSLocalizedString("tasks.task_details", comment: "Task Details"))
         // The other detail screen, marked the same way, so a test that waits for "the detail"
         // does not have to know which one it got (task b86c97c5).
@@ -250,7 +250,7 @@ struct TaskDetailViewOnly: View {
 // MARK: - Two Column Row Helper (View-Only Version)
 
 private struct ViewOnlyTwoColumnRow<Content: View>: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     let label: String
     let content: Content
 
@@ -263,7 +263,7 @@ private struct ViewOnlyTwoColumnRow<Content: View>: View {
         HStack(alignment: .center, spacing: Theme.spacing16) {
             Text(label)
                 .font(Theme.Typography.caption1())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                .foregroundColor(palette.textMuted)
                 .frame(width: 100, alignment: .leading)
 
             content
