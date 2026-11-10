@@ -84,7 +84,7 @@ struct PHPickerViewControllerWrapper: UIViewControllerRepresentable {
 /// Image picker modal for selecting list images
 /// Supports: Color placeholders, Default icons, Photo library upload
 struct ImagePickerView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) var dismiss
 
     let list: TaskList
@@ -158,7 +158,7 @@ struct ImagePickerView: View {
                     }
                 }
             }
-            .background(colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
+            .background(palette.bgPrimary)
             .navigationTitle(showingCropView ? "Adjust Image" : "Choose Image")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -215,7 +215,7 @@ struct ImagePickerView: View {
 
                             Text(color.name)
                                 .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                         }
                     }
                     .buttonStyle(.plain)
@@ -282,7 +282,7 @@ struct ImagePickerView: View {
 
                             Text(labelForDefaultIcon(icon.name))
                                 .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                         }
                     }
                     .buttonStyle(.plain)
@@ -307,11 +307,11 @@ struct ImagePickerView: View {
             VStack(spacing: Theme.spacing8) {
                 Text(NSLocalizedString("image_picker.upload_library", comment: "Upload from Photo Library"))
                     .font(Theme.Typography.headline())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
 
                 Text(NSLocalizedString("image_picker.choose_description", comment: "Choose an image from your photo library"))
                     .font(Theme.Typography.body())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
                     .multilineTextAlignment(.center)
             }
 
@@ -418,7 +418,7 @@ private struct SecureFileUploadResponse: Codable {
 
 /// View for adjusting and cropping an image to a square before upload
 struct ImageCropView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
 
     let image: UIImage
     let isUploading: Bool
@@ -440,7 +440,7 @@ struct ImageCropView: View {
             // Instructions
             Text(NSLocalizedString("image_picker.pinch_zoom", comment: "Pinch to zoom, drag to position"))
                 .font(Theme.Typography.caption1())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                .foregroundColor(palette.textSecondary)
                 .padding(.top, Theme.spacing16)
 
             Spacer()
@@ -540,7 +540,7 @@ struct ImageCropView: View {
             }
             .padding(Theme.spacing16)
         }
-        .background(colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
+        .background(palette.bgPrimary)
     }
 
     /// Crop the image to the visible area

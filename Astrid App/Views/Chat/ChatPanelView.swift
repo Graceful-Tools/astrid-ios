@@ -7,6 +7,7 @@ private let logger = Logger(subsystem: Brand.logSubsystem, category: "ChatPanel"
 /// Main chat panel for a list — resolves channel, displays messages, handles input
 struct ChatPanelView: View {
     @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @AppStorage("themeMode") private var themeMode: String = "ocean"
     let listId: String
     var onSignedIn: (() -> Void)?  // Called after successful sign-in to redirect
@@ -51,7 +52,7 @@ struct ChatPanelView: View {
                     .tint(Theme.accent)
                 Text("Loading chat...")
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    .foregroundColor(palette.textMuted)
                     .padding(.top, Theme.spacing8)
                 Spacer()
             } else if !isSignedInToServer {
@@ -60,10 +61,10 @@ struct ChatPanelView: View {
                 VStack(spacing: Theme.spacing16) {
                     Image(systemName: "bubble.left.and.bubble.right")
                         .font(.system(size: 36))
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
                     Text("List comments and agents require sign-in.")
                         .font(Theme.Typography.body())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                         .multilineTextAlignment(.center)
                     Button {
                         showingSignInSheet = true
@@ -89,7 +90,7 @@ struct ChatPanelView: View {
                         .foregroundColor(Theme.warning)
                     Text(error)
                         .font(Theme.Typography.body())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                         .multilineTextAlignment(.center)
                     Button("Try Again") {
                         _Concurrency.Task { await loadChannel() }
@@ -108,11 +109,11 @@ struct ChatPanelView: View {
                         Text("Offline — messages will sync when connected")
                             .font(Theme.Typography.caption2())
                     }
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    .foregroundColor(palette.textMuted)
                     .padding(.horizontal, Theme.spacing12)
                     .padding(.vertical, Theme.spacing4)
                     .frame(maxWidth: .infinity)
-                    .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                    .background(palette.bgSecondary)
                 }
 
                 // Messages
@@ -121,13 +122,13 @@ struct ChatPanelView: View {
                     VStack(spacing: Theme.spacing8) {
                         Image(systemName: "bubble.left.and.bubble.right")
                             .font(.system(size: 40))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted.opacity(0.5) : Theme.textMuted.opacity(0.5))
+                            .foregroundColor(palette.textMuted.opacity(0.5))
                         Text(NSLocalizedString("chat.empty", comment: "No messages yet"))
                             .font(Theme.Typography.body())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                         Text(NSLocalizedString("chat.empty.hint", comment: "Start a conversation or @mention an AI agent"))
                             .font(Theme.Typography.caption1())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted.opacity(0.7) : Theme.textMuted.opacity(0.7))
+                            .foregroundColor(palette.textMuted.opacity(0.7))
                     }
                     Spacer()
                 } else {

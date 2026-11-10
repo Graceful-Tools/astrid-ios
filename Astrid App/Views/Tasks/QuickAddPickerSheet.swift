@@ -15,6 +15,7 @@ struct QuickAddPickerSheet: View {
     @Binding var selectedAssigneeId: String?
     let availableMembers: [User]
     let colorScheme: ColorScheme
+    @ThemedPalette private var palette
     var listIds: [String]? = nil
 
     @State private var aiAgents: [User] = []
@@ -63,7 +64,7 @@ struct QuickAddPickerSheet: View {
                 VStack(alignment: .leading, spacing: Theme.spacing12) {
                     Text(NSLocalizedString("tasks.priority", comment: ""))
                         .font(Theme.Typography.headline())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
 
                     HStack(spacing: Theme.spacing12) {
                         ForEach(priorities, id: \.self) { priority in
@@ -90,7 +91,7 @@ struct QuickAddPickerSheet: View {
                 VStack(alignment: .leading, spacing: Theme.spacing12) {
                     Text(NSLocalizedString("tasks.assignee", comment: ""))
                         .font(Theme.Typography.headline())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
 
                     ScrollView {
                         VStack(spacing: Theme.spacing8) {
@@ -179,6 +180,7 @@ private struct QuickAddPriorityButton: View {
     let priority: Task.Priority
     let isSelected: Bool
     let colorScheme: ColorScheme
+    @ThemedPalette private var palette
     let action: () -> Void
 
     private var priorityColor: Color {
@@ -228,6 +230,7 @@ private struct AssigneeOptionButton: View {
     let isCurrentUser: Bool
     var isAIAgent: Bool = false
     let colorScheme: ColorScheme
+    @ThemedPalette private var palette
     let action: () -> Void
 
     var body: some View {
@@ -253,11 +256,11 @@ private struct AssigneeOptionButton: View {
                 } else {
                     ZStack {
                         Circle()
-                            .fill(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                            .fill(palette.bgSecondary)
                             .frame(width: 36, height: 36)
                         Image(systemName: "person.slash")
                             .font(.system(size: 16))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                 }
 
@@ -265,16 +268,16 @@ private struct AssigneeOptionButton: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(user?.displayName ?? NSLocalizedString("assignee.unassigned", comment: ""))
                         .font(Theme.Typography.body())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
 
                     if isCurrentUser {
                         Text(NSLocalizedString("assignee.you", comment: ""))
                             .font(Theme.Typography.caption2())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     } else if user?.isAIAgent == true {
                         Text(NSLocalizedString("profile.ai_agent", comment: ""))
                             .font(Theme.Typography.caption2())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                 }
 
@@ -292,7 +295,7 @@ private struct AssigneeOptionButton: View {
             .background(
                 RoundedRectangle(cornerRadius: Theme.radiusMedium)
                     .fill(isSelected
-                          ? (colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                          ? (palette.bgSecondary)
                           : Color.clear)
             )
             .overlay(

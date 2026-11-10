@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 /// New TaskDetailView with inline editing (matching mobile web app)
 struct TaskDetailViewNew: View {
     @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) var dismiss
     @AppStorage("themeMode") private var themeMode: ThemeMode = .ocean
 
@@ -280,10 +281,10 @@ struct TaskDetailViewNew: View {
                     if isReadOnly {
                         Text(editedTitle)
                             .font(.system(size: 19, weight: .medium))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .foregroundColor(palette.textPrimary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(Theme.spacing12)
-                            .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                            .background(palette.bgSecondary)
                             .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                     } else {
                         titleTextField
@@ -307,7 +308,7 @@ struct TaskDetailViewNew: View {
                 }
 
                 Divider()
-                    .background(colorScheme == .dark ? Theme.Dark.border : Theme.border)
+                    .background(palette.border)
 
                 // 1a. WHO, in LIST mode only (task 729a190e).
                 //
@@ -356,7 +357,7 @@ struct TaskDetailViewNew: View {
 
                                 Text(creator.displayName)
                                     .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    .foregroundColor(palette.textPrimary)
                             }
                         }
                         .buttonStyle(.plain)
@@ -374,17 +375,17 @@ struct TaskDetailViewNew: View {
                                 if let date = editedDueDate {
                                     Text(formatDateReadOnly(date))
                                         .font(Theme.Typography.body())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                        .foregroundColor(palette.textPrimary)
                                 }
                                 if let time = editedDueTime {
                                     Text(time, style: .time)
                                         .font(Theme.Typography.body())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                        .foregroundColor(palette.textPrimary)
                                 }
                                 if let repeating = editedRepeating, repeating != .never {
                                     Label(repeating.rawValue.capitalized, systemImage: "repeat")
                                         .font(Theme.Typography.caption1())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                        .foregroundColor(palette.textSecondary)
                                 }
                             }
                         } else {
@@ -434,7 +435,7 @@ struct TaskDetailViewNew: View {
                                         ListImageView(list: list, size: 8)
                                         Text(list.name)
                                             .font(Theme.Typography.caption1())
-                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                            .foregroundColor(palette.textPrimary)
                                     }
                                 }
                             }
@@ -472,7 +473,7 @@ struct TaskDetailViewNew: View {
                 TaskDetailRelatedTasksRows(task: task, isReadOnly: isReadOnly) // 7b. WAITING ON, OCCURRENCES
 
                 Divider()
-                    .background(colorScheme == .dark ? Theme.Dark.border : Theme.border)
+                    .background(palette.border)
 
                 // 8. Description
                 if isReadOnly {
@@ -498,7 +499,7 @@ struct TaskDetailViewNew: View {
                 if let lastTimerValue = task.lastTimerValue {
                     Text(String(format: NSLocalizedString("task_edit.last_timer", comment: "Last timer value"), lastTimerValue))
                         .font(.system(size: 14))
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
                         .frame(maxWidth: .infinity)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, Theme.spacing16)
@@ -510,7 +511,7 @@ struct TaskDetailViewNew: View {
                     let providerName = ["google": "Google Tasks", "github": "GitHub", "apple": "Apple Reminders"][src] ?? src
                     Text(String(format: NSLocalizedString("task_detail.completed_via", comment: "Completed via provider"), providerName))
                         .font(Theme.Typography.caption2())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, Theme.spacing16)
                         .padding(.top, Theme.spacing4)
@@ -529,7 +530,7 @@ struct TaskDetailViewNew: View {
                                 .font(Theme.Typography.caption1().weight(.medium))
                                 .lineLimit(1)
                         }
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .buttonStyle(.plain)
@@ -1070,8 +1071,8 @@ struct TaskDetailViewNew: View {
     /// Extracted rather than inlined in the ForEach — inline, the type-checker gave up on it.
     @ViewBuilder
     private func attachmentThumbnail(_ file: AttachedFileInfo) -> some View {
-        let mutedColor: Color = colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted
-        let cardColor: Color = colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary
+        let mutedColor: Color = palette.textMuted
+        let cardColor: Color = palette.bgTertiary
         let fileExtension: String = file.fileName.components(separatedBy: ".").last?.uppercased() ?? "FILE"
 
         ZStack(alignment: .topTrailing) {
@@ -1295,7 +1296,7 @@ struct TaskDetailViewNew: View {
     private var titleTextField: some View {
         TextField("Task title", text: $editedTitle, axis: .vertical)
             .font(.system(size: 19, weight: .medium))
-            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+            .foregroundColor(palette.textPrimary)
             .textFieldStyle(.plain)
             .disabled(isReadOnly)
             .focused($isTitleFocused).accessibilityIdentifier("taskDetail.title")
@@ -1307,7 +1308,7 @@ struct TaskDetailViewNew: View {
                 }
             }
             .padding(Theme.spacing12)
-            .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+            .background(palette.bgSecondary)
             .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
     }
 

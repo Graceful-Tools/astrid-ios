@@ -4,7 +4,7 @@ import Contacts
 /// Reusable sheet for adding members to a list with contacts autocomplete
 /// Used by both ListMembershipTab (existing lists) and ListEditView (new lists)
 struct AddMemberSheet: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) var dismiss
 
     /// Called when a member is added with their email and role
@@ -76,7 +76,7 @@ struct AddMemberSheet: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .keyboardType(.emailAddress)
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
                         .tint(Theme.accent)
                         .onChange(of: email) { _, newValue in
                             searchContacts(query: newValue)
@@ -100,7 +100,7 @@ struct AddMemberSheet: View {
                                 .scaleEffect(0.8)
                             Text(NSLocalizedString("members.searching", comment: "Searching contacts..."))
                                 .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                .foregroundColor(palette.textMuted)
                         }
                     }
                 }
@@ -135,7 +135,7 @@ struct AddMemberSheet: View {
                     } footer: {
                         Text(Brand.localized("members.astrid_users"))
                             .font(Theme.Typography.caption2())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                            .foregroundColor(palette.textSecondary)
                     }
                 } else if loadingRecommendations {
                     Section("Suggested") {
@@ -144,7 +144,7 @@ struct AddMemberSheet: View {
                                 .scaleEffect(0.8)
                             Text(NSLocalizedString("members.loading_suggestions", comment: "Loading suggestions..."))
                                 .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                .foregroundColor(palette.textMuted)
                         }
                     }
                 }
@@ -161,15 +161,15 @@ struct AddMemberSheet: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(NSLocalizedString("members.add_collaborators", comment: "Add Collaborators"))
                                         .font(Theme.Typography.body())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                        .foregroundColor(palette.textPrimary)
                                     Text(NSLocalizedString("members.upload_contacts", comment: "Upload your contacts for better collaboration"))
                                         .font(Theme.Typography.caption2())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                        .foregroundColor(palette.textSecondary)
                                 }
                                 Spacer()
                                 Image(systemName: "chevron.right")
                                     .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
                             }
                         }
                         .buttonStyle(.plain)
@@ -226,10 +226,10 @@ struct AddMemberSheet: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(contact.displayName)
                     .font(Theme.Typography.body())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
                 Text(contact.email)
                     .font(Theme.Typography.caption2())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
             }
 
             Spacer()
@@ -269,7 +269,7 @@ struct AddMemberSheet: View {
                 HStack(spacing: 4) {
                     Text(collaborator.displayName)
                         .font(Theme.Typography.body())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
                     if collaborator.isMutual {
                         Image(systemName: "arrow.left.arrow.right")
                             .font(.system(size: 10))
@@ -278,7 +278,7 @@ struct AddMemberSheet: View {
                 }
                 Text(collaborator.email)
                     .font(Theme.Typography.caption2())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
             }
 
             Spacer()

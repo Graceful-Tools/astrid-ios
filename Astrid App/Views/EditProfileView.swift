@@ -2,7 +2,7 @@ import SwiftUI
 import PhotosUI
 
 struct EditProfileView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) var dismiss
     @StateObject private var viewModel: EditProfileViewModel
     @EnvironmentObject var authManager: AuthManager
@@ -114,7 +114,7 @@ struct EditProfileView: View {
 
             Text(NSLocalizedString("profile.tap_change_photo", comment: "Tap to change photo"))
                 .font(Theme.Typography.caption1())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                .foregroundColor(palette.textMuted)
 
             if viewModel.isUploading {
                 HStack(spacing: Theme.spacing8) {
@@ -122,7 +122,7 @@ struct EditProfileView: View {
                         .scaleEffect(0.8)
                     Text(NSLocalizedString("profile.uploading_photo", comment: "Uploading photo..."))
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
                 }
             }
         }
@@ -156,17 +156,17 @@ struct EditProfileView: View {
             VStack(alignment: .leading, spacing: Theme.spacing8) {
                 Text(NSLocalizedString("profile.display_name", comment: "Display Name"))
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
 
                 TextField("Enter your name", text: $viewModel.name)
                     .font(Theme.Typography.body())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
                     .padding(Theme.spacing12)
-                    .background(colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary)
+                    .background(palette.bgTertiary)
                     .cornerRadius(Theme.radiusMedium)
                     .overlay(
                         RoundedRectangle(cornerRadius: Theme.radiusMedium)
-                            .stroke(colorScheme == .dark ? Theme.Dark.border : Theme.border, lineWidth: 1)
+                            .stroke(palette.border, lineWidth: 1)
                     )
             }
 
@@ -174,20 +174,20 @@ struct EditProfileView: View {
             VStack(alignment: .leading, spacing: Theme.spacing8) {
                 Text(NSLocalizedString("profile.email_address", comment: "Email Address"))
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
 
                 TextField("Enter your email", text: $viewModel.email)
                     .font(Theme.Typography.body())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
                     .textInputAutocapitalization(.never)
                     .keyboardType(.emailAddress)
                     .disableAutocorrection(true)
                     .padding(Theme.spacing12)
-                    .background(colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary)
+                    .background(palette.bgTertiary)
                     .cornerRadius(Theme.radiusMedium)
                     .overlay(
                         RoundedRectangle(cornerRadius: Theme.radiusMedium)
-                            .stroke(colorScheme == .dark ? Theme.Dark.border : Theme.border, lineWidth: 1)
+                            .stroke(palette.border, lineWidth: 1)
                     )
             }
 
@@ -198,7 +198,7 @@ struct EditProfileView: View {
                         .foregroundColor(Theme.accent)
                     Text("Your profile photo is synced with your \(viewModel.oauthProvider) account. You can override it by uploading a custom photo above.")
                         .font(Theme.Typography.caption2())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
                 }
                 .padding(Theme.spacing12)
                 .background(Theme.accent.opacity(0.1))

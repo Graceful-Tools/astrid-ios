@@ -3,7 +3,7 @@ import SwiftUI
 /// Compact task row for use in reminders and dialogs
 /// Matches TaskRowView design but without full-width separator
 struct CompactTaskRow: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
 
     let task: Task
     let onToggle: () -> Void
@@ -27,8 +27,8 @@ struct CompactTaskRow: View {
                     .strikethrough(task.completed)
                     .foregroundColor(
                         task.completed
-                            ? (colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
-                            : (colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            ? (palette.textMuted)
+                            : (palette.textPrimary)
                     )
 
                 // Combined metadata row: date first (left), then lists - matching web
@@ -38,7 +38,7 @@ struct CompactTaskRow: View {
                         if let dueDate = task.dueDateTime {
                             Text(DueDateLabel.rowText(for: dueDate, isAllDay: task.isAllDay))
                                 .font(Theme.Typography.subheadline())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                .foregroundColor(palette.textMuted)
                         }
 
                         // Lists (after date)
@@ -65,20 +65,20 @@ struct CompactTaskRow: View {
                                             .font(Theme.Typography.subheadline())
                                             .lineLimit(1)
                                     }
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                    .foregroundColor(palette.textSecondary)
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 4)
-                                    .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                                    .background(palette.bgSecondary)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 12)
-                                            .stroke(colorScheme == .dark ? Theme.Dark.border : Theme.border, lineWidth: 1)
+                                            .stroke(palette.border, lineWidth: 1)
                                     )
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
                                 }
                                 if lists.count > 2 {
                                     Text("+\(lists.count - 2)")
                                         .font(Theme.Typography.subheadline())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                        .foregroundColor(palette.textMuted)
                                 }
                             }
                         }
@@ -97,17 +97,17 @@ struct CompactTaskRow: View {
                 } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 14))
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
                         .frame(width: 32, height: 32)
                 }
             }
         }
         .padding(Theme.spacing12)
-        .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+        .background(palette.bgSecondary)
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(colorScheme == .dark ? Theme.Dark.border : Theme.border, lineWidth: 1)
+                .stroke(palette.border, lineWidth: 1)
         )
     }
 
