@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Inline multi-list picker with search (matching mobile web)
 struct InlineListsPicker: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
 
     let label: String
     @Binding var selectedListIds: [String]
@@ -34,7 +34,7 @@ struct InlineListsPicker: View {
             if showLabel {
                 Text(label)
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
             }
 
             if isEditing {
@@ -42,16 +42,16 @@ struct InlineListsPicker: View {
                     // Search
                     HStack {
                         Image(systemName: "magnifyingglass")
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                         TextField("Search lists...", text: $searchText)
                             .textFieldStyle(.plain)
                     }
                     .padding(Theme.spacing8)
-                    .background(colorScheme == .dark ? Theme.Dark.inputBg : Theme.inputBg)
+                    .background(palette.inputBg)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
                     .overlay(
                         RoundedRectangle(cornerRadius: Theme.radiusSmall)
-                            .stroke(colorScheme == .dark ? Theme.Dark.inputBorder : Theme.inputBorder, lineWidth: 1)
+                            .stroke(palette.inputBorder, lineWidth: 1)
                     )
 
                     // List selection
@@ -60,15 +60,14 @@ struct InlineListsPicker: View {
                             if filteredLists.isEmpty {
                                 Text(NSLocalizedString("picker.no_lists", comment: "No lists found"))
                                     .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, Theme.spacing24)
                             } else {
                                 ForEach(filteredLists) { list in
                                     ListSelectionRow(
                                         list: list,
-                                        isSelected: tempSelection.contains(list.id),
-                                        colorScheme: colorScheme
+                                        isSelected: tempSelection.contains(list.id)
                                     ) {
                                         toggleListSelection(list.id)
                                     }
@@ -85,7 +84,7 @@ struct InlineListsPicker: View {
                                 .foregroundColor(Theme.success)
                             Text("\(tempSelection.count) list\(tempSelection.count == 1 ? "" : "s") selected")
                                 .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                             Spacer()
                         }
                         .padding(.horizontal, Theme.spacing8)
@@ -97,26 +96,26 @@ struct InlineListsPicker: View {
                             wasCancelled = true
                             isEditing = false
                         }
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, Theme.spacing8)
-                        .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                        .background(palette.bgSecondary)
                         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
 
                         Button("Close") {
                             saveLists()
                         }
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, Theme.spacing8)
-                        .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                        .background(palette.bgSecondary)
                         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                         .disabled(isSaving)
                         .opacity(isSaving ? 0.6 : 1.0)
                     }
                 }
                 .padding(Theme.spacing12)
-                .background(colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary)
+                .background(palette.bgTertiary)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
             } else {
                 Button {
@@ -128,23 +127,23 @@ struct InlineListsPicker: View {
                             HStack {
                                 Text(NSLocalizedString("picker.add_to_lists", comment: "Add to lists"))
                                     .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
                                 Spacer()
                                 Image(systemName: "chevron.right")
                                     .font(.system(size: 14))
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
                             }
                         } else {
                             // Show selected lists as badges
                             FlowLayout(spacing: Theme.spacing8) {
                                 ForEach(selectedLists) { list in
-                                    ListBadge(list: list, colorScheme: colorScheme)
+                                    ListBadge(list: list)
                                 }
                             }
                         }
                     }
                     .padding(Theme.spacing12)
-                    .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                    .background(palette.bgSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                 }
                 .buttonStyle(.plain)
@@ -204,7 +203,7 @@ struct InlineListsPicker: View {
 struct ListSelectionRow: View {
     let list: TaskList
     let isSelected: Bool
-    let colorScheme: ColorScheme
+    @ThemedPalette private var palette
     let action: () -> Void
 
     var body: some View {
@@ -214,7 +213,7 @@ struct ListSelectionRow: View {
 
                 Text(list.name)
                     .font(Theme.Typography.body())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
 
                 Spacer()
 
@@ -223,12 +222,12 @@ struct ListSelectionRow: View {
                         .foregroundColor(Theme.accent)
                 } else {
                     Image(systemName: "circle")
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
                 }
             }
             .padding(.horizontal, Theme.spacing12)
             .padding(.vertical, Theme.spacing8)
-            .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+            .background(palette.bgSecondary)
             .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
         }
         .buttonStyle(.plain)
@@ -239,18 +238,18 @@ struct ListSelectionRow: View {
 
 struct ListBadge: View {
     let list: TaskList
-    let colorScheme: ColorScheme
+    @ThemedPalette private var palette
 
     var body: some View {
         HStack(spacing: Theme.spacing4) {
             ListImageView(list: list, size: 8)
             Text(list.name)
                 .font(Theme.Typography.caption1())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                .foregroundColor(palette.textPrimary)
         }
         .padding(.horizontal, Theme.spacing8)
         .padding(.vertical, Theme.spacing4)
-        .background(colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary)
+        .background(palette.bgTertiary)
         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
     }
 }
