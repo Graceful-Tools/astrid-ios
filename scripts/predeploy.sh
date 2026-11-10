@@ -152,8 +152,13 @@ gate "Source contracts hold" "Source contracts broken" node "$SCRIPT_DIR/check-s
 # Its own gate, not folded into the unit tests, so a whitelabel regression is reported
 # as itself rather than as one failure among 1200. A brand literal is invisible on an
 # Astrid build and only surfaces on a partner's, where nobody is watching.
-step "Checking brand literals..."
+step "Checking brand literals and design budgets..."
 gate "Brand checks passed" "Brand checks failed" "$SCRIPT_DIR/check-brand.sh"
+# The design ratchet (AITD-608), in the same step: colours, sizes, durations and copy typed out
+# instead of asked of Theme/AstridTokens and Localizable.strings. Counted per target against
+# scripts/design-metrics.budget.json, and a count may only fall. Mirror of web's check:design.
+gate "Design counts within budget" "Design counts rose above budget — use the token or string key, do not raise the budget" \
+    node "$SCRIPT_DIR/report-design-metrics.mjs" --check
 
 # Step 5: The astrid-core framework (docs/CORE_MIGRATION.md)
 # The apps link a prebuilt Rust framework: a local build when one is present, the pinned release
