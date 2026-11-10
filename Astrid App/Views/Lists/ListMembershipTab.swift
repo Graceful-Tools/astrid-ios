@@ -3,7 +3,7 @@ import Contacts
 
 /// Membership tab for list settings
 struct ListMembershipTab: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
 
     let list: TaskList
     let onUpdate: (TaskList) -> Void
@@ -78,16 +78,16 @@ struct ListMembershipTab: View {
                 VStack(spacing: Theme.spacing16) {
                     Image(systemName: "person.2.circle")
                         .font(.system(size: 48))
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
 
                     Text(NSLocalizedString("membership.requires_account", comment: "List sharing requires an account"))
                         .font(Theme.Typography.body())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
                         .multilineTextAlignment(.center)
 
                     Text(NSLocalizedString("membership.requires_account_description", comment: "Sign in to invite collaborators and share lists with others."))
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                         .multilineTextAlignment(.center)
 
                     Button {
@@ -107,7 +107,7 @@ struct ListMembershipTab: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
+        .background(palette.bgPrimary)
         .sheet(isPresented: $showingLoginSheet) {
             NavigationStack {
                 LoginView()
@@ -157,17 +157,17 @@ struct ListMembershipTab: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(owner.displayName)
                                     .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    .foregroundColor(palette.textPrimary)
                                 Text(owner.email ?? NSLocalizedString("profile.no_email", comment: ""))
                                     .font(Theme.Typography.caption2())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                    .foregroundColor(palette.textSecondary)
                             }
 
                             Spacer()
 
                             Text(NSLocalizedString("lists.owner", comment: ""))
                                 .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                .foregroundColor(palette.textMuted)
                         }
                     }
                 }
@@ -207,10 +207,10 @@ struct ListMembershipTab: View {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(user.displayName)
                                             .font(Theme.Typography.body())
-                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                            .foregroundColor(palette.textPrimary)
                                         Text(user.email ?? NSLocalizedString("profile.no_email", comment: ""))
                                             .font(Theme.Typography.caption2())
-                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                            .foregroundColor(palette.textSecondary)
                                     }
 
                                     Spacer()
@@ -237,12 +237,12 @@ struct ListMembershipTab: View {
                                             HStack(spacing: 6) {
                                                 Text(listMember.role == "admin" ? NSLocalizedString("lists.admin_role", comment: "") : NSLocalizedString("lists.member_role", comment: ""))
                                                     .font(Theme.Typography.caption1())
-                                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                                    .foregroundColor(palette.textMuted)
 
                                                 Image(systemName: "ellipsis")
                                                     .rotationEffect(.degrees(90))
                                                     .font(.system(size: 16, weight: .semibold))
-                                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                                    .foregroundColor(palette.textSecondary)
                                             }
                                             .padding(.horizontal, 8)
                                             .padding(.vertical, 6)
@@ -252,7 +252,7 @@ struct ListMembershipTab: View {
                                     } else {
                                         Text(listMember.role == "admin" ? NSLocalizedString("lists.admin_role", comment: "") : NSLocalizedString("lists.member_role", comment: ""))
                                             .font(Theme.Typography.caption1())
-                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                            .foregroundColor(palette.textMuted)
                                     }
                                 }
                             }
@@ -276,16 +276,16 @@ struct ListMembershipTab: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(invitation.email)
                                     .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    .foregroundColor(palette.textPrimary)
                                 HStack(spacing: 4) {
                                     Text(NSLocalizedString("lists.pending", comment: "Pending"))
                                         .font(Theme.Typography.caption2())
                                         .foregroundColor(.orange)
                                     Text("·")
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                        .foregroundColor(palette.textSecondary)
                                     Text(invitation.role == "admin" ? NSLocalizedString("lists.admin_role", comment: "") : NSLocalizedString("lists.member_role", comment: ""))
                                         .font(Theme.Typography.caption2())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                        .foregroundColor(palette.textSecondary)
                                 }
                             }
 
@@ -333,7 +333,7 @@ struct ListMembershipTab: View {
             } footer: {
                 Text(NSLocalizedString("lists.share_list_description", comment: ""))
                     .font(Theme.Typography.caption2())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
             }
 
             // AI Agents Section - Only show if user can edit AND has AI agents available
@@ -342,7 +342,7 @@ struct ListMembershipTab: View {
                     VStack(alignment: .leading, spacing: Theme.spacing12) {
                         Text(NSLocalizedString("lists.available_agents", comment: ""))
                             .font(Theme.Typography.caption1())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                            .foregroundColor(palette.textSecondary)
 
                         if loadingAiProviders {
                             HStack {
@@ -350,7 +350,7 @@ struct ListMembershipTab: View {
                                     .scaleEffect(0.8)
                                 Text(NSLocalizedString("lists.loading_ai_agents", comment: ""))
                                     .font(Theme.Typography.caption2())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
                             }
                         } else {
                             ForEach(availableAiAgents) { agent in
@@ -404,11 +404,11 @@ struct ListMembershipTab: View {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(agent.displayName)
                                             .font(Theme.Typography.body())
-                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                            .foregroundColor(palette.textPrimary)
 
                                         Text(agentDescription)
                                             .font(Theme.Typography.caption2())
-                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                            .foregroundColor(palette.textMuted)
                                             .lineLimit(2)
                                     }
 
@@ -497,11 +497,11 @@ struct ListMembershipTab: View {
                 if list.privacy == .PUBLIC {
                     Text(NSLocalizedString("lists.public_description", comment: ""))
                         .font(Theme.Typography.caption2())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                 } else {
                     Text(NSLocalizedString("lists.private_description", comment: ""))
                         .font(Theme.Typography.caption2())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                 }
             }
             }
@@ -530,7 +530,7 @@ struct ListMembershipTab: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
+        .background(palette.bgPrimary)
         .task {
             await loadAiProviders()
         }
@@ -574,7 +574,7 @@ struct ListMembershipTab: View {
             Section {
                 Text(NSLocalizedString("lists.owner_cannot_leave_yet", comment: ""))
                     .font(Theme.Typography.caption2())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
             }
 
         case .notPermitted:
@@ -585,7 +585,7 @@ struct ListMembershipTab: View {
             Section {
                 Text(NSLocalizedString("lists.transfer_ownership_none", comment: ""))
                     .font(Theme.Typography.caption2())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
             }
 
         case .available(let successors):

@@ -11,7 +11,7 @@ import EventKit
  * - Manual sync controls
  */
 struct AppleRemindersSettingsView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.scenePhase) var scenePhase
     @StateObject private var remindersService = AppleRemindersService.shared
     @StateObject private var listService = ListService.shared
@@ -81,7 +81,7 @@ struct AppleRemindersSettingsView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.green)
                     Text(NSLocalizedString("reminders.access_granted", comment: ""))
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
                 }
             } else if remindersService.authorizationStatus == .denied {
                 Button {
@@ -93,15 +93,15 @@ struct AppleRemindersSettingsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(NSLocalizedString("reminders.access_denied", comment: ""))
                                 .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .foregroundColor(palette.textPrimary)
                             Text(NSLocalizedString("reminders.tap_to_open_settings", comment: ""))
                                 .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                         }
                         Spacer()
                         Image(systemName: "arrow.up.forward.app")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                     .contentShape(Rectangle())
                 }
@@ -116,15 +116,15 @@ struct AppleRemindersSettingsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(NSLocalizedString("reminders.enable_sync", comment: ""))
                                 .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .foregroundColor(palette.textPrimary)
                             Text(NSLocalizedString("reminders.sync_description", comment: ""))
                                 .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                         }
                         Spacer()
                         Image(systemName: "chevron.right")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                     .contentShape(Rectangle())
                 }
@@ -135,7 +135,7 @@ struct AppleRemindersSettingsView: View {
         } footer: {
             Text(Brand.localized("reminders.access_footer"))
                 .font(Theme.Typography.caption2())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                .foregroundColor(palette.textSecondary)
         }
     }
 
@@ -145,26 +145,26 @@ struct AppleRemindersSettingsView: View {
         Section(NSLocalizedString("reminders.sync_status", comment: "")) {
             HStack {
                 Label(NSLocalizedString("reminders.last_sync", comment: ""), systemImage: "clock")
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
                 Spacer()
                 if let lastSync = remindersService.lastSyncDate {
                     Text(lastSync, style: .relative)
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                 } else {
                     Text(NSLocalizedString("never", comment: ""))
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                 }
             }
 
             HStack {
                 Label(NSLocalizedString("reminders.linked_lists", comment: ""), systemImage: "list.bullet")
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
                 Spacer()
                 Text("\(remindersService.linkedListCount)")
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
             }
 
             // Prominent Sync All Button
@@ -220,7 +220,7 @@ struct AppleRemindersSettingsView: View {
         } footer: {
             Text(NSLocalizedString("reminders.your_lists_footer", comment: ""))
                 .font(Theme.Typography.caption2())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                .foregroundColor(palette.textSecondary)
         }
     }
 
@@ -242,7 +242,7 @@ struct AppleRemindersSettingsView: View {
                                     .fill(Color(cgColor: calendar.cgColor ?? CGColor(red: 0.2, green: 0.5, blue: 1.0, alpha: 1.0)))
                                     .frame(width: 12, height: 12)
                                 Text(calendar.title)
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    .foregroundColor(palette.textPrimary)
                                 Spacer()
                                 Image(systemName: "arrow.down.circle")
                                     .foregroundColor(Theme.accent)
@@ -256,7 +256,7 @@ struct AppleRemindersSettingsView: View {
                 } footer: {
                     Text(Brand.localized("reminders.import_footer"))
                         .font(Theme.Typography.caption2())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                 }
             }
         }
@@ -286,7 +286,7 @@ struct AppleRemindersSettingsView: View {
 // MARK: - List Sync Row
 
 struct ListSyncRow: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @StateObject private var remindersService = AppleRemindersService.shared
 
     let list: TaskList
@@ -310,12 +310,12 @@ struct ListSyncRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(list.name)
                         .font(Theme.Typography.body())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
 
                     if let link = link {
                         Text(link.syncDirection.displayName)
                             .font(Theme.Typography.caption2())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                            .foregroundColor(palette.textSecondary)
                     }
                 }
 
@@ -356,7 +356,7 @@ struct ListSyncRow: View {
 // MARK: - Link List Sheet
 
 struct LinkListSheet: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @StateObject private var remindersService = AppleRemindersService.shared
 
     let list: TaskList
@@ -396,10 +396,10 @@ struct LinkListSheet: View {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(direction.displayName)
                                             .font(Theme.Typography.body())
-                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                            .foregroundColor(palette.textPrimary)
                                         Text(direction.description)
                                             .font(Theme.Typography.caption2())
-                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                            .foregroundColor(palette.textSecondary)
                                     }
                                     Spacer()
                                     if selectedDirection == direction {
@@ -427,7 +427,7 @@ struct LinkListSheet: View {
                                             .fill(Color(cgColor: calendar.cgColor))
                                             .frame(width: 12, height: 12)
                                         Text(calendar.title)
-                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                            .foregroundColor(palette.textPrimary)
                                         Spacer()
                                         if selectedCalendar?.calendarIdentifier == calendar.calendarIdentifier {
                                             Image(systemName: "checkmark")
@@ -446,7 +446,7 @@ struct LinkListSheet: View {
                                     Image(systemName: "plus.circle")
                                         .foregroundColor(Theme.accent)
                                     Text(NSLocalizedString("reminders.create_new_list", comment: ""))
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                        .foregroundColor(palette.textPrimary)
                                     Spacer()
                                     if selectedCalendar == nil && selectedDirection != .export {
                                         Image(systemName: "checkmark")
@@ -469,10 +469,10 @@ struct LinkListSheet: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(NSLocalizedString("reminders.include_completed", comment: ""))
                                     .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    .foregroundColor(palette.textPrimary)
                                 Text(NSLocalizedString("reminders.include_completed_desc", comment: ""))
                                     .font(Theme.Typography.caption2())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                    .foregroundColor(palette.textSecondary)
                             }
                         }
                         .tint(Theme.accent)
@@ -536,7 +536,7 @@ struct LinkListSheet: View {
 // MARK: - Import Calendar Sheet
 
 struct ImportCalendarSheet: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @StateObject private var remindersService = AppleRemindersService.shared
     @StateObject private var listService = ListService.shared
 
@@ -577,7 +577,7 @@ struct ImportCalendarSheet: View {
                                 Image(systemName: "plus.circle")
                                     .foregroundColor(Theme.accent)
                                 Text(Brand.localized("reminders.create_new_astrid_list"))
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    .foregroundColor(palette.textPrimary)
                                 Spacer()
                                 if createNewList {
                                     Image(systemName: "checkmark")
@@ -598,7 +598,7 @@ struct ImportCalendarSheet: View {
                                         .fill(Color(hex: list.displayColor) ?? Color.blue)
                                         .frame(width: 12, height: 12)
                                     Text(list.name)
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                        .foregroundColor(palette.textPrimary)
                                     Spacer()
                                     if !createNewList && selectedList?.id == list.id {
                                         Image(systemName: "checkmark")
@@ -621,10 +621,10 @@ struct ImportCalendarSheet: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(NSLocalizedString("reminders.include_completed", comment: ""))
                                     .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    .foregroundColor(palette.textPrimary)
                                 Text(NSLocalizedString("reminders.import_completed_desc", comment: ""))
                                     .font(Theme.Typography.caption2())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                    .foregroundColor(palette.textSecondary)
                             }
                         }
                         .tint(Theme.accent)
