@@ -7,7 +7,7 @@ import SwiftUI
 /// labelled button beneath the card, which is how the gestures are discovered in the first
 /// place and how VoiceOver and Switch Control reach them at all.
 struct ReminderTriageView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) var dismiss
 
     let deck: [Task]
@@ -53,7 +53,7 @@ struct ReminderTriageView: View {
             .padding(Theme.spacing16)
             .frame(maxWidth: 500)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background((colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary).ignoresSafeArea())
+            .background((palette.bgPrimary).ignoresSafeArea())
             .navigationDestination(item: $openTask) { task in
                 TaskDetailViewNew(task: task)
             }
@@ -94,7 +94,7 @@ struct ReminderTriageView: View {
             Text(task.title)
                 .font(Theme.Typography.title2())
                 .fontWeight(.semibold)
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                .foregroundColor(palette.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
             Label(DueDateLabel.text(for: task.dueDateTime, isAllDay: task.isAllDay), systemImage: "calendar")
                 .font(Theme.Typography.body())
@@ -108,11 +108,11 @@ struct ReminderTriageView: View {
         }
         .frame(maxWidth: .infinity, minHeight: 220, alignment: .topLeading)
         .padding(Theme.spacing24)
-        .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+        .background(palette.bgSecondary)
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(pending.map(color(for:)) ?? (colorScheme == .dark ? Theme.Dark.border : Theme.border),
+                .stroke(pending.map(color(for:)) ?? (palette.border),
                         lineWidth: pending == nil ? 1 : 3)
         )
         .shadow(radius: 8)
@@ -141,7 +141,7 @@ struct ReminderTriageView: View {
                 .fontWeight(.semibold)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Theme.spacing12)
-                .background(highlighted ? color(for: action) : (colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary))
+                .background(highlighted ? color(for: action) : (palette.bgSecondary))
                 .foregroundColor(highlighted ? .white : color(for: action))
                 .cornerRadius(12)
         }
@@ -228,5 +228,5 @@ struct ReminderTriageView: View {
         }
     }
 
-    private var mutedText: Color { colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted }
+    private var mutedText: Color { palette.textMuted }
 }

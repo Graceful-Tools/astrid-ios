@@ -15,7 +15,7 @@ struct TaskDetailBlockersRow: View {
     let task: Task
     let isReadOnly: Bool
 
-    @Environment(\.colorScheme) private var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.openURL) private var openURL
 
     @State private var blockedBy: [TaskBlocker] = []
@@ -57,7 +57,7 @@ struct TaskDetailBlockersRow: View {
                         .foregroundColor(textMuted)
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
-                        .chipBackground(colorScheme)
+                        .chipBackground(palette)
                 }
                 .buttonStyle(.plain)
                 .disabled(isReadOnly)
@@ -70,7 +70,7 @@ struct TaskDetailBlockersRow: View {
                     Image(systemName: "plus")
                         .font(Theme.Typography.body())
                         .foregroundColor(textMuted)
-                        .chipBackground(colorScheme)
+                        .chipBackground(palette)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(NSLocalizedString("tasks.waitingOn.add", comment: ""))
@@ -108,7 +108,7 @@ struct TaskDetailBlockersRow: View {
                 .accessibilityLabel(NSLocalizedString("tasks.waitingOn.remove", comment: ""))
             }
         }
-        .chipBackground(colorScheme)
+        .chipBackground(palette)
     }
 
     /// The same in-stack navigation the description's `astrid://tasks/` links use.
@@ -136,16 +136,16 @@ struct TaskDetailBlockersRow: View {
         }
     }
 
-    private var textPrimary: Color { colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary }
-    private var textMuted: Color { colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted }
+    private var textPrimary: Color { palette.textPrimary }
+    private var textMuted: Color { palette.textMuted }
 }
 
 extension View {
     /// The When row's compact chip (shared with the occurrences row, AITD-491) (`InlineDatePicker(compact: true)`), so the rows match.
-    func chipBackground(_ colorScheme: ColorScheme) -> some View {
+    func chipBackground(_ palette: AstridTokens.Palette) -> some View {
         padding(.horizontal, Theme.spacing8)
             .padding(.vertical, Theme.spacing4)
-            .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+            .background(palette.bgSecondary)
             .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
     }
 }

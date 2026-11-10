@@ -6,6 +6,7 @@ private let logger = Logger(subsystem: Brand.logSubsystem, category: "DefaultAge
 /// View for selecting the default AI agent for chat
 struct DefaultAgentPickerView: View {
     @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) var dismiss
     @AppStorage("themeMode") private var themeMode: String = "ocean"
 
@@ -83,7 +84,7 @@ struct DefaultAgentPickerView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Apple Intelligence")
                                         .font(Theme.Typography.body())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                        .foregroundColor(palette.textPrimary)
                                     Text("Free \u{00B7} On-Device \u{00B7} Private")
                                         .font(Theme.Typography.caption2())
                                         .foregroundColor(Theme.accent)
@@ -110,7 +111,7 @@ struct DefaultAgentPickerView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(agent.name)
                                         .font(Theme.Typography.body())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                        .foregroundColor(palette.textPrimary)
                                     Text(agent.serviceDisplayName)
                                         .font(Theme.Typography.caption2())
                                         .foregroundColor(.purple)
@@ -143,7 +144,7 @@ struct DefaultAgentPickerView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(model.displayName)
                                         .font(Theme.Typography.body())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                        .foregroundColor(palette.textPrimary)
                                     Text("\(model.subtitle) \u{00B7} API key required")
                                         .font(Theme.Typography.caption2())
                                         .foregroundColor(.orange)
@@ -175,10 +176,10 @@ struct DefaultAgentPickerView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("None")
                                     .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    .foregroundColor(palette.textPrimary)
                                 Text("\(Brand.appName) won't auto-respond")
                                     .font(Theme.Typography.caption2())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
                             }
 
                             Spacer()

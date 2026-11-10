@@ -12,7 +12,7 @@ import SwiftUI
 /// Replaces the old 2-way ChatToggleButton with a 3-way rotator that
 /// respects the unified-toggle logic from HeaderViewToggle.swift.
 struct ViewModeRotatorButton: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Binding var mode: HeaderToggleSegment
     let hasBoard: Bool
     /// False where list messages are a pane beside the list instead of a view that replaces it
@@ -27,7 +27,7 @@ struct ViewModeRotatorButton: View {
         } label: {
             Image(systemName: nextIcon)
                 .font(Theme.Typography.headline())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                .foregroundColor(palette.textPrimary)
                 .accessibilityLabel(Text(accessibilityLabel))
         }
         .buttonStyle(.plain)

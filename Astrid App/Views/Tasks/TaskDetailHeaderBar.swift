@@ -33,10 +33,10 @@ struct TaskDetailHeaderBar: View {
     @Binding var showingDeleteConfirmation: Bool
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var colorScheme
+    @ThemedPalette private var palette
 
     private var foreground: Color {
-        colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary
+        palette.textPrimary
     }
 
     var body: some View {

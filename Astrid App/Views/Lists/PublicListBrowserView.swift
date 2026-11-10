@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct PublicListBrowserView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @StateObject private var listService = ListService.shared
     @State private var publicLists: [TaskList] = []
     @State private var isLoading = false
@@ -21,7 +21,7 @@ struct PublicListBrowserView: View {
         }
         .navigationTitle(NSLocalizedString("filters.featured_lists", comment: "Featured Lists"))
         .navigationBarTitleDisplayMode(.large)
-        .toolbarBackground(colorScheme == .dark ? Theme.Dark.headerBg : Theme.headerBg, for: .navigationBar)
+        .toolbarBackground(palette.headerBg, for: .navigationBar)
         .task {
             await loadPublicLists()
         }
@@ -35,7 +35,7 @@ struct PublicListBrowserView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+        .background(palette.bgSecondary)
     }
 
     private var emptyState: some View {
@@ -73,7 +73,7 @@ struct PublicListBrowserView: View {
 }
 
 struct PublicListRow: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @StateObject private var listService = ListService.shared
     let list: TaskList
     @State private var isCopying = false
@@ -94,7 +94,7 @@ struct PublicListRow: View {
 
                     Text(list.name)
                         .font(Theme.Typography.headline())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
 
                     Spacer()
 
@@ -114,7 +114,7 @@ struct PublicListRow: View {
                 if let description = list.description, !description.isEmpty {
                     Text(description)
                         .font(Theme.Typography.body())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                         .lineLimit(2)
                 }
 
@@ -122,7 +122,7 @@ struct PublicListRow: View {
                     if let taskCount = list.taskCount {
                         Label(String(format: NSLocalizedString("filters.tasks_count", comment: "Tasks count"), taskCount), systemImage: "checkmark.circle")
                             .font(Theme.Typography.caption1())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
 
                     Spacer()
@@ -152,7 +152,7 @@ struct PublicListRow: View {
                 }
             }
             .padding(Theme.spacing16)
-            .background(colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
+            .background(palette.bgPrimary)
             .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
             .navigationDestination(isPresented: $navigateToList) {
                 if isCollaborative {

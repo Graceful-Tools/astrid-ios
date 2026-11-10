@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct DeleteAccountView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var authManager: AuthManager
     @ObservedObject var viewModel: AccountViewModel
@@ -32,7 +32,7 @@ struct DeleteAccountView: View {
 
                             Text(NSLocalizedString("settings.account.delete_remove_list_header", comment: ""))
                                 .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .foregroundColor(palette.textPrimary)
 
                             VStack(alignment: .leading, spacing: 8) {
                                 bulletPoint(NSLocalizedString("settings.account.delete_remove_tasks", comment: ""))
@@ -51,7 +51,7 @@ struct DeleteAccountView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             Text(NSLocalizedString("settings.account.delete_confirm_prompt", comment: ""))
                                 .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
 
                             TextField(NSLocalizedString("settings.account.delete_confirm_placeholder", comment: ""), text: $viewModel.deleteConfirmationText)
                                 .autocapitalization(.allCharacters)
@@ -130,7 +130,7 @@ struct DeleteAccountView: View {
                 .foregroundColor(.red)
             Text(text)
                 .font(Theme.Typography.caption1())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                .foregroundColor(palette.textSecondary)
         }
     }
 }

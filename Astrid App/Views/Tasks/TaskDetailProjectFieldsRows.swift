@@ -12,7 +12,6 @@ struct TaskDetailProjectFieldsRows: View {
     let task: Task
     let isReadOnly: Bool
 
-    @Environment(\.colorScheme) private var colorScheme
     @State private var fields = TaskProjectFields.none
     @State private var saving: String?
     @State private var error: (rowId: String, key: String)?
@@ -75,12 +74,12 @@ struct ProjectFieldEditor: View {
     let isDisabled: Bool
     let onSave: (ProjectFieldValue?) -> Void
 
-    @Environment(\.colorScheme) private var colorScheme
+    @ThemedPalette private var palette
     @State private var draft = ""
 
     private var empty: String { NSLocalizedString("tasks.projectFields.empty", comment: "") }
-    private var textPrimary: Color { colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary }
-    private var textMuted: Color { colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted }
+    private var textPrimary: Color { palette.textPrimary }
+    private var textMuted: Color { palette.textMuted }
 
     var body: some View {
         switch row.kind {
@@ -141,7 +140,7 @@ struct ProjectFieldEditor: View {
             .font(Theme.Typography.body())
             .foregroundColor(row.value == nil ? textMuted : textPrimary)
             .lineLimit(1)
-            .chipBackground(colorScheme)
+            .chipBackground(palette)
     }
 
     private func commit() {

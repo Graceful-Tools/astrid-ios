@@ -4,6 +4,7 @@ import SwiftUI
 /// Used in EmptyStateView and ReminderView
 struct AstridSpeechBubble: View {
     @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @AppStorage("themeMode") private var themeMode: String = "ocean"
 
     let message: String
@@ -71,7 +72,7 @@ struct AstridSpeechBubble: View {
         if themeMode == "ocean" {
             return Theme.Ocean.textPrimary  // Black text on Ocean theme
         }
-        return colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary
+        return palette.textPrimary
     }
 
     /// Get bubble background color - white on all themes
@@ -79,7 +80,7 @@ struct AstridSpeechBubble: View {
         if themeMode == "ocean" {
             return Theme.Ocean.bgSecondary  // White bubble on cyan background
         }
-        return colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary
+        return palette.bgSecondary
     }
 
     /// Get bubble border color - cyan on Ocean theme
@@ -87,7 +88,7 @@ struct AstridSpeechBubble: View {
         if themeMode == "ocean" {
             return Theme.Ocean.border  // Cyan border on Ocean theme
         }
-        return colorScheme == .dark ? Theme.Dark.border : Theme.border
+        return palette.border
     }
 
     /// Get pointer border color - cyan on Ocean theme

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// List Settings Modal with 3 tabs (matching mobile web app)
 struct ListSettingsModal: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) var dismiss
 
     let list: TaskList
@@ -128,7 +128,7 @@ struct ListSettingsModal: View {
                     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                 }
             }
-            .background(colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
+            .background(palette.bgPrimary)
             .navigationTitle(NSLocalizedString("lists.list_settings", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

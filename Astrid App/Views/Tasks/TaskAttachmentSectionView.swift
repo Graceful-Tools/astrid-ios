@@ -4,6 +4,7 @@ import QuickLook
 struct TaskAttachmentSectionView: View {
     let task: Task
     @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @StateObject private var commentService = CommentService.shared
 
     // Preview state - now tracks file IDs for save-to-Astrid support
@@ -30,7 +31,7 @@ struct TaskAttachmentSectionView: View {
             VStack(alignment: .leading, spacing: Theme.spacing8) {
                 Text(String(format: NSLocalizedString("attachments.count", comment: "Attachments count"), files.count))
                     .font(Theme.Typography.footnote())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    .foregroundColor(palette.textMuted)
                     .padding(.horizontal, Theme.spacing16)
 
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -52,7 +53,7 @@ struct TaskAttachmentSectionView: View {
                 }
 
                 Divider()
-                    .background(colorScheme == .dark ? Theme.Dark.border : Theme.border)
+                    .background(palette.border)
                     .padding(.top, Theme.spacing8)
             }
             .overlay {

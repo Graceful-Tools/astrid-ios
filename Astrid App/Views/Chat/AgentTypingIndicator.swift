@@ -3,7 +3,7 @@ import SwiftUI
 /// Bouncing dots typing indicator shown when an AI agent is processing
 struct AgentTypingIndicator: View {
     let agentName: String
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
 
     @State private var dot1 = false
     @State private var dot2 = false
@@ -14,15 +14,15 @@ struct AgentTypingIndicator: View {
             // Bouncing dots
             HStack(spacing: 3) {
                 Circle()
-                    .fill(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    .fill(palette.textMuted)
                     .frame(width: 6, height: 6)
                     .offset(y: dot1 ? -4 : 0)
                 Circle()
-                    .fill(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    .fill(palette.textMuted)
                     .frame(width: 6, height: 6)
                     .offset(y: dot2 ? -4 : 0)
                 Circle()
-                    .fill(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    .fill(palette.textMuted)
                     .frame(width: 6, height: 6)
                     .offset(y: dot3 ? -4 : 0)
             }
@@ -30,7 +30,7 @@ struct AgentTypingIndicator: View {
 
             Text("\(agentName) is thinking...")
                 .font(Theme.Typography.caption2())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                .foregroundColor(palette.textMuted)
         }
         .padding(.horizontal, Theme.spacing12)
         .padding(.vertical, Theme.spacing8)

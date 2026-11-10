@@ -348,7 +348,7 @@ struct CopilotCloudAgentScreen: View {
 struct CustomAgentsScreen: View {
     static var title: String { NSLocalizedString("settings.openclaw.title", comment: "") }
 
-    @Environment(\.colorScheme) private var colorScheme
+    @ThemedPalette private var palette
     @StateObject private var model = CustomAgentsModel()
 
     @State private var showRegisterSheet = false
@@ -448,8 +448,8 @@ struct CustomAgentsScreen: View {
         }
     }
 
-    private var primaryColor: Color { colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary }
-    private var secondaryColor: Color { colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary }
+    private var primaryColor: Color { palette.textPrimary }
+    private var secondaryColor: Color { palette.textSecondary }
 
     // MARK: - Sections
 

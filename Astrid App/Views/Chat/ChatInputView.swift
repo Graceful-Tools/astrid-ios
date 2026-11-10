@@ -5,7 +5,7 @@ private let logger = Logger(subsystem: Brand.logSubsystem, category: "ChatInput"
 
 /// Chat message input — wraps RichTextInput with chat-specific send logic
 struct ChatInputView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
 
     let channelId: String
     let listId: String?
@@ -27,12 +27,12 @@ struct ChatInputView: View {
                         .foregroundColor(Theme.accent)
                     Text("Replying to \(replyingTo.author?.displayName ?? "Unknown")")
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
                     Spacer()
                     Button { onCancelReply?() } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 16))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                     .buttonStyle(.plain)
                 }

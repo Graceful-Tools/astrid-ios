@@ -9,6 +9,7 @@ import Combine
 
 /// Displays a thumbnail for an attachment/secure file (matches web mobile styling)
 struct AttachmentThumbnail: View {
+    @ThemedPalette private var palette
     let file: SecureFile
     let colorScheme: ColorScheme
     var size: CGFloat = 64
@@ -29,7 +30,7 @@ struct AttachmentThumbnail: View {
         ZStack {
             // Background for all file types
             RoundedRectangle(cornerRadius: Theme.radiusMedium)
-                .fill(colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary)
+                .fill(palette.bgTertiary)
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.radiusMedium)
                         .stroke(colorScheme == .dark ? Color.gray.opacity(0.3) : Color.gray.opacity(0.2), lineWidth: 1)
@@ -61,14 +62,14 @@ struct AttachmentThumbnail: View {
                 VStack(spacing: 4) {
                     Image(systemName: fileIcon)
                         .font(.system(size: size * 0.4))
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
 
                     if showDetails {
                         Text(file.name)
                             .font(.system(size: 10))
                             .lineLimit(1)
                             .padding(.horizontal, 4)
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                 }
             }

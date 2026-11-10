@@ -4,7 +4,7 @@ import SwiftUI
 /// Allows developers to switch between localhost, local network, and production servers
 #if DEBUG
 struct ServerSettingsView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) var dismiss
     @AppStorage("debug_server_url") private var serverURL: String = ""
     @State private var showingRestartAlert = false
@@ -27,14 +27,14 @@ struct ServerSettingsView: View {
                 VStack(alignment: .leading, spacing: Theme.spacing8) {
                     Text(NSLocalizedString("debug.current_server", comment: "Current Server"))
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
 
                     Text(Constants.API.baseURL)
                         .font(Theme.Typography.body())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
                         .padding(Theme.spacing12)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary)
+                        .background(palette.bgTertiary)
                         .cornerRadius(Theme.radiusMedium)
                 }
             } header: {
@@ -42,7 +42,7 @@ struct ServerSettingsView: View {
             } footer: {
                 Text(NSLocalizedString("debug.restart_required", comment: "Changes require app restart to take effect"))
                     .font(Theme.Typography.caption2())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    .foregroundColor(palette.textMuted)
             }
 
             Section {
@@ -54,10 +54,10 @@ struct ServerSettingsView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(option.displayName)
                                     .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    .foregroundColor(palette.textPrimary)
                                 Text(option.url)
                                     .font(Theme.Typography.caption2())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
                             }
 
                             Spacer()
