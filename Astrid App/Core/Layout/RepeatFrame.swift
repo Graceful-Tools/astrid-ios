@@ -29,14 +29,22 @@ extension TaskLeadingControl {
 }
 
 enum RepeatFrameGeometry {
-    /// The slot the row and the detail lay out — the same 34pt as the square, so a framed mark
-    /// does not push its title out of line with the rows around it.
+    /// The iOS slot the row and the detail lay out — the same 34pt as the square, so a framed
+    /// mark does not push its title out of line with the rows around it.
     static let footprint: CGFloat = 34
-    /// The arrows, drawn larger than the square ("for other users it should be larger") and
-    /// allowed to overhang the slot by 3pt a side.
-    static let frameSize: CGFloat = 40
-    /// The photo or "U" inside the loop — web's 24-in-40 proportion.
-    static let innerSize: CGFloat = 24
+    /// The arrows are drawn this many times the leading control they replace ("for other users it
+    /// should be larger") and overhang its slot. Web: 40px round a 32px square — the design token
+    /// `size.repeat-frame-scale` (astrid-core `design/tokens.json`, register DS6). (AITD-606: iOS
+    /// drew a fixed 40pt round its 34pt square, 1.18 ×, which Jon saw as the wrong size.)
+    static let scale: CGFloat = 1.25
+    /// The photo or "U" inside the loop, as a share of the control: web's 24px in a 32px square,
+    /// which is also its 24-in-40 proportion of the frame.
+    static let innerScale: CGFloat = 0.75
+
+    /// The arrows' size round a leading control of `control` points.
+    static func frameSize(control: CGFloat) -> CGFloat { control * scale }
+    /// The photo or "U" inside the arrows round a leading control of `control` points.
+    static func innerSize(control: CGFloat) -> CGFloat { control * innerScale }
 
     /// The same priority-coloured art the repeating checkbox uses.
     static func assetName(priority: Task.Priority) -> String {

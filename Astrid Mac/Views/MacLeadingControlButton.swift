@@ -109,7 +109,8 @@ struct MacLeadingControlButton: View {
                                                    taskAssignee: task.assignee,
                                                    agents: AIAgentCache.shared.load() ?? []) {
                 MacAssigneeAvatar(user: user, priority: priority,
-                                  size: MacTaskVisuals.detailCheckboxSize)
+                                  size: MacTaskVisuals.detailCheckboxSize,
+                                  repeating: MacCheckboxAsset.isRepeating(task.repeating ?? .never))
             } else {
                 MacTaskCheckbox(completed: task.completed, priority: priority,
                                 size: MacTaskVisuals.detailCheckboxSize,
@@ -117,13 +118,8 @@ struct MacLeadingControlButton: View {
             }
         case .unassigned:
             // The same mark the assignee list uses, so what you PICK is what you SEE.
-            Text(TaskLeadingControl.unassignedGlyph)
-                .macFont(.system(size: 11, weight: .semibold))
-                .foregroundStyle(MacTaskVisuals.priorityColor(priority))
-                .frame(width: MacTaskVisuals.detailCheckboxSize,
-                       height: MacTaskVisuals.detailCheckboxSize)
-                .overlay(RoundedRectangle(cornerRadius: 5)
-                    .stroke(MacTaskVisuals.priorityColor(priority), lineWidth: 1.5))
+            MacUnassignedMark(priority: priority, size: MacTaskVisuals.detailCheckboxSize,
+                              repeating: MacCheckboxAsset.isRepeating(task.repeating ?? .never))
                 .accessibilityLabel(NSLocalizedString("assignee.unassigned", comment: ""))
         }
     }

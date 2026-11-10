@@ -31,31 +31,72 @@ struct MacAssigneeAvatar: View {
     let user: User
     let priority: Task.Priority
     var size: CGFloat = 20
+    /// A repeating task puts the photo, round, inside the repeat arrows instead of the priority
+    /// square — the same frame iOS and web draw, at 1.25 × this size (AITD-602, AITD-606).
+    var repeating: Bool = false
 
     var body: some View {
         Group {
-            if let s = user.cachedImageURL, let url = URL(string: s) {
-                CachedAsyncImage(url: url) { img in
-                    img.resizable().aspectRatio(contentMode: .fill)
-                } placeholder: { initials }
+            if repeating {
+                RepeatFramedMark(priority: priority, controlSize: size) { photo }
             } else {
-                initials
+                photo
+                    .frame(width: size, height: size)
+                    .clipShape(RoundedRectangle(cornerRadius: size * 0.25))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: size * 0.25)
+                            .stroke(MacTaskVisuals.priorityColor(priority), lineWidth: 2)
+                    )
             }
         }
-        .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: size * 0.25))
-        .overlay(
-            RoundedRectangle(cornerRadius: size * 0.25)
-                .stroke(MacTaskVisuals.priorityColor(priority), lineWidth: 2)
-        )
         .help(String(format: NSLocalizedString("mac.assigned_to", comment: ""), user.displayName))
+    }
+
+    /// The photo, or initials while it loads. Unsized and unclipped: the square and the repeat
+    /// frame each give it their own shape.
+    @ViewBuilder private var photo: some View {
+        if let s = user.cachedImageURL, let url = URL(string: s) {
+            CachedAsyncImage(url: url) { img in
+                img.resizable().aspectRatio(contentMode: .fill)
+            } placeholder: { initials }
+        } else {
+            initials
+        }
     }
 
     private var initials: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: size * 0.25).fill(Theme.accent)
-            Text(user.initials).font(.system(size: size * 0.5, weight: .semibold)).foregroundStyle(.white)
+            Rectangle().fill(Theme.accent)
+            Text(user.initials)
+                .font(.system(size: (repeating ? RepeatFrameGeometry.innerSize(control: size) : size) * 0.5,
+                              weight: .semibold))
+                .foregroundStyle(.white)
         }
+    }
+}
+
+/// Nobody assigned: "U" in the priority square, or inside the repeat arrows when the task repeats
+/// (AITD-606) — the row and the detail panel both draw it from here.
+struct MacUnassignedMark: View {
+    let priority: Task.Priority
+    var size: CGFloat
+    var repeating: Bool = false
+
+    var body: some View {
+        if repeating {
+            RepeatFramedMark(priority: priority, controlSize: size) { glyph }
+        } else {
+            glyph
+                .frame(width: size, height: size)
+                .overlay(RoundedRectangle(cornerRadius: Theme.radiusSmall)
+                    .stroke(MacTaskVisuals.priorityColor(priority), lineWidth: 1.5))
+        }
+    }
+
+    private var glyph: some View {
+        Text(TaskLeadingControl.unassignedGlyph)
+            .macFont(.system(size: repeating ? 9 : 11, weight: .semibold))
+            .foregroundStyle(MacTaskVisuals.priorityColor(priority))
     }
 }
 #endif

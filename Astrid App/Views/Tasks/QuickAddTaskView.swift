@@ -290,37 +290,59 @@ struct QuickAddTaskView: View {
                                                    members: availableMembers,
                                                    taskAssignee: nil,
                                                    agents: AIAgentCache.shared.load() ?? []) {
-            // Show assignee avatar with priority-colored border
-            CachedAsyncImage(url: assignee.cachedImageURL.flatMap { URL(string: $0) }) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Theme.accent)
-                    Text(assignee.initials)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(Theme.accentText)
+            if draftRepeats {
+                // The list's default repeat: the photo sits inside the repeat arrows, at the
+                // same 1.25 × the task row draws (AITD-602, AITD-606).
+                RepeatFramedMark(priority: selectedPriority) {
+                    quickAddAssigneePhoto(assignee, initialsSize: 10)
                 }
+                .id(AssigneeResolver.avatarIdentity(for: selectedAssigneeId))
+            } else {
+                // Show assignee avatar with priority-colored border
+                quickAddAssigneePhoto(assignee, initialsSize: 14)
+                    // 34pt, the same as the task row's — this control is meant to read as that control.
+                    .frame(width: 34, height: 34)
+                    // Keyed on the assignee so SwiftUI redraws it when the person changes (42013da7).
+                    .id(AssigneeResolver.avatarIdentity(for: selectedAssigneeId))
+                    // Rounded rectangle with a priority-colored border — matches the
+                    // web's assigned-task avatar (rounded-lg square, border-2).
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(priorityColor, lineWidth: 2)
+                    )
             }
-            // 34pt, the same as the task row's — this control is meant to read as that control.
-            .frame(width: 34, height: 34)
-            // Keyed on the assignee so SwiftUI redraws it when the person changes (42013da7).
-            .id(AssigneeResolver.avatarIdentity(for: selectedAssigneeId))
-            // Rounded rectangle with a priority-colored border — matches the
-            // web's assigned-task avatar (rounded-lg square, border-2).
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(priorityColor, lineWidth: 2)
-            )
         } else {
-            // Show priority-colored checkbox (unchecked state)
-            Image("check_box_\(selectedPriority.rawValue)")
+            // Show priority-colored checkbox (unchecked state) — the repeat arrows when the
+            // destination list's default repeats, as the Mac's add bar shows (ca13c94b).
+            Image(draftRepeats ? "check_box_repeat_\(selectedPriority.rawValue)"
+                               : "check_box_\(selectedPriority.rawValue)")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 34, height: 34)
+        }
+    }
+
+    /// Whether the task being added will repeat — the destination list's default repeat.
+    private var draftRepeats: Bool {
+        NewTaskDefaults.repeating(selectedList?.defaultRepeating) != nil
+    }
+
+    /// The assignee's photo, or initials while it loads. Unsized and unclipped: the square and
+    /// the repeat frame each give it their own shape.
+    private func quickAddAssigneePhoto(_ assignee: User, initialsSize: CGFloat) -> some View {
+        CachedAsyncImage(url: assignee.cachedImageURL.flatMap { URL(string: $0) }) { image in
+            image
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+        } placeholder: {
+            ZStack {
+                Rectangle()
+                    .fill(Theme.accent)
+                Text(assignee.initials)
+                    .font(.system(size: initialsSize, weight: .semibold))
+                    .foregroundColor(Theme.accentText)
+            }
         }
     }
 

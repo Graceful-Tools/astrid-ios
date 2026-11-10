@@ -123,7 +123,8 @@ struct MacTaskRow: View {
             Group {
             if let assignee = avatarAssignee {
                 // Assigned to someone else → show their avatar in place of the checkbox (iOS parity).
-                MacAssigneeAvatar(user: assignee, priority: task.priority, size: MacTaskVisuals.rowCheckboxSize)
+                MacAssigneeAvatar(user: assignee, priority: task.priority, size: MacTaskVisuals.rowCheckboxSize,
+                                  repeating: MacCheckboxAsset.isRepeating(task.repeating))
                     .assigneeOverflowBadge(for: task, avatarSize: MacTaskVisuals.rowCheckboxSize)
                     // No gesture here before: harmless while a face only meant someone ELSE's
                     // task, but in project mode your own task is a face too, so the control
@@ -137,12 +138,8 @@ struct MacTaskRow: View {
                 // iOS, from the same shared helper, so a task cannot look different per platform.
                 // Clicking still completes: the mark changes, the action does not. A tap gesture
                 // rather than a Button for the same reason as the checkbox below.
-                Text(TaskLeadingControl.unassignedGlyph)
-                    .macFont(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(MacTaskVisuals.priorityColor(task.priority))
-                    .frame(width: MacTaskVisuals.rowCheckboxSize, height: MacTaskVisuals.rowCheckboxSize)
-                    .overlay(RoundedRectangle(cornerRadius: Theme.radiusSmall)
-                        .stroke(MacTaskVisuals.priorityColor(task.priority), lineWidth: 1.5))
+                MacUnassignedMark(priority: task.priority, size: MacTaskVisuals.rowCheckboxSize,
+                                  repeating: MacCheckboxAsset.isRepeating(task.repeating))
                     .strikethrough(task.completed)
                     .opacity(task.completed ? 0.5 : 1)
                     .scaleEffect(checkPop ? 1.28 : 1)
