@@ -1,0 +1,26 @@
+{
+  "ios": {
+    "colourLiterals": 37,
+    "namedSystemColours": 115,
+    "fontSizes": 173,
+    "cornerRadii": 73,
+    "paddingLiterals": 108,
+    "shadowLiterals": 20,
+    "durationLiterals": 36,
+    "darkSchemeTernaries": 625,
+    "hardcodedCopy": 84,
+    "uniqueHardcodedStrings": 73
+  },
+  "mac": {
+    "colourLiterals": 6,
+    "namedSystemColours": 5,
+    "fontSizes": 0,
+    "cornerRadii": 50,
+    "paddingLiterals": 127,
+    "shadowLiterals": 2,
+    "durationLiterals": 4,
+    "darkSchemeTernaries": 0,
+    "hardcodedCopy": 0,
+    "uniqueHardcodedStrings": 0
+  }
+}

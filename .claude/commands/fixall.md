@@ -325,6 +325,13 @@ with when it comes due). It answers `empty: true` when there is nothing to do.
   Re-run them on the MERGED tree, not just the branch — a merge can break what neither side
   broke alone.
 
+- **The design counts only go down** (AITD-608). Predeploy fails when a change adds a colour,
+  size, duration, dark-scheme ternary or English sentence that should have come from
+  `Theme`/`AstridTokens` or `Localizable.strings` (`npm run design:metrics` shows the counts).
+  Use the token or key. Never raise `scripts/design-metrics.budget.json` to get a fix through.
+  If a change lowers a count, run `npm run design:metrics -- --update` in the same commit, so
+  the next change can't quietly spend the gain.
+
 - **A running gate is a reason to WAIT, not a reason to end the turn.** On 2026-09-22 the
   17:30 run wrote its fix, started the suite, said *"Fix applied; the green run is going.
   Waiting on it before the full gates"* — and then ended, leaving four modified files
