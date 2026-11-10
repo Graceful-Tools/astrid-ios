@@ -3,7 +3,7 @@ import SwiftUI
 /// Custom repeating pattern editor (matching web app functionality)
 /// Allows full configuration of custom repeat patterns with all options
 struct CustomRepeatingPatternEditor: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
 
     @Binding var pattern: CustomRepeatingPattern
     @Binding var repeatFrom: Task.RepeatFromMode
@@ -43,7 +43,7 @@ struct CustomRepeatingPatternEditor: View {
                 HStack {
                     Text(NSLocalizedString("repeating.custom_pattern", comment: ""))
                         .font(Theme.Typography.headline())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
                     Spacer()
                 }
 
@@ -52,7 +52,7 @@ struct CustomRepeatingPatternEditor: View {
                 VStack(alignment: .leading, spacing: Theme.spacing8) {
                     Text(NSLocalizedString("repeating.repeat_every", comment: ""))
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
 
                     HStack(spacing: Theme.spacing8) {
                         // Interval picker (1-99) - using UIKit picker
@@ -75,14 +75,14 @@ struct CustomRepeatingPatternEditor: View {
                             HStack {
                                 Text(pattern.unit?.capitalized ?? "Days")
                                     .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    .foregroundColor(palette.textPrimary)
                                 Image(systemName: "chevron.down")
                                     .font(.system(size: 12))
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
                             }
                             .padding(Theme.spacing8)
                             .frame(maxWidth: .infinity)
-                            .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                            .background(palette.bgSecondary)
                             .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
                         }
                     }
@@ -93,7 +93,7 @@ struct CustomRepeatingPatternEditor: View {
                     VStack(alignment: .leading, spacing: Theme.spacing8) {
                         Text(NSLocalizedString("repeating.repeat_on_days", comment: ""))
                             .font(Theme.Typography.caption1())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                            .foregroundColor(palette.textSecondary)
 
                         HStack(spacing: Theme.spacing4) {
                             ForEach(weekdays, id: \.value) { day in
@@ -108,7 +108,7 @@ struct CustomRepeatingPatternEditor: View {
                     VStack(alignment: .leading, spacing: Theme.spacing12) {
                         Text(NSLocalizedString("repeating.repeat_type", comment: ""))
                             .font(Theme.Typography.caption1())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                            .foregroundColor(palette.textSecondary)
 
                         Menu {
                             Button(NSLocalizedString("repeating.same_date_monthly", comment: "")) {
@@ -131,14 +131,14 @@ struct CustomRepeatingPatternEditor: View {
                                      ? NSLocalizedString("repeating.same_date_monthly", comment: "")
                                      : NSLocalizedString("repeating.same_weekday_monthly", comment: ""))
                                     .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    .foregroundColor(palette.textPrimary)
                                 Spacer()
                                 Image(systemName: "chevron.down")
                                     .font(.system(size: 12))
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
                             }
                             .padding(Theme.spacing12)
-                            .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                            .background(palette.bgSecondary)
                             .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
                         }
 
@@ -146,7 +146,7 @@ struct CustomRepeatingPatternEditor: View {
                             VStack(alignment: .leading, spacing: Theme.spacing8) {
                                 Text(NSLocalizedString("repeating.day_of_month", comment: ""))
                                     .font(Theme.Typography.caption1())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                    .foregroundColor(palette.textSecondary)
 
                                 UIKitWheelPicker(range: 1...31, selection: $localMonthDay)
                                     .frame(width: 60, height: 100)
@@ -162,7 +162,7 @@ struct CustomRepeatingPatternEditor: View {
                                 VStack(alignment: .leading, spacing: Theme.spacing8) {
                                     Text(NSLocalizedString("repeating.weekday", comment: ""))
                                         .font(Theme.Typography.caption1())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                        .foregroundColor(palette.textSecondary)
 
                                     Menu {
                                         ForEach(weekdays, id: \.value) { day in
@@ -178,9 +178,9 @@ struct CustomRepeatingPatternEditor: View {
                                             Image(systemName: "chevron.down")
                                                 .font(.system(size: 12))
                                         }
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                        .foregroundColor(palette.textPrimary)
                                         .padding(Theme.spacing12)
-                                        .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                                        .background(palette.bgSecondary)
                                         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
                                     }
                                 }
@@ -189,7 +189,7 @@ struct CustomRepeatingPatternEditor: View {
                                 VStack(alignment: .leading, spacing: Theme.spacing8) {
                                     Text(NSLocalizedString("repeating.week_of_month", comment: ""))
                                         .font(Theme.Typography.caption1())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                        .foregroundColor(palette.textSecondary)
 
                                     Menu {
                                         ForEach(CustomRepeatSummary.weekOfMonthChoices, id: \.value) { choice in
@@ -205,9 +205,9 @@ struct CustomRepeatingPatternEditor: View {
                                             Image(systemName: "chevron.down")
                                                 .font(.system(size: 12))
                                         }
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                        .foregroundColor(palette.textPrimary)
                                         .padding(Theme.spacing12)
-                                        .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                                        .background(palette.bgSecondary)
                                         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
                                     }
                                 }
@@ -223,7 +223,7 @@ struct CustomRepeatingPatternEditor: View {
                         VStack(alignment: .leading, spacing: Theme.spacing8) {
                             Text(NSLocalizedString("repeating.month", comment: ""))
                                 .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
 
                             Menu {
                                 ForEach(Array(months.enumerated()), id: \.offset) { index, month in
@@ -239,9 +239,9 @@ struct CustomRepeatingPatternEditor: View {
                                     Image(systemName: "chevron.down")
                                         .font(.system(size: 12))
                                 }
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .foregroundColor(palette.textPrimary)
                                 .padding(Theme.spacing12)
-                                .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                                .background(palette.bgSecondary)
                                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
                             }
                         }
@@ -250,7 +250,7 @@ struct CustomRepeatingPatternEditor: View {
                         VStack(alignment: .leading, spacing: Theme.spacing8) {
                             Text(NSLocalizedString("repeating.day", comment: ""))
                                 .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
 
                             UIKitWheelPicker(range: 1...31, selection: $localDay)
                                 .frame(width: 60, height: 100)
@@ -265,7 +265,7 @@ struct CustomRepeatingPatternEditor: View {
                 VStack(alignment: .leading, spacing: Theme.spacing8) {
                     Text(NSLocalizedString("repeating.repeat_mode", comment: ""))
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
 
                     VStack(spacing: Theme.spacing4) {
                         ForEach([Task.RepeatFromMode.COMPLETION_DATE, Task.RepeatFromMode.DUE_DATE], id: \.self) { mode in
@@ -276,12 +276,12 @@ struct CustomRepeatingPatternEditor: View {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(mode.displayName)
                                             .font(Theme.Typography.body())
-                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                            .foregroundColor(palette.textPrimary)
                                         Text(mode == .COMPLETION_DATE
                                              ? NSLocalizedString("repeating.from_completion", comment: "")
                                              : NSLocalizedString("repeating.from_due_date", comment: ""))
                                             .font(Theme.Typography.caption2())
-                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                            .foregroundColor(palette.textMuted)
                                     }
                                     Spacer()
                                     if repeatFrom == mode {
@@ -291,7 +291,7 @@ struct CustomRepeatingPatternEditor: View {
                                 }
                                 .padding(.horizontal, Theme.spacing12)
                                 .padding(.vertical, Theme.spacing8)
-                                .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                                .background(palette.bgSecondary)
                                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
                             }
                             .buttonStyle(.plain)
@@ -303,7 +303,7 @@ struct CustomRepeatingPatternEditor: View {
                 VStack(alignment: .leading, spacing: Theme.spacing8) {
                     Text(NSLocalizedString("repeating.end_condition", comment: ""))
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
 
                     Menu {
                         Button(NSLocalizedString("repeating.never", comment: "")) { pattern.endCondition = "never" }
@@ -319,14 +319,14 @@ struct CustomRepeatingPatternEditor: View {
                         HStack {
                             Text(endConditionLabel)
                                 .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .foregroundColor(palette.textPrimary)
                             Spacer()
                             Image(systemName: "chevron.down")
                                 .font(.system(size: 12))
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                .foregroundColor(palette.textMuted)
                         }
                         .padding(Theme.spacing12)
-                        .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                        .background(palette.bgSecondary)
                         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
                     }
 
@@ -334,7 +334,7 @@ struct CustomRepeatingPatternEditor: View {
                         VStack(alignment: .leading, spacing: Theme.spacing8) {
                             Text(NSLocalizedString("repeating.num_occurrences", comment: ""))
                                 .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
 
                             UIKitWheelPicker(range: 1...99, selection: $localEndAfterOccurrences)
                                 .frame(width: 60, height: 100)
@@ -348,7 +348,7 @@ struct CustomRepeatingPatternEditor: View {
                         VStack(alignment: .leading, spacing: Theme.spacing8) {
                             Text(NSLocalizedString("repeating.end_date", comment: ""))
                                 .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
 
                             DatePicker(
                                 NSLocalizedString("repeating.end_date", comment: ""),
@@ -370,11 +370,11 @@ struct CustomRepeatingPatternEditor: View {
                 VStack(alignment: .leading, spacing: Theme.spacing8) {
                     Text(NSLocalizedString("repeating.preview", comment: ""))
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
 
                     Text(getPatternSummary())
                         .font(Theme.Typography.body())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
                         .padding(Theme.spacing12)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Theme.info.opacity(0.1))
@@ -386,27 +386,27 @@ struct CustomRepeatingPatternEditor: View {
                     Button(NSLocalizedString("misc.cancel", comment: "")) {
                         onCancel()
                     }
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, Theme.spacing12)
-                    .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                    .background(palette.bgSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
 
                     Button(NSLocalizedString("misc.close", comment: "Close")) {
                         requireWeekday()
                         onSave()
                     }
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, Theme.spacing12)
-                    .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                    .background(palette.bgSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                 }
                 .padding(.top, Theme.spacing8)
             }
             .padding(Theme.spacing16)
         }
-        .background(colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
+        .background(palette.bgPrimary)
         .onAppear {
             // Initialize local state from pattern
             localInterval = max(1, pattern.interval ?? 1)
@@ -427,9 +427,9 @@ struct CustomRepeatingPatternEditor: View {
         } label: {
             Text(day.short)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(isSelected ? .white : (colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted))
+                .foregroundColor(isSelected ? .white : (palette.textMuted))
                 .frame(width: 32, height: 32)
-                .background(isSelected ? Theme.accent : (colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary))
+                .background(isSelected ? Theme.accent : (palette.bgSecondary))
                 .clipShape(Circle())
         }
         .buttonStyle(.plain)

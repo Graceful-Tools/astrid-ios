@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Inline repeat pattern picker (matching mobile web)
 struct InlineRepeatPicker: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
 
     let label: String
     @Binding var repeatPattern: Task.Repeating?
@@ -31,7 +31,7 @@ struct InlineRepeatPicker: View {
             if showLabel {
                 Text(label)
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
             }
 
             // One decision for both editors (42013da7): a chip-sized trigger presents EITHER of
@@ -168,7 +168,7 @@ struct InlineRepeatPicker: View {
                                 HStack {
                                     Text(pattern.displayName)
                                         .font(Theme.Typography.body())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                        .foregroundColor(palette.textPrimary)
                                     Spacer()
                                     if isSelected {
                                         Image(systemName: "checkmark")
@@ -183,7 +183,7 @@ struct InlineRepeatPicker: View {
                                 // Tinted, not just ticked — the checkmark alone at the far edge
                                 // of a full-width row was easy to miss (42013da7).
                                 .background(isSelected ? Theme.accent.opacity(0.15)
-                                                       : (colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary))
+                                                       : (palette.bgSecondary))
                                 .overlay(RoundedRectangle(cornerRadius: Theme.radiusSmall)
                                     .stroke(isSelected ? Theme.accent : .clear, lineWidth: 1.5))
                                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
@@ -198,15 +198,15 @@ struct InlineRepeatPicker: View {
                         wasCancelled = true
                         isEditing = false
                     }
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, Theme.spacing8)
-                    .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                    .background(palette.bgSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                 }
                 .padding(compact ? 0 : Theme.spacing12)
                 .background(compact ? Color.clear
-                                    : (colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary))
+                                    : (palette.bgTertiary))
                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
     }
 
@@ -234,7 +234,7 @@ struct InlineRepeatPicker: View {
                                         : pattern.displayName)
                                      : getRepeatingSummary())
                                     .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    .foregroundColor(palette.textPrimary)
                                     .lineLimit(compact ? 1 : 2)
                                     .fixedSize(horizontal: compact, vertical: false)
                             }
@@ -242,23 +242,23 @@ struct InlineRepeatPicker: View {
                             // Not repeating: a crossed-out repeat symbol. Spelled out it needed a
                             // chip wide enough to truncate to "Ever…", which reads as nothing.
                             SlashedSymbol(systemName: "repeat",
-                                          color: colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                          color: palette.textMuted)
                                 .accessibilityLabel(Text(NSLocalizedString("repeating.one_time_only", comment: "")))
                         } else {
                             Text(NSLocalizedString("repeating.one_time_only", comment: "One time only"))
                                 .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                .foregroundColor(palette.textMuted)
                         }
                         if !compact {
                             Spacer()
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 14))
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                .foregroundColor(palette.textMuted)
                         }
                     }
                     .padding(.horizontal, compact ? Theme.spacing8 : Theme.spacing12)
                     .padding(.vertical, compact ? Theme.spacing4 : Theme.spacing12)
-                    .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                    .background(palette.bgSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                 }
                 .buttonStyle(.plain)

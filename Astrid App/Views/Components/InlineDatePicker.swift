@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Inline date picker that shows the current date and allows editing
 struct InlineDatePicker: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     let label: String
     @Binding var date: Date?
     var onSave: (() -> Void)?
@@ -30,7 +30,7 @@ struct InlineDatePicker: View {
             if showLabel {
                 Text(label)
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
             }
 
             Button(action: { showingPicker = true }) {
@@ -38,7 +38,7 @@ struct InlineDatePicker: View {
                     if let date = date {
                         Text(formatDate(date))
                             .font(Theme.Typography.body())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .foregroundColor(palette.textPrimary)
                             .lineLimit(1)
                             // Never truncate in a shared row — "Jul…" is not a date (42013da7).
                             .fixedSize(horizontal: compact, vertical: false)
@@ -48,7 +48,7 @@ struct InlineDatePicker: View {
                         // past, whereas an empty date is a thing you are being asked to fill in.
                         Text(NSLocalizedString("picker.no_due_date", comment: "No due date"))
                             .font(Theme.Typography.body())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                             .lineLimit(1)
                             .fixedSize(horizontal: compact, vertical: false)
                     }
@@ -59,12 +59,12 @@ struct InlineDatePicker: View {
                     // was carrying two of them.
                     if !compact, date != nil {
                         Image(systemName: "calendar")
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                 }
                 .padding(.horizontal, compact ? Theme.spacing8 : Theme.spacing12)
                 .padding(.vertical, compact ? Theme.spacing4 : Theme.spacing12)
-                .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                .background(palette.bgSecondary)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
             }
             .buttonStyle(.plain)
@@ -99,7 +99,7 @@ struct InlineDatePicker: View {
                                 .padding(.horizontal, PickerRowMetrics.rowHorizontalPadding)
                                 .padding(.vertical, PickerRowMetrics.clearRowVerticalPadding)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                                .background(palette.bgSecondary)
                                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
                             }
                             .buttonStyle(.plain)
@@ -112,7 +112,7 @@ struct InlineDatePicker: View {
                                     HStack {
                                         Text(NSLocalizedString(option.titleKey, comment: ""))
                                             .font(Theme.Typography.body())
-                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                            .foregroundColor(palette.textPrimary)
                                         Spacer()
                                         if option.isSelected {
                                             Image(systemName: "checkmark")
@@ -121,7 +121,7 @@ struct InlineDatePicker: View {
                                     }
                                     .padding(.horizontal, PickerRowMetrics.rowHorizontalPadding)
                                     .padding(.vertical, PickerRowMetrics.rowVerticalPadding)
-                                    .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                                    .background(palette.bgSecondary)
                                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
                                 }
                                 .buttonStyle(.plain)
@@ -131,7 +131,7 @@ struct InlineDatePicker: View {
                         .padding(.horizontal, Theme.spacing16)
 
                         Divider()
-                            .background(colorScheme == .dark ? Theme.Dark.border : Theme.border)
+                            .background(palette.border)
                             .padding(.horizontal, Theme.spacing16)
 
                         // Custom date picker. No header: the calendar below is self-evident, and

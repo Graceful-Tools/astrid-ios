@@ -3,7 +3,7 @@ import SwiftUI
 /// Inline time picker with quick options (matching mobile web)
 /// Quick options: Morning (9 AM), Afternoon (2 PM), Evening (6 PM), Night (9 PM)
 struct InlineTimePicker: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
 
     let label: String
     @Binding var time: Date?
@@ -33,7 +33,7 @@ struct InlineTimePicker: View {
             if showLabel {
                 Text(label)
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
             }
 
             // Compact triggers are chip-sized, so the inline editor would be squeezed into a few
@@ -94,7 +94,7 @@ struct InlineTimePicker: View {
                             .padding(.horizontal, PickerRowMetrics.rowHorizontalPadding)
                             .padding(.vertical, PickerRowMetrics.clearRowVerticalPadding)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                            .background(palette.bgSecondary)
                             .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
                         }
                         .buttonStyle(.plain)
@@ -110,7 +110,7 @@ struct InlineTimePicker: View {
                                 HStack {
                                     Text(option.0)
                                         .font(Theme.Typography.body())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                        .foregroundColor(palette.textPrimary)
                                     Spacer()
                                     if isSelected {
                                         Image(systemName: "checkmark")
@@ -125,7 +125,7 @@ struct InlineTimePicker: View {
                                 // Selected is tinted, not just ticked — a checkmark alone at the
                                 // far edge of a full-width row is easy to miss (42013da7).
                                 .background(isSelected ? Theme.accent.opacity(0.15)
-                                                       : (colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary))
+                                                       : (palette.bgSecondary))
                                 .overlay(RoundedRectangle(cornerRadius: Theme.radiusSmall)
                                     .stroke(isSelected ? Theme.accent : .clear, lineWidth: 1.5))
                                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
@@ -136,7 +136,7 @@ struct InlineTimePicker: View {
                     }
 
                     Divider()
-                        .background(colorScheme == .dark ? Theme.Dark.border : Theme.border)
+                        .background(palette.border)
 
                     // Custom time picker - compact with hours, minutes, AM/PM
                     // No header, matching the date picker: a time wheel does not need a label
@@ -173,7 +173,7 @@ struct InlineTimePicker: View {
                 }
                 .padding(compact ? 0 : Theme.spacing12)
                 .background(compact ? Color.clear
-                                    : (colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary))
+                                    : (palette.bgTertiary))
                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
     }
 
@@ -187,34 +187,34 @@ struct InlineTimePicker: View {
                         if let time = time {
                             Text(formatTime(time))
                                 .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .foregroundColor(palette.textPrimary)
                                 .lineLimit(1)
                             if !compact { Spacer() }
                             if !compact {
                                 Image(systemName: "chevron.right")
                                     .font(.system(size: 14))
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
                             }
                         } else if compact {
                             // All-day: a crossed-out clock, not the words "Add time" squeezed
                             // into a chip narrow enough to render as "Add…" (42013da7).
                             SlashedSymbol(systemName: "clock",
-                                          color: colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                          color: palette.textMuted)
                                 .accessibilityLabel(Text(NSLocalizedString("picker.add_time", comment: "")))
                         } else {
                             Text(NSLocalizedString("picker.add_time", comment: "Add time"))
                                 .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                .foregroundColor(palette.textMuted)
                                 .lineLimit(1)
                             Spacer()
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 14))
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                .foregroundColor(palette.textMuted)
                         }
                     }
                     .padding(.horizontal, compact ? Theme.spacing8 : Theme.spacing12)
                     .padding(.vertical, compact ? Theme.spacing4 : Theme.spacing12)
-                    .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                    .background(palette.bgSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                 }
                 .buttonStyle(.plain)

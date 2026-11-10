@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Inline assignee picker for selecting task assignee
 struct InlineAssigneePicker: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @EnvironmentObject var authManager: AuthManager
 
     let label: String
@@ -162,7 +162,7 @@ struct InlineAssigneePicker: View {
                 if faces.overflow > 0 {
                     Text("+\(faces.overflow)")
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
                         .padding(.leading, 10)
                 }
             }
@@ -194,7 +194,7 @@ struct InlineAssigneePicker: View {
             if showLabel {
                 Text(label)
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
             }
 
             if isEditing && !compact {
@@ -241,7 +241,7 @@ struct InlineAssigneePicker: View {
         VStack(alignment: .leading, spacing: Theme.spacing8) {
             Text(NSLocalizedString("assignee.someone_else", comment: "Someone else"))
                 .font(Theme.Typography.caption1())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                .foregroundColor(palette.textSecondary)
 
             HStack(spacing: Theme.spacing8) {
                 TextField(NSLocalizedString("members.invite_email", comment: ""), text: $someoneElseQuery)
@@ -263,15 +263,15 @@ struct InlineAssigneePicker: View {
                 } label: {
                     HStack(spacing: Theme.spacing8) {
                         Image(systemName: "person.crop.circle")
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(contact.name ?? contact.email)
                                 .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .foregroundColor(palette.textPrimary)
                             if contact.name != nil {
                                 Text(contact.email)
                                     .font(Theme.Typography.caption1())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
                             }
                         }
                         Spacer()
@@ -279,7 +279,7 @@ struct InlineAssigneePicker: View {
                     .padding(.horizontal, Theme.spacing12)
                     .padding(.vertical, Theme.spacing8)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                    .background(palette.bgSecondary)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
                 }
                 .buttonStyle(.plain)
@@ -355,7 +355,7 @@ struct InlineAssigneePicker: View {
                             .scaleEffect(0.8)
                         Text(NSLocalizedString("picker.loading_agents", comment: "Loading AI agents..."))
                             .font(Theme.Typography.caption1())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                     .padding(.vertical, Theme.spacing8)
                 }
@@ -387,7 +387,7 @@ struct InlineAssigneePicker: View {
         .frame(minHeight: boundsListHeight && !compact ? QuickPickerGeometry.assigneeListMinHeight : nil,
                maxHeight: boundsListHeight && !compact ? QuickPickerGeometry.assigneeListMaxHeight : nil)
         .background(compact ? Color.clear
-                            : (colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary))
+                            : (palette.bgTertiary))
         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
     }
 
@@ -416,7 +416,7 @@ struct InlineAssigneePicker: View {
 
                                     Text(assignee.displayName)
                                         .font(Theme.Typography.body())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                        .foregroundColor(palette.textPrimary)
                                         .lineLimit(1)
                                 }
                                 .accessibilityElement(children: .combine)
@@ -430,14 +430,14 @@ struct InlineAssigneePicker: View {
                                     // its own state and gets its own mark (42013da7).
                                     Text(AssigneeResolver.unassignedGlyph)
                                         .font(.system(size: 13, weight: .semibold))
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                        .foregroundColor(palette.textMuted)
                                         .frame(width: 26, height: 26)
                                         .overlay(RoundedRectangle(cornerRadius: 8)
-                                            .stroke(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted,
+                                            .stroke(palette.textMuted,
                                                     lineWidth: 1.5))
                                     Text(NSLocalizedString("assignee.unassigned", comment: ""))
                                         .font(Theme.Typography.body())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                        .foregroundColor(palette.textMuted)
                                         .lineLimit(1)
                                 }
                             }
@@ -462,17 +462,17 @@ struct InlineAssigneePicker: View {
 
                                 Text(assignee.displayName)
                                     .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    .foregroundColor(palette.textPrimary)
                             }
                         } else {
                             HStack(spacing: Theme.spacing8) {
                                 Image(systemName: "person.slash")
                                     .font(.system(size: 14))
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
 
                                 Text("Unassigned")
                                     .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
                             }
                         }
                         additionalFaces
@@ -480,13 +480,13 @@ struct InlineAssigneePicker: View {
                             Spacer()
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 14))
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                .foregroundColor(palette.textMuted)
                         }
                     }
                     .padding(.horizontal, compact ? Theme.spacing4 : Theme.spacing12)
                     .padding(.vertical, compact ? Theme.spacing4 : Theme.spacing12)
                     .background(compact ? Color.clear
-                                        : (colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary))
+                                        : (palette.bgSecondary))
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                 }
                 .buttonStyle(.plain)
@@ -534,11 +534,11 @@ struct InlineAssigneePicker: View {
                 if let icon = icon {
                     ZStack {
                         Circle()
-                            .fill(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                            .fill(palette.bgSecondary)
                             .frame(width: 32, height: 32)
                         Image(systemName: icon)
                             .font(.system(size: 14))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                 } else {
                     CachedAsyncImage(url: image.flatMap { URL(string: $0) }) { image in
@@ -569,16 +569,16 @@ struct InlineAssigneePicker: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(name)
                         .font(Theme.Typography.body())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
 
                     if let currentUser = authManager.currentUser, id == currentUser.id {
                         Text(NSLocalizedString("assignee.you", comment: "You"))
                             .font(Theme.Typography.caption2())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     } else if isAIAgent {
                         Text(NSLocalizedString("picker.ai_agent", comment: "AI Agent"))
                             .font(Theme.Typography.caption2())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                 }
 
@@ -591,7 +591,7 @@ struct InlineAssigneePicker: View {
             }
             .padding(.horizontal, Theme.spacing12)
             .padding(.vertical, Theme.spacing8)
-            .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+            .background(palette.bgSecondary)
             .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
         }
         .buttonStyle(.plain)
