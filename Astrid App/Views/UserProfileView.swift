@@ -2,7 +2,7 @@ import SwiftUI
 import Combine
 
 struct UserProfileView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) var dismiss
     @StateObject private var viewModel: UserProfileViewModel
     @EnvironmentObject var authManager: AuthManager
@@ -83,7 +83,7 @@ struct UserProfileView: View {
                 .scaleEffect(1.2)
             Text(NSLocalizedString("profile.loading", comment: ""))
                 .font(Theme.Typography.body())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                .foregroundColor(palette.textMuted)
         }
     }
 
@@ -97,7 +97,7 @@ struct UserProfileView: View {
 
             Text(message)
                 .font(Theme.Typography.headline())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                .foregroundColor(palette.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, Theme.spacing32)
 
@@ -109,10 +109,10 @@ struct UserProfileView: View {
                     Text(NSLocalizedString("profile.go_back", comment: ""))
                 }
                 .font(Theme.Typography.body())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                .foregroundColor(palette.textPrimary)
                 .padding(.horizontal, Theme.spacing24)
                 .padding(.vertical, Theme.spacing12)
-                .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+                .background(palette.bgSecondary)
                 .cornerRadius(Theme.radiusMedium)
             }
         }
@@ -215,7 +215,7 @@ struct UserProfileView: View {
                     HStack(spacing: Theme.spacing8) {
                         Text(user.displayName)
                             .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .foregroundColor(palette.textPrimary)
                             .onTapGesture {
                                 if isOwnProfile {
                                     loadAccountDataAndShowEdit()
@@ -235,7 +235,7 @@ struct UserProfileView: View {
 
                     Text(user.email)
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
 
                     HStack(spacing: Theme.spacing8) {
                         Image(systemName: "calendar")
@@ -243,18 +243,18 @@ struct UserProfileView: View {
                         Text(String(format: NSLocalizedString("profile.joined", comment: ""), monthYearFormatter.string(from: user.createdAt)))
                             .font(Theme.Typography.caption1())
                     }
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    .foregroundColor(palette.textMuted)
                 }
 
                 Spacer()
             }
         }
         .padding(Theme.spacing16)
-        .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+        .background(palette.bgSecondary)
         .cornerRadius(Theme.radiusMedium)
         .overlay(
             RoundedRectangle(cornerRadius: Theme.radiusMedium)
-                .stroke(colorScheme == .dark ? Theme.Dark.border : Theme.border, lineWidth: 1)
+                .stroke(palette.border, lineWidth: 1)
         )
     }
 
@@ -308,26 +308,26 @@ struct UserProfileView: View {
                 HStack(spacing: 6) {
                     Text("\(value)")
                         .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
                     Text(label)
                         .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
                 }
 
                 // Second line: "Getting it done!" (no label prefix)
                 Text(tagline)
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    .foregroundColor(palette.textMuted)
             }
 
             Spacer()
         }
         .padding(Theme.spacing16)
-        .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+        .background(palette.bgSecondary)
         .cornerRadius(Theme.radiusMedium)
         .overlay(
             RoundedRectangle(cornerRadius: Theme.radiusMedium)
-                .stroke(colorScheme == .dark ? Theme.Dark.border : Theme.border, lineWidth: 1)
+                .stroke(palette.border, lineWidth: 1)
         )
     }
 
@@ -338,21 +338,21 @@ struct UserProfileView: View {
             // Section header
             HStack {
                 Image(systemName: "checklist")
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    .foregroundColor(palette.textMuted)
                 Text(isOwnProfile ? NSLocalizedString("profile.your_tasks", comment: "") : String(format: NSLocalizedString("profile.shared_tasks_with", comment: ""), user.displayName))
                     .font(Theme.Typography.headline())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
 
                 Spacer()
 
                 Text("\(tasks.count)")
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
                     .padding(.horizontal, Theme.spacing8)
                     .padding(.vertical, Theme.spacing4)
                     .overlay(
                         RoundedRectangle(cornerRadius: Theme.radiusSmall)
-                            .stroke(colorScheme == .dark ? Theme.Dark.border : Theme.border, lineWidth: 1)
+                            .stroke(palette.border, lineWidth: 1)
                     )
             }
             .padding(.horizontal, Theme.spacing16)
@@ -369,11 +369,11 @@ struct UserProfileView: View {
             }
             .padding(.bottom, Theme.spacing16)
         }
-        .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+        .background(palette.bgSecondary)
         .cornerRadius(Theme.radiusMedium)
         .overlay(
             RoundedRectangle(cornerRadius: Theme.radiusMedium)
-                .stroke(colorScheme == .dark ? Theme.Dark.border : Theme.border, lineWidth: 1)
+                .stroke(palette.border, lineWidth: 1)
         )
     }
 

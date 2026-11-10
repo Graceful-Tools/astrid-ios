@@ -2,7 +2,7 @@ import SwiftUI
 import PhotosUI
 
 struct AccountSettingsView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var authManager: AuthManager
     @StateObject private var viewModel = AccountViewModel()
@@ -99,11 +99,11 @@ struct AccountSettingsView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(viewModel.displayName)
                         .font(Theme.Typography.headline())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
 
                     Text(viewModel.email)
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                 }
 
                 Spacer()
@@ -126,21 +126,21 @@ struct AccountSettingsView: View {
             // Display Name
             HStack {
                 Label(NSLocalizedString("settings.account.display_name", comment: ""), systemImage: "person")
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
                 Spacer()
                 TextField(NSLocalizedString("settings.account.name_placeholder", comment: ""), text: $viewModel.editedName)
                     .multilineTextAlignment(.trailing)
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
             }
 
             // Email Address
             HStack {
                 Label(NSLocalizedString("auth.email", comment: ""), systemImage: "envelope")
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
                 Spacer()
                 TextField(NSLocalizedString("settings.account.email_placeholder", comment: ""), text: $viewModel.editedEmail)
                     .multilineTextAlignment(.trailing)
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
                     .keyboardType(.emailAddress)
                     .textContentType(.emailAddress)
                     .autocapitalization(.none)
@@ -224,7 +224,7 @@ struct AccountSettingsView: View {
                             .foregroundColor(.orange)
                         Text(pendingEmail)
                             .font(Theme.Typography.caption1())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                            .foregroundColor(palette.textSecondary)
                     }
                     Spacer()
                 }
@@ -290,29 +290,29 @@ struct AccountSettingsView: View {
         Section(NSLocalizedString("settings.account.info", comment: "")) {
             HStack {
                 Label(NSLocalizedString("settings.account.id", comment: ""), systemImage: "number")
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
                 Spacer()
                 Text(String(viewModel.accountId.prefix(8)) + "...")
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
             }
 
             HStack {
                 Label(NSLocalizedString("settings.account.created", comment: ""), systemImage: "calendar")
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
                 Spacer()
                 Text(viewModel.accountCreatedDate)
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
             }
 
             HStack {
                 Label(NSLocalizedString("settings.account.auth_method", comment: ""), systemImage: "key")
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
                 Spacer()
                 Text(viewModel.isOAuthUser ? NSLocalizedString("settings.account.google", comment: "") : NSLocalizedString("settings.account.passkey", comment: ""))
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
             }
         }
     }
@@ -328,20 +328,20 @@ struct AccountSettingsView: View {
                         .scaleEffect(0.8)
                     Text(NSLocalizedString("settings.account.loading_passkeys", comment: ""))
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
                     Spacer()
                 }
             } else if passkeys.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "person.badge.key")
                         .font(.system(size: 32))
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
                     Text(NSLocalizedString("settings.account.no_passkeys_registered", comment: ""))
                         .font(Theme.Typography.body())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
                     Text(NSLocalizedString("settings.account.add_passkey_description", comment: ""))
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
@@ -387,25 +387,25 @@ struct AccountSettingsView: View {
     private func passkeyRow(_ passkey: PasskeyManager.PasskeyInfo) -> some View {
         HStack {
             Image(systemName: "person.badge.key.fill")
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                .foregroundColor(palette.textMuted)
 
             VStack(alignment: .leading, spacing: 2) {
                 if editingPasskeyId == passkey.id {
                     TextField(NSLocalizedString("settings.account.passkey_name_placeholder", comment: ""), text: $editingPasskeyName)
                         .font(Theme.Typography.body())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
                         .onSubmit {
                             _Concurrency.Task { await renamePasskey(passkey.id) }
                         }
                 } else {
                     Text(passkey.name ?? NSLocalizedString("settings.account.passkey", comment: ""))
                         .font(Theme.Typography.body())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
                 }
 
                 Text(formatPasskeyDate(passkey.createdAt) + (passkey.credentialBackedUp ? " • " + NSLocalizedString("settings.account.synced", comment: "") : ""))
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    .foregroundColor(palette.textMuted)
             }
 
             Spacer()
@@ -424,7 +424,7 @@ struct AccountSettingsView: View {
                         editingPasskeyName = ""
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                 }
             } else {
@@ -434,7 +434,7 @@ struct AccountSettingsView: View {
                         editingPasskeyName = passkey.name ?? NSLocalizedString("settings.account.passkey", comment: "")
                     } label: {
                         Image(systemName: "pencil")
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
 
                     Button {
@@ -532,7 +532,7 @@ struct AccountSettingsView: View {
             } label: {
                 HStack {
                     Label(NSLocalizedString("settings.account.export_json", comment: ""), systemImage: "square.and.arrow.up")
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
                     Spacer()
                     if viewModel.isExporting {
                         ProgressView()
@@ -540,7 +540,7 @@ struct AccountSettingsView: View {
                     } else {
                         Image(systemName: "chevron.right")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                 }
             }
@@ -556,7 +556,7 @@ struct AccountSettingsView: View {
             } label: {
                 HStack {
                     Label(NSLocalizedString("settings.account.export_csv", comment: ""), systemImage: "tablecells")
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
                     Spacer()
                     if viewModel.isExporting {
                         ProgressView()
@@ -564,7 +564,7 @@ struct AccountSettingsView: View {
                     } else {
                         Image(systemName: "chevron.right")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                 }
             }

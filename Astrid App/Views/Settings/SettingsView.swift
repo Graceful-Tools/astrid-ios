@@ -2,7 +2,7 @@ import SwiftUI
 import Contacts
 
 struct SettingsView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var authManager: AuthManager
     var onMenuTap: (() -> Void)?
@@ -53,7 +53,7 @@ struct SettingsView: View {
                                         Text(user.displayName)
                                         Text(NSLocalizedString("profile.title", comment: "Profile"))
                                             .font(Theme.Typography.caption1())
-                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                            .foregroundColor(palette.textSecondary)
                                     }
                                 }
                             }
@@ -155,7 +155,7 @@ struct SettingsView: View {
                                 .foregroundColor(s.isHealthy ? .green : .orange)
                             Text("\(s.completed) synced · \(s.pending + s.running) in-flight · \(s.failed) dropped")
                                 .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                             Spacer()
                             Button("Refresh") { _Concurrency.Task { outboxStats = await JournalStats.load() } }
                                 .font(Theme.Typography.caption2())
@@ -199,10 +199,10 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(NSLocalizedString("debug.server_config", comment: ""))
                                 .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .foregroundColor(palette.textPrimary)
                             Text(String(format: NSLocalizedString("debug.current_server_with_url", comment: ""), Constants.API.baseURL))
                                 .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                         }
                     }
 
@@ -210,10 +210,10 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(NSLocalizedString("debug.toast_debug_mode", comment: ""))
                                 .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .foregroundColor(palette.textPrimary)
                             Text(NSLocalizedString("debug.toast_debug_desc", comment: ""))
                                 .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                         }
                     }
                     .tint(Theme.accent)
@@ -222,10 +222,10 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(NSLocalizedString("debug.reminder_debug_mode", comment: ""))
                                 .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .foregroundColor(palette.textPrimary)
                             Text(NSLocalizedString("debug.reminder_debug_desc", comment: ""))
                                 .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                         }
                     }
                     .tint(Theme.accent)
@@ -242,10 +242,10 @@ struct SettingsView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(Brand.localized("debug.test_love_prompt"))
                                     .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    .foregroundColor(palette.textPrimary)
                                 Text(NSLocalizedString("debug.test_love_prompt_desc", comment: ""))
                                     .font(Theme.Typography.caption2())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                    .foregroundColor(palette.textSecondary)
                             }
                         }
                     }
@@ -261,10 +261,10 @@ struct SettingsView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("debug.reset_prompt_tracking", comment: ""))
                                     .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    .foregroundColor(palette.textPrimary)
                                 Text(NSLocalizedString("debug.reset_prompt_tracking_desc", comment: ""))
                                     .font(Theme.Typography.caption2())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                    .foregroundColor(palette.textSecondary)
                             }
                         }
                     }
@@ -282,10 +282,10 @@ struct SettingsView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("account_access", comment: ""))
                                     .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    .foregroundColor(palette.textPrimary)
                                 Text(NSLocalizedString("profile.account_access_full_desc", comment: ""))
                                     .font(Theme.Typography.caption2())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                    .foregroundColor(palette.textSecondary)
                             }
                         }
                     }
@@ -295,18 +295,18 @@ struct SettingsView: View {
                 Section(NSLocalizedString("about", comment: "")) {
                     HStack {
                         Text(NSLocalizedString("version", comment: ""))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .foregroundColor(palette.textPrimary)
                         Spacer()
                         Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                            .foregroundColor(palette.textSecondary)
                     }
 
                     HStack {
                         Text(NSLocalizedString("build", comment: ""))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .foregroundColor(palette.textPrimary)
                         Spacer()
                         Text(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1")
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                            .foregroundColor(palette.textSecondary)
                     }
                 }
 
@@ -324,7 +324,7 @@ struct SettingsView: View {
                     } footer: {
                         Text(NSLocalizedString("auth.create_account_footer", comment: ""))
                             .font(Theme.Typography.caption2())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                            .foregroundColor(palette.textSecondary)
                     }
                 } else {
                     Section {
@@ -413,23 +413,23 @@ struct SettingsView: View {
 
 /// Sync section — only re-renders when SyncManager publishes
 private struct SettingsSyncSection: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @ObservedObject private var syncManager = SyncManager.shared
 
     var body: some View {
         Section(NSLocalizedString("sync", comment: "")) {
             HStack {
                 Label(NSLocalizedString("last_sync", comment: ""), systemImage: "arrow.triangle.2.circlepath")
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
                 Spacer()
                 if let lastSync = syncManager.lastSyncDate {
                     Text(lastSync, style: .relative)
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                 } else {
                     Text(NSLocalizedString("never", comment: ""))
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                 }
             }
 
@@ -440,7 +440,7 @@ private struct SettingsSyncSection: View {
             } label: {
                 HStack {
                     Label(NSLocalizedString("sync_now", comment: ""), systemImage: "arrow.clockwise")
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
                     Spacer()
                     if syncManager.isSyncing {
                         ProgressView()
@@ -454,7 +454,7 @@ private struct SettingsSyncSection: View {
 
 /// Preferences section — only re-renders when UserSettingsService publishes
 private struct SettingsPreferencesSection: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @ObservedObject private var userSettings = UserSettingsService.shared
 
     var body: some View {
@@ -469,7 +469,7 @@ private struct SettingsPreferencesSection: View {
                     Spacer()
                     Text(LocalizationManager.shared.isUsingAutomaticLanguage() ? NSLocalizedString("automatic", comment: "") : LocalizationManager.shared.getLanguageDisplayName(LocalizationManager.shared.getCurrentLanguage()))
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                 }
             }
 
@@ -480,10 +480,10 @@ private struct SettingsPreferencesSection: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(NSLocalizedString("smart_task_creations", comment: "Smart Task Creation"))
                         .font(Theme.Typography.body())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
                     Text(NSLocalizedString("smart_task_creation_description", comment: "Parse dates, priorities, hashtags from titles"))
                         .font(Theme.Typography.caption2())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                 }
             }
             .tint(Theme.accent)
@@ -493,7 +493,7 @@ private struct SettingsPreferencesSection: View {
 
 /// Contacts section — only re-renders when ContactsService publishes
 private struct SettingsContactsSection: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.scenePhase) var scenePhase
     @ObservedObject private var contactsService = ContactsService.shared
 
@@ -502,21 +502,21 @@ private struct SettingsContactsSection: View {
             if contactsService.authorizationStatus == .authorized || contactsService.authorizationStatus == .limited {
                 HStack {
                     Label(NSLocalizedString("contacts.synced_contacts", comment: ""), systemImage: "person.crop.circle")
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                        .foregroundColor(palette.textPrimary)
                     Spacer()
                     Text("\(contactsService.contactCount)")
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                 }
 
                 if let lastSync = contactsService.lastSyncDate {
                     HStack {
                         Label(NSLocalizedString("last_sync", comment: ""), systemImage: "clock")
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .foregroundColor(palette.textPrimary)
                         Spacer()
                         Text(lastSync, style: .relative)
                             .font(Theme.Typography.caption1())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                            .foregroundColor(palette.textSecondary)
                     }
                 }
 
@@ -542,7 +542,7 @@ private struct SettingsContactsSection: View {
                             Spacer()
                             Image(systemName: "arrow.up.forward.app")
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                .foregroundColor(palette.textMuted)
                         }
                     }
                 }
@@ -555,15 +555,15 @@ private struct SettingsContactsSection: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(NSLocalizedString("contacts.access_required", comment: ""))
                                 .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .foregroundColor(palette.textPrimary)
                             Text(NSLocalizedString("contacts.open_settings_prompt", comment: ""))
                                 .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                         }
                         Spacer()
                         Image(systemName: "arrow.up.forward.app")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                 }
                 .buttonStyle(.plain)
@@ -576,15 +576,15 @@ private struct SettingsContactsSection: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(NSLocalizedString("contacts.add_collaborators", comment: ""))
                                 .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .foregroundColor(palette.textPrimary)
                             Text(NSLocalizedString("contacts.upload_for_collaboration", comment: ""))
                                 .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                         }
                         Spacer()
                         Image(systemName: "chevron.right")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                 }
                 .buttonStyle(.plain)
@@ -597,7 +597,7 @@ private struct SettingsContactsSection: View {
         } footer: {
             Text(NSLocalizedString("contacts.footer_text", comment: ""))
                 .font(Theme.Typography.caption2())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                .foregroundColor(palette.textSecondary)
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {

@@ -8,6 +8,7 @@ struct LoginView: View {
     /// lockup below is never blank and never flashes a placeholder (task 97208a72).
     @ObservedObject private var serverCapabilities = ServerCapabilityService.shared
     @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
 
     @State private var isLoading = false
     @State private var showError = false
@@ -28,7 +29,7 @@ struct LoginView: View {
         NavigationStack {
             ZStack {
                 // Background matching web app theme
-                (colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
+                (palette.bgPrimary)
                     .ignoresSafeArea()
 
                 ScrollView {
@@ -51,11 +52,11 @@ struct LoginView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(serverCapabilities.capabilities.brand.resolvedWordmark)
                                     .font(.system(size: 34, weight: .bold))
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    .foregroundColor(palette.textPrimary)
 
                                 Text(serverCapabilities.capabilities.brand.resolvedSlogan)
                                     .font(.system(size: 16))
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                    .foregroundColor(palette.textSecondary)
                             }
                         }
                         .frame(maxWidth: .infinity)  // Center the entire unit
@@ -67,7 +68,7 @@ struct LoginView: View {
                         VStack(spacing: Theme.spacing16) {
                             Text(NSLocalizedString("auth.sign_in_header", comment: ""))
                                 .font(Theme.Typography.headline())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                .foregroundColor(palette.textPrimary)
 
                             if showError {
                                 HStack(spacing: Theme.spacing8) {
@@ -92,14 +93,14 @@ struct LoginView: View {
                             // Divider
                             HStack {
                                 Rectangle()
-                                    .fill(colorScheme == .dark ? Theme.Dark.inputBorder : Theme.inputBorder)
+                                    .fill(palette.inputBorder)
                                     .frame(height: 1)
                                 Text(NSLocalizedString("auth.or", comment: "or"))
                                     .font(Theme.Typography.caption1())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                    .foregroundColor(palette.textSecondary)
                                     .padding(.horizontal, Theme.spacing8)
                                 Rectangle()
-                                    .fill(colorScheme == .dark ? Theme.Dark.inputBorder : Theme.inputBorder)
+                                    .fill(palette.inputBorder)
                                     .frame(height: 1)
                             }
                             .padding(.vertical, Theme.spacing8)
@@ -135,7 +136,7 @@ struct LoginView: View {
                             // Description text
                             Text(NSLocalizedString("auth.local_mode_description", comment: "Your tasks stay on this device. Sign in later to sync across devices."))
                                 .font(Theme.Typography.caption2())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, Theme.spacing4)
                         }
@@ -155,7 +156,7 @@ struct LoginView: View {
                         showingServerSettings = true
                     } label: {
                         Image(systemName: "server.rack")
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                 }
             }
@@ -361,6 +362,7 @@ struct PasskeyEmailSheet: View {
     let onCreate: () -> Void
     let onSignIn: () -> Void  // For returning users without email
     @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @FocusState private var isEmailFocused: Bool
 
     private var hasValidEmail: Bool { EmailAddress.isPlausible(email) }
@@ -375,7 +377,7 @@ struct PasskeyEmailSheet: View {
 
                 Text(NSLocalizedString("auth.continue_passkey", comment: "Continue with Passkey"))
                     .font(Theme.Typography.headline())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
             }
             .padding(.top, Theme.spacing16)
 
@@ -383,18 +385,18 @@ struct PasskeyEmailSheet: View {
             VStack(alignment: .leading, spacing: Theme.spacing8) {
                 Text(NSLocalizedString("auth.new_user", comment: "New?"))
                     .font(Theme.Typography.body())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, Theme.spacing24)
 
                 TextField("Enter your email", text: $email)
                     .font(Theme.Typography.body())
                     .padding(Theme.spacing12)
-                    .background(colorScheme == .dark ? Theme.Dark.inputBg : Theme.inputBg)
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .background(palette.inputBg)
+                    .foregroundColor(palette.textPrimary)
                     .overlay(
                         RoundedRectangle(cornerRadius: Theme.radiusMedium)
-                            .stroke(colorScheme == .dark ? Theme.Dark.inputBorder : Theme.inputBorder, lineWidth: 1)
+                            .stroke(palette.inputBorder, lineWidth: 1)
                     )
                     .textContentType(.emailAddress)
                     .keyboardType(.emailAddress)
@@ -408,7 +410,7 @@ struct PasskeyEmailSheet: View {
             if email.isEmpty {
                 Text(NSLocalizedString("auth.returning_user", comment: "Returning?"))
                     .font(Theme.Typography.body())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, Theme.spacing24)
             }
@@ -447,11 +449,11 @@ struct PasskeyEmailSheet: View {
                 onCancel()
             }
             .font(Theme.Typography.body())
-            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+            .foregroundColor(palette.textSecondary)
 
             Spacer()
         }
-        .background(colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
+        .background(palette.bgPrimary)
     }
 }
 

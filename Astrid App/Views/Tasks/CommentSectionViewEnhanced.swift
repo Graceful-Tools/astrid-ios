@@ -9,6 +9,7 @@ private let logger = Logger(subsystem: Brand.logSubsystem, category: "CommentSec
 /// Enhanced Comment Section with Markdown and SSE support
 struct CommentSectionViewEnhanced: View {
     @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @AppStorage("themeMode") private var themeMode: String = "ocean"
     let taskId: String
     var hideInput: Bool = false  // When true, input is handled externally (fixed position)
@@ -348,7 +349,7 @@ struct CommentSectionViewEnhanced: View {
             HStack {
                 Text(String(format: NSLocalizedString("comments.count", comment: "Comments count"), displayedCommentCount))
                     .font(Theme.Typography.headline())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
 
                 if !systemComments.isEmpty {
                     Button(action: {
@@ -356,7 +357,7 @@ struct CommentSectionViewEnhanced: View {
                     }) {
                         Text(showSystemComments ? "Hide system" : "Show system")
                             .font(Theme.Typography.caption1())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                 }
 
@@ -370,7 +371,7 @@ struct CommentSectionViewEnhanced: View {
                         Text("Offline")
                             .font(Theme.Typography.caption2())
                     }
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    .foregroundColor(palette.textMuted)
                 }
 
                 if commentService.isLoading {
@@ -384,7 +385,7 @@ struct CommentSectionViewEnhanced: View {
             if displayedComments.isEmpty {
                 Text(NSLocalizedString("comments.empty", comment: "No comments yet. Be the first to comment!"))
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    .foregroundColor(palette.textMuted)
                     .padding(.vertical, Theme.spacing8)
             } else {
                 // A repeating task appends a completion line per rollover; a run of them folds
@@ -436,10 +437,10 @@ struct CommentSectionViewEnhanced: View {
                     AutocompletePopupView(
                         items: autocompleteItems,
                         activeTrigger: activeTrigger,
-                        textColor: colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary,
-                        mutedColor: colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted,
-                        backgroundColor: colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary,
-                        borderColor: colorScheme == .dark ? Theme.Dark.inputBorder : Theme.inputBorder,
+                        textColor: palette.textPrimary,
+                        mutedColor: palette.textMuted,
+                        backgroundColor: palette.bgSecondary,
+                        borderColor: palette.inputBorder,
                         onSelect: { item in insertAutocompleteItem(item) },
                         onDismiss: { clearCommentAutocomplete() }
                     )
@@ -449,7 +450,7 @@ struct CommentSectionViewEnhanced: View {
                     HStack {
                         Text("Replying to \(replyingTo.authorDisplayName ?? "Unknown")")
                             .font(Theme.Typography.caption1())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                            .foregroundColor(palette.textSecondary)
 
                         Spacer()
 
@@ -461,7 +462,7 @@ struct CommentSectionViewEnhanced: View {
                     }
                     .padding(.horizontal, Theme.spacing12)
                     .padding(.vertical, Theme.spacing8)
-                    .background(colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
+                    .background(palette.bgPrimary)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
                 }
 
@@ -494,7 +495,7 @@ struct CommentSectionViewEnhanced: View {
                         if newCommentText.isEmpty {
                             Text("Add a comment...")
                                 .font(Theme.Typography.body())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                .foregroundColor(palette.textMuted)
                                 .padding(Theme.spacing12)
                                 .allowsHitTesting(false)
                         }
@@ -502,7 +503,7 @@ struct CommentSectionViewEnhanced: View {
                         // TextEditor — visible text, standard behavior
                         TextEditor(text: $newCommentText)
                             .font(Theme.Typography.body())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .foregroundColor(palette.textPrimary)
                             .scrollContentBackground(.hidden)
                             .padding(.horizontal, Theme.spacing8)
                             .padding(.vertical, Theme.spacing4)
@@ -514,7 +515,7 @@ struct CommentSectionViewEnhanced: View {
                     }
                     .frame(minHeight: 44, maxHeight: 200)
                     .fixedSize(horizontal: false, vertical: true)
-                    .background(colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
+                    .background(palette.bgPrimary)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                     .simultaneousGesture(
                         DragGesture().onChanged { value in
@@ -1161,17 +1162,17 @@ struct CommentSectionViewEnhanced: View {
             } else {
                 ZStack {
                     RoundedRectangle(cornerRadius: Theme.radiusMedium)
-                        .fill(colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary)
+                        .fill(palette.bgTertiary)
                         .frame(width: 64, height: 64)
 
                     VStack(spacing: 4) {
                         Image(systemName: fileIcon(for: file.mimeType))
                             .font(.system(size: 24))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
 
                         Text(file.fileName.components(separatedBy: ".").last?.uppercased() ?? "FILE")
                             .font(.system(size: 9, weight: .medium))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                 }
             }
@@ -1228,6 +1229,7 @@ struct CommentRowViewEnhanced: View {
     let comment: Comment
     let allTaskFiles: [SecureFile]
     let colorScheme: ColorScheme
+    @ThemedPalette private var palette
     let useMarkdown: Bool
     let isOffline: Bool  // When offline, treat all cached comments as user comments
     let onReply: () -> Void
@@ -1321,7 +1323,7 @@ struct CommentRowViewEnhanced: View {
         if isSystemComment {
             Text(comment.createdAt != nil ? "On \(formatSystemCommentDate(comment.createdAt!)), \(comment.content)" : comment.content)
                 .font(Theme.Typography.caption2())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                .foregroundColor(palette.textMuted)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 2)
         } else {
@@ -1352,7 +1354,7 @@ struct CommentRowViewEnhanced: View {
                         // here, so this is the view that needs blocks most.
                         if hasTextContent {
                             MarkdownText(source: comment.content,
-                                         defaultColor: colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary,
+                                         defaultColor: palette.textPrimary,
                                          fillsWidth: false)
                         }
 
@@ -1396,14 +1398,14 @@ struct CommentRowViewEnhanced: View {
                     Text(isCurrentUser ? NSLocalizedString("assignee.you", comment: "You") : (comment.authorDisplayName ?? "Unknown"))
                         .font(Theme.Typography.caption2())
                         .fontWeight(.medium)
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
 
                     if let createdAt = comment.createdAt {
                         Text("·")
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                         Text(formatCommentDate(createdAt))
                             .font(Theme.Typography.caption2())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
 
                     if isCurrentUser {
@@ -1641,6 +1643,7 @@ struct ChatAttachmentView<MenuContent: View>: View {
 struct ChatAttachmentItem<MenuContent: View>: View {
     let file: SecureFile
     let colorScheme: ColorScheme
+    @ThemedPalette private var palette
     let maxWidth: CGFloat
     let maxHeight: CGFloat
     let onTap: () -> Void
@@ -1685,11 +1688,11 @@ struct ChatAttachmentItem<MenuContent: View>: View {
                     } else {
                         // Placeholder while loading
                         RoundedRectangle(cornerRadius: Theme.radiusMedium)
-                            .fill(colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary)
+                            .fill(palette.bgTertiary)
                             .frame(width: 100, height: 100)
                             .overlay(
                                 Image(systemName: isVideo ? "video" : "photo")
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
                             )
                     }
                 }
@@ -1703,14 +1706,14 @@ struct ChatAttachmentItem<MenuContent: View>: View {
                         Text(file.name)
                             .font(Theme.Typography.caption1())
                             .lineLimit(1)
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .foregroundColor(palette.textPrimary)
                         Text(formatFileSize(file.size))
                             .font(Theme.Typography.caption2())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                 }
                 .padding(Theme.spacing8)
-                .background(colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary)
+                .background(palette.bgTertiary)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
             }
         }
