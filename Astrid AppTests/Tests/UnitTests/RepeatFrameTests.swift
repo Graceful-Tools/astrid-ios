@@ -34,14 +34,33 @@ final class RepeatFrameTests: XCTestCase {
         XCTAssertFalse(TaskLeadingControl.showsRepeatFrame(kind: .checkbox, repeating: .daily))
     }
 
-    /// "For other users it should be larger": the arrows are drawn bigger than the 34pt square,
-    /// the photo sits inside the loop, and the slot the row lays out stays 34pt so titles still line up.
+    /// "For other users it should be larger": the arrows are drawn bigger than the square, the
+    /// photo sits inside the loop, and the slot the row lays out stays the square's size so titles
+    /// still line up.
     func testFrameIsLargerThanTheSquareAndHoldsThePhoto() {
-        XCTAssertGreaterThan(RepeatFrameGeometry.frameSize, RepeatFrameGeometry.footprint)
-        XCTAssertLessThan(RepeatFrameGeometry.innerSize, RepeatFrameGeometry.footprint)
-        XCTAssertEqual(RepeatFrameGeometry.footprint, 34)
+        let control = RepeatFrameGeometry.footprint
+        XCTAssertGreaterThan(RepeatFrameGeometry.frameSize(control: control), control)
+        XCTAssertLessThan(RepeatFrameGeometry.innerSize(control: control), control)
+        XCTAssertEqual(control, 34)
         // Web draws a 24px photo in a 40px loop; the same proportion here.
-        XCTAssertEqual(RepeatFrameGeometry.innerSize / RepeatFrameGeometry.frameSize, 24.0 / 40.0, accuracy: 0.01)
+        XCTAssertEqual(RepeatFrameGeometry.innerSize(control: control) / RepeatFrameGeometry.frameSize(control: control),
+                       24.0 / 40.0, accuracy: 0.001)
+    }
+
+    /// AITD-606 — "The iOS uses the wrong size checkbox for repeating assigned to another user.
+    /// Web is right." Web draws the arrows 1.25 × the square (40px round a 32px square; design
+    /// token `size.repeat-frame-scale`). iOS drew a fixed 40pt round its 34pt square — 1.18 × —
+    /// and the Mac, whose square is smaller, would have drawn the same 40pt.
+    func testFrameIsOnePointTwoFiveTimesItsLeadingControl() {
+        XCTAssertEqual(RepeatFrameGeometry.scale, 1.25)
+        for control: CGFloat in [32, 34, 22, 18] {
+            XCTAssertEqual(RepeatFrameGeometry.frameSize(control: control), control * 1.25, accuracy: 0.001,
+                           "a \(control)pt control is framed at 1.25 ×")
+            // The photo is web's 24px in a 32px square: three quarters of the control.
+            XCTAssertEqual(RepeatFrameGeometry.innerSize(control: control), control * 0.75, accuracy: 0.001)
+        }
+        XCTAssertEqual(RepeatFrameGeometry.frameSize(control: 34), 42.5, accuracy: 0.001,
+                       "the iOS row and detail frame is 42.5pt, not 40")
     }
 
     /// The frame is the priority-coloured repeat art the checkbox already uses.

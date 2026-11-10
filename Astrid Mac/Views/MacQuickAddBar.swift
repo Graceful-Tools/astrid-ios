@@ -60,7 +60,8 @@ struct MacQuickAddBar: View {
             Group {
                 if let assignee = draftAssignee {
                     MacAssigneeAvatar(user: assignee, priority: draftPriority,
-                                      size: MacTaskVisuals.rowCheckboxSize)
+                                      size: MacTaskVisuals.rowCheckboxSize,
+                                      repeating: draftRepeats)
                 } else {
                     MacTaskCheckbox(completed: false, priority: draftPriority,
                                     size: MacTaskVisuals.rowCheckboxSize,
