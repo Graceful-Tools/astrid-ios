@@ -7,6 +7,7 @@ private let logger = Logger(subsystem: Brand.logSubsystem, category: "ChatMessag
 struct ChatMessageBubble: View {
     @AppStorage("themeMode") private var themeMode: String = "ocean"
     @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     let message: ChatMessage
     let isCurrentUser: Bool
     let onReply: () -> Void
@@ -106,7 +107,7 @@ struct ChatMessageBubble: View {
                     // @mentions, #lists, !tasks (AITD-416)
                     if hasTextContent {
                         MarkdownText(source: message.content,
-                                     defaultColor: colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary,
+                                     defaultColor: palette.textPrimary,
                                      fillsWidth: false)
                     }
                 }
@@ -152,20 +153,20 @@ struct ChatMessageBubble: View {
                 Text(isCurrentUser ? NSLocalizedString("assignee.you", comment: "You") : (message.author?.displayName ?? "Unknown"))
                     .font(Theme.Typography.caption2())
                     .fontWeight(.medium)
-                    .foregroundColor(message.isFromAgent ? .purple : (colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted))
+                    .foregroundColor(message.isFromAgent ? .purple : (palette.textMuted))
 
                 if let createdAt = message.createdAt {
                     Text("·")
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
                     Text(formatMessageDate(createdAt))
                         .font(Theme.Typography.caption2())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
                 }
 
                 if message.isPending {
                     Image(systemName: "arrow.triangle.2.circlepath")
                         .font(.system(size: 10))
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
                 }
 
                 if isCurrentUser {

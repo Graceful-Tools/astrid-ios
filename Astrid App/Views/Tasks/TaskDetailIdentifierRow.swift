@@ -11,7 +11,7 @@ import SwiftUI
 struct TaskDetailIdentifierRow: View {
     let task: Task
 
-    @Environment(\.colorScheme) private var colorScheme
+    @ThemedPalette private var palette
     @StateObject private var listService = ListService.shared
 
     var body: some View {
@@ -20,7 +20,7 @@ struct TaskDetailIdentifierRow: View {
             TwoColumnRow(label: NSLocalizedString("tasks.taskId.label", comment: ""), icon: TaskIdentifiers.symbolName) {
                 Text(identifier)
                     .font(Theme.Typography.body())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
                     .contextMenu {
                         Button {
                             UIPasteboard.general.string = identifier

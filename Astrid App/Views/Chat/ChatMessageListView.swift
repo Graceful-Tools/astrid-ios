@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Scrollable list of chat messages with auto-scroll and pagination
 struct ChatMessageListView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     let messages: [ChatMessage]
     let hasMore: Bool
     let isLoading: Bool
@@ -40,7 +40,7 @@ struct ChatMessageListView: View {
                         // Date separator
                         Text(formatGroupDate(group.date))
                             .font(Theme.Typography.caption2())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, Theme.spacing4)
 

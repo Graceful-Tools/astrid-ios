@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct AppearanceSettingsView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) var dismiss
     @AppStorage("themeMode") private var themeMode: ThemeMode = .ocean
 
@@ -88,7 +88,7 @@ struct AppearanceSettingsView: View {
                                 .foregroundColor(Theme.accent)
                             Text(Brand.inboundTaskEmailCopy("settings.appearance.email_to_task_self"))
                                 .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                         }
 
                         HStack(alignment: .top, spacing: Theme.spacing8) {
@@ -96,7 +96,7 @@ struct AppearanceSettingsView: View {
                                 .foregroundColor(Theme.accent)
                             Text(Brand.inboundTaskEmailCopy("settings.appearance.email_to_task_assigned"))
                                 .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                         }
 
                         HStack(alignment: .top, spacing: Theme.spacing8) {
@@ -104,7 +104,7 @@ struct AppearanceSettingsView: View {
                                 .foregroundColor(Theme.accent)
                             Text(Brand.inboundTaskEmailCopy("settings.appearance.email_to_task_group"))
                                 .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                         }
 
                         Divider()
@@ -115,7 +115,7 @@ struct AppearanceSettingsView: View {
                                 .foregroundColor(.purple)
                             Text(NSLocalizedString("settings.appearance.email_to_task_subject", comment: ""))
                                 .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                         }
 
                         HStack(alignment: .top, spacing: Theme.spacing8) {
@@ -123,7 +123,7 @@ struct AppearanceSettingsView: View {
                                 .foregroundColor(.purple)
                             Text(NSLocalizedString("settings.appearance.email_to_task_body", comment: ""))
                                 .font(Theme.Typography.caption1())
-                                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                .foregroundColor(palette.textSecondary)
                         }
                     }
                 }

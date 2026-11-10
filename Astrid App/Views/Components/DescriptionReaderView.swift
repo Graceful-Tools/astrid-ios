@@ -10,7 +10,7 @@ import SwiftUI
 
 /// The expand button beside the Description label, and the reader it opens.
 struct DescriptionExpandButton: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Binding var text: String
     var isReadOnly: Bool = false
     var onSave: (() -> Void)?
@@ -24,7 +24,7 @@ struct DescriptionExpandButton: View {
             } label: {
                 Image(systemName: "arrow.up.left.and.arrow.down.right")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
                     .frame(width: 32, height: 28)
                     .contentShape(Rectangle())
             }
@@ -40,7 +40,7 @@ struct DescriptionExpandButton: View {
 
 /// A task you can only read: its description, and the way into the reader.
 struct ReadOnlyDescriptionRow: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Binding var text: String
 
     var body: some View {
@@ -48,7 +48,7 @@ struct ReadOnlyDescriptionRow: View {
             HStack(alignment: .top, spacing: 0) {
                 Text(text)
                     .font(Theme.Typography.body())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 DescriptionExpandButton(text: $text, isReadOnly: true)
             }
@@ -57,7 +57,7 @@ struct ReadOnlyDescriptionRow: View {
 }
 
 struct DescriptionReaderView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) private var dismiss
     @Binding var text: String
     let isReadOnly: Bool
@@ -75,8 +75,8 @@ struct DescriptionReaderView: View {
         _mode = State(initialValue: DescriptionReader.initialMode(text: text.wrappedValue, isReadOnly: isReadOnly))
     }
 
-    private var textColor: Color { colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary }
-    private var background: Color { colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary }
+    private var textColor: Color { palette.textPrimary }
+    private var background: Color { palette.bgPrimary }
 
     var body: some View {
         NavigationStack {

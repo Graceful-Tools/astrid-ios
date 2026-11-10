@@ -6,6 +6,7 @@ private let logger = Logger(subsystem: Brand.logSubsystem, category: "ListAgentS
 /// Per-list AI agent configuration (override default agent for this list)
 struct ListAgentSettingsView: View {
     @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @AppStorage("themeMode") private var themeMode: String = "ocean"
     let listId: String
 
@@ -44,10 +45,10 @@ struct ListAgentSettingsView: View {
                             VStack(alignment: .leading) {
                                 Text(NSLocalizedString("settings.list_agent.use_default", comment: ""))
                                     .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    .foregroundColor(palette.textPrimary)
                                 Text(NSLocalizedString("settings.list_agent.use_default_description", comment: ""))
                                     .font(Theme.Typography.caption2())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
                             }
                             Spacer()
                             if useDefault {
@@ -67,10 +68,10 @@ struct ListAgentSettingsView: View {
                             VStack(alignment: .leading) {
                                 Text(NSLocalizedString("settings.list_agent.no_agent", comment: ""))
                                     .font(Theme.Typography.body())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                    .foregroundColor(palette.textPrimary)
                                 Text(NSLocalizedString("settings.list_agent.no_agent_description", comment: ""))
                                     .font(Theme.Typography.caption2())
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                                    .foregroundColor(palette.textMuted)
                             }
                             Spacer()
                             if !useDefault && selectedAgentId == "none" {
@@ -111,7 +112,7 @@ struct ListAgentSettingsView: View {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(agent.name)
                                             .font(Theme.Typography.body())
-                                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                            .foregroundColor(palette.textPrimary)
                                         Text(agent.serviceDisplayName)
                                             .font(Theme.Typography.caption2())
                                             .foregroundColor(.purple)

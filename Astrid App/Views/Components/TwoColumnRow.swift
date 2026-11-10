@@ -4,7 +4,7 @@ import SwiftUI
 /// Label on the left, content on the right
 /// Uses standard label width for all iPad orientations since portrait has 72% detail panel
 struct TwoColumnRow<Content: View>: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @Environment(\.verticalSizeClass) var verticalSizeClass
     let label: String
@@ -47,7 +47,7 @@ struct TwoColumnRow<Content: View>: View {
                         .font(Theme.Typography.body())
                 }
             }
-            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+            .foregroundColor(palette.textSecondary)
             // Centred for an icon (to sit under the checkbox), leading for a text label.
             .frame(width: labelWidth, alignment: hasMark ? .center : .leading)
 

@@ -4,6 +4,7 @@ import SwiftUI
 /// Displays benefits of signing in and login buttons
 struct SignInPromptView: View {
     @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var authManager: AuthManager
 
@@ -84,7 +85,7 @@ struct SignInPromptView: View {
 
                 Text(NSLocalizedString("auth.sign_in_cta", comment: ""))
                     .font(Theme.Typography.headline())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
                     .multilineTextAlignment(.center)
             }
 
@@ -110,7 +111,7 @@ struct SignInPromptView: View {
             }
         }
         .padding(Theme.spacing16)
-        .background(colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary)
+        .background(palette.bgSecondary)
         .cornerRadius(Theme.radiusMedium)
     }
 
@@ -124,11 +125,11 @@ struct SignInPromptView: View {
             VStack(alignment: .leading, spacing: Theme.spacing4) {
                 Text(title)
                     .font(Theme.Typography.body())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
 
                 Text(description)
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
             }
 
             Spacer()
@@ -203,7 +204,7 @@ struct SignInPromptView: View {
             // Note about data
             Text(NSLocalizedString("auth.sign_in_data_note", comment: ""))
                 .font(Theme.Typography.caption2())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                .foregroundColor(palette.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.top, Theme.spacing8)
         }

@@ -3,7 +3,7 @@ import UserNotifications
 import Combine
 
 struct ReminderSettingsView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) var dismiss
     @StateObject private var settings = ReminderSettings.shared
     @State private var notificationPermissionStatus: UNAuthorizationStatus = .notDetermined
@@ -102,7 +102,7 @@ struct ReminderSettingsView: View {
                         Image(systemName: "bell.badge")
                             .foregroundColor(Theme.accent)
                         Text(NSLocalizedString("settings.reminders.send_test", comment: ""))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                            .foregroundColor(palette.textPrimary)
                     }
                 }
                 .alert(NSLocalizedString("settings.reminders.test_reminder", comment: ""), isPresented: $showingReminderTest) {

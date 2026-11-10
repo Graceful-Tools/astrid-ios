@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ListDefaultsView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @StateObject private var listService = ListService.shared
     @ObservedObject private var memberService = ListMemberService.shared
 
@@ -32,7 +32,7 @@ struct ListDefaultsView: View {
             Section {
                 Text(NSLocalizedString("list.defaults_description", comment: ""))
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                    .foregroundColor(palette.textMuted)
             }
 
             // Default Assignee - Hidden for local users
@@ -120,7 +120,7 @@ struct ListDefaultsView: View {
                     if defaultIsPrivate {
                         Text(NSLocalizedString("lists.private_description", comment: ""))
                             .font(Theme.Typography.caption1())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                 }
             }
@@ -130,12 +130,12 @@ struct ListDefaultsView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(NSLocalizedString("lists.list", comment: "") + " ID")
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
 
                     HStack {
                         Text(list.id)
                             .font(.system(size: 11, design: .monospaced))
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                             .textSelection(.enabled)
 
                         Spacer()
@@ -152,7 +152,7 @@ struct ListDefaultsView: View {
 
                     Text(NSLocalizedString("list.oauth_hint", comment: "Use this ID for OAuth API integrations and coding agents"))
                         .font(Theme.Typography.caption2())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
                 }
             }
 
@@ -163,7 +163,7 @@ struct ListDefaultsView: View {
                         ProgressView()
                         Text(NSLocalizedString("messages.saving", comment: ""))
                             .font(Theme.Typography.caption1())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                         Spacer()
                     }
                 }

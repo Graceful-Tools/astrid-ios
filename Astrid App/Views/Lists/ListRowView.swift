@@ -24,6 +24,7 @@ struct ListRowButtonStyle: ButtonStyle {
 
 struct ListRowView: View {
     @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @StateObject private var listService = ListService.shared
 
     let list: TaskList
@@ -59,7 +60,7 @@ struct ListRowView: View {
                 // List name
                 Text(list.name)
                     .font(Theme.Typography.body())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                    .foregroundColor(palette.textPrimary)
                     .lineLimit(1)
 
                 Spacer()
@@ -73,7 +74,7 @@ struct ListRowView: View {
                 if let count = taskCount {
                     Text("\(count)")
                         .font(Theme.Typography.callout())  // A step under the name (AITD-502)
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                         .padding(.horizontal, Theme.spacing4)
                         .padding(.vertical, Theme.spacing4)
                         .background(

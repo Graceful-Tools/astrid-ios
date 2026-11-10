@@ -23,7 +23,7 @@ struct TaskDetailRelatedTasksRows: View {
 struct TaskDetailOccurrencesRow: View {
     let task: Task
 
-    @Environment(\.colorScheme) private var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.openURL) private var openURL
     @StateObject private var taskService = TaskService.shared
 
@@ -53,9 +53,9 @@ struct TaskDetailOccurrencesRow: View {
         } label: {
             Label(NSLocalizedString(key, comment: ""), systemImage: icon)
                 .font(Theme.Typography.body())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                .foregroundColor(palette.textPrimary)
                 .lineLimit(1)
-                .chipBackground(colorScheme)
+                .chipBackground(palette)
         }
         .buttonStyle(.plain)
     }

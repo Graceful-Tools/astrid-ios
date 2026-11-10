@@ -393,7 +393,7 @@ struct CommentSectionViewEnhanced: View {
                 ForEach(CompletionStreak.fold(displayedComments)) { item in
                     switch item {
                     case .streak(let streak):
-                        CompletionStreakRow(streak: streak, colorScheme: colorScheme)
+                        CompletionStreakRow(streak: streak)
                     case .comment(let comment):
                     CommentRowViewEnhanced(
                         comment: comment,

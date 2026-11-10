@@ -112,6 +112,7 @@ private struct BoardColumnDropDelegate: DropDelegate {
 /// upstream data source, until the data source catches up.
 struct BoardColumnView: View {
     @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @AppStorage("themeMode") private var themeMode: String = "ocean"
 
     let column: ProjectBoardColumn
@@ -448,7 +449,7 @@ struct BoardColumnView: View {
     private var countBadge: some View {
         Text("\(displayedTasks.count)")
             .font(Theme.Typography.caption1())
-            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+            .foregroundColor(palette.textSecondary)
             .padding(.horizontal, Theme.spacing8)
             .padding(.vertical, Theme.spacing4)
             .background(

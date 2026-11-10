@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Single icon button that toggles between task list and chat views
 struct ChatToggleButton: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Binding var showChat: Bool
 
     var body: some View {
@@ -13,7 +13,7 @@ struct ChatToggleButton: View {
         } label: {
             Image(systemName: showChat ? "checklist" : "bubble.left.and.bubble.right")
                 .font(Theme.Typography.headline())
-                .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                .foregroundColor(palette.textPrimary)
         }
         .buttonStyle(.plain)
     }

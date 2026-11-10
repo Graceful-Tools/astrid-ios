@@ -3,7 +3,7 @@ import SwiftUI
 /// Filter & Sort settings for "My Tasks" view
 /// Syncs preferences across devices via server
 struct MyTasksFilterSheet: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) var dismiss
 
     @StateObject private var preferencesService = MyTasksPreferencesService.shared
@@ -86,7 +86,7 @@ struct MyTasksFilterSheet: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(colorScheme == .dark ? Theme.Dark.bgPrimary : Theme.bgPrimary)
+            .background(palette.bgPrimary)
             .navigationTitle(NSLocalizedString("lists.sort_and_filters", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

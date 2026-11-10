@@ -5,8 +5,8 @@ import SwiftUI
 /// Tapping expands it to the individual completion dates and times — the run is summarised, not
 /// discarded, so nothing that happened becomes unavailable.
 struct CompletionStreakRow: View {
+    @ThemedPalette private var palette
     let streak: CompletionStreak.Streak
-    let colorScheme: ColorScheme
 
     @State private var isExpanded = false
 
@@ -21,11 +21,11 @@ struct CompletionStreakRow: View {
                         .foregroundColor(Theme.accent)
                     Text(CompletionStreak.summary(for: streak))
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                        .foregroundColor(palette.textSecondary)
                     Spacer()
                     Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                         .font(.system(size: 11))
-                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                        .foregroundColor(palette.textMuted)
                 }
                 .contentShape(Rectangle())
             }
@@ -37,7 +37,7 @@ struct CompletionStreakRow: View {
                     ForEach(streak.dates, id: \.self) { date in
                         Text(date, format: .dateTime.month().day().hour().minute())
                             .font(Theme.Typography.caption2())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted)
+                            .foregroundColor(palette.textMuted)
                     }
                 }
                 .padding(.leading, Theme.spacing24)

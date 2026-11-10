@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct LanguageSettingsView: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @Environment(\.dismiss) var dismiss
     @State private var selectedLanguage: String
     @State private var isAutomatic: Bool
@@ -37,10 +37,10 @@ struct LanguageSettingsView: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(NSLocalizedString("automatic", comment: ""))
                                         .font(Theme.Typography.body())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                        .foregroundColor(palette.textPrimary)
                                     Text(NSLocalizedString("device_language", comment: ""))
                                         .font(Theme.Typography.caption2())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                        .foregroundColor(palette.textSecondary)
                                 }
                                 Spacer()
                                 if isAutomatic {
@@ -62,7 +62,7 @@ struct LanguageSettingsView: View {
                                 HStack {
                                     Text(LocalizationManager.shared.getLanguageDisplayName(languageCode))
                                         .font(Theme.Typography.body())
-                                        .foregroundColor(colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary)
+                                        .foregroundColor(palette.textPrimary)
                                     Spacer()
                                     if !isAutomatic && selectedLanguage == languageCode {
                                         Image(systemName: "checkmark")
@@ -76,7 +76,7 @@ struct LanguageSettingsView: View {
                     } footer: {
                         Text(NSLocalizedString("language_restart_note", comment: ""))
                             .font(Theme.Typography.caption2())
-                            .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                            .foregroundColor(palette.textSecondary)
                     }
                 }
                 .scrollContentBackground(.hidden)

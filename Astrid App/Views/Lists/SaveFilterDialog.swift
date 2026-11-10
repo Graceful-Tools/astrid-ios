@@ -3,7 +3,7 @@ import SwiftUI
 /// Dialog for saving current filter settings as a Smart List (virtual list)
 struct SaveFilterDialog: View {
     @Environment(\.dismiss) var dismiss
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @StateObject private var listService = ListService.shared
 
     let currentFilters: FilterSettings
@@ -45,7 +45,7 @@ struct SaveFilterDialog: View {
                                 Text(NSLocalizedString("filters.sort", comment: ""))
                                 Spacer()
                                 Text(sortByLabel(currentFilters.sortBy))
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                    .foregroundColor(palette.textSecondary)
                             }
                         }
                         if currentFilters.filterCompletion != "default" {
@@ -53,7 +53,7 @@ struct SaveFilterDialog: View {
                                 Text(NSLocalizedString("filters.completion_status", comment: ""))
                                 Spacer()
                                 Text(completionLabel(currentFilters.filterCompletion))
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                    .foregroundColor(palette.textSecondary)
                             }
                         }
                         if currentFilters.filterPriority != "all" {
@@ -61,7 +61,7 @@ struct SaveFilterDialog: View {
                                 Text(NSLocalizedString("tasks.priority", comment: ""))
                                 Spacer()
                                 Text(priorityLabel(currentFilters.filterPriority))
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                    .foregroundColor(palette.textSecondary)
                             }
                         }
                         if currentFilters.filterDueDate != "all" {
@@ -69,7 +69,7 @@ struct SaveFilterDialog: View {
                                 Text(NSLocalizedString("save_filter.due_date", comment: "Due Date"))
                                 Spacer()
                                 Text(dueDateLabel(currentFilters.filterDueDate))
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                    .foregroundColor(palette.textSecondary)
                             }
                         }
                         if currentFilters.filterAssignee != "all" {
@@ -77,7 +77,7 @@ struct SaveFilterDialog: View {
                                 Text(NSLocalizedString("filters.who", comment: ""))
                                 Spacer()
                                 Text(assigneeLabel(currentFilters.filterAssignee))
-                                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                                    .foregroundColor(palette.textSecondary)
                             }
                         }
                     }

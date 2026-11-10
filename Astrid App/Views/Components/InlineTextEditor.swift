@@ -32,7 +32,7 @@ enum InlineTextAreaMetrics {
 /// Inline multiline text editor (for descriptions)
 /// Supports markdown rendering when not editing, and @/#/! autocomplete while editing
 struct InlineTextAreaEditor: View {
-    @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     let label: String
     @Binding var text: String
     var placeholder: String = ""
@@ -48,13 +48,13 @@ struct InlineTextAreaEditor: View {
     @FocusState private var isFocused: Bool
 
     private var defaultTextColor: Color {
-        colorScheme == .dark ? Theme.Dark.textPrimary : Theme.textPrimary
+        palette.textPrimary
     }
     private var mutedColor: Color {
-        colorScheme == .dark ? Theme.Dark.textMuted : Theme.textMuted
+        palette.textMuted
     }
     private var bgColor: Color {
-        colorScheme == .dark ? Theme.Dark.bgSecondary : Theme.bgSecondary
+        palette.bgSecondary
     }
 
     var body: some View {
@@ -62,7 +62,7 @@ struct InlineTextAreaEditor: View {
             HStack(spacing: 0) {
                 Text(label)
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(colorScheme == .dark ? Theme.Dark.textSecondary : Theme.textSecondary)
+                    .foregroundColor(palette.textSecondary)
                 Spacer(minLength: 0)
                 if offersFullScreen {
                     DescriptionExpandButton(text: $text, onSave: onSave)
@@ -101,7 +101,7 @@ struct InlineTextAreaEditor: View {
                             }
                         }
                 }
-                .background(colorScheme == .dark ? Theme.Dark.bgTertiary : Theme.bgTertiary)
+                .background(palette.bgTertiary)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                 .toolbar {
                     ToolbarItemGroup(placement: .keyboard) {
