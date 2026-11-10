@@ -47,7 +47,7 @@ struct RichTextInput: View {
     @State private var uploadError: String?
 
     private var effectiveTheme: ThemeMode {
-        themeMode == .auto ? (colorScheme == .dark ? .dark : .light) : themeMode
+        themeMode.resolved(for: colorScheme)
     }
     private var isOceanTheme: Bool { effectiveTheme == .ocean }
     private var showAutocomplete: Bool { activeTrigger != nil && !autocompleteItems.isEmpty }

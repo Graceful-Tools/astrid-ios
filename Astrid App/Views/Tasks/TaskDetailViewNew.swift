@@ -11,7 +11,7 @@ struct TaskDetailViewNew: View {
 
     // Effective theme - Auto resolves to Light or Dark based on system setting
     private var effectiveTheme: ThemeMode {
-        themeMode != .auto ? themeMode : (colorScheme == .dark ? .dark : .light)
+        themeMode.resolved(for: colorScheme)
     }
 
     @State private var task: Task

@@ -1,13 +1,13 @@
 {
   "ios": {
-    "colourLiterals": 37,
-    "namedSystemColours": 115,
+    "colourLiterals": 27,
+    "namedSystemColours": 94,
     "fontSizes": 173,
     "cornerRadii": 73,
     "paddingLiterals": 108,
     "shadowLiterals": 20,
     "durationLiterals": 36,
-    "darkSchemeTernaries": 40,
+    "darkSchemeTernaries": 0,
     "hardcodedCopy": 84,
     "uniqueHardcodedStrings": 73
   },

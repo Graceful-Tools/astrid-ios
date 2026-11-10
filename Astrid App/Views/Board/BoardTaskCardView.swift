@@ -30,7 +30,7 @@ struct BoardTaskCardView: View {
     var isSelected: Bool = false
 
     private var effectiveTheme: String {
-        themeMode == "auto" ? (colorScheme == .dark ? "dark" : "light") : themeMode
+        ThemeMode.resolvedName(themeMode, colorScheme: colorScheme)
     }
 
     /// Card fill. Dark mode uses the mid `bgSecondary` tier — darker

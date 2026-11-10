@@ -2,8 +2,9 @@ import SwiftUI
 
 /// Custom button style that provides press feedback without blocking scroll gestures
 struct ListRowButtonStyle: ButtonStyle {
-    @Environment(\.colorScheme) var colorScheme
     let isSelected: Bool
+    /// Handed in by the row, which already resolves the theme (AITD-611).
+    let palette: AstridTokens.Palette
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -11,9 +12,9 @@ struct ListRowButtonStyle: ButtonStyle {
                 RoundedRectangle(cornerRadius: Theme.radiusMedium)
                     .fill(
                         configuration.isPressed
-                            ? (colorScheme == .dark ? Theme.Dark.bgTertiary.opacity(0.5) : Color.gray.opacity(0.2))
+                            ? palette.bgActive
                             : (isSelected
-                                ? (colorScheme == .dark ? Theme.Dark.bgTertiary : Color.blue.opacity(0.1))
+                                ? palette.bgSelected
                                 : Color.clear)
                     )
             )
@@ -79,7 +80,7 @@ struct ListRowView: View {
                         .padding(.vertical, Theme.spacing4)
                         .background(
                             Capsule()
-                                .fill(colorScheme == .dark ? Theme.Dark.bgTertiary : Color.gray.opacity(0.1))
+                                .fill(palette.bgTertiary)
                         )
                 }
             }
@@ -87,7 +88,7 @@ struct ListRowView: View {
             .padding(.trailing, Theme.spacing4)  // The count sits near the edge (AITD-502)
             .contentShape(Rectangle())  // Make entire row area tappable
         }
-        .buttonStyle(ListRowButtonStyle(isSelected: isSelected))
+        .buttonStyle(ListRowButtonStyle(isSelected: isSelected, palette: palette))
         .accessibilityIdentifier(Self.accessibilityIdentifier(for: list.id))
         .onLongPressGesture(minimumDuration: 0.5) {
             toggleFavorite()

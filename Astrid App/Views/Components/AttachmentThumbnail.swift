@@ -33,7 +33,7 @@ struct AttachmentThumbnail: View {
                 .fill(palette.bgTertiary)
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.radiusMedium)
-                        .stroke(colorScheme == .dark ? Color.gray.opacity(0.3) : Color.gray.opacity(0.2), lineWidth: 1)
+                        .stroke(palette.border, lineWidth: 1)
                 )
 
             // Content: either thumbnail image or file icon

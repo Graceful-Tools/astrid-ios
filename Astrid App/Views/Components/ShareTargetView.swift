@@ -158,7 +158,7 @@ struct ShareTargetView: View {
                         }
                         .padding(Theme.spacing12)
                         .frame(maxWidth: .infinity)
-                        .background(colorScheme == .dark ? Theme.Dark.bgTertiary : Color.gray.opacity(0.1))
+                        .background(palette.bgTertiary)
                         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
 
                         HStack(spacing: Theme.spacing12) {

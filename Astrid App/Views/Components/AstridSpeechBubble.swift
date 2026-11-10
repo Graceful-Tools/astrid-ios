@@ -93,10 +93,7 @@ struct AstridSpeechBubble: View {
 
     /// Get pointer border color - cyan on Ocean theme
     private func getPointerBorderColor() -> Color {
-        if themeMode == "ocean" {
-            return Theme.Ocean.border  // Cyan border on Ocean theme
-        }
-        return colorScheme == .dark ? (Color(hex: "#4b5563") ?? Color.gray) : (Color(hex: "#d1d5db") ?? Color.gray)
+        themeMode == "ocean" ? palette.border : palette.borderHover
     }
 }
 

@@ -30,4 +30,25 @@ final class ThemePaletteTests: XCTestCase {
         XCTAssertNotEqual(AstridTokens.palette(for: .ocean, colorScheme: .light).textPrimary,
                           AstridTokens.light.textPrimary)
     }
+
+    // MARK: - The last pass: one place resolves Auto
+
+    /// Views used to work out "which theme is on screen" themselves, each with its own
+    /// `colorScheme == .dark ? .dark : .light`. One resolver now does it for all of them.
+    func testResolvedThemeKeepsFixedModesAndMapsAutoToTheSystemScheme() {
+        XCTAssertEqual(ThemeMode.ocean.resolved(for: .dark), .ocean)
+        XCTAssertEqual(ThemeMode.light.resolved(for: .dark), .light)
+        XCTAssertEqual(ThemeMode.dark.resolved(for: .light), .dark)
+        XCTAssertEqual(ThemeMode.auto.resolved(for: .light), .light)
+        XCTAssertEqual(ThemeMode.auto.resolved(for: .dark), .dark)
+    }
+
+    /// Several views still keep the setting as a raw string; the string form must agree, and an
+    /// unknown value passes through untouched, as those views did before.
+    func testResolvedNameAgreesWithTheEnumAndPassesUnknownValuesThrough() {
+        XCTAssertEqual(ThemeMode.resolvedName("auto", colorScheme: .dark), "dark")
+        XCTAssertEqual(ThemeMode.resolvedName("auto", colorScheme: .light), "light")
+        XCTAssertEqual(ThemeMode.resolvedName("ocean", colorScheme: .dark), "ocean")
+        XCTAssertEqual(ThemeMode.resolvedName("something-else", colorScheme: .dark), "something-else")
+    }
 }

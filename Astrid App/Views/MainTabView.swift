@@ -29,10 +29,7 @@ struct MainTabView: View {
 
     // Effective theme - Auto resolves to Light or Dark based on time of day
     private var effectiveTheme: ThemeMode {
-        if themeMode == .auto {
-            return colorScheme == .dark ? .dark : .light
-        }
-        return themeMode
+        themeMode.resolved(for: colorScheme)
     }
 
     // Theme-aware background

@@ -149,7 +149,7 @@ struct BoardColumnView: View {
     @State private var pendingTaskOrder: [String] = []
 
     private var effectiveTheme: String {
-        themeMode == "auto" ? (colorScheme == .dark ? "dark" : "light") : themeMode
+        ThemeMode.resolvedName(themeMode, colorScheme: colorScheme)
     }
 
     /// The column's "frame" surface — the rounded outer rectangle. The
@@ -454,7 +454,7 @@ struct BoardColumnView: View {
             .padding(.vertical, Theme.spacing4)
             .background(
                 Capsule()
-                    .fill(colorScheme == .dark ? Theme.Dark.bgTertiary : Color.gray.opacity(0.1))
+                    .fill(palette.bgTertiary)
             )
     }
 
