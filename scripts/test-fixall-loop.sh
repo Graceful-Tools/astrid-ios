@@ -24,6 +24,11 @@
 set -u
 cd "$(dirname "$0")/.."
 
+# predeploy runs inside a scheduled /fixall, whose launcher exports its own run state. Inherited,
+# the real run's claims file leaks into the loop under test and the AITD-572 retry check reads
+# the wrong claims (AITD-605's gate failed on exactly that). Every case starts from none of it.
+unset ASTRID_FIXALL_LOCK_HELD ASTRID_FIXALL_MAX_TASKS ASTRID_FIXALL_CLAIMS_FILE FIXALL_PERMISSION_MODE FIXALL_RUN_STATE
+
 SOURCE_LOOP="$PWD/scripts/fixall-loop.sh"
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/astrid-fixall-test.XXXXXXXX") || exit 1
 if [[ "${ASTRID_KEEP_TEST_FIXTURES:-0}" != 1 ]]; then trap 'rm -rf "$TMP"' EXIT; fi
