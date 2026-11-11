@@ -221,12 +221,19 @@ struct MacTaskRow: View {
                 }
 
                 let chips = chipLists   // computed ONCE per row render (was 3 references = 3 computations)
-                if dueText != nil || !chips.isEmpty {
+                // The board column as a coloured pill (AITD-613); this row is never a board card.
+                let boardStatus = TaskBoardStatus.of(task, lists: listService.lists,
+                                                     projects: ProjectService.shared.projects)
+                if dueText != nil || !chips.isEmpty || boardStatus != nil {
                     HStack(spacing: 8) {
                         if let dueText {
                             Text(dueText)
                                 .macFont(MacTypography.rowMeta)
                                 .foregroundStyle(Theme.textMuted)
+                        }
+                        if let boardStatus {
+                            TaskBoardStatusPill(status: boardStatus)
+                                .macFont(MacTypography.rowMeta)
                         }
                         ForEach(chips.prefix(2)) { list in
                             HStack(spacing: 4) {

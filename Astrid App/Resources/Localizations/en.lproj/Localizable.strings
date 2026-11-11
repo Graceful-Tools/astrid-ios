@@ -1613,3 +1613,10 @@
 "tradeoff.very_good" = "Very good";
 "tradeoff.unrated" = "Not rated";
 "tasks.tradeoff_grid.full_screen" = "Full screen";
+
+/* AITD-613: board status pill on list rows */
+"board.status.inbox" = "Inbox";
+"board.status.ready" = "Ready";
+"board.status.doing" = "Doing";
+"board.status.waiting" = "Waiting";
+"board.status.done" = "Done";

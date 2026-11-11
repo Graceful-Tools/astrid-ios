@@ -1605,3 +1605,10 @@
 "tradeoff.very_good" = "Ottimo";
 "tradeoff.unrated" = "Non valutato";
 "tasks.tradeoff_grid.full_screen" = "Schermo intero";
+
+/* AITD-613: board status pill on list rows */
+"board.status.inbox" = "In arrivo";
+"board.status.ready" = "Pronto";
+"board.status.doing" = "In corso";
+"board.status.waiting" = "In attesa";
+"board.status.done" = "Fatto";

@@ -1621,3 +1621,10 @@
 "tradeoff.very_good" = "Très bon";
 "tradeoff.unrated" = "Non évalué";
 "tasks.tradeoff_grid.full_screen" = "Plein écran";
+
+/* AITD-613: board status pill on list rows */
+"board.status.inbox" = "Boîte de réception";
+"board.status.ready" = "Prêt";
+"board.status.doing" = "En cours";
+"board.status.waiting" = "En attente";
+"board.status.done" = "Terminé";
