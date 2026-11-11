@@ -32,14 +32,15 @@ enum RepeatFrameGeometry {
     /// The iOS slot the row and the detail lay out — the same 34pt as the square, so a framed
     /// mark does not push its title out of line with the rows around it.
     static let footprint: CGFloat = 34
-    /// The arrows are drawn this many times the leading control they replace ("for other users it
-    /// should be larger") and overhang its slot. Web: 40px round a 32px square — the design token
-    /// `size.repeat-frame-scale` (astrid-core `design/tokens.json`, register DS6). (AITD-606: iOS
-    /// drew a fixed 40pt round its 34pt square, 1.18 ×, which Jon saw as the wrong size.)
-    static let scale: CGFloat = 1.25
-    /// The photo or "U" inside the loop, as a share of the control: web's 24px in a 32px square,
-    /// which is also its 24-in-40 proportion of the frame.
-    static let innerScale: CGFloat = 0.75
+    /// The arrows are drawn at the size of the leading control they replace, so a repeating row's
+    /// mark is no bigger than the plain squares beside it (AITD-612, Jon 2026-11-11: "same size as
+    /// non repeat on all platforms"). AITD-606 had them 1.25 × and overhanging the slot. Design
+    /// token `size.repeat-frame-scale` (astrid-core `design/tokens.json`, register DS6); web draws
+    /// the same since AWTD-1576.
+    static let scale: CGFloat = 1.0
+    /// The photo or "U" inside the loop, as a share of the control: web's 20px photo in its 32px
+    /// arrows — token `size.repeat-frame-inner-scale`.
+    static let innerScale: CGFloat = 0.625
 
     /// The arrows' size round a leading control of `control` points.
     static func frameSize(control: CGFloat) -> CGFloat { control * scale }

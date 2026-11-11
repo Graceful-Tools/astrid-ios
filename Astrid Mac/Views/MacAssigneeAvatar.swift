@@ -32,7 +32,7 @@ struct MacAssigneeAvatar: View {
     let priority: Task.Priority
     var size: CGFloat = 20
     /// A repeating task puts the photo, round, inside the repeat arrows instead of the priority
-    /// square — the same frame iOS and web draw, at 1.25 × this size (AITD-602, AITD-606).
+    /// square — the same frame iOS and web draw, at this same size (AITD-602, AITD-606, AITD-612).
     var repeating: Bool = false
 
     var body: some View {

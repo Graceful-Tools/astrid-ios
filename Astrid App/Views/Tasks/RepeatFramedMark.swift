@@ -7,7 +7,7 @@ import SwiftUI
 struct RepeatFramedMark<Content: View>: View {
     let priority: Task.Priority
     /// The leading control this mark stands in for — 34pt on iOS, the Mac's own checkbox size
-    /// there. The arrows and the photo scale from it (AITD-606), so every surface frames at 1.25 ×.
+    /// there. The arrows and the photo scale from it (AITD-606), so every surface frames at the square's own size (AITD-612).
     var controlSize: CGFloat = RepeatFrameGeometry.footprint
     @ViewBuilder let content: () -> Content
 
@@ -23,7 +23,7 @@ struct RepeatFramedMark<Content: View>: View {
                 // Round inside the loop, as on web; sized first so the clip is the inner circle.
                 .clipShape(Circle())
         }
-        // Lays out as the square it replaces; the arrows overhang it.
+        // Lays out as the square it replaces, and the arrows are that size too (AITD-612).
         .frame(width: controlSize, height: controlSize)
         .accessibilityIdentifier("task.leading.repeatFrame")
     }
