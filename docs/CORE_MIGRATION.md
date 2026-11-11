@@ -32,7 +32,9 @@ Astrid App / Astrid Mac (Swift)
   `{"ok":…,"value":…,"error":…}`. A new capability is a new `kind`, not a new symbol.
 - **The bindings live here**, not in astrid-core (its rule 8: each platform keeps its own binding
   layer, as astrid-windows keeps `astrid-ffi`).
-- **The core is pinned by revision** in `core/Cargo.toml` and bumped deliberately.
+- **The core is pinned by revision** in `core/Cargo.toml` and bumped deliberately. On 2026-11-11
+  that was `a503a62`, 12 commits behind core `main` and short of the SQLite advisory fix
+  (RUSTSEC-2026-0459, core `69f26d7`); the bump, with the ink tokens it needs, is AITD-615.
 - **Xcode Cloud never builds Rust.** `Packages/AstridCore/Package.swift` links a local
   `AstridCoreFFI.xcframework` when one is present (built by `scripts/core/build-xcframework.sh`,
   gitignored) and otherwise a released zip pinned by URL and checksum.
@@ -69,8 +71,10 @@ scripts/core/build-xcframework.sh                         # build the pinned rev
 | List rows: filters, sort, subtasks, recently completed, My Tasks, saved-filter counts | `ListTaskFiltering`, `SubtaskSplicing`, `MyTasksScope`, `applyCompletionFilterWithWindow`, `MacMyTasks`, the iOS and Mac row pipelines | **done** (AITD-460) — the core's `rowsForList` (ids only) answers as iOS's list did; both apps ask it through `ListRowsModel`, asynchronously, with the inputs they hold ahead of the cache; the sidebar's saved-filter badges come from `listCounts`; iOS's search splices through `searchTasks` |
 | Board and pickers | `ProjectStatus` (columns, cards, moves, drops), `ProjectStatePicker`, `ProjectStateMove`, `MacBoardMove`, `ListFilingTargets`, `DueDateQuickPicks`, `AssigneeOptions` | **done** (AITD-461) — the core's `board`, `dropBoardCard`, `moveTaskToColumn` / `setTaskStatus` and `taskStatusOptions` answer as iOS's board did; `listPicks` (`asToggles`), `assigneeOptions` and `dueDateOptions` as its pickers did (D43–D50). Both apps ask through `BoardModel` / `TaskStatusOptions` and `PickerAnswers` (`ListPicks`, `DuePicks`, `AssigneePicks`), asynchronously, with each answer kept and shown until the next lands |
 | Stays Swift from that group | `EditingSession`, `CustomRepeatSummary`, `AssigneeResolver`, the repeat presets (`Task.Repeating`) | `EditingSession` is the "resigning saves" focus policy: an `ObservableObject` the views bind to synchronously; the core's `editing` module states the same rule, but routing focus changes through an async door buys nothing. `CustomRepeatSummary` words a custom repeat in English, and the core answers parts with keys iOS has no strings for (D49) — moving it means twelve languages of new copy. `AssigneeResolver` names the face on every row while it draws. The repeat picker lists its own enum, now under the same `repeating.*` keys the core uses (D49) |
-| Palette | `FuzzyMatch` (Mac) | not started — the core has `palette` |
-| Mentions, keyboard table, row projections | `AutocompleteSupport`, `MacAutocomplete`, `Astrid Mac/Keyboard`, `Core/Layout/*` | planned |
+| Palette | `FuzzyMatch` (Mac) | not started — the core has `palette` (AITD-621) |
+| Mentions, keyboard table | `AutocompleteSupport`, `MacAutocomplete`, `Astrid Mac/Keyboard` | planned — the core has `parse/mentions.rs`, `keyboard`, `shortcuts` (AITD-621, with `TaskIdentifiers`, `DragNesting`, `NewTaskDefaults`, `ReminderTriage`, `TaskCapabilities`) |
+| Row projections | `Core/Layout/*` (`TaskLeadingControl`, `TaskDetailFieldOrder`, `TaskDetailProjectStateRow`, `TaskListChips`, `DueDateLabel.dayOffset`) | **blocked on the core**: `rows::TaskRow` and `rows/detail.rs` exist, but `rowsForList` returns ids only (AWTD2-161, then AITD-622) |
+| Decision cards | `Packages/AstridCore/Sources/AstridCore/Decision.swift` | stays Swift for now — the core has `contracts/fixtures/decisions.json` and no code that reads it (AWTD2-167) |
 | Data layer — tasks, lists, sync | `TaskService`/`ListService`/`SyncManager` internals, the Outbox's task and list kinds | **done** — the services are faces over `CoreSession`; `CoreUpgrade` carries Core Data and queued writes over once |
 | Data layer — comments, chat, the live stream, the Outbox | `CommentService`/`ChatService` internals, the whole Swift Outbox runner, `SSEClient`, the Core Data comment and chat caches | **done** — every write goes through the core's journal; one live stream (the core's) for tasks, lists, comments, chat, typing and settings; `CoreUpgrade` moves any queued Swift write, pictures included |
 | Data layer — members, boards | `ListMemberService` (and its Core Data queue), `ProjectService` (and its Core Data cache) | **done** — membership changes sent at once, queued only offline (D31); boards made, deleted and refreshed by the core |
@@ -334,12 +338,15 @@ the platform header, change events, chat, members and invitations (queued offlin
 blockers, the upgrade seed, completion and creation carrying what the Swift calls sent, reminder
 settings. A first launch after the upgrade that is offline has no chat channels or messages until
 it is online once: the upgrade seeds tasks, lists and comments, not chat.
-Still to do:
-shortcode resolve, AI assistant settings and available agents (the core has them; the Swift chat
-service still asks the API client), attachment delete and replace, `updateCustomAgent`, the
-Copilot cloud-agent token, contacts upload / search / recommended, app-version check, local (no
-account) mode as a core concept, a client-side GitHub sync pass, and a read that returns every
-cached task in the wire shape (the Swift views filter `[Task]` themselves today).
+In the core now, waiting on the Swift side (checked 2026-11-11; AITD-620 moves about 40
+`AstridAPIClient` calls): shortcode resolve (`resolveShortcode`), available agents (`agents`) and AI
+assistant settings, contacts upload and search (`contacts`, `uploadContacts`, `searchUsers`), local
+(no account) mode (AWTD2-89), change email and passkey registration (AWTD2-90), the Copilot token
+and custom-agent extras (AWTD2-92), public list by id (`publicList`, AWTD2-131), account export and
+delete, connections, webhooks, OAuth clients, list insights and copy.
+Still missing in the core: attachment delete and replace, recommended contacts, app-version check,
+a client-side GitHub sync pass, and a read that returns every cached task in the wire shape (the
+Swift views filter `[Task]` themselves today — AWTD2-161 gives them projected rows instead).
 
 ## Google Tasks sync: on the core
 

@@ -56,10 +56,22 @@ A second run finds the values to replace by reading `variant.json`. Switching fr
 partner's identity to another's is just another run. Don't edit the Whitelabel build settings
 by hand: the next run only rewrites values it recognises.
 
-## Not configurable here
+## Not configurable here (yet)
 
-The `astrid://` URL scheme is frozen across platforms. Making it configurable is a separate
-astrid-core task.
+- **The URL scheme.** `astrid://` is still a literal in eight Swift files and in the Whitelabel
+  plist, so a partner app installed beside Astrid competes for its links. The core side is done:
+  `Config.url_scheme` and `handoffClientId` (astrid-core AWTD2-95/98) are what Android already
+  passes. What is left is iOS work — AITD-616.
+- **The Google sign-in client.** Astrid's client id is in `GoogleSignInManager.swift` and both
+  plists — AITD-617.
+- **Artwork.** The script copies none; a partner replaces `AppIcon-Whitelabel` in both catalogs and
+  adds the character imageset twice by hand — AITD-618. Building and signing a partner's apps in
+  one command is AITD-619.
+
+The cross-client plan — one brand profile schema in astrid-core with `cargo xtask gen-brand`
+writing every client's resources — is astrid-core
+[`docs/CROSS_CLIENT_REVIEW_2026-11.md`](https://github.com/Graceful-Tools/astrid-core/blob/main/docs/CROSS_CLIENT_REVIEW_2026-11.md)
+(AWTD2-158).
 
 ## What checks it
 
