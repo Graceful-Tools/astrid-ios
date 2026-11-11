@@ -1605,3 +1605,10 @@
 "tradeoff.very_good" = "非常に良い";
 "tradeoff.unrated" = "未評価";
 "tasks.tradeoff_grid.full_screen" = "全画面表示";
+
+/* AITD-613: board status pill on list rows */
+"board.status.inbox" = "受信箱";
+"board.status.ready" = "準備完了";
+"board.status.doing" = "作業中";
+"board.status.waiting" = "待機中";
+"board.status.done" = "完了";

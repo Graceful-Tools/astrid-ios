@@ -9,6 +9,8 @@ struct TaskRowView: View {
     /// The row follows the display mode too (task 132d7b3f) — the task box in rows and boards
     /// behaves like the one in task details.
     @StateObject private var userSettings = UserSettingsService.shared
+    /// The lists decide whether the task is on a board at all (the status pill, AITD-613).
+    @ObservedObject private var listService = ListService.shared
 
     private var displayMode: TaskDisplayMode {
         TaskDisplayMode(stored: userSettings.settings.taskDisplayMode)
@@ -178,7 +180,12 @@ struct TaskRowView: View {
                 let hasDateToShow = task.dueDateTime != nil && !isPublicListTask
                 // The task id, muted, on board cards only (AITD-437, spec §7) — never in a list.
                 let boardIdentifier = surface == .boardCard ? TaskIdentifiers.boardCardLabel(for: task) : nil
-                if !chipLists.isEmpty || hasDateToShow || boardIdentifier != nil {
+                // The board column as a coloured pill, on list rows only (AITD-613) — a board
+                // card's column header already says it.
+                let boardStatus = surface == .boardCard ? nil
+                    : TaskBoardStatus.of(task, lists: listService.lists,
+                                         projects: ProjectService.shared.projects)
+                if !chipLists.isEmpty || hasDateToShow || boardIdentifier != nil || boardStatus != nil {
                     HStack(spacing: Theme.spacing8) {
                         if let boardIdentifier {
                             Text(boardIdentifier)
@@ -203,6 +210,11 @@ struct TaskRowView: View {
                                         .foregroundColor(effectiveTheme == "dark" ? Theme.Dark.textMuted : Theme.textMuted)
                                 }
                             }
+                        }
+
+                        if let boardStatus {
+                            TaskBoardStatusPill(status: boardStatus)
+                                .font(Theme.Typography.subheadline())
                         }
 
                         // Lists (after date) - only show when full list objects are available.
