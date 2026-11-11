@@ -32,23 +32,31 @@ enum RepeatFrameGeometry {
     /// The iOS slot the row and the detail lay out — the same 34pt as the square, so a framed
     /// mark does not push its title out of line with the rows around it.
     static let footprint: CGFloat = 34
-    /// The arrows are drawn at the size of the leading control they replace, so a repeating row's
-    /// mark is no bigger than the plain squares beside it (AITD-612, Jon 2026-11-11: "same size as
-    /// non repeat on all platforms"). AITD-606 had them 1.25 × and overhanging the slot. Design
-    /// token `size.repeat-frame-scale` (astrid-core `design/tokens.json`, register DS6); web draws
-    /// the same since AWTD-1576.
+    /// The arrows border the mark at the size of the leading control they replace, so a repeating
+    /// row's mark is no bigger than the plain squares beside it (AITD-612). AITD-606 had them
+    /// 1.25 × and overhanging the slot. Design token `size.repeat-frame-scale`.
     static let scale: CGFloat = 1.0
-    /// The photo or "U" inside the loop, as a share of the control: web's 20px photo in its 32px
-    /// arrows — token `size.repeat-frame-inner-scale`.
-    static let innerScale: CGFloat = 0.625
+    /// The photo or "U" inside the arrows, as a share of the control — the WHOLE square, the same
+    /// size as a non-repeating task's photo (AITD-612 reopened, Jon 2026-11-11: "Still see smaller
+    /// checkbox for repeating tasks … The same size as the default profile photo"). It was 0.625
+    /// (web's 20px in 32px), which left a 21pt face beside 34pt ones. Token
+    /// `size.repeat-frame-inner-scale`.
+    static let innerScale: CGFloat = 1.0
+    /// The rounded square the photo is clipped to and the arrows follow — the non-repeating
+    /// photo's 8pt corner at 34pt.
+    static let cornerScale: CGFloat = 8.0 / 34.0
+    /// Each arrowhead's length along its edge, and half its width across it, as shares of the
+    /// control. The arrows are drawn as the border rather than as the 56px bitmap round the
+    /// photo, whose loop only has room for half the square inside it.
+    static let headLength: CGFloat = 0.16
+    static let headHalfWidth: CGFloat = 0.13
+    /// The brackets' stroke — the plain square's 2pt priority outline.
+    static let lineWidth: CGFloat = 2
 
     /// The arrows' size round a leading control of `control` points.
     static func frameSize(control: CGFloat) -> CGFloat { control * scale }
     /// The photo or "U" inside the arrows round a leading control of `control` points.
     static func innerSize(control: CGFloat) -> CGFloat { control * innerScale }
-
-    /// The same priority-coloured art the repeating checkbox uses.
-    static func assetName(priority: Task.Priority) -> String {
-        "check_box_repeat_\(priority.rawValue)"
-    }
+    /// The corner radius of the photo's rounded square and of the arrows that border it.
+    static func cornerRadius(control: CGFloat) -> CGFloat { control * cornerScale }
 }

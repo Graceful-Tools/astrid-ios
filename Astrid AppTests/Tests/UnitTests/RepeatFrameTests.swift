@@ -34,30 +34,34 @@ final class RepeatFrameTests: XCTestCase {
         XCTAssertFalse(TaskLeadingControl.showsRepeatFrame(kind: .checkbox, repeating: .daily))
     }
 
-    /// AITD-612 — "Repeat checkboxes with assignment should be same side [size] as non repeat on
-    /// all platforms" (Jon confirmed "size", 2026-11-11). The arrows round someone else's photo or
-    /// the "U" were 1.25 × the square (AITD-606) — 42.5pt round a 34pt square — so a repeating
-    /// row's mark was bigger than the plain squares beside it and stuck out of the column. Web has
-    /// drawn them at the checkbox's own 32px, with a 20px photo, since AWTD-1576; astrid-core's
-    /// `size.repeat-frame-scale` is now 1.0 and `size.repeat-frame-inner-scale` 0.625.
-    func testFrameIsTheSameSizeAsTheSquareItReplaces() {
-        XCTAssertEqual(RepeatFrameGeometry.scale, 1.0)
+    /// AITD-612 (reopened 2026-11-11) — "Still see smaller checkbox for repeating tasks assigned to
+    /// a person or agent when repeating. We need to redraw or use a larger box. The same size as
+    /// the default profile photo." The first fix made the arrows the square's size but shrank the
+    /// photo inside them to 0.625 × (21pt in a 34pt slot), so on the iPad board a repeating
+    /// task's face was visibly smaller than the face on the non-repeating row below it. Now the
+    /// photo or "U" fills the whole square, exactly as the non-repeating mark does, and the
+    /// arrows are drawn AS its border in place of the plain priority outline.
+    func testPhotoIsTheSameSizeAsTheNonRepeatingPhoto() {
         XCTAssertEqual(RepeatFrameGeometry.footprint, 34)
-        // 34 iOS; 32 web; the Mac's row and detail sizes.
         for control: CGFloat in [34, 32, 22, 18] {
+            XCTAssertEqual(RepeatFrameGeometry.innerSize(control: control), control, accuracy: 0.001,
+                           "a repeating \(control)pt mark's photo is as big as the plain \(control)pt photo")
             XCTAssertEqual(RepeatFrameGeometry.frameSize(control: control), control, accuracy: 0.001,
-                           "a \(control)pt square is replaced by \(control)pt arrows, no bigger")
-            // Web's 20px photo inside its 32px arrows.
-            XCTAssertEqual(RepeatFrameGeometry.innerSize(control: control), control * 20.0 / 32.0, accuracy: 0.001,
-                           "the photo or U fits inside the loop")
+                           "the arrows border the photo at the square's own size, no bigger")
         }
-        XCTAssertEqual(RepeatFrameGeometry.frameSize(control: 34), 34, accuracy: 0.001,
-                       "the iOS row and detail frame is 34pt, not 42.5")
+        XCTAssertEqual(RepeatFrameGeometry.innerSize(control: 34), 34, accuracy: 0.001,
+                       "the iOS photo is 34pt, not 21.25")
+        // The same rounded square the non-repeating photo is clipped to (cornerRadius 8 at 34pt).
+        XCTAssertEqual(RepeatFrameGeometry.cornerRadius(control: 34), 8, accuracy: 0.001)
     }
 
-    /// The frame is the priority-coloured repeat art the checkbox already uses.
-    func testFrameUsesThePriorityRepeatAsset() {
-        XCTAssertEqual(RepeatFrameGeometry.assetName(priority: .none), "check_box_repeat_0")
-        XCTAssertEqual(RepeatFrameGeometry.assetName(priority: .high), "check_box_repeat_3")
+    /// The redrawn arrows still read as the repeat mark: each arrowhead stops short of the
+    /// opposite bracket's corner, so there is a visible gap on the top and bottom edges.
+    func testArrowheadsLeaveAGapBeforeTheCorner() {
+        for control: CGFloat in [34, 22, 18] {
+            let tip = control * (0.5 + RepeatFrameGeometry.headLength)
+            let corner = control - RepeatFrameGeometry.cornerRadius(control: control)
+            XCTAssertLessThan(tip, corner - control * 0.05, "\(control)pt: a gap between arrowhead and bracket")
+        }
     }
 }

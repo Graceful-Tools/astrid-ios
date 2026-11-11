@@ -31,8 +31,8 @@ struct MacAssigneeAvatar: View {
     let user: User
     let priority: Task.Priority
     var size: CGFloat = 20
-    /// A repeating task puts the photo, round, inside the repeat arrows instead of the priority
-    /// square — the same frame iOS and web draw, at this same size (AITD-602, AITD-606, AITD-612).
+    /// A repeating task borders the photo with the repeat arrows instead of the priority
+    /// outline — the photo stays this same size (AITD-602, AITD-606, AITD-612).
     var repeating: Bool = false
 
     var body: some View {
@@ -68,7 +68,7 @@ struct MacAssigneeAvatar: View {
         ZStack {
             Rectangle().fill(Theme.accent)
             Text(user.initials)
-                .macFont(.system(size: (repeating ? RepeatFrameGeometry.innerSize(control: size) : size) * 0.5,
+                .macFont(.system(size: size * 0.5,
                                  weight: .semibold))
                 .foregroundStyle(.white)
         }
@@ -95,7 +95,7 @@ struct MacUnassignedMark: View {
 
     private var glyph: some View {
         Text(TaskLeadingControl.unassignedGlyph)
-            .macFont(.system(size: repeating ? 9 : 11, weight: .semibold))
+            .macFont(.system(size: 11, weight: .semibold))
             .foregroundStyle(MacTaskVisuals.priorityColor(priority))
     }
 }

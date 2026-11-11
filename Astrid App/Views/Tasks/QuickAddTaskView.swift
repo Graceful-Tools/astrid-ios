@@ -288,10 +288,10 @@ struct QuickAddTaskView: View {
                                                    taskAssignee: nil,
                                                    agents: AIAgentCache.shared.load() ?? []) {
             if draftRepeats {
-                // The list's default repeat: the photo sits inside the repeat arrows, at the
-                // same 1.25 × the task row draws (AITD-602, AITD-606).
+                // The list's default repeat: the photo, full size, bordered by the repeat arrows —
+                // the same mark the task row draws (AITD-602, AITD-612).
                 RepeatFramedMark(priority: selectedPriority) {
-                    quickAddAssigneePhoto(assignee, initialsSize: 10)
+                    quickAddAssigneePhoto(assignee, initialsSize: 14)
                 }
                 .id(AssigneeResolver.avatarIdentity(for: selectedAssigneeId))
             } else {

@@ -70,7 +70,7 @@ struct TaskDetailLeadingControl: View {
                 if showsRepeatFrame {
                     // Repeating: the photo sits inside the repeat arrows (AITD-602).
                     RepeatFramedMark(priority: priority) {
-                        assigneePhoto(assignee, initialsSize: 10)
+                        assigneePhoto(assignee, initialsSize: 14)
                     }
                 } else {
                     assigneePhoto(assignee, initialsSize: 14)
@@ -90,7 +90,7 @@ struct TaskDetailLeadingControl: View {
                 if showsRepeatFrame {
                     RepeatFramedMark(priority: priority) {
                         Text(TaskLeadingControl.unassignedGlyph)
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.system(size: 15, weight: .semibold))
                             .foregroundColor(priorityColor)
                     }
                 } else {
