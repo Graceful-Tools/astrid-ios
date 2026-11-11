@@ -27,7 +27,10 @@ cd "$(dirname "$0")/.."
 # predeploy runs inside a scheduled /fixall, whose launcher exports its own run state. Inherited,
 # the real run's claims file leaks into the loop under test and the AITD-572 retry check reads
 # the wrong claims (AITD-605's gate failed on exactly that). Every case starts from none of it.
-unset ASTRID_FIXALL_LOCK_HELD ASTRID_FIXALL_MAX_TASKS ASTRID_FIXALL_CLAIMS_FILE FIXALL_PERMISSION_MODE FIXALL_RUN_STATE
+# Scrub by prefix, not by a hand-kept list, so a variable the launcher adds later cannot leak
+# in either (AITD-614). ASTRID_WEB_DIR is set explicitly below.
+for _var in $(compgen -e | grep -E '^(ASTRID_FIXALL_|FIXALL_)'); do unset "$_var"; done
+unset _var
 
 SOURCE_LOOP="$PWD/scripts/fixall-loop.sh"
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/astrid-fixall-test.XXXXXXXX") || exit 1
@@ -260,6 +263,11 @@ STALL_STATE="$TMP/stall.state"
 
 run_sandbox() {  # run_sandbox [claude-bin]  → $OUT, $STATUS, $CALLS
   : > "$CALLS"
+  # AITD-614: every commit the loop makes carries the SAME timestamp. Commit dates have
+  # one-second resolution, so two WIP saves in one second were already a tie at random; pinning
+  # the clock makes that the only case, and no check may lean on commit-time order to tell them
+  # apart.
+  GIT_COMMITTER_DATE="2026-11-11T00:00:00Z" GIT_AUTHOR_DATE="2026-11-11T00:00:00Z" \
   FIXALL_TSX="$TMP/bin/tsx" \
   FIXALL_PROD_SYNC= \
   FIXALL_CLOSE_BUILT= \
@@ -420,8 +428,14 @@ called "AITD-572: a killed run's release names the task branch holding its work"
 # AITD-572: recovery runs in a LATER process, so the saved branch is journaled. Here the
 # work is saved but the release fails; the next tick's retry must still name the branch.
 rm -f "$STALL_STATE"
+# The branch this run saved is the one it ADDED. "Newest by commit date" picked the earlier
+# case's WIP whenever both saves fell in the same second, failing at random (AITD-614).
+WIP_BEFORE=$(sgit branch -r --list 'origin/wip/fixall-ios-*' | tr -d ' ' | sort)
 STUB_RELEASE_EXIT=1 run_sandbox "$TMP/bin/claude-leaves-mess"
-JOURNALED_WIP=$(sgit branch -r --list 'origin/wip/fixall-ios-*' --sort=-committerdate | tr -d ' ' | head -1)
+JOURNALED_WIP=$(comm -13 <(echo "$WIP_BEFORE") \
+  <(sgit branch -r --list 'origin/wip/fixall-ios-*' | tr -d ' ' | sort))
+if [ -n "$JOURNALED_WIP" ] && [ "$(echo "$JOURNALED_WIP" | wc -l | tr -d ' ')" = 1 ]; then ok
+else bad "AITD-614 fixture: the journaled run saves exactly one new WIP branch" "$JOURNALED_WIP"; fi
 if [ "$STATUS" != 0 ] && [ -d "$TMP/sandbox-run-state/active" ]; then ok
 else bad "AITD-572 fixture: a failed release leaves the run pending" "$OUT"; fi
 run_sandbox
