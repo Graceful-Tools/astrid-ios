@@ -403,7 +403,7 @@ struct TaskRowView: View {
             Group {
                 if showsRepeatFrame {
                     RepeatFramedMark(priority: task.priority) {
-                        assigneePhoto(assignee, initialsSize: 10)
+                        assigneePhoto(assignee, initialsSize: 14)
                     }
                 } else {
                     assigneePhoto(assignee, initialsSize: 14)
@@ -434,7 +434,7 @@ struct TaskRowView: View {
                         // Repeating: the U sits inside the repeat arrows (AITD-602).
                         RepeatFramedMark(priority: task.priority) {
                             Text(TaskLeadingControl.unassignedGlyph)
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.system(size: 15, weight: .semibold))
                                 .foregroundColor(priorityColor)
                         }
                     } else {
