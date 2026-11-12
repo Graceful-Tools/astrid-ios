@@ -1,3 +1,4 @@
+import AstridCore
 import Foundation
 
 /// Reads a list's insights (AITD-545). Read-only, so nothing is journaled: the numbers are the
@@ -26,17 +27,24 @@ final class ListInsightsService {
         let timeZone: String
     }
 
-    private let apiClient: AstridAPIClient
+    /// Asks for one answer: list, window in days, IANA zone. The core in the app; a stub in tests.
+    typealias Fetch = @MainActor (_ listId: String, _ days: Int, _ timeZone: String) async throws -> ListInsights
+
+    private let fetch: Fetch
     private let now: () -> Date
     /// In the key, so an account switch never reads the previous account's answer.
     private let userId: @MainActor () -> String?
     private var answers: [Key: (insights: ListInsights, at: Date)] = [:]
     private var inFlight: [Key: _Concurrency.Task<ListInsights, Error>] = [:]
 
-    init(apiClient: AstridAPIClient = .shared,
+    init(fetch: Fetch? = nil,
          now: @escaping () -> Date = Date.init,
          userId: (@MainActor () -> String?)? = nil) {
-        self.apiClient = apiClient
+        self.fetch = fetch ?? { @MainActor listId, days, timeZone in
+            try await AppCore.shared.session.run(
+                ListInsightsCommands.insights(listId: listId, days: days, timeZone: timeZone),
+                as: ListInsights.self)
+        }
         self.now = now
         self.userId = userId ?? { AuthManager.shared.userId }
     }
@@ -52,8 +60,8 @@ final class ListInsightsService {
 
         // Unstructured on purpose: a view that goes away mid-request does not cancel it, so the
         // answer it paid for is kept for the next look instead of being asked for again.
-        let request = _Concurrency.Task { [apiClient] in
-            try await apiClient.getListInsights(listId: listId, days: days, timeZone: key.timeZone)
+        let request = _Concurrency.Task { [fetch] in
+            try await fetch(listId, days, key.timeZone)
         }
         inFlight[key] = request
         defer { inFlight[key] = nil }

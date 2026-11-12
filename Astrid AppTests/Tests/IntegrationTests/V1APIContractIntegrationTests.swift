@@ -19,8 +19,7 @@ final class V1APIContractIntegrationTests: XCTestCase {
             "/api/v1/users/me/smart-tasks",
             "/api/v1/users/me/my-tasks-preferences",
             "/api/v1/users/me/available-agents",
-            "/api/v1/users/me/ai-preferences",
-            "/api/v1/shortcodes"
+            "/api/v1/users/me/ai-preferences"
         ]
 
         for path in expectedPaths {
@@ -38,20 +37,6 @@ final class V1APIContractIntegrationTests: XCTestCase {
         let source = try String(contentsOf: serviceURL)
         XCTAssertTrue(source.contains("\"createBoardForList\""),
                       "a board for a list should be one core command, not a create then a list update")
-    }
-
-    /// `resolveShortcode` was the one core endpoint still on a non-v1 path
-    /// (`api/shortcodes/<code>`). It must use the v1 path like every other
-    /// service call, and must not retain the legacy unversioned form.
-    func testResolveShortcodeUsesV1Path() throws {
-        let root = try RepositoryLocator.repositoryRoot()
-        let clientURL = root.appendingPathComponent("Astrid App/Core/Networking/AstridAPIClient.swift")
-        let source = try String(contentsOf: clientURL)
-
-        XCTAssertTrue(source.contains("/api/v1/shortcodes/\\(code)"),
-                      "resolveShortcode should request the v1 shortcode path")
-        XCTAssertFalse(source.contains("\"api/shortcodes/"),
-                       "resolveShortcode must not use the legacy non-v1 shortcode path")
     }
 
     func testSiblingWebRepoHasV1RoutesIOSConsumes() throws {

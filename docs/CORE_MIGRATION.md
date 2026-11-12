@@ -344,7 +344,7 @@ blockers, the upgrade seed, completion and creation carrying what the Swift call
 settings. A first launch after the upgrade that is offline has no chat channels or messages until
 it is online once: the upgrade seeds tasks, lists and comments, not chat.
 In the core now, waiting on the Swift side (checked 2026-11-11; AITD-620 moves about 40
-`AstridAPIClient` calls): shortcode resolve (`resolveShortcode`), available agents (`agents`) and AI
+`AstridAPIClient` calls): available agents (`agents`) and AI
 assistant settings, contacts upload and search (`contacts`, `uploadContacts`, `searchUsers`), local
 (no account) mode (AWTD2-89), change email and passkey registration (AWTD2-90), the Copilot token
 and custom-agent extras (AWTD2-92), public list by id (`publicList`, AWTD2-131), account export and
