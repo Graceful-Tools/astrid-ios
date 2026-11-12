@@ -56,10 +56,10 @@ struct PublicListBrowserView: View {
 
         do {
             AppLog.debug("📡 [PublicListBrowserView] Fetching public lists...")
-            let response = try await apiClient.getPublicLists(limit: 50, sortBy: "popular")
+            let response = try await apiClient.getPublicLists(limit: 50)
 
             // One shared mapper (AITD-319).
-            publicLists = response.lists.map { listData in
+            publicLists = response.map { listData in
                 TaskList(publicList: listData)
             }
 
@@ -171,9 +171,8 @@ struct PublicListRow: View {
 
         do {
             AppLog.debug("📡 [PublicListBrowserView] Copying list: \(list.name)")
-            let response = try await apiClient.copyList(listId: list.id, includeTasks: true)
-            AppLog.debug("✅ List copied successfully: \(response.list.name)")
-            AppLog.debug("✅ Copied \(response.copiedTasksCount) tasks")
+            let copied = try await apiClient.copyList(listId: list.id)
+            AppLog.debug("✅ List copied successfully: \(copied.name)")
 
             // Refresh lists to show the new copied list
             _ = try? await listService.fetchLists()

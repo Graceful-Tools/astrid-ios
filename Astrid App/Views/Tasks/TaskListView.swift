@@ -1105,7 +1105,7 @@ struct TaskListView: View {
         defer { isCopyingList = false }
 
         do {
-            _ = try await RemoteResourceService.shared.copyList(listId: listId, includeTasks: true)
+            _ = try await RemoteResourceService.shared.copyList(listId: listId)
             // Refresh so the copy actually appears in the user's lists — without this the request
             // succeeds invisibly, which reads to the user exactly like the old no-op.
             _ = try? await listService.fetchLists()

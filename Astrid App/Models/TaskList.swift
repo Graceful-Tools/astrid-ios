@@ -475,15 +475,12 @@ extension TaskList {
             name: data.name,
             color: data.color,
             imageUrl: data.imageUrl,
-            privacy: data.privacy == "PUBLIC" ? .PUBLIC : .PRIVATE,
+            // The core's catalogue row carries no privacy (AITD-620): a row of the public
+            // catalogue is public. A row that does say is believed.
+            privacy: (data.privacy ?? "PUBLIC") == "PUBLIC" ? .PUBLIC : .PRIVATE,
             publicListType: data.publicListType,
-            ownerId: data.owner.id,
-            owner: User(
-                id: data.owner.id,
-                email: data.owner.email,
-                name: data.owner.name,
-                image: data.owner.image
-            ),
+            ownerId: data.owner?.id,
+            owner: data.owner.map { User(id: $0.id, email: $0.email, name: $0.name, image: $0.image) },
             createdAt: data.createdAt,
             updatedAt: data.updatedAt,
             description: data.description

@@ -83,6 +83,7 @@ scripts/core/build-xcframework.sh                         # build the pinned rev
 | Data layer — webhook transport | `AstridAPIClient` webhook-settings calls | **done** (AITD-620) — `RemoteResourceService` sends the core's `webhookSettings`, `saveWebhook`, `deleteWebhook` and `testWebhook` (`WebhookCommands`) |
 | Data layer — account | `AstridAPIClient` delete, export and email-change calls | **done** (AITD-620) — `AccountService` sends the core's `deleteAccount` (with the contract phrase, not the localized one the person typed), `exportAccount`, `resendVerification` and `changeEmail` (`AccountCommands`). Name/photo stay on `PUT /users/me`: the core's `updateProfile` takes a photo *file*, the screens hold an uploaded URL. Send/cancel verification stay too: the core has only a resend |
 | Data layer — custom agents | `AstridAPIClient` custom-agent calls | **done** (AITD-620) — `RemoteResourceService` sends the core's `customAgents`, `registerCustomAgent`, `deleteCustomAgent` and `setCustomAgentPhoto` (`CustomAgentCommands`). The AI-key calls stay for now: the core has no standalone credentials read (only inside `agents`), and its `testAgentCredential` answers `works` without the server's error text, which the key rows show |
+| Data layer — public lists | `AstridAPIClient` `getPublicLists`, `copyList` | **done** (AITD-620) — `RemoteResourceService` sends the core's `publicLists` and `copyList` (`PublicListCommands`). The core's catalogue row has no privacy, dates, admins or owner photo, none of which a browse screen draws; the owner (which `role(for:)` reads) is kept. A public list's tasks (`getAllTasks(listId:)`) stay: the core's `featuredRows` answers projected rows, not tasks, so the views move with AWTD2-161 |
 | Data layer — attachments (download/replace/delete), account/settings/agents, Core Data | `AttachmentService` network, the settings services, Core Data | next (AITD-620, one service at a time) |
 | Data layer — external sync, API client | `Core/Sync/*` (Google, GitHub), `AstridAPIClient` | Google **done** (AITD-463, the core's `syncExternal`); GitHub and the API client after that; Apple Reminders stays native |
 
@@ -347,7 +348,7 @@ In the core now, waiting on the Swift side (checked 2026-11-11; AITD-620 moves a
 assistant settings, contacts upload and search (`contacts`, `uploadContacts`, `searchUsers`), local
 (no account) mode (AWTD2-89), change email and passkey registration (AWTD2-90), the Copilot token
 and custom-agent extras (AWTD2-92), public list by id (`publicList`, AWTD2-131), account export and
-delete, list insights and copy. (Connections, OAuth clients, webhooks and custom agents moved in AITD-620.)
+delete, and list insights. (Connections, OAuth clients, webhooks, custom agents and the public-list catalogue and copy moved in AITD-620.)
 Still missing in the core: attachment delete and replace, recommended contacts, app-version check,
 a client-side GitHub sync pass, and a read that returns every cached task in the wire shape (the
 Swift views filter `[Task]` themselves today — AWTD2-161 gives them projected rows instead).

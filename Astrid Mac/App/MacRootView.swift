@@ -1026,11 +1026,11 @@ struct MacRootView: View {
     private func loadPublicLists() async {
         // Through the SERVICE, not the network client (ASTRID.md §0 rule 1, AITD-319). The guard
         // that catches this only walked `Astrid App/`, so the Mac target was invisible to it.
-        guard let response = try? await RemoteResourceService.shared.getPublicLists(limit: 10, sortBy: "popular")
+        guard let response = try? await RemoteResourceService.shared.getPublicLists(limit: 10)
         else { return }
         // The shared mapper. The hand-written one here dropped `owner`, which `role(for:)`
         // consults — a public list opened on the Mac knew less about itself than on iOS.
-        publicLists = response.lists.map(TaskList.init(publicList:))
+        publicLists = response.map(TaskList.init(publicList:))
     }
 
     /// A public list's tasks are not in the local store, so fetch them when one is opened. Cached
