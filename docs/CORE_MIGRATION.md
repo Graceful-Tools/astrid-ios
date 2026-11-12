@@ -80,6 +80,7 @@ scripts/core/build-xcframework.sh                         # build the pinned rev
 | Data layer — members, boards | `ListMemberService` (and its Core Data queue), `ProjectService` (and its Core Data cache) | **done** — membership changes sent at once, queued only offline (D31); boards made, deleted and refreshed by the core |
 | Settings writes | `ReminderSettings`' own pending flag, `MyTasksPreferencesService`'s API calls | **done** — reminder settings journaled; My Tasks filters sent through the core, not queued |
 | Data layer — connections and OAuth clients | `AstridAPIClient+Connections.swift` | **done** (AITD-620) — `RemoteResourceService` sends the core's `connections`, `revokeConnection`, `loadOAuthClient`, `createOAuthClient`, `updateOAuthClient` and `mintTransportCredentials`; an edit carries the whole draft, since the core judges it as it judges a create |
+| Data layer — webhook transport | `AstridAPIClient` webhook-settings calls | **done** (AITD-620) — `RemoteResourceService` sends the core's `webhookSettings`, `saveWebhook`, `deleteWebhook` and `testWebhook` (`WebhookCommands`) |
 | Data layer — attachments (download/replace/delete), account/settings/agents, Core Data | `AttachmentService` network, the settings services, Core Data | next (AITD-620, one service at a time) |
 | Data layer — external sync, API client | `Core/Sync/*` (Google, GitHub), `AstridAPIClient` | Google **done** (AITD-463, the core's `syncExternal`); GitHub and the API client after that; Apple Reminders stays native |
 
@@ -344,7 +345,7 @@ In the core now, waiting on the Swift side (checked 2026-11-11; AITD-620 moves a
 assistant settings, contacts upload and search (`contacts`, `uploadContacts`, `searchUsers`), local
 (no account) mode (AWTD2-89), change email and passkey registration (AWTD2-90), the Copilot token
 and custom-agent extras (AWTD2-92), public list by id (`publicList`, AWTD2-131), account export and
-delete, connections, webhooks, OAuth clients, list insights and copy.
+delete, list insights and copy. (Connections, OAuth clients and webhooks moved in AITD-620.)
 Still missing in the core: attachment delete and replace, recommended contacts, app-version check,
 a client-side GitHub sync pass, and a read that returns every cached task in the wire shape (the
 Swift views filter `[Task]` themselves today — AWTD2-161 gives them projected rows instead).

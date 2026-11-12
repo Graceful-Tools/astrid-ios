@@ -123,22 +123,22 @@ final class RemoteResourceService {
         try await core.run(ConnectionCommands.update(clientId: clientId, draft: draft), as: OAuthClientSummary.self)
     }
 
-    // MARK: - Webhook transport
+    // MARK: - Webhook transport (through astrid-core, AITD-620)
 
     func getWebhookSettings() async throws -> WebhookSettings {
-        try await apiClient.getWebhookSettings()
+        try await core.run(WebhookCommands.settings(), as: WebhookSettings.self)
     }
 
     func updateWebhookSettings(_ request: UpdateWebhookSettingsRequest) async throws -> WebhookSettingsSaveResponse {
-        try await apiClient.updateWebhookSettings(request)
+        try await core.run(WebhookCommands.save(request), as: WebhookSettingsSaveResponse.self)
     }
 
-    func deleteWebhookSettings() async throws -> WebhookDeleteResponse {
-        try await apiClient.deleteWebhookSettings()
+    func deleteWebhookSettings() async throws {
+        try await core.run(WebhookCommands.delete())
     }
 
     func testWebhook() async throws -> WebhookTestResult {
-        try await apiClient.testWebhook()
+        try await core.run(WebhookCommands.test(), as: WebhookTestResult.self)
     }
 
     // MARK: - Shortcodes

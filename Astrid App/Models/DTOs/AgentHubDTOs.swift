@@ -4,7 +4,7 @@
 
 import Foundation
 
-// MARK: - Webhook transport (`/api/v1/users/me/webhook-settings`)
+// MARK: - Webhook transport (astrid-core's `webhookSettings` / `saveWebhook` / `testWebhook`)
 
 /// GET answer. `configured == false` still carries the option lists the editor is built from.
 /// The secret is never returned — only `hasSecret`.
@@ -57,7 +57,8 @@ struct WebhookSettings: Codable, Equatable {
     }
 }
 
-/// PUT body — the same five fields the web editor sends.
+/// The editor's draft — the same five fields the web editor sends; `WebhookCommands.save` spells
+/// it as the core's `saveWebhook`.
 struct UpdateWebhookSettingsRequest: Codable, Equatable {
     let webhookUrl: String
     let enabled: Bool
@@ -82,10 +83,6 @@ struct WebhookTestResult: Codable, Equatable {
     let responseTime: Int?
     let statusCode: Int?
     let error: String?
-}
-
-struct WebhookDeleteResponse: Codable {
-    let success: Bool
 }
 
 // MARK: - Custom Agents (`/api/v1/custom-agents/*`)

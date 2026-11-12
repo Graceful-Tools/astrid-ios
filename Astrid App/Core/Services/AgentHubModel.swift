@@ -27,7 +27,7 @@ protocol AgentHubServicing: AnyObject {
 protocol WebhookSettingsServicing: AnyObject {
     func getWebhookSettings() async throws -> WebhookSettings
     func updateWebhookSettings(_ request: UpdateWebhookSettingsRequest) async throws -> WebhookSettingsSaveResponse
-    func deleteWebhookSettings() async throws -> WebhookDeleteResponse
+    func deleteWebhookSettings() async throws
     func testWebhook() async throws -> WebhookTestResult
 }
 
@@ -349,7 +349,7 @@ final class WebhookSettingsModel: ObservableObject {
         errorMessage = nil
         defer { isSaving = false }
         do {
-            _ = try await service.deleteWebhookSettings()
+            try await service.deleteWebhookSettings()
             settings = .unconfigured
             webhookUrl = ""
             enabled = true
