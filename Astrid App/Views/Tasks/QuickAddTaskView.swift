@@ -637,28 +637,36 @@ struct QuickAddTaskView: View {
                     listIdsToAdd.append(extraId)
                 }
 
-                // Create task with defaults applied
-                let createdTask = try await taskService.createTask(
-                    listIds: listIdsToAdd,
-                    title: title,
-                    description: "",
-                    priority: priority,
-                    whenDate: whenDate,      // The date
-                    whenTime: whenTime,      // The time (nil for all-day tasks)
-                    assigneeId: assigneeId,
-                    isPrivate: isPrivate,
-                    repeating: repeating != "never" ? repeating : nil,
-                    // Carry the parsed custom recurrence (e.g. "weekly Monday") so the
-                    // task is actually created repeating, not just with a Monday due date.
-                    repeatingData: repeating == "custom" ? parsedRepeatingData : nil,
-                    statusRole: statusRole
-                )
-
-                // Navigate to task details only when explicitly requested (+ button tap)
-                // TaskService already creates optimistic task, so createdTask is available instantly
-                if navigateToDetails {
-                    await MainActor.run {
-                        onTaskCreated?(createdTask)
+                // Create task with defaults applied. Typed into the Waiting column, the core asks
+                // what it waits for (AITD-631): the prompt creates it with the answer, and Cancel
+                // creates nothing.
+                let customRepeat = repeating == "custom" ? parsedRepeatingData : nil
+                let repeatRule = repeating != "never" ? repeating : nil
+                let draft = Task(id: "new-task", title: title, assigneeId: assigneeId)
+                let navigate = navigateToDetails
+                let onTaskCreated = onTaskCreated
+                let role = statusRole
+                try await WaitingPromptPresenter.shared.move(draft) { wait in
+                    let createdTask = try await taskService.createTask(
+                        listIds: listIdsToAdd,
+                        title: title,
+                        description: "",
+                        priority: priority,
+                        whenDate: whenDate,      // The date
+                        whenTime: whenTime,      // The time (nil for all-day tasks)
+                        assigneeId: assigneeId,
+                        isPrivate: isPrivate,
+                        repeating: repeatRule,
+                        // Carry the parsed custom recurrence (e.g. "weekly Monday") so the
+                        // task is actually created repeating, not just with a Monday due date.
+                        repeatingData: customRepeat,
+                        statusRole: role,
+                        wait: wait
+                    )
+                    // Navigate to task details only when explicitly requested (+ button tap)
+                    // TaskService already creates optimistic task, so createdTask is available instantly
+                    if navigate {
+                        await MainActor.run { onTaskCreated?(createdTask) }
                     }
                 }
                 // For quick add, haptic already fired and user can keep typing

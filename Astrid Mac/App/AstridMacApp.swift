@@ -50,6 +50,8 @@ struct AstridMacApp: App {
                     // The same card as iOS, from the same file (AITD-383) — so an update cannot
                     // be described one way on the phone and another on the desktop.
                     .appUpdateReminder()
+                // "What is it waiting for?" when a move into Waiting needs a condition (AITD-631).
+                .waitingConditionPrompt()
                     .onAppear { Self.normalizeWindowForUITestingIfNeeded() }
                     // Capture `openWindow` while a window exists — at reopen time there is no
                     // view left to read it from, which is exactly the bug (task 39470057).

@@ -264,7 +264,8 @@ class TaskService: ObservableObject {
         parentTaskId: String? = nil,
         statusRole: String? = nil,  // Board state when creating in a board column (task a2c58f53)
         source: SyncSource? = nil,  // Origin tag for provider echo suppression
-        presumeCompletedAt: Date? = nil  // Sync history imports: born completed and backdated
+        presumeCompletedAt: Date? = nil,  // Sync history imports: born completed and backdated
+        wait: WaitCondition? = nil  // Born in Waiting: what it waits for (AITD-631)
     ) async throws -> Task {
         // A board that refuses a priority, a date or a private task never gets one (AITD-491).
         let (priority, whenDate, whenTime, isPrivate) = TaskCapabilities.admitted(
@@ -285,13 +286,15 @@ class TaskService: ObservableObject {
             isAllDay = false
         }
 
-        var created = try await core.run(
-            CoreCommand.createTask(
-                title: title, description: description, listIds: listIds, priority: priority,
-                dueDateTime: dueDateTime, isAllDay: isAllDay, assigneeId: assigneeId,
-                parentTaskId: parentTaskId, statusRole: statusRole, repeating: repeating,
-                repeatingData: repeatingData, isPrivate: isPrivate),
-            as: Task.self)
+        var command = CoreCommand.createTask(
+            title: title, description: description, listIds: listIds, priority: priority,
+            dueDateTime: dueDateTime, isAllDay: isAllDay, assigneeId: assigneeId,
+            parentTaskId: parentTaskId, statusRole: statusRole, repeating: repeating,
+            repeatingData: repeatingData, isPrivate: isPrivate)
+        // A card typed into Waiting is born waiting on something, or the core refuses it with
+        // `WAITING_NEEDS_CONDITION` (AITD-631) — run it through `WaitingPromptPresenter`.
+        wait?.apply(to: &command)
+        var created = try await core.run(command, as: Task.self)
         show(created)
         LocalMutation.note(source: source)
 
@@ -489,12 +492,18 @@ class TaskService: ObservableObject {
     /// repeating card rolls forward (ASTRID.md rule 2). With `listId` the columns are the board
     /// that list belongs to (a board's drag); without it, the task's own board (its state menu).
     /// Returns the task as it now is, for a view holding a snapshot (AITD-352).
+    ///
+    /// Into Waiting, the core wants a condition (AITD-631): `wait` carries the prompt's answer, and
+    /// a move without one is refused with `WAITING_NEEDS_CONDITION` unless the task already waits
+    /// on something. Run such moves through `WaitingPromptPresenter` so the refusal asks.
     @discardableResult
-    func moveToBoardColumn(taskId: String, columnId: String, listId: String? = nil) async throws -> Task {
+    func moveToBoardColumn(taskId: String, columnId: String, listId: String? = nil,
+                           wait: WaitCondition? = nil) async throws -> Task {
         var command = CoreCommand(kind: listId == nil ? "setTaskStatus" : "moveTaskToColumn")
         command.set("taskId", resolved(taskId))
         command.set("columnId", columnId)
         command.set("listId", listId)
+        wait?.apply(to: &command)
         let moved = try await core.run(command, as: Task.self)
         show(moved)
         LocalMutation.note()
@@ -506,12 +515,14 @@ class TaskService: ObservableObject {
     /// the board list's manual order — what iOS's board has always written on a drop. A drop onto
     /// the card's own column still rearranges it.
     @discardableResult
-    func dropOnBoard(taskId: String, columnId: String, listId: String, index: Int) async throws -> Task {
+    func dropOnBoard(taskId: String, columnId: String, listId: String, index: Int,
+                     wait: WaitCondition? = nil) async throws -> Task {
         var command = CoreCommand(kind: "dropBoardCard")
         command.set("taskId", resolved(taskId))
         command.set("columnId", columnId)
         command.set("listId", listId)
         command.set("index", index)
+        wait?.apply(to: &command)
         struct Dropped: Decodable { let task: Task; let list: TaskList }
         let dropped = try await core.run(command, as: Dropped.self)
         show(dropped.task)

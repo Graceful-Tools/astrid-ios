@@ -1612,3 +1612,18 @@
 "board.status.doing" = "In Arbeit";
 "board.status.waiting" = "Wartet";
 "board.status.done" = "Erledigt";
+
+/* Waiting needs a date or a task (AITD-631) — web's waiting.prompt.* keys, PRODUCT_CONTRACT §2 */
+"waiting.prompt.title" = "Worauf wartet die Aufgabe?";
+"waiting.prompt.description" = "Eine wartende Aufgabe wartet auf ein Datum oder auf eine andere Aufgabe.";
+"waiting.prompt.descriptionFor" = "„%@“ wartet auf ein Datum oder auf eine andere Aufgabe.";
+"waiting.prompt.until" = "Warten bis…";
+"waiting.prompt.on" = "Warten auf…";
+"waiting.prompt.dateLabel" = "Bis";
+"waiting.prompt.dateInPast" = "Wähle einen Tag nach heute.";
+"waiting.prompt.taskLabel" = "Die Aufgabe, auf die sie wartet";
+"waiting.prompt.picked" = "Wartet auf %@";
+"waiting.prompt.keepAssignedToMe" = "Mir zugewiesen lassen";
+"waiting.prompt.keepAssignedTo" = "%@ zugewiesen lassen";
+"waiting.prompt.theAssignee" = "der zugewiesenen Person";
+"waiting.prompt.confirm" = "Nach „Warten“ verschieben";

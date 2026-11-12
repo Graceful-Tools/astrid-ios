@@ -1620,3 +1620,18 @@
 "board.status.doing" = "Doing";
 "board.status.waiting" = "Waiting";
 "board.status.done" = "Done";
+
+/* Waiting needs a date or a task (AITD-631) — web's waiting.prompt.* keys, PRODUCT_CONTRACT §2 */
+"waiting.prompt.title" = "What is it waiting for?";
+"waiting.prompt.description" = "A task in Waiting waits for a date or for another task.";
+"waiting.prompt.descriptionFor" = "“%@” will wait for a date or for another task.";
+"waiting.prompt.until" = "Waiting until…";
+"waiting.prompt.on" = "Waiting on…";
+"waiting.prompt.dateLabel" = "Until";
+"waiting.prompt.dateInPast" = "Pick a day after today.";
+"waiting.prompt.taskLabel" = "The task it waits on";
+"waiting.prompt.picked" = "Waiting on %@";
+"waiting.prompt.keepAssignedToMe" = "Keep assigned to me";
+"waiting.prompt.keepAssignedTo" = "Keep assigned to %@";
+"waiting.prompt.theAssignee" = "the assignee";
+"waiting.prompt.confirm" = "Move to Waiting";

@@ -327,7 +327,7 @@ struct ProjectStatusBoardView: View {
     private func handleDrop(payload: BoardCardPayload,
                             into column: ProjectBoardColumn,
                             at targetIndex: Int) {
-        guard taskService.tasksById[payload.taskId] != nil,
+        guard let task = taskService.tasksById[payload.taskId],
               let domainList = projectDomainList else { return }
 
         // Light haptic to confirm the drop registered.
@@ -337,10 +337,14 @@ struct ProjectStatusBoardView: View {
         // (AITD-461): completion first through the completion service (a repeating card dropped
         // on Done rolls forward — ASTRID.md rule 2), then the column, then the order, with the
         // list's sort set to manual so the order shows.
+        // Into Waiting, the core may ask what the task waits for (AITD-631): the presenter shows
+        // the prompt and drops the card again with the answer; Cancel leaves it where it was.
         _Concurrency.Task {
             do {
-                try await taskService.dropOnBoard(taskId: payload.taskId, columnId: column.id,
-                                                  listId: domainList.id, index: targetIndex)
+                try await WaitingPromptPresenter.shared.move(task) { wait in
+                    try await taskService.dropOnBoard(taskId: payload.taskId, columnId: column.id,
+                                                      listId: domainList.id, index: targetIndex, wait: wait)
+                }
             } catch {
                 await MainActor.run {
                     self.dropError = error.localizedDescription

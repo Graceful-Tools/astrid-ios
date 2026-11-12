@@ -1612,3 +1612,18 @@
 "board.status.doing" = "进行中";
 "board.status.waiting" = "等待中";
 "board.status.done" = "已完成";
+
+/* Waiting needs a date or a task (AITD-631) — web's waiting.prompt.* keys, PRODUCT_CONTRACT §2 */
+"waiting.prompt.title" = "它在等待什么？";
+"waiting.prompt.description" = "等待中的任务在等待一个日期或另一项任务。";
+"waiting.prompt.descriptionFor" = "“%@”将等待一个日期或另一项任务。";
+"waiting.prompt.until" = "等待到…";
+"waiting.prompt.on" = "等待任务…";
+"waiting.prompt.dateLabel" = "截至";
+"waiting.prompt.dateInPast" = "请选择今天之后的日期。";
+"waiting.prompt.taskLabel" = "它等待的任务";
+"waiting.prompt.picked" = "正在等待 %@";
+"waiting.prompt.keepAssignedToMe" = "仍分配给我";
+"waiting.prompt.keepAssignedTo" = "仍分配给 %@";
+"waiting.prompt.theAssignee" = "负责人";
+"waiting.prompt.confirm" = "移至等待";

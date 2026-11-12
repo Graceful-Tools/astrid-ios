@@ -1628,3 +1628,18 @@
 "board.status.doing" = "En curso";
 "board.status.waiting" = "En espera";
 "board.status.done" = "Hecho";
+
+/* Waiting needs a date or a task (AITD-631) — web's waiting.prompt.* keys, PRODUCT_CONTRACT §2 */
+"waiting.prompt.title" = "¿Qué está esperando?";
+"waiting.prompt.description" = "Una tarea en espera espera una fecha u otra tarea.";
+"waiting.prompt.descriptionFor" = "«%@» esperará una fecha u otra tarea.";
+"waiting.prompt.until" = "Esperando hasta…";
+"waiting.prompt.on" = "Esperando a…";
+"waiting.prompt.dateLabel" = "Hasta";
+"waiting.prompt.dateInPast" = "Elige un día posterior a hoy.";
+"waiting.prompt.taskLabel" = "La tarea que espera";
+"waiting.prompt.picked" = "Esperando a %@";
+"waiting.prompt.keepAssignedToMe" = "Mantener asignada a mí";
+"waiting.prompt.keepAssignedTo" = "Mantener asignada a %@";
+"waiting.prompt.theAssignee" = "la persona asignada";
+"waiting.prompt.confirm" = "Mover a En espera";

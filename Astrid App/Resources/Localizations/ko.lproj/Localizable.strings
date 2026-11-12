@@ -1614,3 +1614,18 @@
 "board.status.doing" = "진행 중";
 "board.status.waiting" = "대기 중";
 "board.status.done" = "완료";
+
+/* Waiting needs a date or a task (AITD-631) — web's waiting.prompt.* keys, PRODUCT_CONTRACT §2 */
+"waiting.prompt.title" = "무엇을 기다리고 있나요?";
+"waiting.prompt.description" = "대기 중인 작업은 날짜나 다른 작업을 기다립니다.";
+"waiting.prompt.descriptionFor" = "“%@”은(는) 날짜나 다른 작업을 기다립니다.";
+"waiting.prompt.until" = "날짜까지 대기…";
+"waiting.prompt.on" = "작업 대기…";
+"waiting.prompt.dateLabel" = "기한";
+"waiting.prompt.dateInPast" = "오늘 이후의 날짜를 선택하세요.";
+"waiting.prompt.taskLabel" = "기다리는 작업";
+"waiting.prompt.picked" = "%@ 대기 중";
+"waiting.prompt.keepAssignedToMe" = "나에게 계속 할당";
+"waiting.prompt.keepAssignedTo" = "%@에게 계속 할당";
+"waiting.prompt.theAssignee" = "담당자";
+"waiting.prompt.confirm" = "대기로 이동";

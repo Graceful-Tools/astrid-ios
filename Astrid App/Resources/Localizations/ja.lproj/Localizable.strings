@@ -1612,3 +1612,18 @@
 "board.status.doing" = "作業中";
 "board.status.waiting" = "待機中";
 "board.status.done" = "完了";
+
+/* Waiting needs a date or a task (AITD-631) — web's waiting.prompt.* keys, PRODUCT_CONTRACT §2 */
+"waiting.prompt.title" = "何を待っていますか？";
+"waiting.prompt.description" = "待機中のタスクは、日付または別のタスクを待ちます。";
+"waiting.prompt.descriptionFor" = "「%@」は日付または別のタスクを待ちます。";
+"waiting.prompt.until" = "日付まで待機…";
+"waiting.prompt.on" = "タスクを待機…";
+"waiting.prompt.dateLabel" = "期日";
+"waiting.prompt.dateInPast" = "今日より後の日を選んでください。";
+"waiting.prompt.taskLabel" = "待機するタスク";
+"waiting.prompt.picked" = "%@ を待機中";
+"waiting.prompt.keepAssignedToMe" = "自分に割り当てたままにする";
+"waiting.prompt.keepAssignedTo" = "%@ に割り当てたままにする";
+"waiting.prompt.theAssignee" = "担当者";
+"waiting.prompt.confirm" = "待機中に移動";
