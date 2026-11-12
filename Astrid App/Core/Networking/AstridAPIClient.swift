@@ -611,37 +611,6 @@ class AstridAPIClient {
         return response.users
     }
 
-    // MARK: - Public Lists
-
-    /// Get public lists
-    func getPublicLists(limit: Int = 50, sortBy: String = "popular") async throws -> PublicListsResponse {
-        let queryItems = [
-            URLQueryItem(name: "limit", value: String(limit)),
-            URLQueryItem(name: "sortBy", value: sortBy)
-        ]
-
-        return try await request(
-            method: "GET",
-            path: "/api/v1/public/lists",
-            queryItems: queryItems
-        )
-    }
-
-    /// Copy a public list to your account
-    func copyList(listId: String, includeTasks: Bool = true) async throws -> CopyListResponse {
-        struct CopyListRequest: Codable {
-            let includeTasks: Bool
-        }
-
-        let body = CopyListRequest(includeTasks: includeTasks)
-
-        return try await request(
-            method: "POST",
-            path: "/api/v1/lists/\(listId)/copy",
-            body: body
-        )
-    }
-
     // MARK: - Contacts (Address Book)
 
     /// Upload/sync contacts from device address book
@@ -1048,25 +1017,25 @@ struct ListMemberData: Codable {
 
 // MARK: - Public List Types
 
-struct PublicListsResponse: Codable {
-    let lists: [PublicListData]
-    let meta: PublicListMeta
-}
-
+/// One row of the public-list catalogue, as astrid-core answers `publicLists`
+/// (`services/list.rs` `PublicListSummary`, AITD-620). The core reads no `privacy`, dates or
+/// `admins` from the server, and its owner has no photo; they stay optional here so the older,
+/// fuller rows still decode.
 struct PublicListData: Codable {
     let id: String
     let name: String
     let description: String?
     let color: String?
-    let privacy: String
+    /// Absent from the core's row: every row of the catalogue is public.
+    let privacy: String?
     let publicListType: String?
     let imageUrl: String?
-    let createdAt: Date
-    let updatedAt: Date
-    let owner: UserData
+    let createdAt: Date?
+    let updatedAt: Date?
+    let owner: UserData?
     let admins: [UserData]?
-    let taskCount: Int
-    let memberCount: Int
+    let taskCount: Int?
+    let memberCount: Int?
 }
 
 struct UserData: Codable {
@@ -1074,20 +1043,6 @@ struct UserData: Codable {
     let name: String?
     let email: String?  // Optional: admins in public lists may not include email
     let image: String?
-}
-
-struct PublicListMeta: Codable {
-    let apiVersion: String?
-    let authSource: String?
-    let count: Int
-    let sortBy: String
-}
-
-struct CopyListResponse: Codable {
-    let message: String
-    let list: TaskList
-    let copiedTasksCount: Int
-    let meta: MetaInfo
 }
 
 // MARK: - Shortcode Types

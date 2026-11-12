@@ -243,7 +243,7 @@ struct MacPublicListsView: View {
         }
         .padding(20)
         .frame(width: 460)
-        .task { lists = (try? await RemoteResourceService.shared.getPublicLists().lists) ?? [] }
+        .task { lists = (try? await RemoteResourceService.shared.getPublicLists()) ?? [] }
     }
 
     /// Copy a public list into the user's own lists (through the service layer), then refresh.
@@ -252,7 +252,7 @@ struct MacPublicListsView: View {
         copyingId = l.id
         _Concurrency.Task {
             defer { copyingId = nil }
-            if (try? await RemoteResourceService.shared.copyList(listId: l.id, includeTasks: true)) != nil {
+            if (try? await RemoteResourceService.shared.copyList(listId: l.id)) != nil {
                 addedIds.insert(l.id)
                 _ = try? await listService.fetchLists()
             }

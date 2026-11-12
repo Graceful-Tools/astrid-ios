@@ -148,14 +148,20 @@ final class RemoteResourceService {
         try await apiClient.createShortcode(targetType: targetType, targetId: targetId)
     }
 
-    // MARK: - Public lists
+    // MARK: - Public lists (through astrid-core, AITD-620)
 
-    func getPublicLists(limit: Int = 50, sortBy: String = "popular") async throws -> PublicListsResponse {
-        try await apiClient.getPublicLists(limit: limit, sortBy: sortBy)
+    /// The catalogue, most copied first. The core always asks the server for the top 50; a
+    /// caller that wants fewer (the sidebar) takes the head of that.
+    func getPublicLists(limit: Int = 50) async throws -> [PublicListData] {
+        let rows = try await core.run(PublicListCommands.catalogue(), as: [PublicListData].self)
+        return Array(rows.prefix(limit))
     }
 
-    func copyList(listId: String, includeTasks: Bool = true) async throws -> CopyListResponse {
-        try await apiClient.copyList(listId: listId, includeTasks: includeTasks)
+    /// Copy a public list, with its tasks, into this account. Answers the new list, which the
+    /// core has already cached.
+    @discardableResult
+    func copyList(listId: String) async throws -> TaskList {
+        try await core.run(PublicListCommands.copy(listId: listId), as: TaskList.self)
     }
 
     // MARK: - User & agent search

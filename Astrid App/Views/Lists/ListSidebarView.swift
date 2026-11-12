@@ -584,11 +584,11 @@ struct ListSidebarView: View {
     private func fetchPublicLists() async {
         do {
             AppLog.debug("📡 [ListSidebarView] Fetching public lists...")
-            let response = try await apiClient.getPublicLists(limit: 10, sortBy: "popular") // Fetch more to show 2 of each type
+            let response = try await apiClient.getPublicLists(limit: 10) // Fetch more to show 2 of each type
 
             // One shared mapper (AITD-319) — this was written out verbatim here and in
             // PublicListBrowserView, and a third, shorter time on the Mac.
-            publicLists = response.lists.map { listData in
+            publicLists = response.map { listData in
                 TaskList(publicList: listData)
             }
 
