@@ -615,7 +615,8 @@ struct iPadTaskManagerView: View {
                 // Read inside the stack, which does not pass preferences out.
                 .onPreferenceChange(SidewaysScrollRegions.self) { sidewaysScrollRegions = $0 }
             }
-            .background(themeBackground)  // Fills BEHIND the rounded card only (inside the clip)
+            // The details face, the same one the arrow is filled with (AITD-627).
+            .background(TaskDetailsSurface(theme: effectiveTheme))  // Inside the clip only
             .clipShape(RoundedRectangle(cornerRadius: 16))
             // The SELECTION outline — the one the selected row wears — not a bare card: the panel
             // unfolds out of that row, as on the Mac and web (AITD-607, register DS7).
@@ -633,7 +634,7 @@ struct iPadTaskManagerView: View {
             .overlay(alignment: .topLeading) {
                 GeometryReader { g in
                     ZStack {
-                        themeBackground.clipShape(DetailPanelArrow())
+                        DetailPanelChrome.arrowFill(theme: effectiveTheme).clipShape(DetailPanelArrow())
                         DetailPanelArrowEdges()
                             .stroke(Color.accentColor, lineWidth: DetailPanelChrome.selectionOutlineWidth)
                     }
