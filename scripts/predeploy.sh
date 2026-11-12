@@ -169,6 +169,10 @@ step "Checking the astrid-core framework..."
 gate "astrid-core framework matches the pinned release" \
     "astrid-core framework mismatch — see the message above" \
     "$SCRIPT_DIR/core/check-framework.sh"
+# The download every Xcode Cloud run pays for, and the slices a local build links (AITD-625).
+gate "astrid-core framework within its size budget" \
+    "astrid-core framework over its size budget — see scripts/core/size-budget.json" \
+    node "$SCRIPT_DIR/core/check-size.mjs"
 
 # Step 6: Build verification (unless skipped). Quick mode builds too, after the cheap checks.
 if [[ "$SKIP_BUILD" != "true" ]]; then

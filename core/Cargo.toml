@@ -26,8 +26,16 @@ publish = false
 astrid-core = { git = "https://github.com/Graceful-Tools/astrid-core.git", rev = "98596ed9cc6927461e690c2b30ef00aaa3711439", version = "0.1" }
 uniffi = "0.32"
 
+# Measured for AITD-625 on the ios-arm64 slice: a dead-stripped link of the staticlib went from
+# 15.2 MB (thin LTO, opt-level 3) to 7.8 MB (fat LTO, opt-level "s"); "z" saved another 1.5 MB but
+# turns off loop vectorisation, which the rules and markdown paths use.
+# None of this applies unless the staticlib is built ALONE: with `crate-type = ["staticlib", "lib"]`
+# rustc skips LTO entirely and keeps every crate's embedded bitcode (65 MB of the old 96 MB file).
+# scripts/core/build-xcframework.sh builds it with `cargo rustc --crate-type staticlib` for that.
+# `strip` is absent on purpose: rustc only strips what it links, and a staticlib is not linked —
+# the app's own archive step strips the final binary and keeps the dSYM.
 [profile.release]
-lto = "thin"
+lto = "fat"
+opt-level = "s"
 codegen-units = 1
-strip = "debuginfo"
 panic = "unwind"
