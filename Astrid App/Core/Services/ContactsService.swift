@@ -1,3 +1,4 @@
+import AstridCore
 import Foundation
 import Contacts
 import Combine
@@ -11,12 +12,16 @@ import Combine
  * - Syncs contacts to Astrid server for collaborator suggestions
  * - Searches contacts for autocomplete when adding list members
  * - Gets recommended collaborators based on mutual address book presence
+ *
+ * The synced count and the upload go through astrid-core (AITD-620), which also does the
+ * batching; autocomplete and recommendations have no core command yet and stay on the client.
  */
 class ContactsService: ObservableObject {
     static let shared = ContactsService()
 
     private let store = CNContactStore()
     private let apiClient = AstridAPIClient.shared
+    private var core: CoreSession { AppCore.shared.session }
 
     // UserDefaults key for persisting last sync date
     private let lastSyncDateKey = "ContactsService.lastSyncDate"
@@ -52,9 +57,9 @@ class ContactsService: ObservableObject {
     /// Fetch current contact status from server (count of synced contacts)
     func fetchContactStatus() async {
         do {
-            let response = try await apiClient.getContactStatus()
+            let status = try await core.run(ContactCommands.status(), as: ContactStatus.self)
             await MainActor.run {
-                contactCount = response.pagination.total
+                contactCount = status.total
             }
         } catch {
             // Don't reset contactCount on error - keep any cached value
@@ -132,13 +137,10 @@ class ContactsService: ObservableObject {
 
     // MARK: - Sync Contacts to Server
 
-    /// Batch size for uploading contacts (to avoid timeout with large contact lists)
-    private let batchSize = 500
-
     /// Sync device contacts to the Astrid server
-    /// - Returns: Sync statistics
+    /// - Returns: The last batch's stats; `total` is the account's whole count
     @discardableResult
-    func syncContacts() async throws -> ContactSyncResult {
+    func syncContacts() async throws -> ContactSyncStats {
         guard hasPermission else {
             throw ContactsError.notAuthorized
         }
@@ -159,29 +161,13 @@ class ContactsService: ObservableObject {
             try Self.enumerateContacts(store: contactStore)
         }.value
 
-        // Upload in batches to avoid timeout with large contact lists
-        var finalResult: ContactSyncResult?
-        let batches = deviceContacts.chunked(into: batchSize)
-
-        for (index, batch) in batches.enumerated() {
-            // First batch replaces all existing contacts, subsequent batches append
-            let replaceAll = index == 0
-            let result = try await apiClient.uploadContacts(contacts: batch, replaceAll: replaceAll)
-            finalResult = result
-        }
-
-        // If no contacts, still call API to clear existing
-        if deviceContacts.isEmpty {
-            finalResult = try await apiClient.uploadContacts(contacts: [], replaceAll: true)
-        }
-
-        guard let result = finalResult else {
-            throw ContactsError.syncFailed(NSError(domain: "ContactsService", code: -1, userInfo: [NSLocalizedDescriptionKey: "No result from sync"]))
-        }
+        // One command for the whole book: the core uploads it in batches, the first replacing
+        // what the server had, and an empty book still clears the server's copy.
+        let result = try await core.run(ContactCommands.upload(deviceContacts), as: ContactSyncStats.self)
 
         await MainActor.run {
             lastSyncDate = Date()
-            contactCount = result.stats.total
+            contactCount = result.total
         }
 
         return result
@@ -211,26 +197,21 @@ class ContactsService: ObservableObject {
 // MARK: - Models
 
 /// Contact from the device address book
-struct DeviceContact: Codable {
+nonisolated struct DeviceContact: Codable, Sendable {
     let email: String
     let name: String?
     let phoneNumber: String?
 }
 
-/// Result of a contact sync operation
-struct ContactSyncResult: Codable {
-    let message: String
-    let stats: ContactSyncStats
-    let errors: [String]?
-}
-
-struct ContactSyncStats: Codable {
-    let received: Int
-    let valid: Int
-    let created: Int
-    let updated: Int
+/// The server's stats for a contact sync, as the core passes them back from the last batch.
+/// Only `total` is read; the rest are optional so a server that trims them still syncs.
+nonisolated struct ContactSyncStats: Codable, Sendable {
+    let received: Int?
+    let valid: Int?
+    let created: Int?
+    let updated: Int?
     let total: Int
-    let errors: Int
+    let errors: Int?
 }
 
 /// Contact search result for autocomplete
@@ -279,17 +260,6 @@ enum ContactsError: LocalizedError {
             return "Failed to fetch contacts: \(error.localizedDescription)"
         case .syncFailed(let error):
             return "Failed to sync contacts: \(error.localizedDescription)"
-        }
-    }
-}
-
-// MARK: - Array Extension for Batching
-
-private extension Array {
-    /// Split array into chunks of specified size
-    func chunked(into size: Int) -> [[Element]] {
-        stride(from: 0, to: count, by: size).map {
-            Array(self[$0..<Swift.min($0 + size, count)])
         }
     }
 }
