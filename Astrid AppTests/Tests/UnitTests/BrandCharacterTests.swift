@@ -33,8 +33,13 @@ final class BrandCharacterTests: XCTestCase {
             let values = try XCTUnwrap(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
             XCTAssertEqual(values["BrandCharacterImage"] as? String, "/images/whitelabel-logo.png", plist)
         }
-        for catalog in ["Astrid App/Assets.xcassets", "Astrid Mac/Assets.xcassets"] {
+        // The partner's art lives in the catalogs only the Whitelabel configurations compile, and
+        // Astrid's in the ones they exclude (AITD-618).
+        for catalog in ["Astrid App/PartnerArt-iOS.xcassets", "Astrid Mac/PartnerArt-Mac.xcassets"] {
             XCTAssertNoThrow(try RepositoryLocator.source(at: "\(catalog)/whitelabel-logo.imageset/Contents.json"), catalog)
+        }
+        for catalog in ["Astrid App/AstridArt-iOS.xcassets", "Astrid Mac/AstridArt-Mac.xcassets"] {
+            XCTAssertNoThrow(try RepositoryLocator.source(at: "\(catalog)/AstridCharacter.imageset/Contents.json"), catalog)
         }
     }
 }

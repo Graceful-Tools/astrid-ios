@@ -206,14 +206,18 @@ test('AITD-447: Mac packaging exports and signs with the exact profile and ident
   const commands = {
     security: `printf '%s\\n' '  1) ${'A'.repeat(40)} "${identityName}"' '  2) ${profileFingerprint} "${identityName}"'`,
     node: `case "$1" in
-      scripts/mac-devid-profile.mjs) [ "$2" = "--print-path" ] && printf '%s\\n' "$MOCK_PROFILE" ;;
+      scripts/mac-devid-profile.mjs) [ "$2" = "--print-path" ] && printf '%s\\n' "$*" >> "$MOCK_REPO/profile-args" && printf '%s\\n' "$MOCK_PROFILE" ;;
       scripts/mac-devid-identity.mjs) [ "$2" = "$MOCK_PROFILE" ] && printf '%s %s\\n' "$MOCK_FINGERPRINT" "$MOCK_TEAM" ;;
       *) exit 1 ;;
     esac`,
     xcodebuild: `case "$1" in
-      -scheme) printf '    MARKETING_VERSION = 1.0\\n    CURRENT_PROJECT_VERSION = 1\\n    FULL_PRODUCT_NAME = Astrid.app\\n' ;;
+      -scheme) if [ "$2" = "Whitelabel Mac" ]; then
+          printf '    MARKETING_VERSION = 1.0\\n    CURRENT_PROJECT_VERSION = 1\\n    FULL_PRODUCT_NAME = Whitelabel.app\\n    PRODUCT_BUNDLE_IDENTIFIER = Graceful-Tools-Inc.Whitelabel\\n'
+        else
+          printf '    MARKETING_VERSION = 1.0\\n    CURRENT_PROJECT_VERSION = 1\\n    FULL_PRODUCT_NAME = Astrid.app\\n    PRODUCT_BUNDLE_IDENTIFIER = Graceful-Tools-Inc.Astrid-App\\n'
+        fi ;;
       archive) printf '%s\\n' "$@" > "$MOCK_ARCHIVE_ARGS" ;;
-      -exportArchive) mkdir -p build/export/Astrid.app ;;
+      -exportArchive) mkdir -p build/export/Astrid.app build/export/Whitelabel.app ;;
       *) exit 1 ;;
     esac`,
     ditto: 'touch "$5"',
@@ -285,6 +289,20 @@ test('AITD-447: Mac packaging exports and signs with the exact profile and ident
   assert.deepEqual(readFileSync(env.MOCK_NOTARY_MODES, 'utf8').trim().split('\n'), ['600', '600']);
   assert.deepEqual(readFileSync(env.MOCK_NOTARY_DIR_MODES, 'utf8').trim().split('\n'), ['700', '700']);
   assert.ok(keyPaths.every(path => !existsSync(path)));
+
+  // AITD-618: the partner's Direct build — its scheme, its Direct entitlements, its bundle id's
+  // own profile, its names on the DMG.
+  // `rm -rf` is mocked to do nothing, so the first run's DMG stage is still there; a second
+  // `ln -s /Applications <stage>/Applications` would follow that link into the REAL /Applications.
+  rmSync(join(dir, 'build/dmg-stage'), { recursive: true, force: true })
+  const branded = spawnSync('/bin/bash', [join(scriptsDir, 'package-mac.sh'), '--whitelabel'], { cwd: dir, env, encoding: 'utf8' })
+  assert.equal(branded.status, 0, `${branded.stdout}\n${branded.stderr}`)
+  const archived = readFileSync(env.MOCK_ARCHIVE_ARGS, 'utf8')
+  assert.match(archived, /-scheme\nWhitelabel Mac\n/)
+  assert.match(archived, /CODE_SIGN_ENTITLEMENTS=Brands\/Whitelabel\/Whitelabel-Mac-Direct\.entitlements/)
+  assert.match(readFileSync(join(dir, 'profile-args'), 'utf8'), /--print-path --bundle-id Graceful-Tools-Inc\.Whitelabel/)
+  assert.ok(readFileSync(join(dir, 'build/ExportOptions.plist'), 'utf8').includes(`<key>Graceful-Tools-Inc.Whitelabel</key><string>${uuid}</string>`))
+  assert.match(branded.stdout, /Whitelabel-Mac-1\.0\.dmg/)
 
   const unsafeTempDir = join(dir, 'unsafe-temp');
   mkdirSync(unsafeTempDir);

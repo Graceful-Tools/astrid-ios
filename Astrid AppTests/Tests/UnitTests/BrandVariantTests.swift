@@ -195,7 +195,7 @@ final class BrandVariantTests: XCTestCase {
         XCTAssertEqual(try plist("Brands/Whitelabel/Info-Share.plist")["AppGroupIdentifier"] as? String, "group.gracefultools.whitelabel")
         XCTAssertEqual(try plist("Brands/Whitelabel/Info-iOS.plist")["CFBundleDisplayName"] as? String, "Whitelabel")
 
-        for name in ["Whitelabel-iOS", "Whitelabel-Mac", "Whitelabel-Share"] {
+        for name in ["Whitelabel-iOS", "Whitelabel-Mac", "Whitelabel-Mac-Direct", "Whitelabel-Share"] {
             let entitlements = try RepositoryLocator.source(at: "Brands/Whitelabel/\(name).entitlements")
             XCTAssertFalse(entitlements.contains("astrid.cc"), "\(name) must not claim Astrid's domains")
             XCTAssertFalse(entitlements.contains("group.gracefultools.astrid"), "\(name) must not share Astrid's App Group")

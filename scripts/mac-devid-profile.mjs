@@ -11,8 +11,11 @@ import { pick, ascRequest as api } from './lib/asc-jwt.mjs';
 import { pickDeveloperIdCert } from './lib/developer-id.mjs';
 
 
-const NAME = 'Astrid Mac Developer ID';
-const BUNDLE = 'Graceful-Tools-Inc.Astrid-App';
+// `--bundle-id <id>` names a partner's Mac app (AITD-618: package-mac.sh --whitelabel); its profile
+// is named after it so the two never replace each other.
+const bundleArg = process.argv.indexOf('--bundle-id');
+const BUNDLE = bundleArg > 0 ? process.argv[bundleArg + 1] : 'Graceful-Tools-Inc.Astrid-App';
+const NAME = bundleArg > 0 ? `${BUNDLE} Developer ID` : 'Astrid Mac Developer ID';
 const legacyDir = `${os.homedir()}/Library/MobileDevice/Provisioning Profiles`;
 const xcodeDir = `${os.homedir()}/Library/Developer/Xcode/UserData/Provisioning Profiles`;
 const printPath = process.argv.includes('--print-path');

@@ -33,12 +33,15 @@ fi
 WORK="$TMP/repo"
 for f in Info.plist "Astrid Mac/Info.plist" "Astrid/Info.plist" \
          "Astrid App/Astrid App.entitlements" "Astrid Mac/Astrid Mac.entitlements" "Astrid/Astrid.entitlements" \
+         "Astrid Mac/Astrid Mac Direct.entitlements" \
          "Astrid App.xcodeproj/project.pbxproj" \
          scripts/make-brand-variant.sh scripts/apply-brand.sh scripts/lib/find-web-repo.sh; do
     mkdir -p "$WORK/$(dirname "$f")"
     cp "$ROOT/$f" "$WORK/$f"
 done
 cp -R "$ROOT/Brands" "$WORK/Brands"
+cp -R "$ROOT/Astrid App/PartnerArt-iOS.xcassets" "$WORK/Astrid App/"
+cp -R "$ROOT/Astrid Mac/PartnerArt-Mac.xcassets" "$WORK/Astrid Mac/"
 cp "$PARTNER" "$TMP/partner.brand.json"
 
 # The partner profile plus an ios block — a third party's own identity.
@@ -121,7 +124,32 @@ check "a scheme the system cannot register is refused" '! run "$TMP/acme.brand.j
 check "argument team and bundle ID" \
       'grep -q "DEVELOPMENT_TEAM = ZZZZZ99999;" <<< "$IN" && grep -q "PRODUCT_BUNDLE_IDENTIFIER = com.acme.other.Share;" <<< "$IN" && ! grep -q ABCDE12345 <<< "$IN"'
 
-echo "4. back to the defaults"
+echo "4. artwork (AITD-618)"
+cp "$ROOT/Astrid App/PartnerArt-iOS.xcassets/AppIcon-Whitelabel.appiconset/icon-1024x1024.png" "$TMP/acme-icon.png"
+sips -s format png -z 512 512 "$TMP/acme-icon.png" --out "$TMP/small-icon.png" >/dev/null
+cp "$ROOT/Astrid App/PartnerArt-iOS.xcassets/whitelabel-logo.imageset/whitelabel-logo.png" "$TMP/acme-mascot.png"
+python3 - "$TMP/acme.brand.json" "$TMP/acme-art.brand.json" "$TMP/acme-small.brand.json" <<'PY'
+import json, sys
+profile = json.load(open(sys.argv[1]))
+profile["ios"].update({"appIcon": "acme-icon.png", "characterImage": "acme-mascot.png"})
+json.dump(profile, open(sys.argv[2], "w"), indent=2)
+profile["ios"]["appIcon"] = "small-icon.png"
+json.dump(profile, open(sys.argv[3], "w"), indent=2)
+PY
+check "runs" 'run "$TMP/acme-art.brand.json"'
+ART_IOS="$WORK/Astrid App/PartnerArt-iOS.xcassets"; ART_MAC="$WORK/Astrid Mac/PartnerArt-Mac.xcassets"
+px() { sips -g pixelWidth "$1" | awk '/pixelWidth/ {print $2}'; }
+check "every icon size generated, iOS and Mac" \
+      '[[ "$(px "$ART_IOS/AppIcon-Whitelabel.appiconset/icon-180x180.png")" == 180 ]] &&
+       [[ "$(px "$ART_IOS/AppIcon-Whitelabel.appiconset/icon-40x40.png")" == 40 ]] &&
+       [[ "$(px "$ART_MAC/AppIcon-Whitelabel.appiconset/mac-16.png")" == 16 ]] &&
+       [[ "$(px "$ART_MAC/AppIcon-Whitelabel.appiconset/mac-1024.png")" == 1024 ]]'
+check "the character imageset is named after its file, and the previous one is gone" \
+      '[[ -f "$ART_IOS/acme-mascot.imageset/acme-mascot.png" && -f "$ART_MAC/acme-mascot.imageset/Contents.json" ]] &&
+       [[ ! -e "$ART_IOS/whitelabel-logo.imageset" && ! -e "$ART_MAC/whitelabel-logo.imageset" ]]'
+check "an icon that is not 1024 px is refused" '! run "$TMP/acme-small.brand.json"'
+
+echo "5. back to the defaults"
 check "runs" 'run "$TMP/partner.brand.json"'
 check "reproduces the committed files" same_as_committed
 

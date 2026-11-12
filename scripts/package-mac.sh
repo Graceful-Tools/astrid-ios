@@ -27,6 +27,12 @@
 #
 # Usage: npm run package:mac        (or ./scripts/package-mac.sh)
 #        SKIP_NOTARIZE=1 ./scripts/package-mac.sh   # local smoke test, unsigned-ish
+#        ./scripts/package-mac.sh --whitelabel      # the partner app make-brand-variant.sh wrote
+#
+# --whitelabel builds the "Whitelabel Mac" scheme with Brands/Whitelabel/Whitelabel-Mac-Direct.entitlements
+# (the partner's domain, no Sign in with Apple), and takes the bundle id, app and DMG names from
+# that configuration rather than Astrid's (AITD-618). Its bundle id needs its own Developer ID
+# profile, which mac-devid-profile.mjs --bundle-id creates.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -37,6 +43,11 @@ ARCHIVE="$BUILD_DIR/AstridMac.xcarchive"
 EXPORT_DIR="$BUILD_DIR/export"
 DIST_DIR="$BUILD_DIR/dist"
 SCHEME="Astrid Mac"
+DIRECT_ENTITLEMENTS="Astrid Mac/Astrid Mac Direct.entitlements"
+if [ "${1:-}" = "--whitelabel" ]; then
+  SCHEME="Whitelabel Mac"
+  DIRECT_ENTITLEMENTS="Brands/Whitelabel/Whitelabel-Mac-Direct.entitlements"
+fi
 
 green() { printf "\033[0;32m%s\033[0m\n" "$1"; }
 red()   { printf "\033[0;31m%s\033[0m\n" "$1"; }
@@ -80,12 +91,16 @@ setting() { echo "$MAC_SETTINGS" | grep -m1 " $1 = " | sed -E 's/.* = //'; }
 VERSION=$(setting MARKETING_VERSION)
 BUILD_NUM=$(setting CURRENT_PROJECT_VERSION)
 PRODUCT=$(setting FULL_PRODUCT_NAME)   # "Astrid.app" — not "$SCHEME.app"
-[ -n "$VERSION" ] && [ -n "$PRODUCT" ] || { red "Could not read the Mac target's build settings"; exit 1; }
+BUNDLE_ID=$(setting PRODUCT_BUNDLE_IDENTIFIER)
+APP_NAME="${PRODUCT%.app}"
+[ -n "$VERSION" ] && [ -n "$PRODUCT" ] && [ -n "$BUNDLE_ID" ] || { red "Could not read the Mac target's build settings"; exit 1; }
 green "✓ Version $VERSION ($BUILD_NUM)"
 
 # --- Archive ---------------------------------------------------------------------
 step "Provisioning profile"
-PROFILE_PATH=$(node scripts/mac-devid-profile.mjs --print-path) || { red "Could not obtain a Developer ID profile"; exit 1; }
+PROFILE_ARGS=(--print-path)
+[ "$BUNDLE_ID" = "Graceful-Tools-Inc.Astrid-App" ] || PROFILE_ARGS+=(--bundle-id "$BUNDLE_ID")
+PROFILE_PATH=$(node scripts/mac-devid-profile.mjs "${PROFILE_ARGS[@]}") || { red "Could not obtain a Developer ID profile"; exit 1; }
 SIGNING_IDENTITY=$(node scripts/mac-devid-identity.mjs "$PROFILE_PATH") || { red "Could not match the Developer ID profile to an installed identity"; exit 1; }
 read -r IDENTITY TEAM_ID <<< "$SIGNING_IDENTITY"
 PROFILE_UUID=$(basename "$PROFILE_PATH" .provisionprofile)
@@ -103,7 +118,7 @@ xcodebuild archive \
   -allowProvisioningUpdates \
   CODE_SIGN_STYLE=Automatic \
   DEVELOPMENT_TEAM="$TEAM_ID" \
-  CODE_SIGN_ENTITLEMENTS="Astrid Mac/Astrid Mac Direct.entitlements"
+  CODE_SIGN_ENTITLEMENTS="$DIRECT_ENTITLEMENTS"
 green "✓ Archived"
 
 # --- Export as Developer ID ------------------------------------------------------
@@ -119,7 +134,7 @@ cat > "$BUILD_DIR/ExportOptions.plist" <<PLIST
     <key>signingCertificate</key><string>$IDENTITY</string>
     <key>provisioningProfiles</key>
     <dict>
-        <key>Graceful-Tools-Inc.Astrid-App</key><string>$PROFILE_UUID</string>
+        <key>$BUNDLE_ID</key><string>$PROFILE_UUID</string>
     </dict>
     <key>destination</key><string>export</string>
 </dict>
@@ -154,13 +169,13 @@ fi
 
 # --- DMG -------------------------------------------------------------------------
 step "Building DMG"
-DMG="$DIST_DIR/Astrid-Mac-$VERSION.dmg"
+DMG="$DIST_DIR/${APP_NAME// /-}-Mac-$VERSION.dmg"
 STAGE="$BUILD_DIR/dmg-stage"
 rm -rf "$STAGE" "$DMG"
 mkdir -p "$STAGE"
 cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"      # drag-to-install affordance
-hdiutil create -volname "Astrid" -srcfolder "$STAGE" -ov -format ULFO "$DMG" -quiet
+hdiutil create -volname "$APP_NAME" -srcfolder "$STAGE" -ov -format ULFO "$DMG" -quiet
 rm -rf "$STAGE"
 
 if [ "${SKIP_NOTARIZE:-0}" != "1" ]; then
@@ -178,5 +193,5 @@ codesign -dv --verbose=2 "$APP" 2>&1 | grep -E "Authority|TeamIdentifier|Timesta
 green "\n✓ $DMG ($(du -h "$DMG" | cut -f1))"
 echo ""
 echo "Publish it:"
-echo "  gh release create mac-v$VERSION \"$DMG\" --title \"Astrid for Mac $VERSION\" --notes \"...\""
+echo "  gh release create mac-v$VERSION \"$DMG\" --title \"$APP_NAME for Mac $VERSION\" --notes \"...\""
 echo "The astrid.cc /download page resolves the latest release asset automatically."
