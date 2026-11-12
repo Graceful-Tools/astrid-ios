@@ -46,6 +46,7 @@ python3 - "$PARTNER" "$TMP/acme.brand.json" <<'PY'
 import json, sys
 profile = json.load(open(sys.argv[1]))
 profile["env"]["NEXT_PUBLIC_BRAND_NAME"] = "Acme"
+profile["env"]["NEXT_PUBLIC_BRAND_APP_URL_SCHEME"] = "AcmeProfile"
 profile["ios"] = {"bundleId": "com.acme.tasks", "appGroup": "group.com.acme.tasks",
                   "keychainGroup": "com.acme.shared", "developmentTeam": "ABCDE12345",
                   "displayName": "Acme Tasks"}
@@ -96,10 +97,23 @@ check "entitlements carry the App Group and keychain group" \
 check "Services item is named for the app" \
       '[[ "$(/usr/libexec/PlistBuddy -c "Print :NSServices:0:NSPortName" "$V/Info-Mac.plist")" == "Acme Tasks" ]]'
 check "permission prompts name the brand" 'grep -q "Acme uses your camera" "$V/Info-iOS.plist"'
+scheme_of() { /usr/libexec/PlistBuddy -c "Print :CFBundleURLTypes:0:CFBundleURLSchemes:0" "$1"; }
+check "registers and answers the profile's URL scheme (AITD-616)" \
+      '[[ "$(scheme_of "$V/Info-iOS.plist")" == acmeprofile ]] &&
+       [[ "$(/usr/libexec/PlistBuddy -c "Print :BrandURLScheme" "$V/Info-iOS.plist")" == AcmeProfile ]]'
+check "its own drag type and background task (AITD-616)" \
+      'grep -q "<string>com.acme.tasks.board-card</string>" "$V/Info-iOS.plist" &&
+       grep -q "<string>com.acme.tasks.board-card</string>" "$V/Info-Mac.plist" &&
+       grep -q "<string>com.acme.tasks.sync</string>" "$V/Info-iOS.plist" &&
+       ! grep -rq "cc.astrid.board-card\|cc.astrid.app.sync" "$V"'
 
 echo "3. arguments beat the profile"
-check "runs" 'run "$TMP/acme.brand.json" --team ZZZZZ99999 --bundle-id com.acme.other'
+check "runs" 'run "$TMP/acme.brand.json" --team ZZZZZ99999 --bundle-id com.acme.other --url-scheme acmetasks'
 IN="$(whitelabel_blocks "$PB" in)"
+check "argument URL scheme beats the profile's" \
+      '[[ "$(scheme_of "$V/Info-iOS.plist")" == acmetasks ]] &&
+       [[ "$(/usr/libexec/PlistBuddy -c "Print :BrandURLScheme" "$V/Info-Mac.plist")" == acmetasks ]]'
+check "a scheme the system cannot register is refused" '! run "$TMP/acme.brand.json" --url-scheme "1 bad"' 
 check "argument team and bundle ID" \
       'grep -q "DEVELOPMENT_TEAM = ZZZZZ99999;" <<< "$IN" && grep -q "PRODUCT_BUNDLE_IDENTIFIER = com.acme.other.Share;" <<< "$IN" && ! grep -q ABCDE12345 <<< "$IN"'
 

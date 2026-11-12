@@ -14,8 +14,9 @@ import SwiftUI
 /// below are what actually ships today.
 ///
 /// Deliberately out of scope (see the task): bundle identifiers, keychain service, App
-/// Group, the `astrid://` URL scheme, associated domains, Xcode target names and the
-/// asset catalog. Those touch App Store Connect and provisioning.
+/// Group, associated domains, Xcode target names and the asset catalog. Those touch App
+/// Store Connect and provisioning, and `make-brand-variant.sh` writes them per variant. The
+/// URL scheme is here since AITD-616.
 enum Brand {
 
     // MARK: - Identity
@@ -96,6 +97,50 @@ enum Brand {
         let name = ((configured as NSString).lastPathComponent as NSString).deletingPathExtension
         if name == "astrid-character" { return astrid }
         return !name.isEmpty && exists(name) ? name : nil
+    }
+
+    // MARK: - URL scheme and system identifiers (AITD-616)
+
+    /// The custom URL scheme this build registers, without `://` — in-app links, sign-in and
+    /// OAuth callbacks, deep links. Read from `BrandURLScheme`, which the profile's
+    /// `NEXT_PUBLIC_BRAND_APP_URL_SCHEME` sets: the same key the server uses to send the browser
+    /// back to `<scheme>://auth/callback`, so the app and its deployment cannot disagree. A
+    /// partner sharing Astrid's deployment keeps `astrid` for exactly that reason.
+    nonisolated static let urlScheme = resolveURLScheme(infoString("BrandURLScheme"))
+
+    /// A URL in this build's own scheme, e.g. `appURL("tasks/abc")` → `astrid://tasks/abc`.
+    nonisolated static func appURL(_ path: String) -> URL? {
+        URL(string: "\(urlScheme)://\(path)")
+    }
+
+    /// RFC 3986 `scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )`, lowercased — schemes are
+    /// case-insensitive and every comparison here uses one form. Anything else falls back to
+    /// `astrid`: a scheme the system will not deliver would lose every callback silently.
+    nonisolated static func resolveURLScheme(_ raw: String?) -> String {
+        var scheme = (raw ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if scheme.hasSuffix("://") { scheme.removeLast(3) }
+        guard let first = scheme.unicodeScalars.first, first.isASCII, CharacterSet.letters.contains(first),
+              scheme.unicodeScalars.allSatisfy({ $0.isASCII && (CharacterSet.alphanumerics.contains($0) || "+-.".unicodeScalars.contains($0)) })
+        else { return "astrid" }
+        return scheme
+    }
+
+    /// The background sync task's id, as `BGTaskSchedulerPermittedIdentifiers` declares it. A
+    /// partner variant re-identifies it (`<bundleId>.sync`), so two installed apps never share a
+    /// BGTask registration.
+    static let backgroundSyncTaskIdentifier = declaredIdentifier(
+        in: infoArray("BGTaskSchedulerPermittedIdentifiers"), suffix: ".sync", fallback: "cc.astrid.app.sync")
+
+    /// The board's drag type, as `UTExportedTypeDeclarations` exports it (`<bundleId>.board-card`
+    /// in a partner variant).
+    static let boardCardTypeIdentifier = declaredIdentifier(
+        in: (Bundle.main.object(forInfoDictionaryKey: "UTExportedTypeDeclarations") as? [[String: Any]] ?? [])
+            .compactMap { $0["UTTypeIdentifier"] as? String },
+        suffix: ".board-card", fallback: "cc.astrid.board-card")
+
+    /// The first declared identifier with `suffix`, or `fallback` when the plist names none.
+    static func declaredIdentifier(in declared: [String], suffix: String, fallback: String) -> String {
+        declared.first { $0.hasSuffix(suffix) } ?? fallback
     }
 
     // MARK: - Appearance
@@ -298,6 +343,10 @@ enum Brand {
     /// this only fires if the two ever disagree, and `.clear` chrome is not an option.
     private static func color(_ hex: String, fallback: String) -> Color {
         Color(hex: hex) ?? Color(hex: fallback) ?? Color(red: 37/255, green: 99/255, blue: 235/255)
+    }
+
+    private static func infoArray(_ key: String) -> [String] {
+        Bundle.main.object(forInfoDictionaryKey: key) as? [String] ?? []
     }
 
     /// Read a non-empty string from the running bundle's Info.plist.

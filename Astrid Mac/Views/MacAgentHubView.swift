@@ -218,7 +218,7 @@ struct MacAgentHubView: View {
         _Concurrency.Task {
             do {
                 let url = try await model.copilotAuthorizationURL()
-                _ = try? await OAuthWebConnector.shared.present(url: url, callbackScheme: "astrid")
+                _ = try? await OAuthWebConnector.shared.present(url: url, callbackScheme: Brand.urlScheme)
                 await model.pollCopilotStatus(maxAttempts: 10)
             } catch {
                 model.setupErrorMessage = AgentHubErrors.message(error)

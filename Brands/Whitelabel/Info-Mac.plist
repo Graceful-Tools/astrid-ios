@@ -20,6 +20,8 @@
 	<string>Build together.</string>
 	<key>BrandSupportEmail</key>
 	<string>support@tasks.gracefultools.com</string>
+	<key>BrandURLScheme</key>
+	<string>astrid</string>
 	<key>BrandWordmark</key>
 	<string>whitelabel</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
@@ -53,7 +55,7 @@
 			<key>UTTypeDescription</key>
 			<string>Board card</string>
 			<key>UTTypeIdentifier</key>
-			<string>cc.astrid.board-card</string>
+			<string>Graceful-Tools-Inc.Whitelabel.board-card</string>
 			<key>UTTypeTagSpecification</key>
 			<dict/>
 		</dict>

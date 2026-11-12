@@ -118,7 +118,7 @@ final class GitHubSyncService: ObservableObject {
     /// poll simply finds nothing connected.
     func connect() async throws {
         guard let url = await authorizeURL() else { throw ConnectError.notConfigured }
-        _ = try? await OAuthWebConnector.shared.present(url: url, callbackScheme: "astrid")
+        _ = try? await OAuthWebConnector.shared.present(url: url, callbackScheme: Brand.urlScheme)
         await pollConnection()
     }
 

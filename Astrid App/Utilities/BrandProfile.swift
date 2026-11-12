@@ -42,6 +42,8 @@ enum BrandProfile {
         "NEXT_PUBLIC_BRAND_ACCENT_INK_COLOR": "BrandAccentInkColor",
         "NEXT_PUBLIC_BRAND_ACCENT_INK_DARK_COLOR": "BrandAccentInkDarkColor",
         "NEXT_PUBLIC_BRAND_AGENT_NAME": "BrandAgentName",
+        // The scheme the native apps register; the server returns sign-in to it (AITD-616).
+        "NEXT_PUBLIC_BRAND_APP_URL_SCHEME": "BrandURLScheme",
         // The web's logo is the character art (default astrid-character.png). The path is
         // carried as-is; Brand.characterImage names the asset after its file (AITD-514).
         "NEXT_PUBLIC_BRAND_LOGO": "BrandCharacterImage",

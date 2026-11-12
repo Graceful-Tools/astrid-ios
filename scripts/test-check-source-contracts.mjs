@@ -94,6 +94,11 @@ const trips = {
     'Astrid App/Core/Authentication/OAuthManager.swift': 'AnalyticsPlatformHeader',
     'Astrid App/Core/Networking/AstridAPIClient.swift': 'AnalyticsPlatformHeader',
   }),
+  'brand-url-scheme': () => fixture({
+    'Astrid App/Links.swift': 'let u = URL(string: "astrid://tasks/\\(id)")\nif url.scheme == "astrid" {}\n'
+      + 'present(url: u, callbackScheme: "astrid")\n// astrid:// in a comment is fine\nlet ok = Brand.appURL("tasks/x")\n',
+    'Astrid Mac/M.swift': 'static let callbackScheme = "astrid"\nlet service = "astrid" // an agent id, not a scheme\n',
+  }),
   'private-network-address': () => fixture({ 'Astrid App/Dev.swift': 'let url = "http://192.168.50.254:3000"\n' }),
   'due-day-names': () => fixture({
     'Astrid App/Views/Row.swift': `${view('Text("Today")')}\n#Preview { Text("Tomorrow") }\n`,
@@ -182,6 +187,11 @@ for (const [id, build] of Object.entries(trips)) {
 test('shared-url-session ignores comments and the networking layer itself', () => {
   const found = violations(trips['shared-url-session'](), 'shared-url-session')
   assert.deepEqual(found.map((v) => v.file), ['Astrid App/Core/Services/Thing.swift'])
+})
+
+test('brand-url-scheme trips on scheme literals and leaves comments and other "astrid" strings alone', () => {
+  const found = violations(trips['brand-url-scheme'](), 'brand-url-scheme')
+  assert.deepEqual(found.map((v) => `${v.file}:${v.line}`), ['Astrid App/Links.swift:1', 'Astrid App/Links.swift:2', 'Astrid App/Links.swift:3', 'Astrid Mac/M.swift:1'])
 })
 
 test('private-network-address leaves TEST-NET-1, public hosts and localhost alone', () => {

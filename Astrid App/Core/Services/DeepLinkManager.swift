@@ -50,7 +50,7 @@ class DeepLinkManager {
         AppLog.debug("🔗 [DeepLinkManager] Handling URL: \(url.absoluteString)")
         
         // Handle custom scheme: astrid://...
-        if url.scheme == "astrid" {
+        if url.scheme?.lowercased() == Brand.urlScheme {
             handleCustomScheme(url)
             return
         }

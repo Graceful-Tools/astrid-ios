@@ -29,6 +29,10 @@ final class AppCore: ObservableObject {
                 cachePath: cachePath,
                 baseURL: Constants.API.baseURL,
                 platform: Self.platform,
+                // The brand's scheme and hand-off client, so a white-label build's browser sign-in
+                // comes back to it rather than to Astrid (AITD-616).
+                urlScheme: Brand.urlScheme,
+                handoffClientId: DesktopHandoff.clientId,
                 credentials: CoreCredentials(),
                 background: !testing)
         } catch {
@@ -38,7 +42,8 @@ final class AppCore: ObservableObject {
             try? FileManager.default.removeItem(atPath: cachePath)
             session = try! CoreSession(
                 cachePath: cachePath, baseURL: Constants.API.baseURL,
-                platform: Self.platform, credentials: CoreCredentials(), background: !testing)
+                platform: Self.platform, urlScheme: Brand.urlScheme, handoffClientId: DesktopHandoff.clientId,
+                credentials: CoreCredentials(), background: !testing)
         }
         session.subscribe(relay)
         // The one answer to the network coming back: writes that waited for it go now, delivery

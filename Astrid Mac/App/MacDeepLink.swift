@@ -29,7 +29,7 @@ enum MacDeepLink: Equatable {
     /// input — any web page or message can open one — and its id flowed straight into
     /// `/api/v1/tasks/<id>`, where a percent-encoded separator became path traversal.
     static func parse(_ url: URL) -> MacDeepLink? {
-        if url.scheme == "astrid" {
+        if url.scheme?.lowercased() == Brand.urlScheme {
             guard let host = url.host else { return nil }
             let id = url.lastPathComponent
             guard id != host, APIPathSafety.isValidIdentifier(id) else { return nil }

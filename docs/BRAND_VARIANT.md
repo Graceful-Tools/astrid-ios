@@ -29,10 +29,12 @@ These come from three places. Later ones win:
      "appGroup": "group.com.acme.tasks",
      "keychainGroup": "com.acme.tasks",
      "developmentTeam": "ABCDE12345",
-     "displayName": "Acme Tasks"
+     "displayName": "Acme Tasks",
+     "urlScheme": "acmetasks"
    }
    ```
-3. **Arguments:** `--bundle-id`, `--app-group`, `--keychain-group`, `--team`, `--display-name`.
+3. **Arguments:** `--bundle-id`, `--app-group`, `--keychain-group`, `--team`, `--display-name`,
+   `--url-scheme`.
 
 | Value | Default | Where it lands |
 |---|---|---|
@@ -41,6 +43,17 @@ These come from three places. Later ones win:
 | `keychainGroup` | same as `bundleId` | `keychain-access-groups` in the iOS entitlements |
 | `developmentTeam` | `34K3P7PD2W` | `DEVELOPMENT_TEAM` of every Whitelabel build configuration |
 | `displayName` | `Whitelabel` | iOS home-screen name; Mac `PRODUCT_NAME`, so `<displayName>.app`, "About/Quit <displayName>", and the Services item |
+| `urlScheme` | the profile's `NEXT_PUBLIC_BRAND_APP_URL_SCHEME`, else `astrid` | the scheme the iOS app registers (`CFBundleURLSchemes`) and `Brand.urlScheme` answers: in-app links, deep links, the browser sign-in and OAuth callbacks |
+
+**The URL scheme has to be the deployment's.** The server sends the browser back to
+`<NEXT_PUBLIC_BRAND_APP_URL_SCHEME>://auth/callback`, so the app reads that same profile key, and
+`ios.urlScheme` is only for a server that has been set to match. A partner on Astrid's own
+deployment, like Whitelabel on astrid.cc, keeps `astrid`. The app also starts astrid-core with
+the scheme and its hand-off client id.
+
+Two system identifiers are always re-identified from `bundleId`, so the two apps never share
+them: the board's drag type (`<bundleId>.board-card`) and the background sync task
+(`<bundleId>.sync`). The app reads both back from its own Info.plist.
 
 The brand's name (`NEXT_PUBLIC_BRAND_NAME`) is what the permission prompts say — "Acme uses
 your camera…". It can differ from `displayName`.
@@ -58,10 +71,6 @@ by hand: the next run only rewrites values it recognises.
 
 ## Not configurable here (yet)
 
-- **The URL scheme.** `astrid://` is still a literal in eight Swift files and in the Whitelabel
-  plist, so a partner app installed beside Astrid competes for its links. The core side is done:
-  `Config.url_scheme` and `handoffClientId` (astrid-core AWTD2-95/98) are what Android already
-  passes. What is left is iOS work — AITD-616.
 - **The Google sign-in client.** Astrid's client id is in `GoogleSignInManager.swift` and both
   plists — AITD-617.
 - **Artwork.** The script copies none; a partner replaces `AppIcon-Whitelabel` in both catalogs and

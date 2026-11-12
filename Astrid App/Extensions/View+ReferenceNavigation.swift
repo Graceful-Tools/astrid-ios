@@ -33,7 +33,7 @@ struct ReferenceNavigationModifier: ViewModifier {
                     DeepLinkManager.shared.handleURL(appURL)
                     return .handled
                 }
-                guard url.scheme == "astrid", let host = url.host else {
+                guard url.scheme?.lowercased() == Brand.urlScheme, let host = url.host else {
                     return .systemAction
                 }
                 let id = url.lastPathComponent

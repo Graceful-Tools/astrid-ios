@@ -50,6 +50,7 @@ BRAND_PLIST_KEYS=(
     BrandWordmark BrandSlogan BrandAgentName
     BrandAccentColor BrandAccentHoverColor BrandAccentTextColor
     BrandAccentInkColor BrandAccentInkDarkColor
+    BrandURLScheme
     BrandCharacterImage
 )
 
@@ -109,6 +110,31 @@ PY
     done
 }
 
+# set_url_scheme <scheme> — the scheme the app REGISTERS (CFBundleURLSchemes of the app's own
+# cc.astrid.app URL type) must be the one Brand.urlScheme answers, or the system delivers a
+# partner's callbacks to Astrid (AITD-616). The Mac plist registers none and is left alone.
+set_url_scheme() {
+    local scheme="$1"
+    for plist in "${PLISTS[@]}"; do
+        [[ -f "$plist" ]] || continue
+        python3 - "$plist" "$scheme" "$DRY_RUN" <<'PY'
+import re, sys
+path, scheme, dry = sys.argv[1], sys.argv[2], sys.argv[3] == "true"
+text = open(path, encoding="utf-8").read()
+pattern = r"(<key>CFBundleURLName</key>\s*<string>cc\.astrid\.app</string>\s*<key>CFBundleURLSchemes</key>\s*<array>\s*<string>)([^<]*)(</string>)"
+m = re.search(pattern, text)
+if not m or m.group(2) == scheme:
+    sys.exit(0)
+name = "/".join(path.split("/")[-2:])
+if dry:
+    print(f"  {name}: would register {scheme}://")
+    sys.exit(0)
+open(path, "w", encoding="utf-8").write(text[: m.start(2)] + scheme + text[m.end(2):])
+print(f"  {name}: registers {scheme}://")
+PY
+    done
+}
+
 DRY_RUN=false
 PROFILE=""
 RESET=false
@@ -144,6 +170,7 @@ if [[ "$RESET" == "true" ]]; then
         fi
     done
     set_brand_domains ""
+    set_url_scheme astrid
     exit 0
 fi
 
@@ -196,6 +223,7 @@ KEY_MAP = {
     "NEXT_PUBLIC_BRAND_ACCENT_INK_COLOR": "BrandAccentInkColor",
     "NEXT_PUBLIC_BRAND_ACCENT_INK_DARK_COLOR": "BrandAccentInkDarkColor",
     "NEXT_PUBLIC_BRAND_AGENT_NAME": "BrandAgentName",
+    "NEXT_PUBLIC_BRAND_APP_URL_SCHEME": "BrandURLScheme",
     "BRAND_AGENT_EMAIL_DOMAIN": "BrandAgentEmailDomain",
     "NEXT_PUBLIC_BRAND_LOGO": "BrandCharacterImage",
 }
@@ -240,6 +268,17 @@ for plist in "${PLISTS[@]}"; do
     done <<< "$MAPPED"
     echo ""
 done
+
+# The same validation Brand.resolveURLScheme applies, so the plist never registers a scheme
+# the app would refuse to answer.
+URL_SCHEME=$(python3 -c '
+import json, re, sys
+raw = ((json.load(open(sys.argv[1])).get("env") or {}).get("NEXT_PUBLIC_BRAND_APP_URL_SCHEME") or "").strip().lower()
+raw = raw[:-3] if raw.endswith("://") else raw
+print(raw if re.fullmatch(r"[a-z][a-z0-9+.-]*", raw) else "astrid")' "$PROFILE_PATH")
+echo -e "${BLUE}URL scheme${NC}"
+set_url_scheme "$URL_SCHEME"
+echo ""
 
 BRAND_DOMAIN=$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("env") or {}).get("NEXT_PUBLIC_BRAND_DOMAIN","").strip())' "$PROFILE_PATH")
 echo -e "${BLUE}Entitlements${NC}"

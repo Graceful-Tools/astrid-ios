@@ -24,7 +24,7 @@ enum DesktopHandoff {
     }
 
     /// The callback the server is fixed to deliver to: `<scheme>://auth/callback`.
-    static let callbackScheme = "astrid"
+    static var callbackScheme: String { Brand.urlScheme }
 
     enum HandoffError: LocalizedError, Equatable {
         case unexpectedCallback
