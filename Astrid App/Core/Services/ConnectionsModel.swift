@@ -12,11 +12,11 @@ import Combine
 
 protocol ConnectionsServicing: AnyObject {
     func getConnections() async throws -> ConnectionsResponse
-    func revokeConnection(_ connection: Connection) async throws -> ConnectionRevokeResponse
+    func revokeConnection(_ connection: Connection) async throws
     func createOAuthClient(preset: OAuthClientPreset, agent: String) async throws -> MintedOAuthClient
     func getOAuthClient(clientId: String) async throws -> OAuthClientSummary
     func createOAuthClient(_ body: CreateOAuthClientRequest) async throws -> MintedOAuthClient
-    func updateOAuthClient(clientId: String, body: UpdateOAuthClientRequest) async throws -> OAuthClientSummary
+    func updateOAuthClient(clientId: String, draft: OAuthClientDraft) async throws -> OAuthClientSummary
 }
 
 extension RemoteResourceService: ConnectionsServicing {}
@@ -122,7 +122,7 @@ final class ConnectionsModel: ObservableObject {
         connections.removeAll(where: isSameRow)
         defer { revokingIDs.remove(connection.id) }
         do {
-            _ = try await service.revokeConnection(connection)
+            try await service.revokeConnection(connection)
         } catch {
             if !connections.contains(where: isSameRow) {
                 // Right after the nearest row that preceded it and is still here; the front if none is.
@@ -245,7 +245,7 @@ final class OAuthClientEditorModel: ObservableObject {
                 minted = try await service.createOAuthClient(draft.createRequest())
                 return false
             case .edit(let clientId):
-                _ = try await service.updateOAuthClient(clientId: clientId, body: draft.updateRequest())
+                _ = try await service.updateOAuthClient(clientId: clientId, draft: draft)
                 return true
             }
         } catch {

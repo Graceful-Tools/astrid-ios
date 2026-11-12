@@ -1,5 +1,6 @@
 //  ConnectionsDTOs.swift
-//  GET/DELETE /api/v1/users/me/connections — everything that can act as the account.
+//  GET/DELETE /api/v1/users/me/connections — everything that can act as the account. Sent by
+//  astrid-core since AITD-620 (`ConnectionCommands`); these are the shapes its answers decode into.
 //
 //  Mirrors astrid-web lib/api-contracts/v1-ios-shapes.ts (V1Connection). Decoded leniently on
 //  purpose: a `kind` this build has never heard of is a row it cannot revoke, not a decode
@@ -179,13 +180,6 @@ struct ConnectionsResponse: Codable {
     let connections: [Connection]
 }
 
-struct ConnectionRevokeResponse: Codable {
-    let success: Bool
-    let kind: ConnectionKind?
-    let id: String?
-    let revokedTokens: Int?
-}
-
 // MARK: - Transport credential presets (POST /api/v1/oauth/clients { preset, agent })
 
 /// The client shapes the agents page mints for its own transports — see astrid-web
@@ -203,10 +197,6 @@ struct OAuthClientPresetRequest: Codable, Equatable {
 struct MintedOAuthClient: Codable, Equatable {
     let clientId: String
     let clientSecret: String
-}
-
-struct MintedOAuthClientResponse: Codable {
-    let client: MintedOAuthClient
 }
 
 // MARK: - OAuth clients (GET/POST /api/v1/oauth/clients, GET/PUT /api/v1/oauth/clients/{id})
@@ -247,10 +237,6 @@ struct OAuthClientSummary: Codable, Equatable, Identifiable {
     }
 }
 
-struct OAuthClientResponse: Codable {
-    let client: OAuthClientSummary
-}
-
 /// The developer-console shape of a create: the caller chose everything, as opposed to
 /// `OAuthClientPresetRequest` where the preset did.
 struct CreateOAuthClientRequest: Codable, Equatable {
@@ -259,11 +245,4 @@ struct CreateOAuthClientRequest: Codable, Equatable {
     let scopes: [String]
     let grantTypes: [String]
     let redirectUris: [String]?
-}
-
-/// What an edit writes. Only the redirect URIs, matching astrid-web's edit dialog — the PUT
-/// accepts name, description, scopes and isActive too, and the two consoles deliberately offer
-/// the same narrow thing rather than each inventing its own idea of an edit.
-struct UpdateOAuthClientRequest: Codable, Equatable {
-    let redirectUris: [String]
 }

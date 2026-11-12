@@ -29,13 +29,12 @@ final class FakeConnectionsService: ConnectionsServicing {
         return ConnectionsResponse(connections: rows)
     }
 
-    func revokeConnection(_ connection: Connection) async throws -> ConnectionRevokeResponse {
+    func revokeConnection(_ connection: Connection) async throws {
         if holdRevokes {
             await withCheckedContinuation { held[connection.id] = $0 }
         }
         if let error = revokeErrors[connection.id] ?? revokeError { throw error }
         revoked.append(connection)
-        return ConnectionRevokeResponse(success: true, kind: connection.kind, id: connection.id, revokedTokens: 1)
     }
 
     func createOAuthClient(preset: OAuthClientPreset, agent: String) async throws -> MintedOAuthClient {
@@ -48,7 +47,7 @@ final class FakeConnectionsService: ConnectionsServicing {
     /// Clients the fake server holds, keyed by client id.
     var clients: [String: OAuthClientSummary] = [:]
     var createdClients: [CreateOAuthClientRequest] = []
-    var updatedClients: [(clientId: String, body: UpdateOAuthClientRequest)] = []
+    var updatedClients: [(clientId: String, draft: OAuthClientDraft)] = []
     var getClientError: Error?
     var createClientError: Error?
     var updateClientError: Error?
@@ -65,13 +64,13 @@ final class FakeConnectionsService: ConnectionsServicing {
         return MintedOAuthClient(clientId: "astrid_client_new", clientSecret: "shh")
     }
 
-    func updateOAuthClient(clientId: String, body: UpdateOAuthClientRequest) async throws -> OAuthClientSummary {
+    func updateOAuthClient(clientId: String, draft: OAuthClientDraft) async throws -> OAuthClientSummary {
         if let updateClientError { throw updateClientError }
-        updatedClients.append((clientId, body))
+        updatedClients.append((clientId, draft))
         let existing = clients[clientId]
         let updated = OAuthClientSummary(
             clientId: clientId, name: existing?.name ?? "", description: existing?.description,
-            redirectUris: body.redirectUris, grantTypes: existing?.grantTypes ?? [],
+            redirectUris: draft.redirectURIs, grantTypes: existing?.grantTypes ?? [],
             scopes: existing?.scopes ?? [], isActive: existing?.isActive ?? true
         )
         clients[clientId] = updated

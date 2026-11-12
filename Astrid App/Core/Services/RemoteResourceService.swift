@@ -1,3 +1,4 @@
+import AstridCore
 import Foundation
 
 /// Canonical service facade for the remaining backend-backed resources that the
@@ -92,30 +93,34 @@ final class RemoteResourceService {
         try await apiClient.createCopilotCloudAgentToken()
     }
 
-    // MARK: - Connections
+    // MARK: - Connections (through astrid-core, AITD-620)
+
+    private var core: CoreSession { AppCore.shared.session }
 
     func getConnections() async throws -> ConnectionsResponse {
-        try await apiClient.getConnections()
+        // The core's panel carries the rows themselves beside its grouping; the screen groups
+        // them its own way (`ConnectionsModel.sections`), so only the rows are read.
+        try await core.run(ConnectionCommands.list(), as: ConnectionsResponse.self)
     }
 
-    func revokeConnection(_ connection: Connection) async throws -> ConnectionRevokeResponse {
-        try await apiClient.revokeConnection(connection)
+    func revokeConnection(_ connection: Connection) async throws {
+        try await core.run(ConnectionCommands.revoke(connection))
     }
 
     func createOAuthClient(preset: OAuthClientPreset, agent: String) async throws -> MintedOAuthClient {
-        try await apiClient.createOAuthClient(preset: preset, agent: agent)
+        try await core.run(ConnectionCommands.mint(preset: preset, agent: agent), as: MintedOAuthClient.self)
     }
 
     func getOAuthClient(clientId: String) async throws -> OAuthClientSummary {
-        try await apiClient.getOAuthClient(clientId: clientId)
+        try await core.run(ConnectionCommands.load(clientId: clientId), as: OAuthClientSummary.self)
     }
 
     func createOAuthClient(_ body: CreateOAuthClientRequest) async throws -> MintedOAuthClient {
-        try await apiClient.createOAuthClient(body)
+        try await core.run(ConnectionCommands.create(body), as: MintedOAuthClient.self)
     }
 
-    func updateOAuthClient(clientId: String, body: UpdateOAuthClientRequest) async throws -> OAuthClientSummary {
-        try await apiClient.updateOAuthClient(clientId: clientId, body: body)
+    func updateOAuthClient(clientId: String, draft: OAuthClientDraft) async throws -> OAuthClientSummary {
+        try await core.run(ConnectionCommands.update(clientId: clientId, draft: draft), as: OAuthClientSummary.self)
     }
 
     // MARK: - Webhook transport

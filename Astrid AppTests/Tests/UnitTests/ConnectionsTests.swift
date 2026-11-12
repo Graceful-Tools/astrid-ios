@@ -5,6 +5,7 @@
 //  Also the regression for the stale deep-link map: `astrid://settings/api-access` opened the
 //  AI-provider key manager and `astrid://settings/agents` a screen the Agent Hub had replaced.
 
+import AstridCore
 import XCTest
 @testable import Astrid_App
 
@@ -92,10 +93,15 @@ final class ConnectionsTests: XCTestCase {
         XCTAssertEqual(unknown.name, "Something new")
     }
 
-    func testTheRevokePathPairsTheRowsOwnKindAndId() throws {
+    /// The revoke path is the core's now (AITD-620); what the app owns is naming kind and id together.
+    func testTheRevokeCommandPairsTheRowsOwnKindAndId() throws {
         let rows = try decodeFixture()
-        XCTAssertEqual(AstridAPIClient.revokeConnectionPath(rows[1]), "/api/v1/users/me/connections/authorizedApp/dcr-1")
-        XCTAssertEqual(AstridAPIClient.revokeConnectionPath(rows[4]), "/api/v1/users/me/connections/webhook/webhook")
+        for row in [rows[1], rows[4]] {
+            let data = Data(try CoreJSON.encode(ConnectionCommands.revoke(row)).utf8)
+            let sent = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: String])
+            XCTAssertEqual(sent["connectionKind"], row.kind.rawValue)
+            XCTAssertEqual(sent["id"], row.id)
+        }
     }
 
     // MARK: Sections (AITD-420 / AWTD-981)

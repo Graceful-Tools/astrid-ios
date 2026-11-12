@@ -53,7 +53,7 @@ final class APIEndpointInventoryTests: XCTestCase {
     /// Every file the current client is spread across.
     ///
     /// `AstridAPIClient+ListOwnership.swift` joined it in AITD-392, to get the client off its size
-    /// ceiling. (The members and blockers extensions went when those writes moved to astrid-core.) A path that moves
+    /// ceiling. (The members, blockers and connections extensions went when those calls moved to astrid-core.) A path that moves
     /// between these files has not left the app, and the inventory must not read the move as a
     /// deletion.
     ///
@@ -61,7 +61,6 @@ final class APIEndpointInventoryTests: XCTestCase {
     private static let currentClientFiles = [
         "Astrid App/Core/Networking/AstridAPIClient.swift",
         "Astrid App/Core/Networking/AstridAPIClient+ListOwnership.swift",
-        "Astrid App/Core/Networking/AstridAPIClient+Connections.swift",
         "Astrid App/Core/Networking/AstridAPIClient+Auth.swift",
         "Astrid App/Core/Networking/AstridAPIClient+Account.swift",
     ]
