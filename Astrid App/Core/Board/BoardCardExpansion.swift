@@ -1,0 +1,35 @@
+//  BoardCardExpansion.swift
+//  Which board card is open inline (AITD-628). Tapping a card on the iOS board opens its details
+//  in place, under the card face, as web and the Mac board do; it used to leave the board for the
+//  full-screen push (iPhone) or the side panel (iPad).
+//
+//  The rules are here, not in the view, so they can be pinned and so the iOS board and the Mac
+//  board (`MacBoardExpand`) cannot mean different things by the same tap.
+
+import CoreGraphics
+
+enum BoardCardExpansion {
+
+    /// Tapping the open card closes it; tapping any other card opens that one instead. One card is
+    /// open at a time across the whole board.
+    static func toggle(current: String?, tapped: String) -> String? {
+        current == tapped ? nil : tapped
+    }
+
+    /// The open card, unless it has left the board — completed out of the Done window, deleted,
+    /// moved to another list. An editor left open on a card that is gone edits nothing.
+    static func retained(current: String?, visibleTaskIds: Set<String>) -> String? {
+        guard let current, visibleTaskIds.contains(current) else { return nil }
+        return current
+    }
+
+    /// How tall the inline details are. The details scroll on their own, so they get a bounded
+    /// share of the board — enough to read and edit, with the card face and the column's edge
+    /// still on screen to tap — and never less than a usable minimum.
+    static func inlineDetailHeight(boardHeight: CGFloat) -> CGFloat {
+        max(minimumInlineDetailHeight, boardHeight * inlineDetailShareOfBoard)
+    }
+
+    static let minimumInlineDetailHeight: CGFloat = 320
+    static let inlineDetailShareOfBoard: CGFloat = 0.72
+}

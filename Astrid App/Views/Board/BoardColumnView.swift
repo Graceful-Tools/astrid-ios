@@ -123,12 +123,16 @@ struct BoardColumnView: View {
     /// Parent callback: persist the drop. `index` is the desired slot
     /// in the column AFTER the drop (0 = top; tasks.count = end).
     let onDropAt: (BoardCardPayload, Int) -> Void
-    /// How to open a tapped task. The iPad split view supplies this to route into
-    /// its side panel (keeping the board visible); when nil we fall back to the
-    /// global TaskPresenter (full-screen push, used on iPhone).
-    var onTaskTap: ((Task) -> Void)?
+    /// Open a task in the FULL details — the iPad side panel or the iPhone push. A tap on a
+    /// card no longer does this (it opens the card inline, AITD-628); the inline details'
+    /// full-screen button does.
+    var onOpenFullDetails: ((Task) -> Void)?
     /// The task currently open in the detail panel (for the selected highlight).
     var selectedTaskId: String?
+    /// The card open inline, shared across the board's columns so only one is open.
+    @Binding var expandedTaskId: String?
+    /// How tall an open card's details are (`BoardCardExpansion.inlineDetailHeight`).
+    var inlineDetailHeight: CGFloat = BoardCardExpansion.minimumInlineDetailHeight
     /// Live drag point in global coordinates while a card hovers this column
     /// (nil when it leaves or lands). The board uses it to auto-advance columns
     /// when the drag reaches its edges — task 233ec244.
@@ -348,20 +352,20 @@ struct BoardColumnView: View {
     /// where a release lands. The card reports its own extent so it can.
     @ViewBuilder
     private func cardSlot(for task: Task, at index: Int) -> some View {
+        let expanded = expandedTaskId == task.id
         VStack(spacing: 0) {
             BoardTaskCardView(task: task, hiddenListIds: rowHiddenListIds,
-                              isSelected: task.id == selectedTaskId)
-                // Tap opens the task detail — same as tapping a row in
-                // the flat list. Routed through the global TaskPresenter,
-                // which TaskListView (the board's host) already wires up
-                // via `.withTaskPresentation()`. The checkbox Button
-                // inside the card intercepts its own taps first, so a
-                // completion toggle doesn't also open the detail.
+                              isSelected: expanded || task.id == selectedTaskId)
+                // Tap opens the card INLINE (AITD-628), as web and the Mac board do —
+                // it used to leave the board for the push / side panel. Tapping the
+                // open card closes it. The leading control inside the card
+                // intercepts its own taps first, so picking a status doesn't also
+                // open the card.
                 .onTapGesture {
-                    if let onTaskTap {
-                        onTaskTap(task)
-                    } else {
-                        TaskPresenter.shared.showTask(task)
+                    withAnimation(ReducedMotion.spring(response: AstridTokens.Motion.panelSpringDuration,
+                                               dampingFraction: AstridTokens.Motion.panelSpringDamping)) {
+                        expandedTaskId = BoardCardExpansion.toggle(current: expandedTaskId,
+                                                                   tapped: task.id)
                     }
                 }
                 .draggable(BoardCardPayload(taskId: task.id)) {
@@ -379,18 +383,51 @@ struct BoardColumnView: View {
                         )
                         .opacity(0.92)
                 }
-                .background(
-                    GeometryReader { proxy in
-                        let frame = proxy.frame(in: .named(columnSpaceName))
-                        Color.clear.preference(
-                            key: BoardCardSlotsKey.self,
-                            value: [BoardCardSlot(taskId: task.id,
-                                                  minY: frame.minY,
-                                                  maxY: frame.maxY)]
-                        )
-                    }
-                )
+            if expanded {
+                inlineDetails(for: task)
+            }
         }
+        .background(
+            GeometryReader { proxy in
+                let frame = proxy.frame(in: .named(columnSpaceName))
+                Color.clear.preference(
+                    key: BoardCardSlotsKey.self,
+                    value: [BoardCardSlot(taskId: task.id,
+                                          minY: frame.minY,
+                                          maxY: frame.maxY)]
+                )
+            }
+        )
+    }
+
+    /// The open card's details: the SAME view the side panel and the push draw, so the board
+    /// has every field, the comments and the composer without a second editor to drift from
+    /// them (the Mac card editor's history, AITD-432). A sibling of the card rather than inside
+    /// it, so a long press in the details never starts a card drag. Bounded in height — the
+    /// details scroll on their own, inside the column that scrolls around them.
+    @ViewBuilder
+    private func inlineDetails(for task: Task) -> some View {
+        TaskDetailViewNew(
+            task: task,
+            onClose: {
+                withAnimation(ReducedMotion.spring(response: AstridTokens.Motion.panelSpringDuration,
+                                               dampingFraction: AstridTokens.Motion.panelSpringDamping)) {
+                    if expandedTaskId == task.id { expandedTaskId = nil }
+                }
+            },
+            isFullScreen: false,
+            onToggleFullScreen: onOpenFullDetails.map { open in { open(task) } }
+        )
+        .id(task.id)
+        .frame(height: inlineDetailHeight)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.radiusMedium)
+                .stroke(Color.accentColor, lineWidth: AstridTokens.Size.Comfortable.selectionOutline)
+        )
+        .padding(.top, Theme.spacing4)
+        .accessibilityIdentifier("board.card.inlineDetails")
+        .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
     /// Empty-column placeholder message. Reuses the same Astrid
