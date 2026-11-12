@@ -193,6 +193,22 @@ enum BuiltInModel: String, CaseIterable {
 
     struct CopilotAuthorizationResponse: Codable, Equatable {
         let url: String
+
+        init(url: String) { self.url = url }
+
+        private enum CodingKeys: String, CodingKey { case url, authorizeUrl }
+
+        /// astrid-core's `connectCopilot` answers `{ authorizeUrl }`; the route itself said `url`.
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            url = try container.decodeIfPresent(String.self, forKey: .authorizeUrl)
+                ?? container.decode(String.self, forKey: .url)
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(url, forKey: .url)
+        }
     }
 
     struct AgentRuntimeRow: Identifiable, Equatable {

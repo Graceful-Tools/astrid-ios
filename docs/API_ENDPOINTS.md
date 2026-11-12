@@ -64,7 +64,6 @@ not by this client.)
 
 ### `/api/v1/integrations`
 
-- `/api/v1/integrations/copilot/authorize`
 - `/api/v1/integrations/copilot/status`
 
 ### `/api/v1/lists`

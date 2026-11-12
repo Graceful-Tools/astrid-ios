@@ -21,7 +21,7 @@ protocol AgentHubServicing: AnyObject {
     func deleteAIAPIKey(serviceId: String) async throws -> DeleteAPIKeyResponse
     func getCopilotIntegrationStatus() async throws -> CopilotIntegrationStatus
     func getCopilotAuthorization() async throws -> CopilotAuthorizationResponse
-    func disconnectCopilot() async throws -> CopilotIntegrationStatus
+    func disconnectCopilot() async throws
 }
 
 protocol WebhookSettingsServicing: AnyObject {
@@ -252,7 +252,9 @@ final class AgentHubModel: ObservableObject {
 
     func disconnectCopilot() async {
         do {
-            copilotConnected = try await service.disconnectCopilot().connected
+            // The core answers only "done": a disconnect that did not throw is disconnected.
+            try await service.disconnectCopilot()
+            copilotConnected = false
         } catch {
             setupErrorMessage = AgentHubErrors.message(error)
         }

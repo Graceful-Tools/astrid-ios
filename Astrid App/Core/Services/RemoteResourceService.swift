@@ -40,19 +40,22 @@ final class RemoteResourceService {
     }
 
     func updateAgentMode(agent: String, mode: AgentExecutionMode) async throws -> AgentModesResponse {
-        try await apiClient.updateAgentMode(agent: agent, mode: mode)
+        try await core.run(CopilotCommands.setMode(UpdateAgentModeRequest(agent: agent, mode: mode)),
+                           as: AgentModesResponse.self)
     }
 
     func getCopilotIntegrationStatus() async throws -> CopilotIntegrationStatus {
         try await apiClient.getCopilotIntegrationStatus()
     }
 
+    // Connect and disconnect go through astrid-core (AITD-620); the status read has no
+    // standalone core command yet.
     func getCopilotAuthorization() async throws -> CopilotAuthorizationResponse {
-        try await apiClient.getCopilotAuthorization()
+        try await core.run(CopilotCommands.connect(), as: CopilotAuthorizationResponse.self)
     }
 
-    func disconnectCopilot() async throws -> CopilotIntegrationStatus {
-        try await apiClient.disconnectCopilot()
+    func disconnectCopilot() async throws {
+        try await core.run(CopilotCommands.disconnect())
     }
 
     func getAIAPIKeys() async throws -> AIAPIKeysResponse {

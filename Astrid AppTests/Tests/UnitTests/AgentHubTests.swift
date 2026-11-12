@@ -417,7 +417,7 @@ extension AgentHubTests {
 // MARK: - Fake service
 
 @MainActor
-private final class FakeAgentHubService: AgentHubServicing {
+final class FakeAgentHubService: AgentHubServicing {
     var updateModeResult: Result<AgentModesResponse, Error> = .success(AgentModesResponse(agents: [], modes: [:], meta: nil))
     var updateModeCalls: [(agent: String, mode: AgentExecutionMode)] = []
     var onUpdateMode: ((String, AgentExecutionMode) -> Void)?
@@ -450,6 +450,12 @@ private final class FakeAgentHubService: AgentHubServicing {
         copilotReads += 1
         return try copilotResult.get()
     }
-    func getCopilotAuthorization() async throws -> CopilotAuthorizationResponse { CopilotAuthorizationResponse(url: "https://github.com/login") }
-    func disconnectCopilot() async throws -> CopilotIntegrationStatus { CopilotIntegrationStatus(connected: false) }
+    var authorization = CopilotAuthorizationResponse(url: "https://github.com/login")
+    var disconnects = 0
+    var disconnectError: Error?
+    func getCopilotAuthorization() async throws -> CopilotAuthorizationResponse { authorization }
+    func disconnectCopilot() async throws {
+        disconnects += 1
+        if let disconnectError { throw disconnectError }
+    }
 }
