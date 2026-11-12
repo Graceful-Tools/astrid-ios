@@ -359,11 +359,8 @@ extension Theme {
     }
 
     struct LiquidGlass {
-        // Liquid Glass uses dynamic, adaptive materials that reflect and refract surroundings
-        // This theme leverages iOS 15+ Material blur with vibrancy
-        // On iOS 26+, native .glassEffect() APIs provide enhanced glass rendering
-
-        // MARK: - Glass Materials (for backgrounds)
+        // Only what is still read (AITD-623). The rest of this palette — text colours, status and
+        // priority tints, three hard-coded background gradients — had no readers left.
 
         /// Ultra-thin glass for primary surfaces (most transparent)
         static let primaryGlassMaterial: Material = .ultraThinMaterial
@@ -371,81 +368,12 @@ extension Theme {
         /// Thin glass for secondary surfaces (cards, panels)
         static let secondaryGlassMaterial: Material = .thinMaterial
 
-        /// Regular glass for tertiary surfaces (more prominent elements)
-        static let tertiaryGlassMaterial: Material = .regularMaterial
+        /// The accent behind a selected glass row. Follows the brand, so a partner's accent tints
+        /// it rather than a fixed blue.
+        static var accentGlassTint: Color { Brand.accentColor.opacity(0.25) }
 
-        /// Thick glass for modals and overlays
-        static let thickGlassMaterial: Material = .thickMaterial
-
-        // MARK: - Text Colors (use system dynamic colors for vibrancy)
-
-        static let textPrimary = Color.primary       // Adapts automatically with vibrancy
-        static let textSecondary = Color.secondary   // System secondary with vibrancy
-        static let textMuted = Color.secondary.opacity(0.7)
-        static let textInverted = Color.primary      // Inverts automatically in dark mode
-
-        // MARK: - Accent Colors with Glass Tints
-
-        /// Blue accent with glass transparency
-        static let accentGlassTint = Color.blue.opacity(0.25)
-
-        /// Accent color for text and icons
-        static let accent = Color.blue
-        static let accentHover = Color.blue.opacity(0.8)
-        static let accentText = Color.white
-
-        // MARK: - Status Glass Tints
-
-        static let successGlassTint = Color.green.opacity(0.25)
-        static let warningGlassTint = Color.orange.opacity(0.25)
-        static let errorGlassTint = Color.red.opacity(0.25)
-        static let infoGlassTint = Color.cyan.opacity(0.25)
-
-        // MARK: - Border Colors (subtle glass edges)
-
+        /// Subtle glass edge
         static let border = Color.white.opacity(0.15)
-        static let borderHover = Color.white.opacity(0.25)
-        static let borderFocus = Color.blue.opacity(0.5)
-        static let borderInput = Color.white.opacity(0.2)
-
-        // MARK: - Priority Glass Tints
-
-        static let priorityNoneGlassTint = Color.gray.opacity(0.2)
-        static let priorityLowGlassTint = Color.blue.opacity(0.25)
-        static let priorityMediumGlassTint = Color.yellow.opacity(0.25)
-        static let priorityHighGlassTint = Color.red.opacity(0.25)
-
-        // MARK: - Background Gradients (for depth behind glass)
-
-        /// Soft gradient for light mode backgrounds
-        static let lightGradient = LinearGradient(
-            colors: [
-                Color(red: 245/255, green: 247/255, blue: 250/255),
-                Color(red: 230/255, green: 235/255, blue: 245/255)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-
-        /// Rich gradient for dark mode backgrounds
-        static let darkGradient = LinearGradient(
-            colors: [
-                Color(red: 20/255, green: 25/255, blue: 35/255),
-                Color(red: 30/255, green: 40/255, blue: 60/255)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-
-        /// Ocean cyan gradient for Liquid Glass Ocean theme
-        static let oceanGradient = LinearGradient(
-            colors: [
-                Color(red: 136/255, green: 220/255, blue: 248/255),  // Cyan #88DCF8 (Ocean theme color)
-                Color(red: 120/255, green: 210/255, blue: 245/255)   // Slightly richer cyan
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
     }
 }
 

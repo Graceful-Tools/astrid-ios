@@ -14,7 +14,10 @@ enum MacLayout {
     /// the sidebar shrank the content below the threshold and the chat column vanished — toggling
     /// the left rail should never close the right one. The window width does not change when the
     /// sidebar opens, so the decision is now stable.
-    static let chatColumnWindowThreshold: CGFloat = 1_100
+    ///
+    /// The shared values (this breakpoint, the panel floor, the sidebar floor) are READ from
+    /// AstridTokens, never restated: the design README says a platform may not (AITD-623).
+    static let chatColumnWindowThreshold: CGFloat = AstridTokens.Layout.threeColumnBreakpoint
 
     // MARK: - Detail pop-out geometry
     //
@@ -22,7 +25,7 @@ enum MacLayout {
     // gives up width for it — rows must not resize when a task is selected. That is only possible
     // if the chat column is permanently at least as wide as the pop-out plus its margins, which is
     // how chatColumnWidth is derived below rather than being a magic number.
-    static let detailPanelWidth: CGFloat = 380
+    static let detailPanelWidth: CGFloat = AstridTokens.Layout.Compact.detailPanelMinWidth
     static let detailArrowWidth: CGFloat = 12
     /// Breathing room on each side of the floating panel: the arrow needs room on the leading
     /// edge, and the panel needs a matching margin on the trailing edge.
@@ -85,8 +88,8 @@ enum MacLayout {
 
     /// Sidebar floor. Was 200 while the ideal was 240, so a drag could take the list rail
     /// noticeably below the width it ships at; the shipped width is the floor now.
-    static let sidebarMinWidth: CGFloat = 240
-    static let sidebarIdealWidth: CGFloat = 240
+    static let sidebarMinWidth: CGFloat = AstridTokens.Layout.Compact.sidebarMinWidth
+    static let sidebarIdealWidth: CGFloat = sidebarMinWidth
     /// A rail past this stops being a rail. It is a cap on the DRAG, not on the window.
     static let sidebarMaxWidth: CGFloat = 420
 
