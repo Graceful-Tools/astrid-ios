@@ -85,10 +85,10 @@ struct InlineTimePicker: View {
                             HStack {
                                 Text(NSLocalizedString("picker.all_day", comment: "All day"))
                                     .font(Theme.Typography.body())
-                                    .foregroundColor(Theme.error)
+                                    .foregroundColor(palette.errorInk)
                                 Spacer()
                                 if time == nil {
-                                    Image(systemName: "checkmark").foregroundColor(Theme.error)
+                                    Image(systemName: "checkmark").foregroundColor(palette.errorInk)
                                 }
                             }
                             .padding(.horizontal, PickerRowMetrics.rowHorizontalPadding)

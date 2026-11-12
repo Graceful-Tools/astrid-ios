@@ -9,6 +9,7 @@ private let logger = Logger(subsystem: Brand.logSubsystem, category: "RichTextIn
 /// file attachments, and send button. Used by both chat messages and task comments.
 struct RichTextInput: View {
     @Environment(\.colorScheme) var colorScheme
+    @ThemedPalette private var palette
     @AppStorage("themeMode") private var themeMode: ThemeMode = .ocean
 
     // Configuration
@@ -71,7 +72,7 @@ struct RichTextInput: View {
             if let error = uploadError {
                 Text(error)
                     .font(Theme.Typography.caption2())
-                    .foregroundColor(Theme.error)
+                    .foregroundColor(palette.errorInk)
                     .padding(.horizontal, Theme.spacing12)
                     .padding(.bottom, Theme.spacing4)
             }

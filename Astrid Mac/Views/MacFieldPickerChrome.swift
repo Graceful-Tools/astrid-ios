@@ -80,7 +80,7 @@ struct MacPickerRow: View {
 
     @State private var isHovering = false
 
-    private var tint: Color { isDestructive ? Theme.error : Theme.textPrimary }
+    private var tint: Color { isDestructive ? Theme.errorInk : Theme.textPrimary }
 
     var body: some View {
         Button(action: action) {
@@ -98,7 +98,7 @@ struct MacPickerRow: View {
                     if isChecked {
                         Image(systemName: "checkmark")
                             .macFont(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(isDestructive ? Theme.error : Theme.accent)
+                            .foregroundStyle(isDestructive ? Theme.errorInk : Theme.accentInk)
                             .padding(.trailing, 9)
                     }
                 }

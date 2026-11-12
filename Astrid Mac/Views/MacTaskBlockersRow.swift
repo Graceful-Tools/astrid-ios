@@ -126,7 +126,7 @@ private struct MacTaskBlockerPicker: View {
                 .onKeyPress(.upArrow) { move(-1); return .handled }
                 .onKeyPress(.escape) { dismiss(); return .handled }
             if let errorMessage {
-                Text(errorMessage).macFont(MacTypography.label).foregroundStyle(Theme.error)
+                Text(errorMessage).macFont(MacTypography.label).foregroundStyle(Theme.errorInk)
             }
             if TaskBlockers.shouldSearch(query) && hits.isEmpty {
                 Text(NSLocalizedString("tasks.waitingOn.noResults", comment: ""))

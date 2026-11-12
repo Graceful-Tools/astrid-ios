@@ -123,13 +123,36 @@ final class BrandAuditTests: XCTestCase {
         XCTAssertEqual(Theme.Dark.accent, Brand.accentColor)
         XCTAssertEqual(Theme.Ocean.accent, Brand.accentColor)
         XCTAssertEqual(Theme.borderFocus, Brand.accentColor)
-        XCTAssertEqual(Theme.Dark.borderFocus, Brand.accentColor)
+        XCTAssertEqual(Theme.Dark.borderFocus, Brand.accentInkDarkColor)
         XCTAssertEqual(Theme.Ocean.borderFocus, Brand.accentColor)
-        XCTAssertEqual(Theme.Dark.bgSelectedBorder, Brand.accentColor)
+        XCTAssertEqual(Theme.Dark.bgSelectedBorder, Brand.accentInkDarkColor)
         XCTAssertEqual(Theme.priorityLow, Brand.accentColor)
 
         XCTAssertNotEqual(Theme.accent, astridBlue, "the accent is still Astrid blue")
         XCTAssertNotEqual(Theme.Ocean.accent, astridBlue, "Ocean kept Astrid blue")
+    }
+
+    /// The accent's inks are the partner's (AITD-615): what the profile configured, or
+    /// derived from the partner's accent — never Astrid's designed blues, which would put
+    /// Astrid-blue links in a purple app. Every theme's ink follows.
+    func testThePartnerInksReachBrandAndEveryTheme_AITD615() throws {
+        try requirePartnerBuild()
+        let accent = Brand.accentColorHex
+        XCTAssertEqual(Brand.accentInkColorHex,
+                       Brand.resolveAccentInk(configured("BrandAccentInkColor"), accentHex: accent, dark: false))
+        XCTAssertEqual(Brand.accentInkDarkColorHex,
+                       Brand.resolveAccentInk(configured("BrandAccentInkDarkColor"), accentHex: accent, dark: true))
+        if accent.lowercased() != Brand.defaultAccentHex {
+            if configured("BrandAccentInkColor") == nil {
+                XCTAssertNotEqual(Brand.accentInkColorHex.uppercased(), "#1D4ED8", "Astrid's light ink survived")
+            }
+            if configured("BrandAccentInkDarkColor") == nil {
+                XCTAssertNotEqual(Brand.accentInkDarkColorHex.uppercased(), "#60A5FA", "Astrid's dark ink survived")
+            }
+        }
+        XCTAssertEqual(Theme.accentInk, Brand.accentInkColor)
+        XCTAssertEqual(Theme.Ocean.accentInk, Brand.accentInkColor)
+        XCTAssertEqual(Theme.Dark.accentInk, Brand.accentInkDarkColor)
     }
 
     /// Semantic colours must NOT follow the brand — a red error stays red.
@@ -215,6 +238,8 @@ final class BrandAuditTests: XCTestCase {
             ("BrandWordmark", Brand.wordmark),
             ("BrandSlogan", Brand.slogan),
             ("BrandAgentName", Brand.agentName),
+            ("BrandAccentInkColor", Brand.accentInkColorHex),
+            ("BrandAccentInkDarkColor", Brand.accentInkDarkColorHex),
         ]
     }
 }

@@ -90,10 +90,10 @@ struct InlineDatePicker: View {
                                 HStack {
                                     Text(NSLocalizedString("picker.no_due_date", comment: "No due date"))
                                         .font(Theme.Typography.body())
-                                        .foregroundColor(Theme.error)
+                                        .foregroundColor(palette.errorInk)
                                     Spacer()
                                     if date == nil {
-                                        Image(systemName: "checkmark").foregroundColor(Theme.error)
+                                        Image(systemName: "checkmark").foregroundColor(palette.errorInk)
                                     }
                                 }
                                 .padding(.horizontal, PickerRowMetrics.rowHorizontalPadding)

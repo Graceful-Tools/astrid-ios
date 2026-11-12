@@ -208,7 +208,7 @@ struct MacLoginView: View {
 
             if auth.isLoading { ProgressView().controlSize(.small) }
             if let err = auth.errorMessage, !err.isEmpty {
-                Text(err).macFont(.caption).foregroundStyle(Theme.error)
+                Text(err).macFont(.caption).foregroundStyle(Theme.errorInk)
                     .multilineTextAlignment(.center).frame(width: 300)
             }
         }

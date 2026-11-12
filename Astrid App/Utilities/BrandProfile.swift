@@ -37,6 +37,10 @@ enum BrandProfile {
         // is what surfaced these two: Brand read them and no profile could set them.
         "NEXT_PUBLIC_BRAND_ACCENT_HOVER_COLOR": "BrandAccentHoverColor",
         "NEXT_PUBLIC_BRAND_ACCENT_TEXT_COLOR": "BrandAccentTextColor",
+        // The accent as text and icons, light and dark (core DS25, AITD-615). Optional:
+        // web derives both from the accent, and so does Brand when these are absent.
+        "NEXT_PUBLIC_BRAND_ACCENT_INK_COLOR": "BrandAccentInkColor",
+        "NEXT_PUBLIC_BRAND_ACCENT_INK_DARK_COLOR": "BrandAccentInkDarkColor",
         "NEXT_PUBLIC_BRAND_AGENT_NAME": "BrandAgentName",
         // The web's logo is the character art (default astrid-character.png). The path is
         // carried as-is; Brand.characterImage names the asset after its file (AITD-514).

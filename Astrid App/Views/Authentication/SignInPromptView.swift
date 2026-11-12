@@ -38,7 +38,7 @@ struct SignInPromptView: View {
                                 Text(errorMessage)
                                     .font(Theme.Typography.caption1())
                             }
-                            .foregroundColor(Theme.error)
+                            .foregroundColor(palette.errorInk)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, Theme.spacing4)
                         }

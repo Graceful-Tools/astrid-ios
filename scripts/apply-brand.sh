@@ -49,6 +49,7 @@ BRAND_PLIST_KEYS=(
     BrandName BrandHost BrandAgentEmailDomain BrandSupportEmail BrandInboundTaskEmail
     BrandWordmark BrandSlogan BrandAgentName
     BrandAccentColor BrandAccentHoverColor BrandAccentTextColor
+    BrandAccentInkColor BrandAccentInkDarkColor
     BrandCharacterImage
 )
 
@@ -192,6 +193,8 @@ KEY_MAP = {
     "NEXT_PUBLIC_BRAND_ACCENT_COLOR": "BrandAccentColor",
     "NEXT_PUBLIC_BRAND_ACCENT_HOVER_COLOR": "BrandAccentHoverColor",
     "NEXT_PUBLIC_BRAND_ACCENT_TEXT_COLOR": "BrandAccentTextColor",
+    "NEXT_PUBLIC_BRAND_ACCENT_INK_COLOR": "BrandAccentInkColor",
+    "NEXT_PUBLIC_BRAND_ACCENT_INK_DARK_COLOR": "BrandAccentInkDarkColor",
     "NEXT_PUBLIC_BRAND_AGENT_NAME": "BrandAgentName",
     "BRAND_AGENT_EMAIL_DOMAIN": "BrandAgentEmailDomain",
     "NEXT_PUBLIC_BRAND_LOGO": "BrandCharacterImage",

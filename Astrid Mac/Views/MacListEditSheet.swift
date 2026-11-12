@@ -60,7 +60,7 @@ struct MacListEditSheet: View {
                         Button(uploadingImage ? NSLocalizedString("image_picker.uploading", comment: "") : NSLocalizedString("mac.choose_image", comment: "")) { pickImage(for: e) }
                             .disabled(uploadingImage)
                         if imageUrl != nil {
-                            Button(NSLocalizedString("actions.remove", comment: "")) { setImage(nil, for: e) }.foregroundStyle(Theme.error)
+                            Button(NSLocalizedString("actions.remove", comment: "")) { setImage(nil, for: e) }.foregroundStyle(Theme.errorInk)
                         }
                     }
                 }

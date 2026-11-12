@@ -236,7 +236,7 @@ struct ListAdminTab: View {
                             VStack(alignment: .leading, spacing: Theme.spacing4) {
                                 Text(error)
                                     .font(Theme.Typography.caption2())
-                                    .foregroundColor(Theme.error)
+                                    .foregroundColor(palette.errorInk)
                                 Button(NSLocalizedString("actions.retry", comment: "")) {
                                     _Concurrency.Task {
                                         await loadRepositories()
@@ -400,7 +400,7 @@ struct ListAdminTab: View {
                             Image(systemName: "rectangle.split.3x1")
                             Text("Disable Board")
                         }
-                        .foregroundColor(Theme.error)
+                        .foregroundColor(palette.errorInk)
                     }
                     .disabled(boardOperationInFlight)
                 } else {
@@ -419,7 +419,7 @@ struct ListAdminTab: View {
                 if let boardError {
                     Text(boardError)
                         .font(.footnote)
-                        .foregroundStyle(Theme.error)
+                        .foregroundStyle(palette.errorInk)
                 }
             } header: {
                 Text("Project board")
@@ -466,7 +466,7 @@ struct ListAdminTab: View {
                         Image(systemName: "trash")
                         Text(NSLocalizedString("lists.delete_list", comment: ""))
                     }
-                    .foregroundColor(Theme.error)
+                    .foregroundColor(palette.errorInk)
                 }
             }
         })

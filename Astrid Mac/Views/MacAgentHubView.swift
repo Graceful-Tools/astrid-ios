@@ -45,14 +45,14 @@ struct MacAgentHubView: View {
             } else if let loadErrorMessage = model.loadErrorMessage {
                 Section {
                     HStack {
-                        Text(loadErrorMessage).foregroundStyle(Theme.error)
+                        Text(loadErrorMessage).foregroundStyle(Theme.errorInk)
                         Spacer()
                         Button(NSLocalizedString("actions.retry", comment: "")) { _Concurrency.Task { await model.load() } }
                     }
                 }
             } else {
                 if let message = model.actionErrorMessage ?? model.setupErrorMessage {
-                    Section { Text(message).macFont(.caption).foregroundStyle(Theme.error) }
+                    Section { Text(message).macFont(.caption).foregroundStyle(Theme.errorInk) }
                 }
                 ForEach(model.rows) { row in agentSection(row) }
 
@@ -300,7 +300,7 @@ struct MacAssistantModelSection: View {
                 if isSaving { ProgressView().controlSize(.small) }
             } else if loadFailed {
                 HStack {
-                    Text(NSLocalizedString("mac.ai_settings_load_failed", comment: "")).foregroundStyle(Theme.error)
+                    Text(NSLocalizedString("mac.ai_settings_load_failed", comment: "")).foregroundStyle(Theme.errorInk)
                     Spacer()
                     Button(NSLocalizedString("actions.retry", comment: "")) { _Concurrency.Task { await load() } }
                 }
