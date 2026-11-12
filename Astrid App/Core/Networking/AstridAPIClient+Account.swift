@@ -16,23 +16,9 @@ extension AstridAPIClient {
         try await fetchAccountResponse().user
     }
 
-    /// Send or cancel email verification (a resend goes through the core, AITD-620)
-    /// - Parameter action: "send" or "cancel"
-    func verifyEmail(action: String) async throws -> VerifyEmailResponse {
-        return try await request(
-            method: "POST",
-            path: "/api/v1/users/me/verify-email",
-            queryItems: [URLQueryItem(name: "action", value: action)]
-        )
-    }
-
     /// The whole `GET /api/v1/users/me` response, for the screens that read more than the user.
     func fetchAccountResponse() async throws -> AccountResponse {
         try await request(method: "GET", path: "/api/v1/users/me")
-    }
-
-    func updateAccount(_ body: UpdateAccountRequest) async throws -> UpdateAccountResponse {
-        try await request(method: "PUT", path: "/api/v1/users/me", body: body)
     }
 
     // MARK: - Profiles

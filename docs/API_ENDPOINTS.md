@@ -25,7 +25,7 @@ passkey routes under `/api/auth/webauthn/*` are built by `PasskeyManager` throug
 not by this client.)
 
 
-## `AstridAPIClient` — the only client (29 paths)
+## `AstridAPIClient` — the only client (28 paths)
 
 
 ### `/api/v1/app-version`
@@ -94,5 +94,4 @@ path there belongs in this list too.
 - `/api/v1/users/me/ai-preferences`
 - `/api/v1/users/me/settings`
 - `/api/v1/users/me/smart-tasks`
-- `/api/v1/users/me/verify-email`
 - `/api/v1/users/{id}/profile`
