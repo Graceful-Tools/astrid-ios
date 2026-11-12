@@ -31,7 +31,9 @@ These come from three places. Later ones win:
      "developmentTeam": "ABCDE12345",
      "displayName": "Acme Tasks",
      "urlScheme": "acmetasks",
-     "googleClientId": "123456-abcdef.apps.googleusercontent.com"
+     "googleClientId": "123456-abcdef.apps.googleusercontent.com",
+     "appIcon": "acme-icon-1024.png",
+     "characterImage": "acme-mascot.png"
    }
    ```
 3. **Arguments:** `--bundle-id`, `--app-group`, `--keychain-group`, `--team`, `--display-name`,
@@ -60,10 +62,32 @@ them: the board's drag type (`<bundleId>.board-card`) and the background sync ta
 The brand's name (`NEXT_PUBLIC_BRAND_NAME`) is what the permission prompts say — "Acme uses
 your camera…". It can differ from `displayName`.
 
+## Artwork
+
+- **`appIcon`** is a 1024×1024 PNG, with its path relative to the profile.
+  - Every size the `AppIcon-Whitelabel` sets name is generated from it, in the iOS and Mac catalogs.
+  - The iOS copy is flattened, since App Store Connect rejects an iOS icon with alpha.
+  - Any other size is refused.
+- **`characterImage`** is the mascot on sign-in, welcome and empty states. Without it, the script uses the profile's `NEXT_PUBLIC_BRAND_LOGO` under astrid-web's `public/`.
+  - It becomes `<file stem>.imageset`, the name `Brand.characterImage` resolves, and the previous partner's imageset is removed.
+- Art the profile does not name, or that cannot be found, leaves the committed art alone.
+
+**Each app carries only its own brand's art.**
+- The partner's icon and character live in `PartnerArt-iOS.xcassets` / `PartnerArt-Mac.xcassets`; Astrid's character lives in `AstridArt-iOS` / `AstridArt-Mac`.
+- Each configuration excludes the other brand's catalogs and the other platform's (`EXCLUDED_SOURCE_FILE_NAMES`). The `brand-art-catalogs` source contract keeps it that way.
+- Only the selected app icon is compiled.
+- Check with `xcrun assetutil --info <app>/Assets.car`.
+
+**The Mac Direct (Developer ID) channel.**
+- `Whitelabel-Mac-Direct.entitlements` is the branded copy of `Astrid Mac Direct.entitlements`.
+- `./scripts/package-mac.sh --whitelabel` packages the partner's DMG with it, and with its own Developer ID profile (`mac-devid-profile.mjs --bundle-id`).
+
 ## What it writes
 
-- `Brands/Whitelabel/`: copies of Astrid's three Info.plists and three entitlements files,
+- `Brands/Whitelabel/`: copies of Astrid's three Info.plists and four entitlements files,
   re-identified and branded, plus `variant.json`, the identity it last wrote.
+- `PartnerArt-iOS.xcassets` and `PartnerArt-Mac.xcassets`: the icon and character art, when the
+  profile names them.
 - `Astrid App.xcodeproj/project.pbxproj`: **only** the `Whitelabel` build configurations. The
   Debug and Release configurations Astrid builds from are not touched.
 
@@ -73,9 +97,8 @@ by hand: the next run only rewrites values it recognises.
 
 ## Not configurable here (yet)
 
-- **Artwork.** The script copies none; a partner replaces `AppIcon-Whitelabel` in both catalogs and
-  adds the character imageset twice by hand — AITD-618. Building and signing a partner's apps in
-  one command is AITD-619.
+- **One command for build and sign.** Building and signing a partner's iOS and Mac apps in one
+  command is AITD-619.
 
 The cross-client plan — one brand profile schema in astrid-core with `cargo xtask gen-brand`
 writing every client's resources — is astrid-core

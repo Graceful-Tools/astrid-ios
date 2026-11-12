@@ -266,6 +266,48 @@ export const rules = [
     },
   },
   {
+    id: 'brand-art-catalogs',
+    why: 'Each brand\'s art is compiled only into its own app (AITD-618): Astrid\'s character in `AstridArt-iOS/-Mac.xcassets`, the partner\'s icon and character in `PartnerArt-iOS/-Mac.xcassets`, and each app configuration excludes the other brand\'s catalogs and the other platform\'s (`EXCLUDED_SOURCE_FILE_NAMES`). Brand art in the shared `Assets.xcassets`, or a configuration that stops excluding, puts one brand\'s art in the other\'s app.',
+    run(ctx) {
+      const v = []
+      const sets = (catalog) => [...new Set(ctx.files([catalog], ['.json'])
+        .map((f) => f.slice(catalog.length + 1).split('/')[0]).filter((e) => e !== 'Contents.json'))]
+      for (const plat of ['iOS', 'Mac']) {
+        const dir = plat === 'iOS' ? 'Astrid App' : 'Astrid Mac'
+        for (const cat of [`AstridArt-${plat}`, `PartnerArt-${plat}`]) {
+          if (!ctx.isDir(`${dir}/${cat}.xcassets`)) v.push({ file: `${dir}/${cat}.xcassets`, line: 0, message: 'is not there — the brand art has nowhere to live' })
+        }
+        for (const set of sets(`${dir}/Assets.xcassets`)) {
+          if (set === 'AstridCharacter.imageset' || set === 'AppIcon-Whitelabel.appiconset' || ctx.exists(`${dir}/PartnerArt-${plat}.xcassets/${set}`)) {
+            v.push({ file: `${dir}/Assets.xcassets/${set}`, line: 0, message: 'is brand art in the shared catalog — move it to AstridArt or PartnerArt' })
+          }
+        }
+        for (const set of sets(`${dir}/AstridArt-${plat}.xcassets`)) {
+          if (set.endsWith('.appiconset') && set !== 'AppIcon.appiconset') v.push({ file: `${dir}/AstridArt-${plat}.xcassets/${set}`, line: 0, message: 'is a partner icon in Astrid\'s art' })
+        }
+      }
+      const pbx = 'Astrid App.xcodeproj/project.pbxproj'
+      const text = ctx.tryRead(pbx)
+      if (text === null) return [...v, ...missingFile(ctx, pbx)]
+      const wants = {
+        '"Astrid App/Astrid App.entitlements"': ['PartnerArt-*.xcassets', 'AstridArt-Mac.xcassets'],
+        '"Brands/Whitelabel/Whitelabel-iOS.entitlements"': ['AstridArt-*.xcassets', 'PartnerArt-Mac.xcassets'],
+        '"Astrid Mac/Astrid Mac.entitlements"': ['PartnerArt-*.xcassets', 'AstridArt-iOS.xcassets'],
+        '"Brands/Whitelabel/Whitelabel-Mac.entitlements"': ['AstridArt-*.xcassets', 'PartnerArt-iOS.xcassets'],
+      }
+      for (const block of text.match(/isa = XCBuildConfiguration;[\s\S]*?name = \w+;/g) ?? []) {
+        const ent = /CODE_SIGN_ENTITLEMENTS = ("[^"]+"|\S+);/.exec(block)?.[1]
+        if (!ent || !wants[ent]) continue
+        const excluded = (/EXCLUDED_SOURCE_FILE_NAMES = "?([^";]*)"?;/.exec(block)?.[1] ?? '').split(/\s+/)
+        const name = /name = (\w+);/.exec(block)[1]
+        for (const want of wants[ent]) {
+          if (!excluded.includes(want)) v.push({ file: pbx, line: 0, message: `${name} configuration signed with ${ent} does not exclude ${want}` })
+        }
+      }
+      return v
+    },
+  },
+  {
     id: 'private-network-address',
     why: 'A private-network address in tracked source is one machine on one network (AITD-351). Use ASTRID_DEV_SERVER_URL, or 192.0.2.x (TEST-NET-1) in a fixture.',
     pattern: /\b(?:10\.\d{1,3}|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}\b/,
@@ -560,7 +602,9 @@ export const rules = [
       'keychain-access-groups']),
     run(ctx) {
       const v = []
-      const shipped = ['Astrid Mac/Astrid Mac.entitlements', 'Astrid Mac/Astrid Mac Direct.entitlements']
+      // The Whitelabel app's copies ship too (make-brand-variant.sh; Direct since AITD-618).
+      const shipped = ['Astrid Mac/Astrid Mac.entitlements', 'Astrid Mac/Astrid Mac Direct.entitlements',
+        ...['Brands/Whitelabel/Whitelabel-Mac.entitlements', 'Brands/Whitelabel/Whitelabel-Mac-Direct.entitlements'].filter(ctx.exists)]
       for (const file of [...shipped, 'ci_scripts/AstridMacCI.entitlements']) {
         if (!ctx.exists(file)) { v.push(...missingFile(ctx, file)); continue }
         const plist = ctx.plist(file)

@@ -13,7 +13,8 @@
 # configuration in the Xcode project points at the files this writes under Brands/Whitelabel/:
 #
 #   Info-iOS.plist / Info-Mac.plist / Info-Share.plist   copies of Astrid's, plus the brand
-#   Whitelabel-iOS / -Mac / -Share .entitlements         copies, re-identified
+#   Whitelabel-iOS / -Mac / -Mac-Direct / -Share .entitlements   copies, re-identified
+#   AppIcon-Whitelabel and the character imageset         in PartnerArt-iOS / PartnerArt-Mac.xcassets
 #   variant.json                                         the identity last written (below)
 #
 # and rewrites the Whitelabel build configurations in project.pbxproj (team, bundle IDs, Mac
@@ -25,7 +26,10 @@
 #        "ios": { "bundleId": "com.acme.tasks", "appGroup": "group.com.acme.tasks",
 #                 "keychainGroup": "com.acme.tasks", "developmentTeam": "ABCDE12345",
 #                 "displayName": "Acme Tasks", "urlScheme": "acmetasks",
-#                 "googleClientId": "123-abc.apps.googleusercontent.com" }
+#                 "googleClientId": "123-abc.apps.googleusercontent.com",
+#                 "appIcon": "acme-icon-1024.png", "characterImage": "acme-mascot.png" }
+#   (appIcon and characterImage are paths relative to the profile; the character art otherwise
+#   comes from NEXT_PUBLIC_BRAND_LOGO under astrid-web's public/.)
 #   3. --bundle-id / --app-group / --keychain-group / --team / --display-name / --url-scheme
 # The Share extension is <bundleId>.Share; keychainGroup defaults to bundleId. The previous
 # identity is read back from variant.json, which is how a second run finds what to replace.
@@ -86,11 +90,12 @@ cp "$PROJECT_DIR/Astrid Mac/Info.plist"                   "$OUT/Info-Mac.plist"
 cp "$PROJECT_DIR/Astrid/Info.plist"                       "$OUT/Info-Share.plist"
 cp "$PROJECT_DIR/Astrid App/Astrid App.entitlements"      "$OUT/Whitelabel-iOS.entitlements"
 cp "$PROJECT_DIR/Astrid Mac/Astrid Mac.entitlements"      "$OUT/Whitelabel-Mac.entitlements"
+cp "$PROJECT_DIR/Astrid Mac/Astrid Mac Direct.entitlements" "$OUT/Whitelabel-Mac-Direct.entitlements"
 cp "$PROJECT_DIR/Astrid/Astrid.entitlements"              "$OUT/Whitelabel-Share.entitlements"
 
 # The brand's values and the partner domain, through the same code path as apply-brand.
 BRAND_PLISTS="$OUT/Info-iOS.plist:$OUT/Info-Mac.plist" \
-BRAND_ENTITLEMENTS="$OUT/Whitelabel-iOS.entitlements:$OUT/Whitelabel-Mac.entitlements" \
+BRAND_ENTITLEMENTS="$OUT/Whitelabel-iOS.entitlements:$OUT/Whitelabel-Mac.entitlements:$OUT/Whitelabel-Mac-Direct.entitlements" \
     "$SCRIPT_DIR/apply-brand.sh" "$PROFILE_PATH" >/dev/null
 
 PB=/usr/libexec/PlistBuddy
@@ -113,6 +118,8 @@ for arg in sys.argv[4:]:
     ident[key] = value
 ident.setdefault('keychainGroup', ident['bundleId'])
 ident.pop('googleClientId', None)   # brand configuration, not identity: apply-brand writes it (AITD-617)
+for art in ('appIcon', 'characterImage'):   # artwork, installed below (AITD-618)
+    ident.pop(art, None)
 scheme = (ident.pop('urlScheme', '') or '').strip().lower()
 scheme = scheme[:-3] if scheme.endswith('://') else scheme
 if scheme and not re.fullmatch(r'[a-z][a-z0-9+.-]*', scheme):
@@ -141,7 +148,8 @@ def entitlements(text):
         text = re.sub(r'\n\s*<key>com\.apple\.developer\.applesignin</key>\s*<array>.*?</array>', '', text, flags=re.S)
     return text
 
-for e in ('Whitelabel-iOS.entitlements', 'Whitelabel-Mac.entitlements', 'Whitelabel-Share.entitlements'):
+for e in ('Whitelabel-iOS.entitlements', 'Whitelabel-Mac.entitlements', 'Whitelabel-Mac-Direct.entitlements',
+          'Whitelabel-Share.entitlements'):
     rewrite(os.path.join(out, e), entitlements)
 
 # The permission prompts are the first words a partner's user reads, and Astrid's name them
@@ -209,6 +217,78 @@ if [[ -n "$URL_SCHEME" ]]; then   # ios.urlScheme / --url-scheme beat the profil
     set_string "$OUT/Info-iOS.plist" BrandURLScheme "$URL_SCHEME"
     set_string "$OUT/Info-Mac.plist" BrandURLScheme "$URL_SCHEME"
 fi
+
+# Artwork (AITD-618). The partner's art lives in PartnerArt-iOS / PartnerArt-Mac.xcassets, which
+# only the Whitelabel configurations compile; Astrid's lives in AstridArt-*, which they exclude
+# (EXCLUDED_SOURCE_FILE_NAMES), so neither app carries the other's. Art the profile does not
+# name, or that cannot be found, leaves the committed art as it is.
+python3 - "$PROJECT_DIR" "$PROFILE_PATH" <<'PY'
+import json, os, shutil, subprocess, sys, tempfile
+root, profile_path = sys.argv[1:3]
+profile = json.load(open(profile_path))
+ios, env = profile.get('ios') or {}, profile.get('env') or {}
+here = os.path.dirname(profile_path)
+catalogs = [os.path.join(root, 'Astrid App', 'PartnerArt-iOS.xcassets'), os.path.join(root, 'Astrid Mac', 'PartnerArt-Mac.xcassets')]
+
+def sips(*args):
+    out = subprocess.run(['sips', *args], capture_output=True, text=True)
+    if out.returncode != 0:
+        sys.exit('sips failed: ' + out.stderr.strip())
+    return out.stdout
+
+def found(path, what):
+    if path and os.path.isfile(path):
+        return path
+    if path:
+        print(f"  ! {what} {path} not found — the committed art is unchanged")
+    return None
+
+# The app icon: one 1024-px PNG, every size the Whitelabel icon sets name.
+icon = found(os.path.join(here, ios['appIcon']) if ios.get('appIcon') else None, 'ios.appIcon')
+if icon:
+    info = sips('-g', 'pixelWidth', '-g', 'pixelHeight', '-g', 'hasAlpha', icon)
+    if 'pixelWidth: 1024' not in info or 'pixelHeight: 1024' not in info:
+        sys.exit(f'ios.appIcon must be 1024x1024 pixels: {icon}')
+    work = tempfile.mkdtemp()
+    flat = os.path.join(work, 'flat.png')
+    if 'hasAlpha: yes' in info:   # App Store Connect rejects an iOS icon with an alpha channel
+        sips('-s', 'format', 'jpeg', '-s', 'formatOptions', 'best', icon, '--out', os.path.join(work, 'flat.jpg'))
+        sips('-s', 'format', 'png', os.path.join(work, 'flat.jpg'), '--out', flat)
+    else:
+        shutil.copy(icon, flat)
+    for catalog in catalogs:
+        iconset = os.path.join(catalog, 'AppIcon-Whitelabel.appiconset')
+        source = flat if catalog.endswith('iOS.xcassets') else icon    # the Mac icon may keep its alpha
+        for image in json.load(open(os.path.join(iconset, 'Contents.json')))['images']:
+            if 'filename' not in image:
+                continue
+            px = round(float(image['size'].split('x')[0]) * int(image['scale'].rstrip('x')))
+            sips('-s', 'format', 'png', '-z', str(px), str(px), source, '--out', os.path.join(iconset, image['filename']))
+    shutil.rmtree(work)
+    print(f"  icon: {os.path.basename(icon)} → AppIcon-Whitelabel (iOS and Mac)")
+
+# The character art, named after its file — the asset name Brand.characterImage resolves.
+logo = env.get('NEXT_PUBLIC_BRAND_LOGO', '').strip()
+if ios.get('characterImage'):
+    art = found(os.path.join(here, ios['characterImage']), 'ios.characterImage')
+elif logo and os.path.splitext(os.path.basename(logo))[0] != 'astrid-character':
+    art = found(os.path.join(here, '..', 'public', logo.lstrip('/')), 'NEXT_PUBLIC_BRAND_LOGO')
+else:
+    art = None
+if art:
+    stem, ext = os.path.splitext(os.path.basename(art))
+    for catalog in catalogs:
+        for entry in os.listdir(catalog):     # the previous partner's character goes
+            if entry.endswith('.imageset') and entry != stem + '.imageset':
+                shutil.rmtree(os.path.join(catalog, entry))
+        imageset = os.path.join(catalog, stem + '.imageset')
+        os.makedirs(imageset, exist_ok=True)
+        shutil.copyfile(art, os.path.join(imageset, stem + ext))
+        with open(os.path.join(imageset, 'Contents.json'), 'w') as f:
+            f.write('{\n  "images" : [\n    {\n      "filename" : "%s",\n      "idiom" : "universal"\n    }\n  ],\n'
+                    '  "info" : {\n    "author" : "xcode",\n    "version" : 1\n  }\n}\n' % (stem + ext))
+    print(f"  character: {stem} (iOS and Mac)")
+PY
 
 echo "  identity: $DISPLAY_NAME, $APP_GROUP$APPLE_NOTE"
 echo "✓ Brands/Whitelabel regenerated from Astrid's files + $(basename "$PROFILE_PATH")"

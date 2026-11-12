@@ -836,6 +836,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Astrid Mac/Astrid Mac.entitlements";
+				EXCLUDED_SOURCE_FILE_NAMES = "PartnerArt-*.xcassets AstridArt-iOS.xcassets";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 263;
@@ -876,6 +877,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Astrid Mac/Astrid Mac.entitlements";
+				EXCLUDED_SOURCE_FILE_NAMES = "PartnerArt-*.xcassets AstridArt-iOS.xcassets";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 263;
@@ -917,6 +919,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-Whitelabel";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Brands/Whitelabel/Whitelabel-Mac.entitlements";
+				EXCLUDED_SOURCE_FILE_NAMES = "AstridArt-*.xcassets PartnerArt-iOS.xcassets";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 263;
@@ -1262,6 +1265,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Astrid App/Astrid App.entitlements";
+				EXCLUDED_SOURCE_FILE_NAMES = "PartnerArt-*.xcassets AstridArt-Mac.xcassets";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 263;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
@@ -1292,6 +1296,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Astrid App/Astrid App.entitlements";
+				EXCLUDED_SOURCE_FILE_NAMES = "PartnerArt-*.xcassets AstridArt-Mac.xcassets";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 263;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;
@@ -1322,6 +1327,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-Whitelabel";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Brands/Whitelabel/Whitelabel-iOS.entitlements";
+				EXCLUDED_SOURCE_FILE_NAMES = "AstridArt-*.xcassets PartnerArt-Mac.xcassets";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 263;
 				DEVELOPMENT_TEAM = 34K3P7PD2W;

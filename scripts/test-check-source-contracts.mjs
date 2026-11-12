@@ -99,6 +99,14 @@ const trips = {
       + 'present(url: u, callbackScheme: "astrid")\n// astrid:// in a comment is fine\nlet ok = Brand.appURL("tasks/x")\n',
     'Astrid Mac/M.swift': 'static let callbackScheme = "astrid"\nlet service = "astrid" // an agent id, not a scheme\n',
   }),
+  'brand-art-catalogs': () => fixture({
+    'Astrid App/Assets.xcassets/AstridCharacter.imageset/Contents.json': '{}',
+    'Astrid App/AstridArt-iOS.xcassets/Contents.json': '{}', 'Astrid App/PartnerArt-iOS.xcassets/Contents.json': '{}',
+    'Astrid Mac/AstridArt-Mac.xcassets/Contents.json': '{}', 'Astrid Mac/PartnerArt-Mac.xcassets/Contents.json': '{}',
+    'Astrid App.xcodeproj/project.pbxproj': 'isa = XCBuildConfiguration;\n CODE_SIGN_ENTITLEMENTS = "Astrid App/Astrid App.entitlements";\n'
+      + ' EXCLUDED_SOURCE_FILE_NAMES = "PartnerArt-*.xcassets AstridArt-Mac.xcassets";\n name = Debug;\n'
+      + 'isa = XCBuildConfiguration;\n CODE_SIGN_ENTITLEMENTS = "Brands/Whitelabel/Whitelabel-iOS.entitlements";\n name = Whitelabel;\n',
+  }),
   'private-network-address': () => fixture({ 'Astrid App/Dev.swift': 'let url = "http://192.168.50.254:3000"\n' }),
   'due-day-names': () => fixture({
     'Astrid App/Views/Row.swift': `${view('Text("Today")')}\n#Preview { Text("Tomorrow") }\n`,
@@ -192,6 +200,13 @@ test('shared-url-session ignores comments and the networking layer itself', () =
 test('brand-url-scheme trips on scheme literals and leaves comments and other "astrid" strings alone', () => {
   const found = violations(trips['brand-url-scheme'](), 'brand-url-scheme')
   assert.deepEqual(found.map((v) => `${v.file}:${v.line}`), ['Astrid App/Links.swift:1', 'Astrid App/Links.swift:2', 'Astrid App/Links.swift:3', 'Astrid Mac/M.swift:1'])
+})
+
+test('brand-art-catalogs: brand art in the shared catalog, and a configuration that compiles the other brand\'s', () => {
+  const found = violations(trips['brand-art-catalogs'](), 'brand-art-catalogs').map((v) => v.message)
+  assert.equal(found.length, 3, found.join('\n'))
+  assert.ok(found[0].startsWith('is brand art in the shared catalog'))
+  assert.ok(found.slice(1).every((m) => m.startsWith('Whitelabel configuration')))
 })
 
 test('private-network-address leaves TEST-NET-1, public hosts and localhost alone', () => {
