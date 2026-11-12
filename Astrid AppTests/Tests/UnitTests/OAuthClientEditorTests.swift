@@ -162,15 +162,15 @@ final class OAuthClientEditorTests: XCTestCase {
 
     // MARK: - Decoding a client to edit
 
-    func testAClientDecodesFromTheServersShapeAndSurvivesMissingFields() throws {
+    /// The core answers `loadOAuthClient` with the client itself, unwrapped (AITD-620).
+    func testAClientDecodesFromTheCoresShapeAndSurvivesMissingFields() throws {
         let json = """
-        {"client":{"id":"row-1","clientId":"astrid_client_abc","name":"My script","description":null,
+        {"id":"row-1","clientId":"astrid_client_abc","name":"My script","description":null,
          "redirectUris":["https://example.test/cb"],"grantTypes":["client_credentials"],
          "scopes":["tasks:read"],"scopeGroup":null,"isActive":true,
-         "createdAt":"2026-09-01T10:00:00.000Z","updatedAt":"2026-09-01T10:00:00.000Z","lastUsedAt":null},
-         "meta":{"apiVersion":"v1"}}
+         "createdAt":"2026-09-01T10:00:00.000Z","updatedAt":"2026-09-01T10:00:00.000Z","lastUsedAt":null}
         """
-        let client = try JSONDecoder().decode(OAuthClientResponse.self, from: Data(json.utf8)).client
+        let client = try JSONDecoder().decode(OAuthClientSummary.self, from: Data(json.utf8))
         XCTAssertEqual(client.clientId, "astrid_client_abc")
         XCTAssertEqual(client.name, "My script")
         XCTAssertNil(client.description)
@@ -179,9 +179,9 @@ final class OAuthClientEditorTests: XCTestCase {
         XCTAssertTrue(client.isActive)
 
         let sparse = """
-        {"client":{"clientId":"astrid_client_xyz"},"meta":{"apiVersion":"v1"}}
+        {"clientId":"astrid_client_xyz"}
         """
-        let bare = try JSONDecoder().decode(OAuthClientResponse.self, from: Data(sparse.utf8)).client
+        let bare = try JSONDecoder().decode(OAuthClientSummary.self, from: Data(sparse.utf8))
         XCTAssertEqual(bare.clientId, "astrid_client_xyz")
         XCTAssertEqual(bare.redirectUris, [], "a field the server omitted is empty, not a decode failure")
         XCTAssertTrue(bare.isActive, "absent isActive reads as active — the list only shows live clients")
@@ -269,7 +269,7 @@ final class OAuthClientEditorTests: XCTestCase {
         XCTAssertTrue(shouldClose, "an edit has nothing to show afterwards, so the sheet closes")
         XCTAssertEqual(service.updatedClients.count, 1)
         XCTAssertEqual(service.updatedClients.first?.clientId, "astrid_client_abc")
-        XCTAssertEqual(service.updatedClients.first?.body.redirectUris, ["https://new.test/cb", "https://other.test/cb"])
+        XCTAssertEqual(service.updatedClients.first?.draft.redirectURIs, ["https://new.test/cb", "https://other.test/cb"])
         XCTAssertNil(model.minted, "an edit mints nothing — there is no new secret to reveal")
     }
 
@@ -306,14 +306,5 @@ final class OAuthClientEditorTests: XCTestCase {
 
         let noClientId = Connection(id: "c4", kind: .oauthClient, name: "Mystery", manageIn: "connections", detail: nil)
         XCTAssertNil(ConnectionsScreen.editableClientId(noClientId), "no client id is a row this build cannot address")
-    }
-
-    // MARK: - The endpoint the edit writes to
-
-    func testTheClientPathNamesTheClientBeingEdited() {
-        XCTAssertEqual(
-            AstridAPIClient.oauthClientPath("astrid_client_abc"),
-            "/api/v1/oauth/clients/astrid_client_abc"
-        )
     }
 }

@@ -7,6 +7,7 @@
 //  ownership is DERIVED for display and is never written to the server. Pull and push fail
 //  differently, which is why the wire keeps polling and webhook distinct.
 
+import AstridCore
 import Foundation
 
 // MARK: - Ownership
@@ -219,6 +220,10 @@ enum AgentHubErrors {
     /// Some agent-hub writes are session-only on the server (webhook configuration, MCP user
     /// tokens): a 401/403 there means "do this from a signed-in web session", not "try again".
     static func requiresWebSession(_ error: Error) -> Bool {
+        // The same refusal, arriving through astrid-core (AITD-620).
+        if let failure = error as? CoreFailure {
+            return failure.kind == .unauthorized || failure.status == 401 || failure.status == 403
+        }
         guard let apiError = error as? AstridAPIError else { return false }
         switch apiError {
         case .unauthorized: return true
@@ -229,12 +234,23 @@ enum AgentHubErrors {
 
     /// The server's `{ "error": "…" }` body when it sent one, else the error's own description.
     static func message(_ error: Error) -> String {
-        if case .httpError(_, let body)? = error as? AstridAPIError,
-           let data = body.data(using: .utf8),
+        if let failure = error as? CoreFailure {
+            // A refusal's message is the server's body as it arrived; anything else is the core's
+            // own sentence.
+            return serverSentence(failure.message) ?? failure.message
+        }
+        if case .httpError(_, let body)? = error as? AstridAPIError, let sentence = serverSentence(body) {
+            return sentence
+        }
+        return error.localizedDescription
+    }
+
+    private static func serverSentence(_ body: String) -> String? {
+        if let data = body.data(using: .utf8),
            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let message = object["error"] as? String {
             return message
         }
-        return error.localizedDescription
+        return nil
     }
 }

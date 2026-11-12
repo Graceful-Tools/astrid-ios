@@ -187,10 +187,4 @@ struct OAuthClientDraft: Equatable {
             redirectUris: uris.isEmpty ? nil : uris
         )
     }
-
-    /// An edit writes the redirect URIs, which is what the web dialog changes too — name and
-    /// description are shown but not editable, so the two consoles agree on what an edit means.
-    func updateRequest() -> UpdateOAuthClientRequest {
-        UpdateOAuthClientRequest(redirectUris: redirectURIs)
-    }
 }

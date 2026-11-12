@@ -79,7 +79,8 @@ scripts/core/build-xcframework.sh                         # build the pinned rev
 | Data layer — comments, chat, the live stream, the Outbox | `CommentService`/`ChatService` internals, the whole Swift Outbox runner, `SSEClient`, the Core Data comment and chat caches | **done** — every write goes through the core's journal; one live stream (the core's) for tasks, lists, comments, chat, typing and settings; `CoreUpgrade` moves any queued Swift write, pictures included |
 | Data layer — members, boards | `ListMemberService` (and its Core Data queue), `ProjectService` (and its Core Data cache) | **done** — membership changes sent at once, queued only offline (D31); boards made, deleted and refreshed by the core |
 | Settings writes | `ReminderSettings`' own pending flag, `MyTasksPreferencesService`'s API calls | **done** — reminder settings journaled; My Tasks filters sent through the core, not queued |
-| Data layer — attachments (download/replace/delete), account/settings/agents/connections, Core Data | `AttachmentService` network, the settings services, Core Data | next |
+| Data layer — connections and OAuth clients | `AstridAPIClient+Connections.swift` | **done** (AITD-620) — `RemoteResourceService` sends the core's `connections`, `revokeConnection`, `loadOAuthClient`, `createOAuthClient`, `updateOAuthClient` and `mintTransportCredentials`; an edit carries the whole draft, since the core judges it as it judges a create |
+| Data layer — attachments (download/replace/delete), account/settings/agents, Core Data | `AttachmentService` network, the settings services, Core Data | next (AITD-620, one service at a time) |
 | Data layer — external sync, API client | `Core/Sync/*` (Google, GitHub), `AstridAPIClient` | Google **done** (AITD-463, the core's `syncExternal`); GitHub and the API client after that; Apple Reminders stays native |
 
 **Stays native regardless:** Apple Reminders (EventKit), Foundation Models, Sign in with Apple /
