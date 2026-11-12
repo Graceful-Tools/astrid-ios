@@ -807,43 +807,6 @@ class AstridAPIClient {
         )
     }
 
-    // MARK: - Custom Agents
-
-    /// The user's registered Custom Agents. The old `openclaw` paths are legacy aliases of these.
-    func getCustomAgents() async throws -> [CustomAgent] {
-        let response: CustomAgentsResponse = try await request(
-            method: "GET",
-            path: "/api/v1/custom-agents/agents"
-        )
-        return response.agents
-    }
-
-    /// Register a Custom Agent. The answer carries one-time OAuth client credentials.
-    func registerCustomAgent(name: String, listIds: [String]? = nil) async throws -> CustomAgentRegistrationResult {
-        try await request(
-            method: "POST",
-            path: "/api/v1/custom-agents/register",
-            body: RegisterCustomAgentRequest(agentName: name, listIds: listIds)
-        )
-    }
-
-    /// Update a Custom Agent's profile (its photo is the editable field).
-    func updateCustomAgent(id: String, image: String?) async throws -> CustomAgentUpdateResponse {
-        try await request(
-            method: "PATCH",
-            path: "/api/v1/custom-agents/agents/\(id)",
-            body: UpdateCustomAgentRequest(image: image)
-        )
-    }
-
-    /// Delete a Custom Agent and revoke its OAuth client.
-    func deleteCustomAgent(id: String) async throws {
-        let _: CustomAgentDeleteResponse = try await request(
-            method: "DELETE",
-            path: "/api/v1/custom-agents/agents/\(id)"
-        )
-    }
-
     // MARK: - Copilot cloud agent token
 
     /// Mint the user-level MCP token the GitHub.com Copilot coding agent authenticates with.

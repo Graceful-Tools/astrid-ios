@@ -154,16 +154,4 @@ final class AstridAPIClientRequestTests: XCTestCase {
             XCTFail("expected URLError, got \(error)")
         }
     }
-
-    // MARK: Endpoints the app still calls
-
-    func testDeleteCustomAgentSendsADelete_AITD535() async throws {
-        StubURLProtocol.respond = { _ in .json(#"{"success":true}"#) }
-
-        try await client.deleteCustomAgent(id: "agent-7")
-
-        let sent = try onlyRequest()
-        XCTAssertEqual(sent.method, "DELETE")
-        XCTAssertEqual(sent.path, "/api/v1/custom-agents/agents/agent-7")
-    }
 }

@@ -217,19 +217,6 @@ final class AgentHubTests: XCTestCase {
         XCTAssertNil(updated.webhookSecret)
     }
 
-    func testAITD297_CustomAgentRegistrationSendsListIdsOnlyWhenGiven() throws {
-        let withLists = try XCTUnwrap(JSONSerialization.jsonObject(
-            with: JSONEncoder().encode(RegisterCustomAgentRequest(agentName: "buddy", listIds: ["l1"]))
-        ) as? [String: Any])
-        XCTAssertEqual(withLists["agentName"] as? String, "buddy")
-        XCTAssertEqual(withLists["listIds"] as? [String], ["l1"])
-
-        let without = try XCTUnwrap(JSONSerialization.jsonObject(
-            with: JSONEncoder().encode(RegisterCustomAgentRequest(agentName: "buddy", listIds: nil))
-        ) as? [String: Any])
-        XCTAssertNil(without["listIds"])
-    }
-
     func testAITD297_CustomAgentNamesFollowTheServerRule() {
         XCTAssertTrue(CustomAgentNaming.isValid("buddy"))
         XCTAssertTrue(CustomAgentNaming.isValid("dev-bot.2"))
@@ -289,10 +276,9 @@ final class AgentHubTests: XCTestCase {
 
     func testAITD297_ClientUsesTheCustomAgentsNamesNotTheLegacyAliases() throws {
         let client = try source("Astrid App/Core/Networking/AstridAPIClient.swift")
-        XCTAssertTrue(client.contains("\"/api/v1/custom-agents/register\""))
-        XCTAssertTrue(client.contains("\"/api/v1/custom-agents/agents\""))
-        XCTAssertTrue(client.contains("\"/api/v1/custom-agents/agents/\\("))
-        // The webhook transport went through astrid-core in AITD-620 (`WebhooksCoreTests`).
+        // Custom agents and the webhook transport went through astrid-core in AITD-620
+        // (`CustomAgentsCoreTests`, `WebhooksCoreTests`); the core spells the custom-agents paths.
+        XCTAssertFalse(client.contains("custom-agents"), "custom agents go through the core now")
         XCTAssertFalse(client.contains("webhook-settings"), "webhooks go through the core now")
         XCTAssertTrue(client.contains("\"/api/mcp/user-tokens\""))
         XCTAssertFalse(client.contains("/api/v1/openclaw"), "openclaw paths are legacy aliases")

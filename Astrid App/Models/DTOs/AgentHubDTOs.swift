@@ -85,7 +85,7 @@ struct WebhookTestResult: Codable, Equatable {
     let error: String?
 }
 
-// MARK: - Custom Agents (`/api/v1/custom-agents/*`)
+// MARK: - Custom Agents (astrid-core's `customAgents` / `registerCustomAgent` / `setCustomAgentPhoto`)
 
 /// One agent the user registered. The server still stores these as `openclaw_worker`; the
 /// product name is Custom Agent and the v1 paths use `custom-agents`.
@@ -99,17 +99,6 @@ struct CustomAgent: Codable, Identifiable, Equatable {
     let registeredAt: String
     let lastActiveAt: String?
     let oauthClientId: String?
-}
-
-struct CustomAgentsResponse: Codable {
-    let agents: [CustomAgent]
-}
-
-struct RegisterCustomAgentRequest: Codable, Equatable {
-    let agentName: String
-    /// Lists the new agent should join as a member. Omitted when nil so the server's own
-    /// default applies.
-    let listIds: [String]?
 }
 
 struct CustomAgentRegistrationAgent: Codable {
@@ -140,17 +129,9 @@ struct CustomAgentRegistrationResult: Codable, Identifiable {
     var id: String { agent.id }
 }
 
-struct UpdateCustomAgentRequest: Codable {
-    let image: String?
-}
-
 struct CustomAgentUpdateResponse: Codable {
     let success: Bool
     let image: String?
-}
-
-struct CustomAgentDeleteResponse: Codable {
-    let success: Bool?
 }
 
 // MARK: - Copilot cloud agent token (`POST /api/mcp/user-tokens`)

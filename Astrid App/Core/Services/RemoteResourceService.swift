@@ -71,22 +71,23 @@ final class RemoteResourceService {
         try await apiClient.deleteAIAPIKey(serviceId: serviceId)
     }
 
-    // MARK: - Custom Agents
+    // MARK: - Custom Agents (through astrid-core, AITD-620)
 
     func getCustomAgents() async throws -> [CustomAgent] {
-        try await apiClient.getCustomAgents()
+        try await core.run(CustomAgentCommands.list(), as: [CustomAgent].self)
     }
 
     func registerCustomAgent(name: String, listIds: [String]? = nil) async throws -> CustomAgentRegistrationResult {
-        try await apiClient.registerCustomAgent(name: name, listIds: listIds)
+        try await core.run(CustomAgentCommands.register(name: name, listIds: listIds),
+                          as: CustomAgentRegistrationResult.self)
     }
 
     func updateCustomAgent(id: String, image: String?) async throws -> CustomAgentUpdateResponse {
-        try await apiClient.updateCustomAgent(id: id, image: image)
+        try await core.run(CustomAgentCommands.setPhoto(id: id, image: image), as: CustomAgentUpdateResponse.self)
     }
 
     func deleteCustomAgent(id: String) async throws {
-        try await apiClient.deleteCustomAgent(id: id)
+        try await core.run(CustomAgentCommands.delete(id: id))
     }
 
     func createCopilotCloudAgentToken() async throws -> MCPUserTokenResponse {
