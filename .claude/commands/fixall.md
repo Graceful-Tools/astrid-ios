@@ -2,22 +2,20 @@ Check the Astrid iOS to-do list and autonomously work every open task to complet
 
 ## Goal
 
-**Drive the iOS queue to empty — and clear `RECHECK` / `REVIEW` with it.** Unlike `/fixstuff`,
+**Drive the iOS queue to empty.** Unlike `/fixstuff`,
 this does not ask which task to work on — it takes them in the order the queue returns them and
 keeps going until nothing is left. It stops on its own when the queue is clear, so a scheduled
 re-run that finds an empty queue is a no-op, not busywork.
 
-**Waiting comes back on its own.** Every scheduled tick sweeps this board's lanes first
-(`--board ios` in `scripts/fixall-loop.sh`): a `Waiting` task whose date has arrived, or whose
-blockers are all done, returns to `Ready`; one waiting on an external condition surfaces as
-`RECHECK`. An interactive run gets the same sweep with
-`cd ../astrid-web && npx tsx scripts/ready-tasks.ts ios --harness claude-code`. Until 2026-09-30
-the iOS loop never swept, so nothing parked here ever came back by itself.
-
-`READY_EMPTY` with a non-empty `RECHECK` or `REVIEW` section is **not a finished run**. Those
-are work: a `RECHECK` task's blocking condition has to be re-verified, and a `REVIEW` task is
-one sitting in `Waiting` with no date and no marker, which means nobody knows what it is waiting
-for.
+**Waiting comes back on its own — the server does it, not this loop** (Jon, 2026-11-12;
+astrid-web PR #740, AITD-632). Waiting now means waiting on **a date or a task**, nothing else,
+and the rule lives in astrid-core (`astrid_rules::waiting`) with the server enforcing it: its
+settle job returns a `Waiting` task to `Ready` when its date arrives or its blockers are all
+done, and parks a Ready task with a future date. There is no client-side sweep any more, so no
+`RECHECK` / `REVIEW` sections: `ready-tasks.ts` is read-only (useful for looking, never needed
+for a run), and an external event is waited on as a **recheck date** — explain the event in a
+comment; when the server wakes the task, re-verify it and either work it or park it again with
+the next date. `--board ios` in `scripts/fixall-loop.sh` now only names the board.
 
 **Inbox work counts even when Ready is empty.** Read `attention.tasks` and list-chat attention
 from the same board-scoped queue. A scheduled run respects `ASTRID_FIXALL_MAX_TASKS` (the
@@ -177,16 +175,21 @@ Prisma) is for deep repair only** — Jon, 2026-08-29 — and never part of this
 visibility, the assignee handshake and the due-date gate, and a queue read that way hands back
 work that was deliberately scoped out.
 
-**What the MCP cannot do yet:** claim a task, move one to `Waiting`, or reassign it. For those
-board-etiquette steps only, use the OAuth scripts in astrid-web (not the DB):
+**What the MCP cannot do yet:** claim a task, move one to `Waiting`, or hand one back. For
+those board-etiquette steps only, use the OAuth scripts in astrid-web (not the DB):
 
 ```bash
 # CLAIMING — atomic. Requires Ready and writes Doing in one conditional update.
 cd ../astrid-web && npx tsx scripts/claim-fixall-task.ts <taskId> ready --agent claude
 
-# Everything else — still set-task-status.ts, which is correct for these.
-cd ../astrid-web && npx tsx scripts/set-task-status.ts <taskId> Waiting
-cd ../astrid-web && npx tsx scripts/assign-task.ts <taskId> jonparis@gmail.com
+# Blocked on time or another task → Waiting, WITH its condition (the server refuses Waiting
+# without one, 422 WAITING_NEEDS_CONDITION). Entering Waiting unassigns unless --keep-assignee;
+# keep it when the loop owns the recheck.
+cd ../astrid-web && npx tsx scripts/set-task-status.ts <taskId> Waiting --until 2026-12-01T09:00:00Z --keep-assignee --agent claude
+cd ../astrid-web && npx tsx scripts/set-task-status.ts <taskId> Waiting --blocked-by AITD-123 --keep-assignee --agent claude
+
+# Blocked on a PERSON → not Waiting: back to the Inbox, assigned to them, in one write.
+cd ../astrid-web && npx tsx scripts/assign-task.ts <taskId> jonparis@gmail.com --handback --agent claude
 ```
 
 **Exit `2` from the claim (`CLAIM_CONFLICT`) is not a failure — move to the next task
@@ -199,8 +202,8 @@ A Claude Code loop that omits it hands its own work to another harness.
 
 Reading the queue and then writing `Doing` as two steps is what this replaces: the window
 between them is how two sessions came to work AWTD-865 at the same time on 2026-09-09.
-`set-task-status.ts` is still exactly right for `Waiting` and for handing a task back — only
-the *claim* has to be atomic.
+`set-task-status.ts` is still right for `Waiting` (with its condition) and `assign-task.ts
+--handback` for handing a task back — only the *claim* has to be atomic.
 
 If the atomic claim fails (other than a conflict), report it and **do not execute that task**.
 Never substitute a status update or database write for a successful claim. Failures of the
@@ -213,9 +216,12 @@ This adapter depends on the shared web handback/resume API **and** its matching
 `claim-fixall-task.ts` deployment. Until both are deployed, report missing resume support;
 do not simulate it with a manual status change, reassignment, or a fresh Ready claim.
 
-When the agent needs an answer, post the question as the actual agent mailbox, ending the
-comment with the exact line `AGENT-HANDBACK: claude`, then move the task to Waiting and assign
-the intended human. Jon can answer in that task's ordinary comments; he need not issue a
+When the agent needs an answer, post the question as the actual agent mailbox — in the Decision
+format (astrid-web `docs/DECISIONS.md`: a bold `**Decision:**` paragraph, then numbered options,
+one marked `(recommended)`), ending the comment with the exact line `AGENT-HANDBACK: claude` —
+then hand it back with `assign-task.ts <taskId> <email> --handback --agent claude`: the **Inbox**,
+assigned to that human. Waiting on a person is not Waiting. Jon can answer in that task's
+ordinary comments; he need not issue a
 command or reassign the task. The marker is mailbox attribution, **not approval** for a
 submission, upload, or other privileged action.
 
@@ -231,7 +237,7 @@ npx tsx scripts/claim-fixall-task.ts <taskId> resume <commentWatermark> \
 
 Proceed only on exit 0. Exit 2 / `CLAIM_CONFLICT` means the task, reply or assignment changed;
 re-fetch rather than overriding it. The server checks board membership, mailbox/marker
-authorship, human assignee, Waiting state, due date and exact reply/watermark atomically.
+authorship, human assignee, Inbox state, due date and exact reply/watermark atomically.
 Never resume another board or another agent's question. Re-check the queue after responding,
 and use the usual strategy/progress/completion comments for the resumed work.
 
