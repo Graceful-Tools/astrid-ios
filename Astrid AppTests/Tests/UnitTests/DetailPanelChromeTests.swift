@@ -54,4 +54,28 @@ final class DetailPanelChromeTests: XCTestCase {
         reporter.clear(taskId: "b")
         XCTAssertNil(reporter.midY)
     }
+
+    // MARK: - AITD-627 — "Arrow pointing at task details should be same color as task details
+    // background in all themes"
+
+    /// The arrow is filled with the details face, not the panel's base colour. In Ocean the face is
+    /// cyan washed with white, so a base-cyan arrow read as a dark wedge beside a near-white card.
+    func testArrowFillIsTheDetailsSurfaceInEveryTheme_AITD627() {
+        for theme in [ThemeMode.ocean, .light, .dark] {
+            XCTAssertEqual(DetailPanelChrome.arrowFill(theme: theme), TaskDetailsSurface(theme: theme),
+                           "Arrow and details face disagree in \(theme) (AITD-627)")
+        }
+    }
+
+    /// Ocean's face is the washed cyan the details view always drew; Light and Dark are their base.
+    func testOceanSurfaceCarriesTheWhiteWash_AITD627() {
+        XCTAssertEqual(TaskDetailsSurface(theme: .ocean).whiteWash, 0.8, accuracy: 0.0001)
+        XCTAssertEqual(TaskDetailsSurface(theme: .light).whiteWash, 0)
+        XCTAssertEqual(TaskDetailsSurface(theme: .dark).whiteWash, 0)
+    }
+
+    /// Auto is resolved before it gets here; if it slips through it reads as Light, as before.
+    func testUnresolvedAutoFallsBackToLight_AITD627() {
+        XCTAssertEqual(TaskDetailsSurface(theme: .auto), TaskDetailsSurface(theme: .light))
+    }
 }

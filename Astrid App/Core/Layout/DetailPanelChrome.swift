@@ -37,6 +37,12 @@ enum DetailPanelChrome {
         return min(max(rowMidY, inset), panelHeight - inset)
     }
 
+    /// What the arrow is filled with: the details face itself, so its base merges into the card
+    /// in every theme (AITD-627). Not the panel's base colour, which Ocean washes over.
+    static func arrowFill(theme: ThemeMode) -> TaskDetailsSurface {
+        TaskDetailsSurface(theme: theme)
+    }
+
     /// Arrow centre in the panel's own coordinates, given the row's midY and the panel's origin in
     /// one shared (global) space. No measured row — it scrolled away — centres the arrow.
     static func arrowLocalY(rowMidY: CGFloat?, panelOriginY: CGFloat, panelHeight: CGFloat,

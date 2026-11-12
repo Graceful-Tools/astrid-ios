@@ -632,14 +632,7 @@ struct TaskDetailViewNew: View {
                         )
                 }
             }
-            .background(
-                ZStack {
-                    getBackgroundColor()  // Ocean cyan base layer
-                    if effectiveTheme == .ocean {
-                        Color.white.opacity(0.8)  // Transparent white overlay for ocean theme
-                    }
-                }
-            )
+            .background(taskDetailsBackground)
         }
     }
 
@@ -671,14 +664,9 @@ struct TaskDetailViewNew: View {
     }
 
     /// Task details background (matches main content background)
-    @ViewBuilder
-    private var taskDetailsBackground: some View {
-        ZStack {
-            getBackgroundColor()
-            if effectiveTheme == .ocean {
-                Color.white.opacity(0.8)
-            }
-        }
+    /// Shared with the iPad panel and its arrow, so they cannot drift apart (AITD-627).
+    private var taskDetailsBackground: TaskDetailsSurface {
+        TaskDetailsSurface(theme: effectiveTheme)
     }
 
     // MARK: - View Components (cont.)
