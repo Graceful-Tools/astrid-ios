@@ -158,6 +158,7 @@ private struct TaskBlockerPickerSheet: View {
     let onBlockersChanged: ([TaskBlocker]) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @ThemedPalette private var palette
     @State private var query = ""
     @State private var hits: [BlockerSearchHit] = []
     @State private var added: [String] = []
@@ -171,7 +172,7 @@ private struct TaskBlockerPickerSheet: View {
                 if let errorMessage {
                     Text(errorMessage)
                         .font(Theme.Typography.caption1())
-                        .foregroundColor(Theme.error)
+                        .foregroundColor(palette.errorInk)
                 }
                 if TaskBlockers.shouldSearch(query) && hits.isEmpty {
                     Text(NSLocalizedString("tasks.waitingOn.noResults", comment: ""))

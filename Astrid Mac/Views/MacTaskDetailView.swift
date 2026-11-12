@@ -268,7 +268,7 @@ struct MacTaskDetailView: View {
                             .buttonStyle(.borderless).help(NSLocalizedString("attachments.quick_look", comment: ""))
                             .disabled(previewLoadingId == a.id)
                         Button { deleteAttachment(a) } label: { Image(systemName: "trash") }
-                            .buttonStyle(.borderless).foregroundStyle(Theme.error).help(NSLocalizedString("actions.delete", comment: ""))
+                            .buttonStyle(.borderless).foregroundStyle(Theme.errorInk).help(NSLocalizedString("actions.delete", comment: ""))
                     }
                 }
                 // Secure files have no direct URL / delete API — show name + type icon only.

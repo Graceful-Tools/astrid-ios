@@ -38,6 +38,8 @@ struct MarkdownView: View {
     let style: MarkdownStyle
     /// Set by a comment thread or a chat (AITD-439); everywhere else task ids stay text.
     @Environment(\.taskIdentifierLinks) private var identifiers
+    /// Links are the accent as text, so they take its ink, not the fill (core DS25, AITD-615).
+    @ThemedPalette private var palette
 
     init(source: String, style: MarkdownStyle) {
         self.init(blocks: CoreRules.markdown(source), style: style)
@@ -64,6 +66,7 @@ struct MarkdownView: View {
             }
         }
         .multilineTextAlignment(.leading)
+        .tint(palette.accentInk)
         .frame(maxWidth: style.fillsWidth ? .infinity : nil, alignment: .leading)
     }
 

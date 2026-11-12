@@ -89,7 +89,7 @@ struct TaskActionsView: View {
                     Text(NSLocalizedString(deletion.actionKey, comment: ""))
                 }
                 .font(Theme.Typography.body())
-                .foregroundColor(Theme.error)
+                .foregroundColor(palette.errorInk)
                 .frame(maxWidth: .infinity)
                 .padding(Theme.spacing12)
                 .background(palette.bgSecondary)

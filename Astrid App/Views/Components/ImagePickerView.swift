@@ -496,7 +496,7 @@ struct ImageCropView: View {
             if let error = uploadError {
                 Text(error)
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(Theme.error)
+                    .foregroundColor(palette.errorInk)
                     .padding(.horizontal, Theme.spacing16)
                     .padding(.bottom, Theme.spacing8)
             }

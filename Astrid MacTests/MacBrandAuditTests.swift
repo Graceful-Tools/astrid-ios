@@ -75,6 +75,9 @@ final class MacBrandAuditTests: XCTestCase {
             XCTAssertEqual(Theme.accent, Brand.accentColor, "accent wrong in \(mode)")
             XCTAssertEqual(Theme.borderFocus, Brand.accentColor, "focus border wrong in \(mode)")
             XCTAssertNotEqual(Theme.accent, astridBlue, "still Astrid blue in \(mode)")
+            // Text and icons in the accent take its ink, which is the dark one in Dark (AITD-615).
+            XCTAssertEqual(Theme.accentInk, mode == "dark" ? Brand.accentInkDarkColor : Brand.accentInkColor,
+                           "accent ink wrong in \(mode)")
         }
     }
 

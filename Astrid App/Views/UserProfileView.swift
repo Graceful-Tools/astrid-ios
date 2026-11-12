@@ -93,7 +93,7 @@ struct UserProfileView: View {
         VStack(spacing: Theme.spacing24) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 48))
-                .foregroundColor(Theme.error)
+                .foregroundColor(palette.errorInk)
 
             Text(message)
                 .font(Theme.Typography.headline())

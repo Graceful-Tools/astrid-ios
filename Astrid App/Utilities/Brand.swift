@@ -100,23 +100,35 @@ enum Brand {
 
     // MARK: - Appearance
 
-    /// Default accent, as a hex string. Astrid blue (Tailwind `blue-500`).
+    /// Default accent fill, as a hex string: astrid-core's `brand.accent` (`#2563EB`).
     ///
-    /// Kept as the one place the literal appears — `Theme`, `Theme.Dark` and
-    /// `Theme.Ocean` all derive from it rather than repeating it.
-    static let defaultAccentHex = "#3b82f6"
+    /// DS26 (AITD-615) darkened it from `#3b82f6` so the white label on a button reads
+    /// (5.17:1, was 3.68:1). It is the FILL; text and icons in the brand colour read
+    /// `accentInkColor` instead. Kept as the one place the literal appears — `Theme`,
+    /// `Theme.Dark` and `Theme.Ocean` all derive from it rather than repeating it.
+    static let defaultAccentHex = "#2563eb"
 
-    /// The brand accent, e.g. `#3b82f6`. Always a parseable hex.
+    /// The brand accent, e.g. `#2563eb`. Always a parseable hex.
     static let accentColorHex = resolveAccentHex(infoString("BrandAccentColor"))
 
-    /// Pressed / hovered state of the accent.
+    /// Pressed / hovered state of the accent: core's `brand.accent-hover`.
     static let accentHoverColorHex = resolveAccentHex(
-        infoString("BrandAccentHoverColor"), fallback: "#2563eb")
+        infoString("BrandAccentHoverColor"), fallback: "#1d4ed8")
 
     /// Colour drawn ON the accent. A partner choosing a pale accent needs to change
     /// this with it, which is why it is configuration and not a constant `.white`.
     static let accentTextColorHex = resolveAccentHex(
         infoString("BrandAccentTextColor"), fallback: "#ffffff")
+
+    /// The accent as text or an icon on a light theme (Light, Ocean): core's
+    /// `brand.accent-ink` (DS25). A fill colour used as text drops below 4.5:1, so a link
+    /// or an accent icon reads this, never `accentColor`.
+    static let accentInkColorHex = resolveAccentInk(
+        infoString("BrandAccentInkColor"), accentHex: accentColorHex, dark: false)
+
+    /// The accent as text, an icon or a line on a dark theme: core's `brand.accent-ink-dark`.
+    static let accentInkDarkColorHex = resolveAccentInk(
+        infoString("BrandAccentInkDarkColor"), accentHex: accentColorHex, dark: true)
 
     // Stored, not computed: theme colours are read on every SwiftUI render, and parsing
     // a hex string with Scanner per access would be a real cost. `static let` resolves
@@ -126,17 +138,85 @@ enum Brand {
     static let accentColor: Color = color(accentColorHex, fallback: defaultAccentHex)
 
     /// Pressed / hovered accent.
-    static let accentHoverColor: Color = color(accentHoverColorHex, fallback: "#2563eb")
+    static let accentHoverColor: Color = color(accentHoverColorHex, fallback: "#1d4ed8")
 
     /// Foreground drawn on top of the accent.
     static let accentTextColor: Color = color(accentTextColorHex, fallback: "#ffffff")
+
+    /// The accent's ink on light themes. `AstridTokens.light/ocean.accentInk` resolve to this.
+    static let accentInkColor: Color = color(accentInkColorHex, fallback: astridInk.light)
+
+    /// The accent's ink on the dark theme, which Dark's focus ring, selected border and
+    /// low priority also take (DS26).
+    static let accentInkDarkColor: Color = color(accentInkDarkColorHex, fallback: astridInk.dark)
+
+    /// Astrid's designed inks for its own accent (core register DS25).
+    private static let astridInk = (light: "#1D4ED8", dark: "#60A5FA")
+
+    /// A brand ink: the configured one when it parses; Astrid's designed blue for Astrid's
+    /// accent; otherwise derived from the accent by web's `accentInk()` rule
+    /// (`lib/brand/css-vars.ts`) — the accent stepped toward black on a light card, white
+    /// on a dark one, in twentieths, until it reads at 4.5:1 on the card and on its own 12%
+    /// wash. Core's generator cannot derive one yet (AWTD2-159); when it can, this follows.
+    static func resolveAccentInk(_ raw: String?, accentHex: String, dark: Bool) -> String {
+        let configured = resolveAccentHex(raw, fallback: "")
+        if !configured.isEmpty { return configured }
+        if accentHex.lowercased() == defaultAccentHex { return dark ? astridInk.dark : astridInk.light }
+        guard let accent = rgb(accentHex) else { return dark ? astridInk.dark : astridInk.light }
+        // The cards the tokens hold inks to: light `bg-hover`, dark `bg-secondary`.
+        let card: RGB = dark ? (31, 41, 55) : (255, 255, 255)
+        let toward: Double = dark ? 255 : 0
+        let wash = over(accent, card, alpha: 0.12)
+        for step in 0...20 {
+            let t = Double(step) / 20
+            let ink: RGB = (
+                (accent.0 + (toward - accent.0) * t).rounded(),
+                (accent.1 + (toward - accent.1) * t).rounded(),
+                (accent.2 + (toward - accent.2) * t).rounded())
+            if contrast(ink, card) >= 4.5 && contrast(ink, wash) >= 4.5 { return hex(ink) }
+        }
+        return hex((toward, toward, toward))
+    }
+
+    typealias RGB = (Double, Double, Double)
+
+    /// The first six hex digits of a resolved colour as 0–255 channels; alpha is ignored.
+    static func rgb(_ hex: String) -> RGB? {
+        let digits = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+        guard digits.count >= 6, let value = UInt32(digits.prefix(6), radix: 16) else { return nil }
+        return (Double((value >> 16) & 0xff), Double((value >> 8) & 0xff), Double(value & 0xff))
+    }
+
+    /// WCAG 2.x contrast ratio, as web's `lib/design/contrast.ts` computes it.
+    static func contrast(_ a: RGB, _ b: RGB) -> Double {
+        func luminance(_ c: RGB) -> Double {
+            func lin(_ v: Double) -> Double {
+                let s = v / 255
+                return s <= 0.03928 ? s / 12.92 : pow((s + 0.055) / 1.055, 2.4)
+            }
+            return 0.2126 * lin(c.0) + 0.7152 * lin(c.1) + 0.0722 * lin(c.2)
+        }
+        let (la, lb) = (luminance(a), luminance(b))
+        return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+    }
+
+    /// `top` at `alpha` over `under`, rounded per channel as the browser composites it.
+    static func over(_ top: RGB, _ under: RGB, alpha: Double) -> RGB {
+        ((top.0 * alpha + under.0 * (1 - alpha)).rounded(),
+         (top.1 * alpha + under.1 * (1 - alpha)).rounded(),
+         (top.2 * alpha + under.2 * (1 - alpha)).rounded())
+    }
+
+    private static func hex(_ c: RGB) -> String {
+        String(format: "#%02X%02X%02X", Int(c.0), Int(c.1), Int(c.2))
+    }
 
     /// Normalise a configured accent to a `#rrggbb` / `#rrggbbaa` string, or fall back.
     ///
     /// Deliberately total: a brand colour is chrome, not a feature, so a typo in it must
     /// render the default rather than throw or produce a transparent control. Exposed
     /// (rather than inlined) so the fallback behaviour is testable without a second bundle.
-    static func resolveAccentHex(_ raw: String?, fallback: String = "#3b82f6") -> String {
+    static func resolveAccentHex(_ raw: String?, fallback: String = defaultAccentHex) -> String {
         guard let raw else { return fallback }
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         // An unsubstituted build setting (`$(BRAND_ACCENT)`) is not a colour.
@@ -217,7 +297,7 @@ enum Brand {
     /// The `fallback` is belt-and-braces: resolution guarantees a parseable value, so
     /// this only fires if the two ever disagree, and `.clear` chrome is not an option.
     private static func color(_ hex: String, fallback: String) -> Color {
-        Color(hex: hex) ?? Color(hex: fallback) ?? Color(red: 59/255, green: 130/255, blue: 246/255)
+        Color(hex: hex) ?? Color(hex: fallback) ?? Color(red: 37/255, green: 99/255, blue: 235/255)
     }
 
     /// Read a non-empty string from the running bundle's Info.plist.

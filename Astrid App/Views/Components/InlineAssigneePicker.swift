@@ -288,7 +288,7 @@ struct InlineAssigneePicker: View {
             if let someoneElseError {
                 Text(someoneElseError)
                     .font(Theme.Typography.caption1())
-                    .foregroundColor(Theme.error)
+                    .foregroundColor(palette.errorInk)
             }
         }
     }

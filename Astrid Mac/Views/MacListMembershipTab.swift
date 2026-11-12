@@ -161,7 +161,7 @@ struct MacListMembershipTab: View {
                 }
                 .labelsHidden().frame(width: 110)
                 Button(role: .destructive) { remove(m) } label: {
-                    Image(systemName: "minus.circle.fill").foregroundStyle(Theme.error)
+                    Image(systemName: "minus.circle.fill").foregroundStyle(Theme.errorInk)
                 }
                 .buttonStyle(.plain)
                 .help(NSLocalizedString("actions.remove", comment: ""))
@@ -193,7 +193,7 @@ struct MacListMembershipTab: View {
                 }
                 .labelsHidden().frame(width: 110)
                 Button(role: .destructive) { cancelInvite(invite) } label: {
-                    Image(systemName: "minus.circle.fill").foregroundStyle(Theme.error)
+                    Image(systemName: "minus.circle.fill").foregroundStyle(Theme.errorInk)
                 }
                 .buttonStyle(.plain)
                 .help(NSLocalizedString("lists.cancel_invite", comment: ""))

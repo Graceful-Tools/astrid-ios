@@ -53,7 +53,7 @@ struct DefaultAgentPickerView: View {
                 Section {
                     Text(error)
                         .font(Theme.Typography.body())
-                        .foregroundColor(Theme.error)
+                        .foregroundColor(palette.errorInk)
                 }
             } else {
                 Section(footer: Text(String(format: NSLocalizedString("settings.agents.model.footer", comment: ""), Brand.appName, Brand.appName))) {

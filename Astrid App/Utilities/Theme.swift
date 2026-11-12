@@ -132,10 +132,31 @@ struct Theme {
 
     // MARK: - Status Colors
 
+    // The fills: a badge, a dot, a button background. Text and icons read the inks below.
     static let success = light.success
     static let warning = light.warning
     static let error = light.error
     static let info = light.info
+
+    // MARK: - Inks (core DS25, AITD-615)
+
+    // A meaning as text or an icon — a link, error copy, a status glyph. The fills above are
+    // under 4.5:1 as text on a card; each ink is held to it on the theme's surfaces and on
+    // its own wash. On the Mac they follow the selected theme; on iOS a view that themes
+    // itself reads `Theme.Dark.*Ink` / `Theme.Ocean.*Ink` like any other token.
+#if os(macOS)
+    static var accentInk: Color { themed(light: light.accentInk, dark: Dark.accentInk, ocean: Ocean.accentInk) }
+    static var errorInk: Color { themed(light: light.errorInk, dark: Dark.errorInk, ocean: Ocean.errorInk) }
+    static var successInk: Color { themed(light: light.successInk, dark: Dark.successInk, ocean: Ocean.successInk) }
+    static var warningInk: Color { themed(light: light.warningInk, dark: Dark.warningInk, ocean: Ocean.warningInk) }
+    static var infoInk: Color { themed(light: light.infoInk, dark: Dark.infoInk, ocean: Ocean.infoInk) }
+#else
+    static let accentInk = light.accentInk
+    static let errorInk = light.errorInk
+    static let successInk = light.successInk
+    static let warningInk = light.warningInk
+    static let infoInk = light.infoInk
+#endif
 
     // MARK: - Priority Colors (matching web app exactly)
 
@@ -271,6 +292,11 @@ extension Theme {
         static let accent = AstridTokens.dark.accent
         static let accentHover = AstridTokens.dark.accentHover
         static let accentText = AstridTokens.dark.accentText
+        static let accentInk = AstridTokens.dark.accentInk
+        static let errorInk = AstridTokens.dark.errorInk
+        static let successInk = AstridTokens.dark.successInk
+        static let warningInk = AstridTokens.dark.warningInk
+        static let infoInk = AstridTokens.dark.infoInk
 
         // Component colors
         static let headerBg = AstridTokens.dark.headerBg
@@ -312,6 +338,11 @@ extension Theme {
         static let accent = AstridTokens.ocean.accent
         static let accentHover = AstridTokens.ocean.accentHover
         static let accentText = AstridTokens.ocean.accentText
+        static let accentInk = AstridTokens.ocean.accentInk
+        static let errorInk = AstridTokens.ocean.errorInk
+        static let successInk = AstridTokens.ocean.successInk
+        static let warningInk = AstridTokens.ocean.warningInk
+        static let infoInk = AstridTokens.ocean.infoInk
 
         // Component colors - Cyan headers (matching ocean background) and chrome inputs
         static let headerBg = AstridTokens.ocean.headerBg

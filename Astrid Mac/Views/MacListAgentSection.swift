@@ -64,7 +64,7 @@ struct MacListAgentSection: View {
 
                 if saveFailed {
                     Text(NSLocalizedString("mac.failed.save", comment: ""))
-                        .macFont(.caption).foregroundStyle(Theme.error)
+                        .macFont(.caption).foregroundStyle(Theme.errorInk)
                 }
             }
             .task { await load() }

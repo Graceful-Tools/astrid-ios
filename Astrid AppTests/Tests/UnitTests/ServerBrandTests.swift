@@ -176,7 +176,7 @@ final class ServerBrandTests: XCTestCase {
         // close a single-# raw string.
         let caps = try decode(##"{"brand":{"appName":"Acme","accentColor":"#ff0000"}}"##)
 
-        XCTAssertEqual(Brand.accentColorHex, "#3b82f6")
+        XCTAssertEqual(Brand.accentColorHex, Brand.defaultAccentHex)
         XCTAssertEqual(caps.brand.resolvedAppName, "Acme")
     }
 }

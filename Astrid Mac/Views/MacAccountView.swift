@@ -102,7 +102,7 @@ struct MacDeleteAccountSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(NSLocalizedString("settings.account.delete_account", comment: "")).macFont(.headline).foregroundStyle(Theme.error)
+            Text(NSLocalizedString("settings.account.delete_account", comment: "")).macFont(.headline).foregroundStyle(Theme.errorInk)
             Text(NSLocalizedString("mac.delete_account_warning", comment: ""))
                 .macFont(.callout).foregroundStyle(Theme.textSecondary)
             TextField(NSLocalizedString("mac.type_delete_confirm", comment: ""), text: $confirm).textFieldStyle(.roundedBorder)
