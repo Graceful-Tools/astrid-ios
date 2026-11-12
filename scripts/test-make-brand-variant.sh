@@ -49,7 +49,7 @@ profile["env"]["NEXT_PUBLIC_BRAND_NAME"] = "Acme"
 profile["env"]["NEXT_PUBLIC_BRAND_APP_URL_SCHEME"] = "AcmeProfile"
 profile["ios"] = {"bundleId": "com.acme.tasks", "appGroup": "group.com.acme.tasks",
                   "keychainGroup": "com.acme.shared", "developmentTeam": "ABCDE12345",
-                  "displayName": "Acme Tasks"}
+                  "displayName": "Acme Tasks", "googleClientId": "123456-abcdef.apps.googleusercontent.com"}
 json.dump(profile, open(sys.argv[2], "w"), indent=2)
 PY
 
@@ -71,6 +71,7 @@ run() { (cd "$TMP" && "$WORK/scripts/make-brand-variant.sh" "$@" >"$TMP/out.log"
 echo "1. no ios block, profile by path, no astrid-web beside the repo"
 check "runs" 'run "$TMP/partner.brand.json"'
 check "reproduces the committed files" same_as_committed
+check "no Google client of Astrid's, and none registered (AITD-617)" '! grep -rq 195880614240 "$WORK/Brands/Whitelabel"'
 
 echo "2. an ios block"
 check "runs" 'run "$TMP/acme.brand.json"'
@@ -101,6 +102,9 @@ scheme_of() { /usr/libexec/PlistBuddy -c "Print :CFBundleURLTypes:0:CFBundleURLS
 check "registers and answers the profile's URL scheme (AITD-616)" \
       '[[ "$(scheme_of "$V/Info-iOS.plist")" == acmeprofile ]] &&
        [[ "$(/usr/libexec/PlistBuddy -c "Print :BrandURLScheme" "$V/Info-iOS.plist")" == AcmeProfile ]]'
+check "the partner's Google client and its redirect (AITD-617)" \
+      '[[ "$(/usr/libexec/PlistBuddy -c "Print :BrandGoogleClientId" "$V/Info-iOS.plist")" == 123456-abcdef.apps.googleusercontent.com ]] &&
+       grep -q "<string>com.googleusercontent.apps.123456-abcdef</string>" "$V/Info-iOS.plist" && ! grep -rq 195880614240 "$V"'
 check "its own drag type and background task (AITD-616)" \
       'grep -q "<string>com.acme.tasks.board-card</string>" "$V/Info-iOS.plist" &&
        grep -q "<string>com.acme.tasks.board-card</string>" "$V/Info-Mac.plist" &&

@@ -50,7 +50,7 @@ BRAND_PLIST_KEYS=(
     BrandWordmark BrandSlogan BrandAgentName
     BrandAccentColor BrandAccentHoverColor BrandAccentTextColor
     BrandAccentInkColor BrandAccentInkDarkColor
-    BrandURLScheme
+    BrandURLScheme BrandGoogleClientId
     BrandCharacterImage
 )
 
@@ -135,6 +135,43 @@ PY
     done
 }
 
+# Astrid's own iOS OAuth client — what --reset restores (Brand.swift holds the same default).
+ASTRID_GOOGLE_CLIENT="195880614240-nps6cdlcceliaru5d3b4p6pofjbs7sks.apps.googleusercontent.com"
+
+# set_google_client <clientId|""> — the reversed-client URL type Google returns sign-in to
+# (AITD-617). With a client it registers that client's; without one the URL type is dropped,
+# so a partner build never answers Astrid's Google redirect. --reset passes Astrid's back.
+set_google_client() {
+    local client="$1"
+    for plist in "${PLISTS[@]}"; do
+        [[ -f "$plist" ]] || continue
+        python3 - "$plist" "$client" "$DRY_RUN" <<'PY'
+import plistlib, sys
+path, client, dry = sys.argv[1], sys.argv[2], sys.argv[3] == "true"
+name = "/".join(path.split("/")[-2:])
+with open(path, "rb") as f:
+    info = plistlib.load(f)
+types = info.get("CFBundleURLTypes")
+if types is None:
+    sys.exit(0)                        # the Mac registers no URL types
+google = [t for t in types if t.get("CFBundleURLName") == "com.googleusercontent.apps"]
+others = [t for t in types if t.get("CFBundleURLName") != "com.googleusercontent.apps"]
+reversed_client = "com.googleusercontent.apps." + client.replace(".apps.googleusercontent.com", "") if client else ""
+wanted = others + ([{"CFBundleTypeRole": "Editor", "CFBundleURLName": "com.googleusercontent.apps",
+                     "CFBundleURLSchemes": [reversed_client]}] if client else [])
+if wanted == types:
+    sys.exit(0)
+if dry:
+    print(f"  {name}: would {'register ' + reversed_client if client else 'drop the Google redirect'}")
+    sys.exit(0)
+info["CFBundleURLTypes"] = wanted
+with open(path, "wb") as f:
+    plistlib.dump(info, f, sort_keys=False)
+print(f"  {name}: {'registers ' + reversed_client if client else 'no Google redirect'}")
+PY
+    done
+}
+
 DRY_RUN=false
 PROFILE=""
 RESET=false
@@ -171,6 +208,7 @@ if [[ "$RESET" == "true" ]]; then
     done
     set_brand_domains ""
     set_url_scheme astrid
+    set_google_client "$ASTRID_GOOGLE_CLIENT"
     exit 0
 fi
 
@@ -224,13 +262,17 @@ KEY_MAP = {
     "NEXT_PUBLIC_BRAND_ACCENT_INK_DARK_COLOR": "BrandAccentInkDarkColor",
     "NEXT_PUBLIC_BRAND_AGENT_NAME": "BrandAgentName",
     "NEXT_PUBLIC_BRAND_APP_URL_SCHEME": "BrandURLScheme",
+    "ios.googleClientId": "BrandGoogleClientId",
     "BRAND_AGENT_EMAIL_DOMAIN": "BrandAgentEmailDomain",
     "NEXT_PUBLIC_BRAND_LOGO": "BrandCharacterImage",
 }
 
 profile = json.load(open(sys.argv[1]))
 env = profile.get("env") or {}
-for variable, value in sorted(env.items()):
+# `ios.<name>` keys come from the profile's ios block, not env (AITD-617).
+values = dict(env)
+values.update({f"ios.{k}": v for k, v in (profile.get("ios") or {}).items()})
+for variable, value in sorted(values.items()):
     key = KEY_MAP.get(variable)
     if not key:
         continue                      # web-only setting; not this platform's business
@@ -278,6 +320,12 @@ raw = raw[:-3] if raw.endswith("://") else raw
 print(raw if re.fullmatch(r"[a-z][a-z0-9+.-]*", raw) else "astrid")' "$PROFILE_PATH")
 echo -e "${BLUE}URL scheme${NC}"
 set_url_scheme "$URL_SCHEME"
+echo ""
+
+# A partner's own Google client, or none — never Astrid's (AITD-617).
+GOOGLE_CLIENT=$(printf '%s\n' "$MAPPED" | awk -F'\t' '$1 == "BrandGoogleClientId" {print $2}')
+echo -e "${BLUE}Google sign-in${NC}"
+set_google_client "$GOOGLE_CLIENT"
 echo ""
 
 BRAND_DOMAIN=$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("env") or {}).get("NEXT_PUBLIC_BRAND_DOMAIN","").strip())' "$PROFILE_PATH")

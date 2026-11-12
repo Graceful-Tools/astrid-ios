@@ -42,6 +42,9 @@ enum BrandProfile {
         "NEXT_PUBLIC_BRAND_ACCENT_INK_COLOR": "BrandAccentInkColor",
         "NEXT_PUBLIC_BRAND_ACCENT_INK_DARK_COLOR": "BrandAccentInkDarkColor",
         "NEXT_PUBLIC_BRAND_AGENT_NAME": "BrandAgentName",
+        // A key under the profile's `ios` block rather than `env`: the iOS OAuth client is a
+        // native app's alone (AITD-617). apply-brand.sh reads `ios.<name>` from the block.
+        "ios.googleClientId": "BrandGoogleClientId",
         // The scheme the native apps register; the server returns sign-in to it (AITD-616).
         "NEXT_PUBLIC_BRAND_APP_URL_SCHEME": "BrandURLScheme",
         // The web's logo is the character art (default astrid-character.png). The path is

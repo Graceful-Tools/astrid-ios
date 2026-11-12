@@ -24,14 +24,16 @@
 #   2. the profile's optional "ios" block:
 #        "ios": { "bundleId": "com.acme.tasks", "appGroup": "group.com.acme.tasks",
 #                 "keychainGroup": "com.acme.tasks", "developmentTeam": "ABCDE12345",
-#                 "displayName": "Acme Tasks", "urlScheme": "acmetasks" }
+#                 "displayName": "Acme Tasks", "urlScheme": "acmetasks",
+#                 "googleClientId": "123-abc.apps.googleusercontent.com" }
 #   3. --bundle-id / --app-group / --keychain-group / --team / --display-name / --url-scheme
 # The Share extension is <bundleId>.Share; keychainGroup defaults to bundleId. The previous
 # identity is read back from variant.json, which is how a second run finds what to replace.
 #
 # The URL scheme is the profile's NEXT_PUBLIC_BRAND_APP_URL_SCHEME (apply-brand registers it),
 # which is what the deployment returns sign-in to; ios.urlScheme overrides it only for a server
-# configured to match. The board-card drag type and the background sync task are re-identified
+# configured to match. googleClientId is the partner's iOS OAuth client; without one the
+# variant registers no Google redirect and draws no Google button (AITD-617). The board-card drag type and the background sync task are re-identified
 # as <bundleId>.board-card and <bundleId>.sync, so the two apps never share either (AITD-616).
 #
 # They are COPIES, so Astrid's files can move on without them. BrandVariantTests fails when a
@@ -110,6 +112,7 @@ for arg in sys.argv[4:]:
     key, _, value = arg.partition('=')
     ident[key] = value
 ident.setdefault('keychainGroup', ident['bundleId'])
+ident.pop('googleClientId', None)   # brand configuration, not identity: apply-brand writes it (AITD-617)
 scheme = (ident.pop('urlScheme', '') or '').strip().lower()
 scheme = scheme[:-3] if scheme.endswith('://') else scheme
 if scheme and not re.fullmatch(r'[a-z][a-z0-9+.-]*', scheme):

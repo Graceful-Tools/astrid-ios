@@ -99,6 +99,36 @@ enum Brand {
         return !name.isEmpty && exists(name) ? name : nil
     }
 
+    // MARK: - Google sign-in (AITD-617)
+
+    /// The iOS OAuth client Google sign-in uses, or nil when this build has none — then the
+    /// Google button is not drawn, whatever the server offers. Read from `BrandGoogleClientId`,
+    /// which the profile's `ios.googleClientId` sets. Unconfigured, Astrid keeps its own client
+    /// and a partner gets none: Astrid's consent screen in front of a partner's users is the leak
+    /// this exists to stop (the same rule as `characterImage`).
+    static let googleClientId = resolveGoogleClientId(infoString("BrandGoogleClientId"), appName: appName)
+
+    /// Where Google returns the browser: the reversed client, which the build must register as
+    /// a URL scheme (`make-brand-variant.sh` / `apply-brand.sh` write it).
+    static var googleRedirectScheme: String? { googleClientId.map(reversedGoogleClient) }
+
+    private static let astridGoogleClientId = "195880614240-nps6cdlcceliaru5d3b4p6pofjbs7sks.apps.googleusercontent.com"
+    private static let googleClientSuffix = ".apps.googleusercontent.com"
+
+    static func resolveGoogleClientId(_ raw: String?, appName: String) -> String? {
+        let configured = (raw ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if configured.hasSuffix(googleClientSuffix),
+           configured.dropLast(googleClientSuffix.count).range(of: #"^[0-9]+-[A-Za-z0-9]+$"#, options: .regularExpression) != nil {
+            return configured
+        }
+        return appName == "Astrid" ? astridGoogleClientId : nil
+    }
+
+    /// `123-abc.apps.googleusercontent.com` → `com.googleusercontent.apps.123-abc`.
+    static func reversedGoogleClient(_ clientId: String) -> String {
+        "com.googleusercontent.apps." + clientId.replacingOccurrences(of: googleClientSuffix, with: "")
+    }
+
     // MARK: - URL scheme and system identifiers (AITD-616)
 
     /// The custom URL scheme this build registers, without `://` — in-app links, sign-in and

@@ -15,6 +15,8 @@
 //
 //  The Mac's Developer ID build cannot carry the Sign in with Apple entitlement at all; that is
 //  a property of the BUILD, so it arrives as `appleEntitled` and both conditions must hold.
+//  Google is the same: a build with no OAuth client of its own (a partner that set none,
+//  AITD-617) cannot sign in with it, so `googleConfigured` must hold too.
 //
 
 import Foundation
@@ -61,13 +63,14 @@ struct SignInMethods: Equatable {
         }
     }
 
-    static func offered(by auth: ServerCapabilities.Auth, appleEntitled: Bool = true) -> SignInMethods {
+    static func offered(by auth: ServerCapabilities.Auth, appleEntitled: Bool = true,
+                        googleConfigured: Bool = Brand.googleClientId != nil) -> SignInMethods {
         guard let listed = auth.providers else {
-            return SignInMethods(google: auth.google, passkey: auth.passkey, apple: auth.apple && appleEntitled,
-                                 github: auth.github, sso: auth.sso)
+            return SignInMethods(google: auth.google && googleConfigured, passkey: auth.passkey,
+                                 apple: auth.apple && appleEntitled, github: auth.github, sso: auth.sso)
         }
         return SignInMethods(
-            google: listed.contains(.google),
+            google: listed.contains(.google) && googleConfigured,
             passkey: listed.contains(.passkey),
             apple: listed.contains(.apple) && appleEntitled,
             github: listed.contains(.github),
