@@ -40,6 +40,17 @@ public struct CoreFailure: Error, Decodable, Equatable, CustomStringConvertible 
     public let status: Int?
     /// What was not found.
     public let id: String?
+    /// The rule that refused, when the core or the server named one — `WAITING_NEEDS_CONDITION`
+    /// for a move into Waiting with no date and no task to wait on (core 084c2c0, AITD-631).
+    public let code: String?
+
+    public init(kind: Kind, message: String, status: Int?, id: String?, code: String? = nil) {
+        self.kind = kind
+        self.message = message
+        self.status = status
+        self.id = id
+        self.code = code
+    }
 
     public var description: String { "astrid-core \(kind.rawValue): \(message)" }
 }
