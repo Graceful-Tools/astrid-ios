@@ -308,6 +308,28 @@ export const rules = [
     },
   },
   {
+    id: 'german-informal-address',
+    why: 'German addresses people as "du" everywhere, matching web (AITD-633; astrid-web AWTD-1607, `tests/i18n/german-informal-address-awtd-1607.test.ts`). Case-sensitive on purpose: lowercase "sie" (they) is fine. A string that truly means "They"/"Their" at a sentence start goes in `allowed` with a note.',
+    pattern: /\b(Sie|Ihnen|Ihr|Ihre|Ihren|Ihrem|Ihrer|Ihres)\b/,
+    allowed: new Set([]),
+    run(ctx) {
+      const files = ['Astrid App/Resources/Localizations/de.lproj/Localizable.strings',
+        'Astrid App/Resources/Localizations/de.lproj/InfoPlist.strings']
+      const v = []
+      for (const file of files) {
+        const text = ctx.tryRead(file)
+        if (text === null) { v.push(...missingFile(ctx, file)); continue }
+        text.split('\n').forEach((line, index) => {
+          const m = /^\s*"([^"]+)"\s*=\s*"((?:[^"\\]|\\.)*)"\s*;/.exec(line)
+          if (m && !this.allowed.has(m[1]) && this.pattern.test(m[2])) {
+            v.push({ file, line: index + 1, message: `${m[1]} uses formal address ("Sie"/"Ihr…") — German says "du"` })
+          }
+        })
+      }
+      return v
+    },
+  },
+  {
     id: 'private-network-address',
     why: 'A private-network address in tracked source is one machine on one network (AITD-351). Use ASTRID_DEV_SERVER_URL, or 192.0.2.x (TEST-NET-1) in a fixture.',
     pattern: /\b(?:10\.\d{1,3}|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}\b/,

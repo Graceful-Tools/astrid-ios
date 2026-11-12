@@ -107,6 +107,11 @@ const trips = {
       + ' EXCLUDED_SOURCE_FILE_NAMES = "PartnerArt-*.xcassets AstridArt-Mac.xcassets";\n name = Debug;\n'
       + 'isa = XCBuildConfiguration;\n CODE_SIGN_ENTITLEMENTS = "Brands/Whitelabel/Whitelabel-iOS.entitlements";\n name = Whitelabel;\n',
   }),
+  'german-informal-address': () => fixture({
+    'Astrid App/Resources/Localizations/de.lproj/Localizable.strings':
+      '"a" = "Sind Sie sicher?";\n"b" = "Bist du sicher?";\n"c" = "wenn sie gelöscht wurden";\n"d" = "Ihre Aufgaben";\n',
+    'Astrid App/Resources/Localizations/de.lproj/InfoPlist.strings': '"NSCameraUsageDescription" = "Astrid nutzt deine Kamera.";\n',
+  }),
   'private-network-address': () => fixture({ 'Astrid App/Dev.swift': 'let url = "http://192.168.50.254:3000"\n' }),
   'due-day-names': () => fixture({
     'Astrid App/Views/Row.swift': `${view('Text("Today")')}\n#Preview { Text("Tomorrow") }\n`,
@@ -208,6 +213,11 @@ test('brand-art-catalogs: brand art in the shared catalog, and a configuration t
   assert.equal(found.length, 3, found.join('\n'))
   assert.ok(found[0].startsWith('is brand art in the shared catalog'))
   assert.ok(found.slice(1).every((m) => m.startsWith('Whitelabel configuration')))
+})
+
+test('german-informal-address: formal "Sie"/"Ihr…" trips, "du" and lowercase "sie" (they) do not', () => {
+  const found = violations(trips['german-informal-address'](), 'german-informal-address')
+  assert.deepEqual(found.map((v) => v.line), [1, 4])
 })
 
 test('private-network-address leaves TEST-NET-1, public hosts and localhost alone', () => {
