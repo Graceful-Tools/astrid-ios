@@ -401,7 +401,7 @@ struct AIAPIKeyManagerView: View {
             }
 
             do {
-                _ = try await apiClient.saveAIAPIKey(serviceId: service.rawValue, apiKey: apiKeyInput)
+                try await apiClient.saveAIAPIKey(serviceId: service.rawValue, apiKey: apiKeyInput)
 
                 // Update status
                 var status = keyStatuses[service] ?? APIKeyUIStatus()
@@ -481,7 +481,7 @@ struct AIAPIKeyManagerView: View {
             }
 
             do {
-                _ = try await apiClient.deleteAIAPIKey(serviceId: service.rawValue)
+                try await apiClient.deleteAIAPIKey(serviceId: service.rawValue)
 
                 // Reset status
                 keyStatuses[service] = APIKeyUIStatus()

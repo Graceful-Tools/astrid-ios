@@ -36,7 +36,7 @@ final class RemoteResourceService {
     // MARK: - AI agents and API keys
 
     func getAgentModes() async throws -> AgentModesResponse {
-        try await apiClient.getAgentModes()
+        try await core.run(CopilotCommands.modes(), as: AgentModesResponse.self)
     }
 
     func updateAgentMode(agent: String, mode: AgentExecutionMode) async throws -> AgentModesResponse {
@@ -45,7 +45,7 @@ final class RemoteResourceService {
     }
 
     func getCopilotIntegrationStatus() async throws -> CopilotIntegrationStatus {
-        try await apiClient.getCopilotIntegrationStatus()
+        try await core.run(CopilotCommands.status(), as: CopilotIntegrationStatus.self)
     }
 
     // Connect and disconnect go through astrid-core (AITD-620); the status read has no
@@ -58,20 +58,22 @@ final class RemoteResourceService {
         try await core.run(CopilotCommands.disconnect())
     }
 
+    // The AI keys go through astrid-core (AITD-620, on AWTD-1610's commands). Save and delete
+    // answer only "done"; the test answers `{ works, error }` with the server's reason.
     func getAIAPIKeys() async throws -> AIAPIKeysResponse {
-        try await apiClient.getAIAPIKeys()
+        try await core.run(AgentCredentialCommands.list(), as: AIAPIKeysResponse.self)
     }
 
-    func saveAIAPIKey(serviceId: String, apiKey: String) async throws -> SaveAPIKeyResponse {
-        try await apiClient.saveAIAPIKey(serviceId: serviceId, apiKey: apiKey)
+    func saveAIAPIKey(serviceId: String, apiKey: String) async throws {
+        try await core.run(AgentCredentialCommands.save(serviceId: serviceId, key: apiKey))
     }
 
     func testAIAPIKey(serviceId: String) async throws -> TestAPIKeyResponse {
-        try await apiClient.testAIAPIKey(serviceId: serviceId)
+        try await core.run(AgentCredentialCommands.test(serviceId: serviceId), as: TestAPIKeyResponse.self)
     }
 
-    func deleteAIAPIKey(serviceId: String) async throws -> DeleteAPIKeyResponse {
-        try await apiClient.deleteAIAPIKey(serviceId: serviceId)
+    func deleteAIAPIKey(serviceId: String) async throws {
+        try await core.run(AgentCredentialCommands.delete(serviceId: serviceId))
     }
 
     // MARK: - Custom Agents (through astrid-core, AITD-620)

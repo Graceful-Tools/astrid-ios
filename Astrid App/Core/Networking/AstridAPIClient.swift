@@ -586,76 +586,6 @@ class AstridAPIClient {
         return response.recommended
     }
 
-    // MARK: - AI API Key Management
-
-    func getAgentModes() async throws -> AgentModesResponse {
-        try await request(
-            method: "GET",
-            path: "/api/v1/users/me/agent-modes"
-        )
-    }
-
-    func getCopilotIntegrationStatus() async throws -> CopilotIntegrationStatus {
-        try await request(
-            method: "GET",
-            path: "/api/v1/integrations/copilot/status"
-        )
-    }
-
-    /// Get user's AI API keys status (without revealing actual keys)
-    func getAIAPIKeys() async throws -> AIAPIKeysResponse {
-        return try await request(
-            method: "GET",
-            path: "/api/v1/users/me/ai-credentials"
-        )
-    }
-
-    /// Save an AI API key for a service
-    func saveAIAPIKey(serviceId: String, apiKey: String) async throws -> SaveAPIKeyResponse {
-        struct SaveAPIKeyRequest: Codable {
-            let serviceId: String
-            let apiKey: String
-        }
-
-        let body = SaveAPIKeyRequest(serviceId: serviceId, apiKey: apiKey)
-
-        return try await request(
-            method: "PUT",
-            path: "/api/v1/users/me/ai-credentials",
-            body: body
-        )
-    }
-
-    /// Test an AI API key
-    func testAIAPIKey(serviceId: String) async throws -> TestAPIKeyResponse {
-        struct TestAPIKeyRequest: Codable {
-            let serviceId: String
-        }
-
-        let body = TestAPIKeyRequest(serviceId: serviceId)
-
-        return try await request(
-            method: "POST",
-            path: "/api/v1/users/me/ai-credentials/test",
-            body: body
-        )
-    }
-
-    /// Delete an AI API key
-    func deleteAIAPIKey(serviceId: String) async throws -> DeleteAPIKeyResponse {
-        struct DeleteAPIKeyRequest: Codable {
-            let serviceId: String
-        }
-
-        let body = DeleteAPIKeyRequest(serviceId: serviceId)
-
-        return try await request(
-            method: "DELETE",
-            path: "/api/v1/users/me/ai-credentials",
-            body: body
-        )
-    }
-
     // MARK: - Copilot cloud agent token
 
     /// Mint the user-level MCP token the GitHub.com Copilot coding agent authenticates with.
@@ -922,17 +852,30 @@ struct AIAPIKeyStatus: Codable {
     let error: String?
 }
 
-struct SaveAPIKeyResponse: Codable {
-    let success: Bool
-}
-
-struct TestAPIKeyResponse: Codable {
+struct TestAPIKeyResponse: Codable, Equatable {
     let success: Bool
     let error: String?
-}
 
-struct DeleteAPIKeyResponse: Codable {
-    let success: Bool
+    init(success: Bool, error: String?) {
+        self.success = success
+        self.error = error
+    }
+
+    private enum CodingKeys: String, CodingKey { case success, works, error }
+
+    /// astrid-core's `testAgentCredential` answers `{ works, error }`; the route said `success`.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        success = try container.decodeIfPresent(Bool.self, forKey: .works)
+            ?? container.decode(Bool.self, forKey: .success)
+        error = try container.decodeIfPresent(String.self, forKey: .error)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(success, forKey: .success)
+        try container.encodeIfPresent(error, forKey: .error)
+    }
 }
 
 // MARK: - Client Error Type
