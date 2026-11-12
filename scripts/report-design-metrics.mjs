@@ -120,6 +120,15 @@ export const METRICS = [
     pattern: /colorScheme\s*==\s*\.dark\s*\?/g,
   },
   {
+    // AITD-623. The ternaries above reached 0 (AITD-611), but the same two-arm pick survives as
+    // a fixed palette read (`Theme.Dark.bgPrimary`) or a string comparison
+    // (`effectiveTheme == "dark" ? …`). Neither can serve a fourth theme or a partner's.
+    id: 'fixedThemePicks',
+    what: 'fixed Theme.Dark.* / Theme.Ocean.* reads and `== "dark"` theme-string comparisons',
+    instead: 'the resolved palette for the current theme (register DS8)',
+    pattern: /\bTheme\.(?:Dark|Ocean)\.|[!=]=\s*"(?:dark|ocean|light)"/g,
+  },
+  {
     id: 'hardcodedCopy',
     what: 'sentences typed into UI calls instead of a Localizable.strings key',
     instead: 'a Localizable.strings key in every language',

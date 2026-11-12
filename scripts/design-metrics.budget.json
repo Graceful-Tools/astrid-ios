@@ -8,6 +8,7 @@
     "shadowLiterals": 20,
     "durationLiterals": 36,
     "darkSchemeTernaries": 0,
+    "fixedThemePicks": 142,
     "hardcodedCopy": 84,
     "uniqueHardcodedStrings": 73
   },
@@ -20,6 +21,7 @@
     "shadowLiterals": 2,
     "durationLiterals": 4,
     "darkSchemeTernaries": 0,
+    "fixedThemePicks": 4,
     "hardcodedCopy": 0,
     "uniqueHardcodedStrings": 0
   }

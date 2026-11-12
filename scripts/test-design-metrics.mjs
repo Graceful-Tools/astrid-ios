@@ -41,6 +41,7 @@ test('every metric has a fixture that trips it', () => {
     shadowLiterals: '.shadow(color: .black.opacity(0.1), radius: 4, y: 2)',
     durationLiterals: 'withAnimation(.easeInOut(duration: 0.2)) {}; .spring(response: 0.3)',
     darkSchemeTernaries: 'let c = colorScheme == .dark ? Color.white : Color.black',
+    fixedThemePicks: 'let a = effectiveTheme == "dark" ? Theme.Dark.bgPrimary : Theme.bgPrimary; if theme != "ocean" { x = Theme.Ocean.accent }',
     hardcodedCopy: 'Text("Add a comment..."); Button("Cancel") {}; .navigationTitle("Settings")',
     uniqueHardcodedStrings: 'Text("Add a comment"); Text("Add a comment")',
   }
@@ -55,6 +56,12 @@ test('every metric has a fixture that trips it', () => {
   assert.equal(n('durationLiterals', tripped.durationLiterals), 2)
   assert.equal(n('hardcodedCopy', tripped.hardcodedCopy), 3)
   assert.equal(n('uniqueHardcodedStrings', tripped.uniqueHardcodedStrings), 1)
+  assert.equal(n('fixedThemePicks', tripped.fixedThemePicks), 4, 'two string comparisons, two fixed palette reads')
+})
+
+test('AITD-623: a theme resolved once is not a fixed pick', () => {
+  assert.equal(n('fixedThemePicks', 'Theme.bgPrimary; themeColors.bgPrimary; Theme.Darker.x; let s = "dark mode"; theme == "darkish"'), 0)
+  assert.equal(n('fixedThemePicks', 'static let bg = Theme.Dark.bgPrimary', 'Astrid App/Utilities/Theme.swift'), 0, 'Theme.swift is the definition')
 })
 
 test('the token is not a literal', () => {
