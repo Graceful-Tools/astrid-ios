@@ -123,7 +123,7 @@ struct MacDeleteAccountSheet: View {
         working = true
         AppActions.perform("Delete account") {
             defer { working = false }
-            _ = try await AccountService.shared.deleteAccount(confirmationText: confirm)
+            try await AccountService.shared.deleteAccount()
             try? await AuthManager.shared.signOut()
             dismiss()
         }

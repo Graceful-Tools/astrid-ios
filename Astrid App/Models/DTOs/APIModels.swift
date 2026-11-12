@@ -383,11 +383,6 @@ struct VerifyEmailResponse: Codable {
     let message: String
 }
 
-struct DeleteAccountResponse: Codable {
-    let success: Bool
-    let message: String
-}
-
 struct UploadResponse: Codable {
     let url: String
     let name: String

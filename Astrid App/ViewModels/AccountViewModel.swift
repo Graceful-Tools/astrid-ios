@@ -206,7 +206,7 @@ class AccountViewModel: ObservableObject {
 
         } catch {
             AppLog.debug("❌ [AccountViewModel] Failed to save changes: \(error)")
-            errorMessage = String(format: NSLocalizedString("settings.account.failed_save", comment: ""), error.localizedDescription)
+            errorMessage = String(format: NSLocalizedString("settings.account.failed_save", comment: ""), AccountService.message(for: error))
             showError = true
         }
     }
@@ -254,7 +254,7 @@ class AccountViewModel: ObservableObject {
             showSuccess = true
         } catch {
             AppLog.debug("❌ [AccountViewModel] Failed to resend verification: \(error)")
-            errorMessage = String(format: NSLocalizedString("settings.account.failed_send_verification", comment: ""), error.localizedDescription)
+            errorMessage = String(format: NSLocalizedString("settings.account.failed_send_verification", comment: ""), AccountService.message(for: error))
             showError = true
         }
     }
@@ -271,7 +271,7 @@ class AccountViewModel: ObservableObject {
             showSuccess = true
         } catch {
             AppLog.debug("❌ [AccountViewModel] Failed to cancel email change: \(error)")
-            errorMessage = String(format: NSLocalizedString("settings.account.failed_cancel_email_change", comment: ""), error.localizedDescription)
+            errorMessage = String(format: NSLocalizedString("settings.account.failed_cancel_email_change", comment: ""), AccountService.message(for: error))
             showError = true
         }
     }
@@ -287,7 +287,7 @@ class AccountViewModel: ObservableObject {
             showSuccess = true
         } catch {
             AppLog.debug("❌ [AccountViewModel] Failed to send verification: \(error)")
-            errorMessage = String(format: NSLocalizedString("settings.account.failed_send_verification", comment: ""), error.localizedDescription)
+            errorMessage = String(format: NSLocalizedString("settings.account.failed_send_verification", comment: ""), AccountService.message(for: error))
             showError = true
         }
     }
@@ -311,7 +311,7 @@ class AccountViewModel: ObservableObject {
 
         } catch {
             AppLog.debug("❌ [AccountViewModel] Failed to export data: \(error)")
-            errorMessage = String(format: NSLocalizedString("settings.account.failed_export", comment: ""), error.localizedDescription)
+            errorMessage = String(format: NSLocalizedString("settings.account.failed_export", comment: ""), AccountService.message(for: error))
             showError = true
             return nil
         }
@@ -326,16 +326,13 @@ class AccountViewModel: ObservableObject {
         defer { isDeleting = false }
 
         do {
-            let response = try await apiClient.deleteAccount(
-                confirmationText: deleteConfirmationText
-            )
-
-            AppLog.debug("✅ [AccountViewModel] Account deleted: \(response.message)")
+            try await apiClient.deleteAccount()
+            AppLog.debug("✅ [AccountViewModel] Account deleted")
             return true
 
         } catch {
             AppLog.debug("❌ [AccountViewModel] Failed to delete account: \(error)")
-            errorMessage = String(format: NSLocalizedString("settings.account.failed_delete", comment: ""), error.localizedDescription)
+            errorMessage = String(format: NSLocalizedString("settings.account.failed_delete", comment: ""), AccountService.message(for: error))
             showError = true
             return false
         }

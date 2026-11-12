@@ -1,3 +1,4 @@
+import AstridCore
 import Foundation
 
 /// Canonical service facade for account / profile operations.
@@ -8,9 +9,8 @@ import Foundation
 /// one place and can be extended (caching, optimistic updates) without touching
 /// every screen.
 ///
-/// This is a thin passthrough today — it deliberately preserves the exact wire
-/// behavior of the previous direct client calls (same endpoints, same response
-/// types, same error propagation).
+/// Delete, export, resend-verification and email change go through astrid-core (AITD-620);
+/// the rest are still passthroughs to the client.
 final class AccountService {
     static let shared = AccountService()
 
@@ -25,20 +25,43 @@ final class AccountService {
     }
 
     func updateAccount(name: String? = nil, email: String? = nil, image: String? = nil) async throws -> UpdateAccountResponse {
-        try await apiClient.updateAccount(name: name, email: email, image: image)
+        try await updateAccount(UpdateAccountRequest(name: name, email: email, image: image))
     }
 
+    /// The server's "send" / "cancel" verification actions. The core has only a resend
+    /// (`resendVerification`), so these two stay on the client until it has the others.
     func verifyEmail(action: String) async throws -> VerifyEmailResponse {
-        try await apiClient.verifyEmail(action: action)
+        if action == "resend" {
+            let answer = try await core.run(AccountCommands.resendVerification(), as: VerificationResent.self)
+            return VerifyEmailResponse(success: true, message: answer.message ?? "")
+        }
+        return try await apiClient.verifyEmail(action: action)
     }
 
+    /// The export, through the core, which writes it to a file; read back for the callers that
+    /// save it where the person chooses.
     func exportAccountData(format: String) async throws -> Data {
-        try await apiClient.exportAccountData(format: format)
+        let file = FileManager.default.temporaryDirectory
+            .appendingPathComponent("account-export-\(UUID().uuidString).\(format)")
+        defer { try? FileManager.default.removeItem(at: file) }
+        try await core.run(AccountCommands.export(format: format, to: file))
+        return try Data(contentsOf: file)
     }
 
-    func deleteAccount(confirmationText: String) async throws -> DeleteAccountResponse {
-        try await apiClient.deleteAccount(confirmationText: confirmationText)
+    /// Deletes the account for good. The caller has already checked the phrase the person typed
+    /// in their own language; what goes to the server is the contract phrase
+    /// (`AccountCommands.deletionConfirmation`). The core signs its own session out afterwards.
+    func deleteAccount() async throws {
+        try await core.run(AccountCommands.delete())
     }
+
+    /// The text to show for a failure here: the core's own sentence when it refused, since a
+    /// `CoreFailure` has no localized description of its own.
+    static func message(for error: Error) -> String {
+        (error as? CoreFailure)?.message ?? error.localizedDescription
+    }
+
+    private var core: CoreSession { AppCore.shared.session }
 
     // MARK: - Profile image upload
 
@@ -52,7 +75,22 @@ final class AccountService {
         try await apiClient.fetchAccountResponse()
     }
 
+    /// Name and photo go to `PUT /users/me` as before: the core's `updateProfile` takes a photo
+    /// *file* and uploads it itself, while these screens upload on pick and hold a URL. A changed
+    /// email goes through the core's `changeEmail`, which checks the address and turns a 409 into
+    /// a sentence.
     func updateAccount(_ request: UpdateAccountRequest) async throws -> UpdateAccountResponse {
-        try await apiClient.updateAccount(request)
+        var profile = request
+        profile.email = nil
+        var message = ""
+        if profile.name != nil || profile.image != nil {
+            message = try await apiClient.updateAccount(profile).message
+        }
+        guard let email = request.email else {
+            return UpdateAccountResponse(success: true, message: message, emailVerificationRequired: nil)
+        }
+        let changed = try await core.run(AccountCommands.changeEmail(email), as: EmailChangeResult.self)
+        return UpdateAccountResponse(success: true, message: changed.message ?? message,
+                                     emailVerificationRequired: changed.verificationRequired)
     }
 }

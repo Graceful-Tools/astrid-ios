@@ -16,46 +16,13 @@ extension AstridAPIClient {
         try await fetchAccountResponse().user
     }
 
-    /// Update account (name, email, image)
-    func updateAccount(name: String? = nil, email: String? = nil, image: String? = nil) async throws -> UpdateAccountResponse {
-        struct UpdateRequest: Codable {
-            var name: String?
-            var email: String?
-            var image: String?
-        }
-
-        let body = UpdateRequest(name: name, email: email, image: image)
-
-        return try await request(
-            method: "PUT",
-            path: "/api/v1/users/me",
-            body: body
-        )
-    }
-
-    /// Send, resend, or cancel email verification
-    /// - Parameter action: "send", "resend", or "cancel"
+    /// Send or cancel email verification (a resend goes through the core, AITD-620)
+    /// - Parameter action: "send" or "cancel"
     func verifyEmail(action: String) async throws -> VerifyEmailResponse {
         return try await request(
             method: "POST",
             path: "/api/v1/users/me/verify-email",
             queryItems: [URLQueryItem(name: "action", value: action)]
-        )
-    }
-
-    /// Delete account permanently
-    /// - Parameter confirmationText: Must be "DELETE MY ACCOUNT"
-    func deleteAccount(confirmationText: String) async throws -> DeleteAccountResponse {
-        struct DeleteAccountBody: Codable {
-            let confirmationText: String
-        }
-
-        let body = DeleteAccountBody(confirmationText: confirmationText)
-
-        return try await request(
-            method: "POST",
-            path: "/api/v1/users/me/delete",
-            body: body
         )
     }
 

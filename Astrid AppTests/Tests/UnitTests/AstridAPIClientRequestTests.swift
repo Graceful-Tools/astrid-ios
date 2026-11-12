@@ -166,28 +166,4 @@ final class AstridAPIClientRequestTests: XCTestCase {
         XCTAssertEqual(sent.method, "DELETE")
         XCTAssertEqual(sent.path, "/api/v1/custom-agents/agents/agent-7")
     }
-
-    func testExportAccountDataReturnsTheRawFile_AITD535() async throws {
-        let csv = Data("title,completed\nMilk,false\n".utf8)
-        StubURLProtocol.respond = { _ in .http(status: 200, body: csv, headers: ["Content-Type": "text/csv"]) }
-
-        let data = try await client.exportAccountData(format: "csv")
-
-        XCTAssertEqual(data, csv)
-        let sent = try onlyRequest()
-        XCTAssertEqual(sent.path, "/api/v1/users/me/export")
-        XCTAssertEqual(sent.query, ["format": "csv"])
-    }
-
-    func testExportAccountDataRefusalIsAnError_AITD535() async {
-        StubURLProtocol.respond = { _ in .json("{}", status: 401) }
-
-        do {
-            _ = try await client.exportAccountData(format: "json")
-            XCTFail("a 401 must throw")
-        } catch AstridAPIError.unauthorized {
-        } catch {
-            XCTFail("expected unauthorized, got \(error)")
-        }
-    }
 }

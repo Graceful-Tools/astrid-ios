@@ -984,48 +984,6 @@ class AstridAPIClient {
             preferredService: response.preferredService
         )
     }
-
-    // MARK: - Account Management
-
-    /// Export account data
-    /// - Parameter format: "json" or "csv"
-    /// - Returns: Raw data of the export file
-    func exportAccountData(format: String) async throws -> Data {
-        // Build URL with query parameters
-        var urlComponents = URLComponents(url: baseURL.appendingPathComponent("/api/v1/users/me/export"), resolvingAgainstBaseURL: false)
-        urlComponents?.queryItems = [URLQueryItem(name: "format", value: format)]
-
-        guard let url = urlComponents?.url else {
-            throw AstridAPIError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue(AnalyticsPlatformHeader.current,
-                         forHTTPHeaderField: AnalyticsPlatformHeader.headerName)
-
-        // Use session cookie authentication
-        if let sessionCookie = try? KeychainService.shared.getSessionCookie() {
-            request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
-        }
-
-        let (data, response) = try await session.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AstridAPIError.invalidResponse
-        }
-
-        if httpResponse.statusCode == 401 {
-            throw AstridAPIError.unauthorized
-        }
-
-        if httpResponse.statusCode >= 400 {
-            let responseString = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw AstridAPIError.httpError(statusCode: httpResponse.statusCode, message: responseString)
-        }
-
-        return data
-    }
 }
 
 // MARK: - Contacts Response Types
