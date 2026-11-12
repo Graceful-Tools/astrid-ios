@@ -292,6 +292,9 @@ test('AITD-447: Mac packaging exports and signs with the exact profile and ident
 
   // AITD-618: the partner's Direct build — its scheme, its Direct entitlements, its bundle id's
   // own profile, its names on the DMG.
+  // `rm -rf` is mocked to do nothing, so the first run's DMG stage is still there; a second
+  // `ln -s /Applications <stage>/Applications` would follow that link into the REAL /Applications.
+  rmSync(join(dir, 'build/dmg-stage'), { recursive: true, force: true })
   const branded = spawnSync('/bin/bash', [join(scriptsDir, 'package-mac.sh'), '--whitelabel'], { cwd: dir, env, encoding: 'utf8' })
   assert.equal(branded.status, 0, `${branded.stdout}\n${branded.stderr}`)
   const archived = readFileSync(env.MOCK_ARCHIVE_ARGS, 'utf8')
