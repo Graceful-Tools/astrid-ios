@@ -444,6 +444,17 @@ export const rules = [
     },
   },
   {
+    id: 'springs-honour-reduce-motion',
+    why: 'Reduce Motion means nothing springs or pops (AITD-624, DS17). A spring goes through ReducedMotion.spring/drawerSpring or MacMotion.spring, which resolve to no animation when the setting is on; a raw .spring( ignores it.',
+    run(ctx) {
+      const roots = ['Astrid App', 'Astrid Mac', 'Shared']
+      const files = ctx.files(roots).filter((f) => !f.endsWith('/ReducedMotion.swift'))
+      return [...missingDirs(ctx, roots), ...eachCodeLine(ctx, files, (line) =>
+        /(^|[^A-Za-z.])\.(spring|interpolatingSpring|bouncy|snappy)\b(?!\s*:)/.test(line) &&
+        'animates with a raw spring — use ReducedMotion.spring(…) (or MacMotion.spring) so Reduce Motion is honoured')]
+    },
+  },
+  {
     id: 'mac-role-labels',
     why: 'A role renders through MacMemberRoleLabel.title(for:), which is localized; an English role word or a capitalized wire value is not (AITD-323).',
     run(ctx) {

@@ -81,7 +81,7 @@ struct MacTaskRow: View {
     /// One decision for all three faces, so the rule is not written once per branch.
     private func handleLeadingTap() {
         if opensQuickChanger { showingQuickChanger = true; return }
-        checkPop = true
+        if ReducedMotion.allowsPop() { checkPop = true }   // no pop under Reduce Motion (AITD-624)
         onToggle()
     }
 

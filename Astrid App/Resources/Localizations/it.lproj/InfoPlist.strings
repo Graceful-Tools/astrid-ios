@@ -1,0 +1,10 @@
+/* Permission prompts (AITD-624). No brand name: the system alert title already names the app,
+   so every brand build reads correctly. Keys must match the NS*UsageDescription keys the
+   iOS and Mac Info.plists declare — scripts/check-localizations.sh enforces both. */
+
+"NSCameraUsageDescription" = "Scatta una foto e allegala a un'attività o a un commento.";
+"NSPhotoLibraryUsageDescription" = "Allega foto ad attività e commenti. L'accesso mostra anche quali foto sono salvate su questo dispositivo, così da poterle allegare anche offline.";
+"NSContactsUsageDescription" = "Suggerisci collaboratori dai tuoi contatti quando condividi una lista. I tuoi contatti sono crittografati e mai condivisi con terzi.";
+"NSRemindersFullAccessUsageDescription" = "Mantieni le tue attività sincronizzate con Promemoria di Apple, per aggiungerle con Siri e vederle sugli altri tuoi dispositivi.";
+"NSRemindersUsageDescription" = "Mantieni le tue attività sincronizzate con Promemoria di Apple, per aggiungerle con Siri e vederle sugli altri tuoi dispositivi.";
+"NSCalendarsFullAccessUsageDescription" = "Mostra le tue scadenze accanto agli eventi del tuo calendario.";

@@ -107,7 +107,7 @@ struct iPadTaskManagerView: View {
     @StateObject private var selectedRowReporter = SelectedRowReporter()
 
     /// One canonical curve for the picker drawer, shared by every open and close path.
-    private static let drawerAnimation: Animation = .spring(response: 0.25, dampingFraction: 0.85)
+    private static var drawerAnimation: Animation? { ReducedMotion.drawerSpring() }
 
     /// The picker drawer's share of the window. It is the same drawer wherever it appears —
     /// 2-column, and a full-screen board in 3-column (AITD-388).
@@ -582,7 +582,7 @@ struct iPadTaskManagerView: View {
                                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                 }
                             } else {
-                                withAnimation(.spring(response: 0.2, dampingFraction: 0.9)) {
+                                withAnimation(ReducedMotion.spring(response: 0.2, dampingFraction: 0.9)) {
                                     dragOffset = 0
                                 }
                                 shouldScrollSidebarToTop = false

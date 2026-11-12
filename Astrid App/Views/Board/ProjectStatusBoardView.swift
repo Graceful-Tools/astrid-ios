@@ -194,7 +194,7 @@ struct ProjectStatusBoardView: View {
                 // the same Done column), which left that column stuck under the
                 // overlay. scrollTo always re-scrolls, so it behaves the same on the
                 // first tap and every tap after.
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                withAnimation(ReducedMotion.spring(response: 0.3, dampingFraction: 0.85)) {
                     proxy.scrollTo(columnId, anchor: .leading)
                 }
             }
@@ -289,7 +289,7 @@ struct ProjectStatusBoardView: View {
             else { return }  // at the end of the board — stop, don't wrap
 
             hasAdvancedForThisEntry = true
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+            withAnimation(ReducedMotion.spring(response: 0.3, dampingFraction: 0.85)) {
                 proxy.scrollTo(snapshot[targetIndex].id, anchor: .leading)
             }
             // Keep the snap binding in step; its onChange supplies the haptic.
