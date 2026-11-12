@@ -14,7 +14,7 @@ disagree, which is the only reason to trust a generated list at all.
 Regenerate: see the test — it prints the expected list on failure.
 
 **Most of the app's traffic is not here.** Tasks, lists, comments, chat, members, blockers,
-settings, the live stream and Connections (AITD-620) go through astrid-core, whose paths are in
+settings, the live stream, Connections and webhooks (AITD-620) go through astrid-core, whose paths are in
 `astrid-core/crates/astrid-core/src/api/endpoints.rs` (see `docs/CORE_MIGRATION.md`). This list
 is what the Swift client still calls itself.
 
@@ -25,7 +25,7 @@ passkey routes under `/api/auth/webauthn/*` are built by `PasskeyManager` throug
 not by this client.)
 
 
-## `AstridAPIClient` — the only client (51 paths)
+## `AstridAPIClient` — the only client (50 paths)
 
 
 ### `/api/v1/app-version`
@@ -127,6 +127,5 @@ path there belongs in this list too.
 - `/api/v1/users/me/settings`
 - `/api/v1/users/me/smart-tasks`
 - `/api/v1/users/me/verify-email`
-- `/api/v1/users/me/webhook-settings`
 - `/api/v1/users/search`
 - `/api/v1/users/{id}/profile`

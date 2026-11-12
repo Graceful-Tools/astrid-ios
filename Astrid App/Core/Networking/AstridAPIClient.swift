@@ -844,25 +844,6 @@ class AstridAPIClient {
         )
     }
 
-    // MARK: - Webhook transport
-
-    func getWebhookSettings() async throws -> WebhookSettings {
-        try await request(method: "GET", path: "/api/v1/users/me/webhook-settings")
-    }
-
-    func updateWebhookSettings(_ settings: UpdateWebhookSettingsRequest) async throws -> WebhookSettingsSaveResponse {
-        try await request(method: "PUT", path: "/api/v1/users/me/webhook-settings", body: settings)
-    }
-
-    func deleteWebhookSettings() async throws -> WebhookDeleteResponse {
-        try await request(method: "DELETE", path: "/api/v1/users/me/webhook-settings")
-    }
-
-    /// Fire a `test.ping` at the configured URL.
-    func testWebhook() async throws -> WebhookTestResult {
-        try await request(method: "POST", path: "/api/v1/users/me/webhook-settings")
-    }
-
     // MARK: - Copilot cloud agent token
 
     /// Mint the user-level MCP token the GitHub.com Copilot coding agent authenticates with.

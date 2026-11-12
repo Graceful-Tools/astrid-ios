@@ -292,7 +292,8 @@ final class AgentHubTests: XCTestCase {
         XCTAssertTrue(client.contains("\"/api/v1/custom-agents/register\""))
         XCTAssertTrue(client.contains("\"/api/v1/custom-agents/agents\""))
         XCTAssertTrue(client.contains("\"/api/v1/custom-agents/agents/\\("))
-        XCTAssertTrue(client.contains("\"/api/v1/users/me/webhook-settings\""))
+        // The webhook transport went through astrid-core in AITD-620 (`WebhooksCoreTests`).
+        XCTAssertFalse(client.contains("webhook-settings"), "webhooks go through the core now")
         XCTAssertTrue(client.contains("\"/api/mcp/user-tokens\""))
         XCTAssertFalse(client.contains("/api/v1/openclaw"), "openclaw paths are legacy aliases")
     }
