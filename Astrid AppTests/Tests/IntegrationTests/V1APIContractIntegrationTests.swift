@@ -18,7 +18,8 @@ final class V1APIContractIntegrationTests: XCTestCase {
             "/api/v1/users/me/settings",
             "/api/v1/users/me/smart-tasks",
             "/api/v1/users/me/my-tasks-preferences",
-            "/api/v1/users/me/available-agents",
+            // available-agents goes through astrid-core's `availableAgents` since AITD-620; its
+            // route stays in the server check below.
             "/api/v1/users/me/ai-preferences"
         ]
 

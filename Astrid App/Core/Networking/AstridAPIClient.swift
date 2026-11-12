@@ -669,24 +669,6 @@ class AstridAPIClient {
 
     // MARK: - AI Agent Settings
 
-    /// Get available AI agents for the current user.
-    ///
-    /// `serverRunOnly` narrows to what the server can execute — api-mode built-ins with a
-    /// credential, plus Custom Agents — which is what can power the default assistant. The
-    /// unfiltered list is for assignee pickers and includes polling agents that cannot (AITD-297).
-    func getAvailableAgents(serverRunOnly: Bool = false) async throws -> [AvailableAgent] {
-        let response: AvailableAgentsResponse = try await request(
-            method: "GET",
-            path: "/api/v1/users/me/available-agents",
-            queryItems: Self.availableAgentsQueryItems(serverRunOnly: serverRunOnly)
-        )
-        return response.agents
-    }
-
-    nonisolated static func availableAgentsQueryItems(serverRunOnly: Bool) -> [URLQueryItem]? {
-        serverRunOnly ? [URLQueryItem(name: "serverRun", value: "true")] : nil
-    }
-
     /// Get current user's AI assistant settings
     func getAIAssistantSettings() async throws -> AIAssistantSettings {
         let response: AIAssistantSettingsResponse = try await request(
