@@ -28,8 +28,11 @@ final class ListInsightsTests: XCTestCase {
     } }
     """#
 
+    /// The fixtures are the route's `{ insights }` envelope; the core unwraps it before the app sees it.
+    private struct Envelope: Decodable { let insights: ListInsights }
+
     private func decode(_ json: String) throws -> ListInsights {
-        try JSONDecoder().decode(ListInsightsResponse.self, from: Data(json.utf8)).insights
+        try JSONDecoder().decode(Envelope.self, from: Data(json.utf8)).insights
     }
 
     // MARK: - The wire shape
@@ -67,62 +70,71 @@ final class ListInsightsTests: XCTestCase {
 
     // MARK: - The request
 
-    func testTheServiceAsksForTheWindowInTheCallersTimeZone_AITD545() async throws {
-        StubURLProtocol.reset()
-        defer { StubURLProtocol.reset() }
-        StubURLProtocol.respond = { _ in .json(self.boardAnswer) }
-        let service = ListInsightsService(apiClient: AstridAPIClient(session: StubURLProtocol.session()))
+    /// The route's answer unwrapped, as the core hands it over (`services/list.rs` `insights`).
+    private struct Fetches {
+        var asked: [(listId: String, days: Int, timeZone: String)] = []
+        var fail = false
+    }
 
-        let insights = try await service.insights(listId: "list-1", days: 7,
-                                                  timeZone: TimeZone(identifier: "America/Los_Angeles")!)
+    /// A service whose fetch is a stub that records each ask, with a clock and an account the
+    /// test controls. The stub yields first, so concurrent asks really overlap.
+    private func service(_ fetches: Box<Fetches>,
+                         now: @escaping () -> Date = { Date(timeIntervalSince1970: 1_800_000_000) },
+                         userId: @escaping @MainActor () -> String? = { "u1" }) -> ListInsightsService {
+        let answer = boardAnswer
+        return ListInsightsService(fetch: { listId, days, timeZone in
+            fetches.value.asked.append((listId, days, timeZone))
+            await _Concurrency.Task.yield()
+            if fetches.value.fail { throw URLError(.badServerResponse) }
+            return try self.decode(answer)
+        }, now: now, userId: userId)
+    }
+
+    @MainActor
+    private final class Box<T> {
+        var value: T
+        init(_ value: T) { self.value = value }
+    }
+
+    func testTheServiceAsksForTheWindowInTheCallersTimeZone_AITD545() async throws {
+        let fetches = Box(Fetches())
+        let insights = try await service(fetches).insights(listId: "list-1", days: 7,
+                                                           timeZone: TimeZone(identifier: "America/Los_Angeles")!)
 
         XCTAssertEqual(insights.window.days, 7)
-        let sent = try XCTUnwrap(StubURLProtocol.requests.first)
-        XCTAssertEqual(StubURLProtocol.requests.count, 1)
-        XCTAssertEqual(sent.method, "GET")
-        XCTAssertEqual(sent.path, "/api/v1/lists/list-1/insights")
-        XCTAssertEqual(sent.query, ["days": "7", "tz": "America/Los_Angeles"])
+        XCTAssertEqual(fetches.value.asked.count, 1)
+        XCTAssertEqual(fetches.value.asked.first?.listId, "list-1")
+        XCTAssertEqual(fetches.value.asked.first?.days, 7)
+        XCTAssertEqual(fetches.value.asked.first?.timeZone, "America/Los_Angeles")
     }
 
     func testAListTheCallerCannotSeeIsAnError_AITD545() async {
-        StubURLProtocol.reset()
-        defer { StubURLProtocol.reset() }
-        StubURLProtocol.respond = { _ in .json(#"{"error":"Not found"}"#, status: 404) }
-        let service = ListInsightsService(apiClient: AstridAPIClient(session: StubURLProtocol.session()))
+        let fetches = Box(Fetches(fail: true))
         do {
-            _ = try await service.insights(listId: "list-1", days: 30)
-            XCTFail("a 404 must surface, so the tab says it couldn't load")
+            _ = try await service(fetches).insights(listId: "list-1", days: 30)
+            XCTFail("a refusal must surface, so the tab says it couldn't load")
         } catch {}
     }
 
     // MARK: - Not hammering the route (AITD-554)
 
-    /// A service on the stub, with a clock and an account the test controls.
-    private func cachingService(now: @escaping () -> Date, userId: @escaping @MainActor () -> String? = { "u1" })
-        -> ListInsightsService {
-        ListInsightsService(apiClient: AstridAPIClient(session: StubURLProtocol.session()),
-                            now: now, userId: userId)
-    }
-
     /// Swiping back to the Insights page, or reopening List Settings, used to send the same GET
     /// again every time. Within the server's own cache TTL the answer cannot have changed, so the
     /// client asks once.
     func testTheSameWindowIsAskedOnceWithinTheServersCacheTTL_AITD554() async throws {
-        StubURLProtocol.reset()
-        defer { StubURLProtocol.reset() }
-        StubURLProtocol.respond = { _ in .json(self.boardAnswer) }
+        let fetches = Box(Fetches())
         var clock = Date(timeIntervalSince1970: 1_800_000_000)
-        let service = cachingService(now: { clock })
+        let service = service(fetches, now: { clock })
         let la = TimeZone(identifier: "America/Los_Angeles")!
 
         _ = try await service.insights(listId: "list-1", days: 7, timeZone: la)
         clock += ListInsightsService.freshFor - 1
         _ = try await service.insights(listId: "list-1", days: 7, timeZone: la)
-        XCTAssertEqual(StubURLProtocol.requests.count, 1, "a second look inside the TTL is served locally")
+        XCTAssertEqual(fetches.value.asked.count, 1, "a second look inside the TTL is served locally")
 
         clock += 2
         _ = try await service.insights(listId: "list-1", days: 7, timeZone: la)
-        XCTAssertEqual(StubURLProtocol.requests.count, 2, "past the TTL it asks again")
+        XCTAssertEqual(fetches.value.asked.count, 2, "past the TTL it asks again")
     }
 
     /// The TTL is the server's: caching longer would show numbers the server has moved past.
@@ -133,11 +145,9 @@ final class ListInsightsTests: XCTestCase {
 
     /// Another window, list, zone or account is another answer.
     func testEachWindowListZoneAndAccountIsItsOwnAnswer_AITD554() async throws {
-        StubURLProtocol.reset()
-        defer { StubURLProtocol.reset() }
-        StubURLProtocol.respond = { _ in .json(self.boardAnswer) }
+        let fetches = Box(Fetches())
         var user: String? = "u1"
-        let service = cachingService(now: { Date(timeIntervalSince1970: 1_800_000_000) }, userId: { user })
+        let service = service(fetches, userId: { user })
         let la = TimeZone(identifier: "America/Los_Angeles")!
 
         _ = try await service.insights(listId: "list-1", days: 7, timeZone: la)
@@ -146,36 +156,31 @@ final class ListInsightsTests: XCTestCase {
         _ = try await service.insights(listId: "list-1", days: 7, timeZone: TimeZone(identifier: "UTC")!)
         user = "u2"
         _ = try await service.insights(listId: "list-1", days: 7, timeZone: la)
-        XCTAssertEqual(StubURLProtocol.requests.count, 5)
+        XCTAssertEqual(fetches.value.asked.count, 5)
     }
 
     /// Two views asking at once — the iOS pages preloading, a double open — share one request.
     func testConcurrentAsksShareOneRequest_AITD554() async throws {
-        StubURLProtocol.reset()
-        defer { StubURLProtocol.reset() }
-        StubURLProtocol.respond = { _ in .json(self.boardAnswer) }
-        let service = cachingService(now: { Date(timeIntervalSince1970: 1_800_000_000) })
+        let fetches = Box(Fetches())
+        let service = service(fetches)
 
         async let first = service.insights(listId: "list-1", days: 30)
         async let second = service.insights(listId: "list-1", days: 30)
         _ = try await (first, second)
-        XCTAssertEqual(StubURLProtocol.requests.count, 1)
+        XCTAssertEqual(fetches.value.asked.count, 1)
     }
 
     /// A failure is not remembered: the next look asks again — once, because there is no retry
     /// loop, only the person choosing to look.
     func testAFailureIsNotCached_AITD554() async throws {
-        StubURLProtocol.reset()
-        defer { StubURLProtocol.reset() }
-        var fail = true
-        StubURLProtocol.respond = { _ in fail ? .json(#"{"error":"boom"}"#, status: 500) : .json(self.boardAnswer) }
-        let service = cachingService(now: { Date(timeIntervalSince1970: 1_800_000_000) })
+        let fetches = Box(Fetches(fail: true))
+        let service = service(fetches)
 
-        do { _ = try await service.insights(listId: "list-1", days: 7); XCTFail("500 surfaces") } catch {}
-        XCTAssertEqual(StubURLProtocol.requests.count, 1, "no retry loop")
-        fail = false
+        do { _ = try await service.insights(listId: "list-1", days: 7); XCTFail("a failure surfaces") } catch {}
+        XCTAssertEqual(fetches.value.asked.count, 1, "no retry loop")
+        fetches.value.fail = false
         _ = try await service.insights(listId: "list-1", days: 7)
-        XCTAssertEqual(StubURLProtocol.requests.count, 2)
+        XCTAssertEqual(fetches.value.asked.count, 2)
     }
 
     /// A window that failed once read "couldn't load" forever: the failure was never cleared, so

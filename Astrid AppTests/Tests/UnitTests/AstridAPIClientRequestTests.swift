@@ -19,6 +19,16 @@ final class AstridAPIClientRequestTests: XCTestCase {
         super.tearDown()
     }
 
+    /// The shape the request tests decode: a share link's target, any small JSON object would do.
+    private struct Target: Codable, Equatable {
+        let targetType: String
+        let targetId: String
+    }
+
+    private func getTarget() async throws -> Target {
+        try await client.request(method: "GET", path: "/api/v1/shortcodes/abc123")
+    }
+
     private func onlyRequest(file: StaticString = #filePath, line: UInt = #line) throws -> StubURLProtocol.Recorded {
         let sent = StubURLProtocol.requests
         XCTAssertEqual(sent.count, 1, "exactly one request goes out", file: file, line: line)
@@ -30,7 +40,7 @@ final class AstridAPIClientRequestTests: XCTestCase {
     func testAGetSendsTheJSONHeadersAndThePlatform_AITD535() async throws {
         StubURLProtocol.respond = { _ in .json(#"{"targetType":"task","targetId":"t-1"}"#) }
 
-        let resolved = try await client.resolveShortcode("abc123")
+        let resolved = try await getTarget()
 
         XCTAssertEqual(resolved.targetType, "task")
         XCTAssertEqual(resolved.targetId, "t-1")
@@ -49,7 +59,8 @@ final class AstridAPIClientRequestTests: XCTestCase {
             .json(#"{"shortcode":{"code":"xyz","targetType":"list","targetId":"l-9"},"url":"https://astrid.cc/s/xyz"}"#)
         }
 
-        _ = try? await client.createShortcode(targetType: "list", targetId: "l-9")
+        let _: EmptyResponse? = try? await client.request(method: "POST", path: "/api/v1/shortcodes",
+                                                          body: Target(targetType: "list", targetId: "l-9"))
 
         let sent = try onlyRequest()
         XCTAssertEqual(sent.method, "POST")
@@ -85,7 +96,7 @@ final class AstridAPIClientRequestTests: XCTestCase {
         StubURLProtocol.respond = { _ in .json(#"{"error":"no session"}"#, status: 401) }
 
         do {
-            _ = try await client.resolveShortcode("abc")
+            _ = try await getTarget()
             XCTFail("a 401 must throw")
         } catch AstridAPIError.unauthorized {
         } catch {
@@ -97,7 +108,7 @@ final class AstridAPIClientRequestTests: XCTestCase {
         StubURLProtocol.respond = { _ in .json(#"{"error":"nope"}"#, status: 409) }
 
         do {
-            _ = try await client.resolveShortcode("abc")
+            _ = try await getTarget()
             XCTFail("a 409 must throw")
         } catch AstridAPIError.httpError(let status, let message) {
             XCTAssertEqual(status, 409)
@@ -120,7 +131,7 @@ final class AstridAPIClientRequestTests: XCTestCase {
         StubURLProtocol.respond = { _ in .json(#"{"unexpected":true}"#) }
 
         do {
-            _ = try await client.resolveShortcode("abc")
+            _ = try await getTarget()
             XCTFail("a body of the wrong shape must throw")
         } catch AstridAPIError.decodingError {
         } catch {
@@ -146,7 +157,7 @@ final class AstridAPIClientRequestTests: XCTestCase {
         StubURLProtocol.respond = { _ in .failure(URLError(.notConnectedToInternet)) }
 
         do {
-            _ = try await client.resolveShortcode("abc")
+            _ = try await getTarget()
             XCTFail("a transport failure must throw")
         } catch let error as URLError {
             XCTAssertEqual(error.code, .notConnectedToInternet)

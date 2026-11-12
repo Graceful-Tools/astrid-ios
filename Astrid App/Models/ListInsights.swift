@@ -3,7 +3,7 @@ import Foundation
 /// A list's activity over a window, computed once on the server (AITD-545, companion to web's
 /// AWTD-1329). The source of truth is astrid-web `lib/list-insights.ts` and
 /// `app/api/v1/lists/[id]/insights/route.ts`; these types only mirror what it returns.
-struct ListInsights: Codable, Equatable {
+nonisolated struct ListInsights: Codable, Equatable {
     struct Window: Codable, Equatable {
         let days: Int
         let timeZone: String
@@ -103,10 +103,6 @@ struct ListInsights: Codable, Equatable {
     /// Nil for a list that is not a board.
     let lanes: [Lane]?
     let contributors: [Contributor]
-}
-
-struct ListInsightsResponse: Codable {
-    let insights: ListInsights
 }
 
 /// How the Insights section presents the numbers — web's `ListInsightsPanel.tsx`, rule for rule.

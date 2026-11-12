@@ -142,10 +142,17 @@ final class RemoteResourceService {
         try await core.run(WebhookCommands.test(), as: WebhookTestResult.self)
     }
 
-    // MARK: - Shortcodes
+    // MARK: - Share links (through astrid-core, AITD-620)
 
+    /// Mint a share link to a `task` or a `list`.
     func createShortcode(targetType: String, targetId: String) async throws -> ShortcodeResponse {
-        try await apiClient.createShortcode(targetType: targetType, targetId: targetId)
+        try await core.run(try ShortcodeCommands.link(targetType: targetType, targetId: targetId),
+                           as: ShortcodeResponse.self)
+    }
+
+    /// What `astrid.cc/s/<code>` opens.
+    func resolveShortcode(_ code: String) async throws -> ShortcodeResolution {
+        try await core.run(ShortcodeCommands.resolve(code: code), as: ShortcodeResolution.self)
     }
 
     // MARK: - Public lists (through astrid-core, AITD-620)

@@ -243,23 +243,6 @@ class AstridAPIClient {
         }
     }
 
-    // MARK: - Shortcode Operations
-
-    struct ShortcodeResolution: Codable {
-        let targetType: String
-        let targetId: String
-    }
-
-    /// Resolve a shortcode to its target task or list
-    /// - Parameter code: The shortcode to resolve
-    /// - Returns: Resolution object containing targetType and targetId
-    func resolveShortcode(_ code: String) async throws -> ShortcodeResolution {
-        return try await request(
-            method: "GET",
-            path: "/api/v1/shortcodes/\(code)"
-        )
-    }
-
     // MARK: - App Version (AITD-383)
 
     /// The latest shipped version for a platform.
@@ -339,23 +322,6 @@ class AstridAPIClient {
             body: updates
         )
         return response.task
-    }
-
-    // MARK: - Shortcode Operations
-
-    /// Create a shortcode for sharing a task or list
-    func createShortcode(targetType: String, targetId: String) async throws -> ShortcodeResponse {
-        let body = CreateShortcodeRequest(
-            targetType: targetType,
-            targetId: targetId
-        )
-
-        let response: ShortcodeResponse = try await request(
-            method: "POST",
-            path: "/api/v1/shortcodes",
-            body: body
-        )
-        return response
     }
 
     // MARK: - List Operations
@@ -655,17 +621,6 @@ class AstridAPIClient {
             queryItems: queryItems
         )
         return response.results
-    }
-
-    /// A list's activity over the last `days` days, bucketed in `timeZone` (AITD-545).
-    func getListInsights(listId: String, days: Int, timeZone: String) async throws -> ListInsights {
-        let response: ListInsightsResponse = try await request(
-            method: "GET",
-            path: "/api/v1/lists/\(listId)/insights",
-            queryItems: [URLQueryItem(name: "days", value: String(days)),
-                         URLQueryItem(name: "tz", value: timeZone)]
-        )
-        return response.insights
     }
 
     /// Get recommended collaborators based on mutual address book presence
@@ -1043,28 +998,6 @@ struct UserData: Codable {
     let name: String?
     let email: String?  // Optional: admins in public lists may not include email
     let image: String?
-}
-
-// MARK: - Shortcode Types
-
-struct CreateShortcodeRequest: Codable {
-    let targetType: String  // "task" or "list"
-    let targetId: String
-}
-
-struct ShortcodeData: Codable {
-    let id: String
-    let code: String
-    let targetType: String
-    let targetId: String
-    let userId: String
-    let createdAt: Date
-    let expiresAt: Date?
-}
-
-struct ShortcodeResponse: Codable {
-    let shortcode: ShortcodeData
-    let url: String
 }
 
 // Note: MetaInfo is defined in CommentService.swift

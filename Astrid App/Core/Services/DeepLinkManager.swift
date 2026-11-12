@@ -13,8 +13,6 @@ import SafariServices
 class DeepLinkManager {
     static let shared = DeepLinkManager()
 
-    private let api = AstridAPIClient.shared
-
     private init() {}
 
     /// Opens a URL in an in-app browser (SFSafariViewController)
@@ -157,7 +155,7 @@ class DeepLinkManager {
     private func resolveAndRoute(code: String) {
         _Concurrency.Task {
             do {
-                let resolution = try await api.resolveShortcode(code)
+                let resolution = try await RemoteResourceService.shared.resolveShortcode(code)
                 AppLog.debug("✅ [DeepLinkManager] Resolved shortcode \(code) to \(resolution.targetType) \(resolution.targetId)")
                 
                 await MainActor.run {
