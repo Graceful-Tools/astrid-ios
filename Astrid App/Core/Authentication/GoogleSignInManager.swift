@@ -18,11 +18,12 @@ class GoogleSignInManager: NSObject, ObservableObject {
     }
 
     // MARK: - Configuration
-    // NOTE: This must be configured with your Google OAuth Client ID for iOS
-    // Get this from Google Cloud Console: https://console.cloud.google.com/apis/credentials
-    // Instructions in ios/GOOGLE_OAUTH_SETUP.md
-    private let clientID = "195880614240-nps6cdlcceliaru5d3b4p6pofjbs7sks.apps.googleusercontent.com"
-    private let redirectURI = "com.googleusercontent.apps.195880614240-nps6cdlcceliaru5d3b4p6pofjbs7sks:/oauth2redirect/google"
+    // The brand's iOS OAuth client (AITD-617): the profile's `ios.googleClientId`, or Astrid's
+    // own. Empty when the build has none — the login screens then draw no Google button, and
+    // `signIn()` refuses rather than open a consent screen that cannot complete.
+    // Setup: docs/GOOGLE_OAUTH_SETUP.md.
+    private let clientID = Brand.googleClientId ?? ""
+    private let redirectURI = Brand.googleRedirectScheme.map { "\($0):/oauth2redirect/google" } ?? ""
 
     // MARK: - Sign In
 
@@ -33,7 +34,7 @@ class GoogleSignInManager: NSObject, ObservableObject {
         defer { isProcessing = false }
 
         // Validate configuration
-        guard !clientID.contains("YOUR_GOOGLE") else {
+        guard !clientID.isEmpty, !redirectURI.isEmpty else {
             throw GoogleSignInError.notConfigured
         }
 

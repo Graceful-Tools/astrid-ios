@@ -155,6 +155,24 @@ final class BrandAuditTests: XCTestCase {
         XCTAssertEqual(Theme.Dark.accentInk, Brand.accentInkDarkColor)
     }
 
+    /// AITD-617: Astrid's Google client must not survive into a partner build — not in Brand,
+    /// not as a registered URL scheme — and with no client of its own, no Google button.
+    func testAstridsGoogleClientDoesNotSurvive_AITD617() throws {
+        try requirePartnerBuild()
+        let astrid = "195880614240"
+        XCTAssertFalse(Brand.googleClientId?.contains(astrid) ?? false, "Brand still signs in with Astrid's Google client")
+        let schemes = (Bundle.main.object(forInfoDictionaryKey: "CFBundleURLTypes") as? [[String: Any]] ?? [])
+            .flatMap { $0["CFBundleURLSchemes"] as? [String] ?? [] }
+        XCTAssertFalse(schemes.contains { $0.contains(astrid) }, "Info.plist still registers Astrid's Google redirect: \(schemes)")
+        if configured("BrandGoogleClientId") == nil {
+            XCTAssertNil(Brand.googleClientId)
+            let auth = try JSONDecoder().decode(ServerCapabilities.Auth.self, from: Data(#"{"google":true}"#.utf8))
+            XCTAssertFalse(SignInMethods.offered(by: auth).google, "a Google button with no client to sign in with")
+        } else {
+            XCTAssertTrue(schemes.contains(try XCTUnwrap(Brand.googleRedirectScheme)), "the partner's Google redirect is not registered")
+        }
+    }
+
     /// Semantic colours must NOT follow the brand — a red error stays red.
     func testStatusColoursDidNotFollowTheBrand() throws {
         try requirePartnerBuild()

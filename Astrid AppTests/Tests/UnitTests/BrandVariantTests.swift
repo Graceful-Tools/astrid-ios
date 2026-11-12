@@ -17,7 +17,7 @@ final class BrandVariantTests: XCTestCase {
         "BrandName", "BrandHost", "BrandAgentEmailDomain", "BrandSupportEmail", "BrandInboundTaskEmail",
         "BrandWordmark", "BrandSlogan", "BrandAgentName",
         "BrandAccentColor", "BrandAccentHoverColor", "BrandAccentTextColor", "BrandCharacterImage",
-        "BrandAccentInkColor", "BrandAccentInkDarkColor", "BrandURLScheme",
+        "BrandAccentInkColor", "BrandAccentInkDarkColor", "BrandURLScheme", "BrandGoogleClientId",
     ]
 
     /// The variant's bundle id, as the script recorded it.
@@ -31,7 +31,9 @@ final class BrandVariantTests: XCTestCase {
 
     /// Astrid's value as the variant must carry it: the drag type and the sync task renamed for
     /// the variant, and the app's own URL type registering the variant's scheme (AITD-616).
-    private func reidentified(_ key: String, _ value: Any, bundleId: String, scheme: String) -> Any {
+    /// …and Google's redirect is the variant's own client, or absent with none (AITD-617).
+    private func reidentified(_ key: String, _ value: Any, bundleId: String, scheme: String,
+                              googleClient: String? = nil) -> Any {
         switch key {
         case "BGTaskSchedulerPermittedIdentifiers":
             return (value as? [String] ?? []).map { $0 == "cc.astrid.app.sync" ? "\(bundleId).sync" : $0 }
@@ -42,9 +44,15 @@ final class BrandVariantTests: XCTestCase {
                 return type
             }
         case "CFBundleURLTypes":
-            return (value as? [[String: Any]] ?? []).map { urlType in
+            return (value as? [[String: Any]] ?? []).compactMap { urlType -> [String: Any]? in
                 var urlType = urlType
-                if urlType["CFBundleURLName"] as? String == "cc.astrid.app" { urlType["CFBundleURLSchemes"] = [scheme] }
+                switch urlType["CFBundleURLName"] as? String {
+                case "cc.astrid.app": urlType["CFBundleURLSchemes"] = [scheme]
+                case "com.googleusercontent.apps":
+                    guard let googleClient else { return nil }
+                    urlType["CFBundleURLSchemes"] = [Brand.reversedGoogleClient(googleClient)]
+                default: break
+                }
                 return urlType
             }
         default:
@@ -92,9 +100,11 @@ final class BrandVariantTests: XCTestCase {
         let name = try variantBrandName
         let appName = try variantAppName
         let bundleId = try variantBundleId
-        let scheme = Brand.resolveURLScheme(try plist("Brands/Whitelabel/Info-iOS.plist")["BrandURLScheme"] as? String)
+        let variantInfo = try plist("Brands/Whitelabel/Info-iOS.plist")
+        let scheme = Brand.resolveURLScheme(variantInfo["BrandURLScheme"] as? String)
+        let googleClient = Brand.resolveGoogleClientId(variantInfo["BrandGoogleClientId"] as? String, appName: try variantBrandName)
         for (key, astridValue) in astrid where !brandedKeys.contains(key) {
-            let value = reidentified(key, astridValue, bundleId: bundleId, scheme: scheme)
+            let value = reidentified(key, astridValue, bundleId: bundleId, scheme: scheme, googleClient: googleClient)
             guard let copy = brand[key] else {
                 XCTFail("\(variant) lacks \(key), which \(base) has — re-run scripts/make-brand-variant.sh", file: file, line: line)
                 continue

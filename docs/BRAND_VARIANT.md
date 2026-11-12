@@ -30,7 +30,8 @@ These come from three places. Later ones win:
      "keychainGroup": "com.acme.tasks",
      "developmentTeam": "ABCDE12345",
      "displayName": "Acme Tasks",
-     "urlScheme": "acmetasks"
+     "urlScheme": "acmetasks",
+     "googleClientId": "123456-abcdef.apps.googleusercontent.com"
    }
    ```
 3. **Arguments:** `--bundle-id`, `--app-group`, `--keychain-group`, `--team`, `--display-name`,
@@ -43,6 +44,7 @@ These come from three places. Later ones win:
 | `keychainGroup` | same as `bundleId` | `keychain-access-groups` in the iOS entitlements |
 | `developmentTeam` | `34K3P7PD2W` | `DEVELOPMENT_TEAM` of every Whitelabel build configuration |
 | `displayName` | `Whitelabel` | iOS home-screen name; Mac `PRODUCT_NAME`, so `<displayName>.app`, "About/Quit <displayName>", and the Services item |
+| `googleClientId` | none (Astrid's own app keeps Astrid's) | `BrandGoogleClientId`, and the reversed-client URL type Google returns sign-in to. With no client, the build registers no Google redirect and draws no Google button, even when the server offers Google. Create an **iOS** OAuth client for the partner's bundle id in Google Cloud Console (docs/GOOGLE_OAUTH_SETUP.md) |
 | `urlScheme` | the profile's `NEXT_PUBLIC_BRAND_APP_URL_SCHEME`, else `astrid` | the scheme the iOS app registers (`CFBundleURLSchemes`) and `Brand.urlScheme` answers: in-app links, deep links, the browser sign-in and OAuth callbacks |
 
 **The URL scheme has to be the deployment's.** The server sends the browser back to
@@ -71,8 +73,6 @@ by hand: the next run only rewrites values it recognises.
 
 ## Not configurable here (yet)
 
-- **The Google sign-in client.** Astrid's client id is in `GoogleSignInManager.swift` and both
-  plists — AITD-617.
 - **Artwork.** The script copies none; a partner replaces `AppIcon-Whitelabel` in both catalogs and
   adds the character imageset twice by hand — AITD-618. Building and signing a partner's apps in
   one command is AITD-619.
