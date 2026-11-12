@@ -493,11 +493,8 @@ export const rules = [
         if (!this.knownCallers.includes(file)) violations.push({ file, line: lineOf(text, text.indexOf('/api/v1/search')), message: 'is a new caller of /api/v1/search — handle an absent total, then name it in knownCallers' })
         if (/let\s+total\s*:\s*Int(?!\?)/.test(text) && !text.includes('includeTotal')) violations.push({ file, line: 0, message: 'decodes a required `total` without passing includeTotal=true' })
       }
-      // /api/v1/users/search left the Swift in AITD-620: people search is the core's `searchUsers`,
-      // which reads only the `users` envelope and never a `total`.
-      for (const endpoint of ['/api/v1/contacts/search']) {
-        if (!files.some((f) => ctx.read(f).includes(endpoint))) violations.push({ file: endpoint, line: 0, message: 'is no longer called — re-check which search endpoints the apps use' })
-      }
+      // /api/v1/users/search and /api/v1/contacts/search left the Swift in AITD-620: both are
+      // core commands now (`searchUsers`, `searchContacts`), which read only their result arrays.
       return violations
     },
   },

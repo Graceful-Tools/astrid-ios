@@ -546,46 +546,6 @@ class AstridAPIClient {
         )
     }
 
-    // MARK: - Contacts (Address Book)
-    //
-    // People search, contact sync and the synced count go through astrid-core (AITD-620,
-    // `ContactCommands`). Autocomplete and recommendations have no core command yet.
-
-    /// Search contacts for autocomplete when adding list members
-    func searchContacts(query: String, excludeListId: String? = nil, limit: Int = 10) async throws -> [ContactSearchResult] {
-        var queryItems = [
-            URLQueryItem(name: "q", value: query),
-            URLQueryItem(name: "limit", value: String(limit))
-        ]
-
-        if let excludeListId = excludeListId {
-            queryItems.append(URLQueryItem(name: "excludeListId", value: excludeListId))
-        }
-
-        let response: ContactSearchResponse = try await request(
-            method: "GET",
-            path: "/api/v1/contacts/search",
-            queryItems: queryItems
-        )
-        return response.results
-    }
-
-    /// Get recommended collaborators based on mutual address book presence
-    func getRecommendedCollaborators(excludeListId: String? = nil, limit: Int = 20) async throws -> [RecommendedCollaborator] {
-        var queryItems = [URLQueryItem(name: "limit", value: String(limit))]
-
-        if let excludeListId = excludeListId {
-            queryItems.append(URLQueryItem(name: "excludeListId", value: excludeListId))
-        }
-
-        let response: RecommendedCollaboratorsResponse = try await request(
-            method: "GET",
-            path: "/api/v1/contacts/recommended",
-            queryItems: queryItems
-        )
-        return response.recommended
-    }
-
     // MARK: - Copilot cloud agent token
 
     /// Mint the user-level MCP token the GitHub.com Copilot coding agent authenticates with.
@@ -702,27 +662,6 @@ class AstridAPIClient {
     }
 }
 
-// MARK: - Contacts Response Types
-
-struct ContactSearchResponse: Codable {
-    let results: [ContactSearchResult]
-    let meta: MetaInfo
-}
-
-struct RecommendedCollaboratorsResponse: Codable {
-    let recommended: [RecommendedCollaborator]
-    let stats: RecommendedCollaboratorsStats?
-    let message: String?
-    let meta: MetaInfo
-}
-
-struct RecommendedCollaboratorsStats: Codable {
-    let mutual: Int
-    let nonMutual: Int
-    let total: Int
-}
-
-/// Response from GET /api/v1/contacts
 // MARK: - Response DTOs (Non-duplicates only - others in APIModels.swift)
 
 struct TaskResponse: Codable {
