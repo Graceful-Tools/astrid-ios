@@ -13,14 +13,13 @@ import Combine
  * - Searches contacts for autocomplete when adding list members
  * - Gets recommended collaborators based on mutual address book presence
  *
- * The synced count and the upload go through astrid-core (AITD-620), which also does the
- * batching; autocomplete and recommendations have no core command yet and stay on the client.
+ * Everything here that talks to the server goes through astrid-core (AITD-620): the synced
+ * count, the upload (the core does the batching), autocomplete and recommendations.
  */
 class ContactsService: ObservableObject {
     static let shared = ContactsService()
 
     private let store = CNContactStore()
-    private let apiClient = AstridAPIClient.shared
     private var core: CoreSession { AppCore.shared.session }
 
     // UserDefaults key for persisting last sync date
@@ -181,7 +180,8 @@ class ContactsService: ObservableObject {
     ///   - excludeListId: Optional list ID to exclude existing members
     /// - Returns: Array of matching contacts
     func searchContacts(query: String, excludeListId: String? = nil) async throws -> [ContactSearchResult] {
-        return try await apiClient.searchContacts(query: query, excludeListId: excludeListId)
+        try await core.run(ContactCommands.searchContacts(query: query, excludeListId: excludeListId),
+                           as: ContactSearchAnswer.self).results
     }
 
     // MARK: - Recommended Collaborators
@@ -190,7 +190,8 @@ class ContactsService: ObservableObject {
     /// - Parameter excludeListId: Optional list ID to exclude existing members
     /// - Returns: Array of recommended collaborators
     func getRecommendedCollaborators(excludeListId: String? = nil) async throws -> [RecommendedCollaborator] {
-        return try await apiClient.getRecommendedCollaborators(excludeListId: excludeListId)
+        try await core.run(ContactCommands.recommendedCollaborators(excludeListId: excludeListId),
+                           as: RecommendedCollaboratorsAnswer.self).recommended
     }
 }
 
@@ -215,7 +216,7 @@ nonisolated struct ContactSyncStats: Codable, Sendable {
 }
 
 /// Contact search result for autocomplete
-struct ContactSearchResult: Codable, Identifiable {
+nonisolated struct ContactSearchResult: Codable, Identifiable, Sendable {
     let id: String
     let email: String
     let name: String?
@@ -231,7 +232,7 @@ struct ContactSearchResult: Codable, Identifiable {
 }
 
 /// Recommended collaborator based on mutual contacts
-struct RecommendedCollaborator: Codable, Identifiable {
+nonisolated struct RecommendedCollaborator: Codable, Identifiable, Sendable {
     let id: String
     let email: String
     let name: String?

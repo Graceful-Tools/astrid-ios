@@ -59,6 +59,30 @@ final class ContactsCoreTests: XCTestCase {
         XCTAssertEqual(sent["includeAgents"] as? Bool, true)
     }
 
+    /// Autocomplete when adding a member (AITD-620, tenth slice): the core's `searchContacts`,
+    /// with the app's limit of 10 and the list whose members are left out.
+    func testContactAutocompleteIsTheCoresSearchContacts_AITD620() throws {
+        let sent = try json(ContactCommands.searchContacts(query: "an", excludeListId: "l1"))
+        XCTAssertEqual(sent["kind"] as? String, "searchContacts")
+        XCTAssertEqual(sent["query"] as? String, "an")
+        XCTAssertEqual(sent["excludeListId"] as? String, "l1")
+        XCTAssertEqual(sent["limit"] as? Int, 10)
+    }
+
+    func testAutocompleteWithNoListLeavesTheExclusionOut_AITD620() throws {
+        let sent = try json(ContactCommands.searchContacts(query: "an", excludeListId: nil))
+        XCTAssertNil(sent["excludeListId"])
+    }
+
+    /// Recommended collaborators: the core's `recommendedCollaborators`, still asking for 20.
+    func testRecommendationsAreTheCoresRecommendedCollaborators_AITD620() throws {
+        let sent = try json(ContactCommands.recommendedCollaborators(excludeListId: "l1"))
+        XCTAssertEqual(sent["kind"] as? String, "recommendedCollaborators")
+        XCTAssertEqual(sent["excludeListId"] as? String, "l1")
+        XCTAssertEqual(sent["limit"] as? Int, 20)
+        XCTAssertNil(try json(ContactCommands.recommendedCollaborators(excludeListId: nil))["excludeListId"])
+    }
+
     // MARK: The core's answers
 
     /// `contacts` answers `{ contacts, total }`; the settings row only shows the total.
@@ -84,5 +108,33 @@ final class ContactsCoreTests: XCTestCase {
         XCTAssertEqual(users.map(\.id), ["u1", "ai-agent-claude"])
         XCTAssertEqual(users[1].isAIAgent, true)
         XCTAssertEqual(users[1].aiAgentType, "claude")
+    }
+
+    /// `searchContacts` answers `{ results: [...] }`, each row as the route sends it.
+    func testTheCoresAutocompleteAnswerReadsAsContactRows_AITD620() throws {
+        let answer = try JSONDecoder().decode(ContactSearchAnswer.self, from: Data(#"""
+            {"results":[{"id":"c1","email":"ann@x.io","name":"Ann","phoneNumber":null,
+                         "isAstridUser":true,"astridUserName":"Ann A","astridUserImage":"https://x/a.png"},
+                        {"id":"c2","email":"bo@x.io","name":null,"phoneNumber":"+1",
+                         "isAstridUser":false,"astridUserName":null,"astridUserImage":null}]}
+            """#.utf8))
+        XCTAssertEqual(answer.results.map(\.id), ["c1", "c2"])
+        XCTAssertEqual(answer.results[0].displayName, "Ann A")
+        XCTAssertEqual(answer.results[1].displayName, "bo@x.io")
+    }
+
+    /// `recommendedCollaborators` answers `{ recommended, stats, message }`; with no contacts
+    /// uploaded `stats` is null and `recommended` empty, which must still read.
+    func testTheCoresRecommendationsAnswerReads_AITD620() throws {
+        let some = try JSONDecoder().decode(RecommendedCollaboratorsAnswer.self, from: Data(#"""
+            {"recommended":[{"id":"u1","email":"ada@x.io","name":"Ada","image":null,
+                             "contactName":"Ada L","isMutual":true}],
+             "stats":{"mutual":1,"nonMutual":0,"total":1},"message":null}
+            """#.utf8))
+        XCTAssertEqual(some.recommended.map(\.id), ["u1"])
+        XCTAssertTrue(some.recommended[0].isMutual)
+        let none = try JSONDecoder().decode(RecommendedCollaboratorsAnswer.self, from: Data(
+            #"{"recommended":[],"stats":null,"message":"No contacts uploaded yet."}"#.utf8))
+        XCTAssertTrue(none.recommended.isEmpty)
     }
 }
