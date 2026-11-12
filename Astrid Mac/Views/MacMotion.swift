@@ -14,6 +14,7 @@ enum MacMotion {
 
     static var fast: Animation { .easeOut(duration: fastDuration) }
     static var medium: Animation { .easeInOut(duration: mediumDuration) }
-    static var spring: Animation { .spring(response: springResponse, dampingFraction: springDamping) }
+    // None at all under Reduce Motion (AITD-624): the state lands without a spring.
+    static var spring: Animation? { ReducedMotion.spring(response: springResponse, dampingFraction: springDamping) }
 }
 #endif

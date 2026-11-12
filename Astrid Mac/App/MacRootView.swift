@@ -1285,7 +1285,7 @@ struct MacRootView: View {
                     ToolbarItem(placement: .primaryAction) { MacMessagesToggleButton(isHidden: $chatColumnHidden) }
                 }
             }
-            .animation(.spring(response: 0.34, dampingFraction: 0.85), value: selectedTaskIds)
+            .animation(ReducedMotion.spring(response: 0.34, dampingFraction: 0.85), value: selectedTaskIds)
         }
         // 3-column mode (1a71c0e7) OPENS the sidebar when the window becomes wide enough — it must
         // not PIN it there. Snapping `.all` back on every change made the rail impossible to close:

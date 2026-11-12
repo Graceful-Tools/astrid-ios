@@ -131,6 +131,7 @@ const trips = {
     'Astrid App/Big.swift': 'a\nb\nc\nd\ne\n',
   }),
   'mac-hardcoded-strings': () => fixture({ 'Astrid Mac/V.swift': view('Text("Save changes")') }),
+  'springs-honour-reduce-motion': () => fixture({ 'Astrid App/Views/Drawer.swift': 'withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) { open = true }\n', 'Astrid Mac/Views/x.swift': '', 'Shared/x.swift': '' }),
   'mac-role-labels': () => fixture({ 'Astrid Mac/Views/Members.swift': 'Text(isOwner ? "Owner" : member.role.capitalized)\n' }),
   'api-v1-is-complete': () => fixture({ 'Astrid App/Old.swift': 'let x = 1 // not here: TODO add to API v1 when it exists\nlet y = 2 /* TODO: API v1 lacks this */\n' }),
   'search-total': () => fixture({ 'Astrid App/Search.swift': 'let p = "/api/v1/search"\nstruct R: Decodable { let total: Int }\n' }),

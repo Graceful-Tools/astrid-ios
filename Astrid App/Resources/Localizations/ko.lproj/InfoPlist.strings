@@ -1,0 +1,10 @@
+/* Permission prompts (AITD-624). No brand name: the system alert title already names the app,
+   so every brand build reads correctly. Keys must match the NS*UsageDescription keys the
+   iOS and Mac Info.plists declare — scripts/check-localizations.sh enforces both. */
+
+"NSCameraUsageDescription" = "사진을 찍어 작업이나 댓글에 첨부합니다.";
+"NSPhotoLibraryUsageDescription" = "작업과 댓글에 사진을 첨부합니다. 이 기기에 저장된 사진도 확인하여 오프라인에서도 첨부할 수 있습니다.";
+"NSContactsUsageDescription" = "목록을 공유할 때 연락처에서 공동 작업자를 추천합니다. 연락처는 암호화되며 제3자와 공유되지 않습니다.";
+"NSRemindersFullAccessUsageDescription" = "작업을 Apple 미리 알림과 동기화하여 Siri로 추가하고 다른 기기에서도 볼 수 있게 합니다.";
+"NSRemindersUsageDescription" = "작업을 Apple 미리 알림과 동기화하여 Siri로 추가하고 다른 기기에서도 볼 수 있게 합니다.";
+"NSCalendarsFullAccessUsageDescription" = "마감일을 캘린더의 이벤트와 함께 표시합니다.";

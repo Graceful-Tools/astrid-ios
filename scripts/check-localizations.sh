@@ -155,6 +155,43 @@ for lang in "${LANGUAGES[@]}"; do
 done
 echo ""
 
+# Permission prompts (AITD-624): every NS*UsageDescription the iOS Info.plist or the Mac target's
+# build settings declare must be translated in every language's InfoPlist.strings — otherwise the
+# system shows the English plist value on a German device. And no value may name the brand: the
+# alert title already does, and a spelled "Astrid" would show in a partner's build.
+echo -e "${BLUE}Checking permission prompts (InfoPlist.strings)...${NC}"
+REQUIRED_PROMPTS=$( { grep -oE '<key>NS[A-Za-z]*UsageDescription</key>' "$PROJECT_DIR/Info.plist" | sed -E 's/<\/?key>//g'
+                      grep -oE 'INFOPLIST_KEY_NS[A-Za-z]*UsageDescription' "$PROJECT_DIR/Astrid App.xcodeproj/project.pbxproj" | sed 's/^INFOPLIST_KEY_//'
+                    } | sort -u )
+if [[ -z "$REQUIRED_PROMPTS" ]]; then
+    echo -e "${RED}  ERROR: found no NS*UsageDescription keys — the plist paths are wrong${NC}"
+    ERRORS=$((ERRORS + 1))
+fi
+for lang in "${LANGUAGES[@]}"; do
+    file="$LOCALIZATIONS_DIR/${lang}.lproj/InfoPlist.strings"
+    if [[ ! -s "$file" ]]; then
+        echo -e "${RED}  ERROR: Missing or empty InfoPlist.strings for: $lang${NC}"
+        ERRORS=$((ERRORS + 1))
+        continue
+    fi
+    PROMPT_KEYS=$(extract_keys "$file")
+    MISSING=$(comm -23 <(echo "$REQUIRED_PROMPTS") <(echo "$PROMPT_KEYS"))
+    BRANDED=$(grep -E '^"NS[A-Za-z]*UsageDescription"\s*=.*Astrid' "$file" | sed -E 's/^"([^"]+)".*/\1/' || true)
+    if ! plutil -lint -s "$file" >/dev/null 2>&1; then
+        echo -e "${RED}  ERROR: $lang InfoPlist.strings does not parse${NC}"
+        ERRORS=$((ERRORS + 1))
+    elif [[ -n "$MISSING" ]]; then
+        echo -e "${RED}  ERROR: $lang InfoPlist.strings is missing: $(echo $MISSING)${NC}"
+        ERRORS=$((ERRORS + 1))
+    elif [[ -n "$BRANDED" ]]; then
+        echo -e "${RED}  ERROR: $lang InfoPlist.strings names the brand in: $(echo $BRANDED)${NC}"
+        ERRORS=$((ERRORS + 1))
+    else
+        echo -e "${GREEN}  ✓ $lang: $(echo "$REQUIRED_PROMPTS" | wc -l | tr -d ' ') permission prompts${NC}"
+    fi
+done
+echo ""
+
 # Check that Constants.swift supportedLanguages matches our list
 echo -e "${BLUE}Checking Constants.swift matches expected languages...${NC}"
 CONSTANTS_FILE="$PROJECT_DIR/Astrid App/Utilities/Constants.swift"

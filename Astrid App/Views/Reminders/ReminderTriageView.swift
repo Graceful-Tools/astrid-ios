@@ -177,7 +177,7 @@ struct ReminderTriageView: View {
                    isEnabled(action) {
                     decide(action, on: task)
                 } else {
-                    withAnimation(.spring()) { drag = .zero }
+                    withAnimation(ReducedMotion.spring()) { drag = .zero }
                 }
             }
     }

@@ -91,7 +91,7 @@ struct MainTabView: View {
         // any NavigationStack" warning
         .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
             // Navigate to settings in the main content area
-            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+            withAnimation(ReducedMotion.spring(response: 0.25, dampingFraction: 0.85)) {
                 showSidebar = false
             }
             selectedListId = "settings"
@@ -101,7 +101,7 @@ struct MainTabView: View {
         // appear. Received on the next main-queue turn: @Published emits before it stores.
         .onReceive(SettingsPresenter.shared.$request.compactMap { $0 }.receive(on: DispatchQueue.main)) { _ in
             guard let panel = SettingsPresenter.shared.takeRequest() else { return }
-            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+            withAnimation(ReducedMotion.spring(response: 0.25, dampingFraction: 0.85)) {
                 showSidebar = false
             }
             selectedListId = panel
@@ -110,7 +110,7 @@ struct MainTabView: View {
             selectedListId = "my-tasks"
         }
         .onReceive(NotificationCenter.default.publisher(for: .openProfile)) { _ in
-            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+            withAnimation(ReducedMotion.spring(response: 0.25, dampingFraction: 0.85)) {
                 showSidebar = false
             }
             selectedListId = "profile"
@@ -131,7 +131,7 @@ struct MainTabView: View {
 
                 // Close sidebar if open
                 if showSidebar {
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                    withAnimation(ReducedMotion.spring(response: 0.25, dampingFraction: 0.85)) {
                         showSidebar = false
                     }
                 }
@@ -202,7 +202,7 @@ struct MainTabView: View {
                             shouldScrollSidebarToTop = true
 
                             // Close sidebar immediately and show selected list
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                            withAnimation(ReducedMotion.spring(response: 0.25, dampingFraction: 0.85)) {
                                 showSidebar = false
                             }
 
@@ -230,7 +230,7 @@ struct MainTabView: View {
                 if selectedListId == "settings" {
                     SettingsView(onMenuTap: {
                         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                        withAnimation(ReducedMotion.spring(response: 0.25, dampingFraction: 0.85)) {
                             showSidebar = true
                         }
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
@@ -251,7 +251,7 @@ struct MainTabView: View {
                                         || value.predictedEndTranslation.width > 200
                                     if isHorizontal && isRight && meetsThreshold {
                                         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                                        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                                        withAnimation(ReducedMotion.spring(response: 0.25, dampingFraction: 0.85)) {
                                             showSidebar = true
                                         }
                                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
@@ -273,7 +273,7 @@ struct MainTabView: View {
                             UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
 
                             // Open sidebar
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                            withAnimation(ReducedMotion.spring(response: 0.25, dampingFraction: 0.85)) {
                                 showSidebar = true
                             }
 
@@ -326,7 +326,7 @@ struct MainTabView: View {
 
                                     // If dragged left more than 100 points or high velocity, dismiss
                                     if value.translation.width < -100 || value.predictedEndTranslation.width < -200 {
-                                        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                                        withAnimation(ReducedMotion.spring(response: 0.25, dampingFraction: 0.85)) {
                                             showSidebar = false
                                             dragOffset = 0
                                         }
@@ -339,7 +339,7 @@ struct MainTabView: View {
                                         }
                                     } else {
                                         // Snap back to open position - also reset scroll flag
-                                        withAnimation(.spring(response: 0.2, dampingFraction: 0.9)) {
+                                        withAnimation(ReducedMotion.spring(response: 0.2, dampingFraction: 0.9)) {
                                             dragOffset = 0
                                         }
                                         shouldScrollSidebarToTop = false
@@ -351,7 +351,7 @@ struct MainTabView: View {
                             shouldScrollSidebarToTop = true
 
                             // Tap task list to close
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                            withAnimation(ReducedMotion.spring(response: 0.25, dampingFraction: 0.85)) {
                                 showSidebar = false
                             }
 

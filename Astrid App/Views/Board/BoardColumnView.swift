@@ -77,7 +77,7 @@ private struct BoardColumnDropDelegate: DropDelegate {
     private func track(_ info: DropInfo) {
         let index = boardDropInsertionIndex(dropY: info.location.y, slots: slots)
         if hoveringIndex != index {
-            withAnimation(.spring(response: 0.2, dampingFraction: 0.85)) {
+            withAnimation(ReducedMotion.spring(response: 0.2, dampingFraction: 0.85)) {
                 hoveringIndex = index
             }
         }
@@ -241,9 +241,9 @@ struct BoardColumnView: View {
                 }
                 .padding(.horizontal, 6)
                 .padding(.vertical, 8)
-                .animation(.spring(response: 0.28, dampingFraction: 0.88),
+                .animation(ReducedMotion.spring(response: 0.28, dampingFraction: 0.88),
                            value: displayedTasks.map { $0.id })
-                .animation(.spring(response: 0.2, dampingFraction: 0.85),
+                .animation(ReducedMotion.spring(response: 0.2, dampingFraction: 0.85),
                            value: hoveringIndex)
             }
             .frame(minHeight: 160)
@@ -436,7 +436,7 @@ struct BoardColumnView: View {
         let target = max(0, min(index, newIds.count))
         newIds.insert(taskId, at: target)
 
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+        withAnimation(ReducedMotion.spring(response: 0.28, dampingFraction: 0.88)) {
             pendingTaskOrder = newIds
         }
 
