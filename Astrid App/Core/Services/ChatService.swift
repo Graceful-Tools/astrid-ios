@@ -225,7 +225,7 @@ class ChatService: ObservableObject {
     /// to mentionable users.
     func fetchAvailableAgents(useCacheOnFailure: Bool = true) async throws -> [AvailableAgent] {
         do {
-            let agents = try await AstridAPIClient.shared.getAvailableAgents()
+            let agents = try await core.run(AvailableAgentCommands.list(), as: AvailableAgentsResponse.self).agents
             AIAgentCache.shared.save(agents.map(Self.agentUser))
             return agents
         } catch {
@@ -243,7 +243,7 @@ class ChatService: ObservableObject {
     /// (`?serverRun=true`). NOT cached — the mention cache must keep the unfiltered list, which
     /// includes polling agents that cannot power the assistant but can be assigned (AITD-297).
     func fetchServerRunAgents() async throws -> [AvailableAgent] {
-        try await AstridAPIClient.shared.getAvailableAgents(serverRunOnly: true)
+        try await core.run(AvailableAgentCommands.list(serverRunOnly: true), as: AvailableAgentsResponse.self).agents
     }
 
     func fetchAvailableAgentUsers(useCacheOnFailure: Bool = true) async throws -> [User] {

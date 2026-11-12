@@ -14,7 +14,7 @@ disagree, which is the only reason to trust a generated list at all.
 Regenerate: see the test — it prints the expected list on failure.
 
 **Most of the app's traffic is not here.** Tasks, lists, comments, chat, members, blockers,
-settings, the live stream, Connections, webhooks, account delete/export, Custom Agents, public-list browse/copy, share links, list insights, the deployment's capabilities, Copilot connect/disconnect/status, agent modes, AI keys, contact sync and people search (AITD-620) go through astrid-core, whose paths are in
+settings, the live stream, Connections, webhooks, account delete/export, Custom Agents, public-list browse/copy, share links, list insights, the deployment's capabilities, Copilot connect/disconnect/status, agent modes, AI keys, available agents, contact sync and people search (AITD-620) go through astrid-core, whose paths are in
 `astrid-core/crates/astrid-core/src/api/endpoints.rs` (see `docs/CORE_MIGRATION.md`). This list
 is what the Swift client still calls itself.
 
@@ -25,7 +25,7 @@ passkey routes under `/api/auth/webauthn/*` are built by `PasskeyManager` throug
 not by this client.)
 
 
-## `AstridAPIClient` — the only client (32 paths)
+## `AstridAPIClient` — the only client (31 paths)
 
 
 ### `/api/v1/app-version`
@@ -97,7 +97,6 @@ path there belongs in this list too.
 
 - `/api/v1/users/me`
 - `/api/v1/users/me/ai-preferences`
-- `/api/v1/users/me/available-agents`
 - `/api/v1/users/me/settings`
 - `/api/v1/users/me/smart-tasks`
 - `/api/v1/users/me/verify-email`

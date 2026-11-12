@@ -9,6 +9,7 @@
 //  cross-platform contract (both settings screens expose the hub, iOS-only views stay out of the
 //  Mac target).
 
+import AstridCore
 import XCTest
 @testable import Astrid_App
 
@@ -257,11 +258,28 @@ final class AgentHubTests: XCTestCase {
                        "https://astrid.cc/settings/agents")
     }
 
-    func testAITD297_ServerRunFilterIsAQueryParameter() {
-        XCTAssertEqual(AstridAPIClient.availableAgentsQueryItems(serverRunOnly: true),
-                       [URLQueryItem(name: "serverRun", value: "true")])
-        XCTAssertNil(AstridAPIClient.availableAgentsQueryItems(serverRunOnly: false),
+    /// Through astrid-core since AITD-620: the core's `availableAgents` turns `serverRunOnly` into
+    /// the route's `?serverRun=true`.
+    func testAITD297_ServerRunFilterIsAskedOfTheCore() throws {
+        func sent(_ command: CoreCommand) throws -> [String: Any] {
+            try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(try CoreJSON.encode(command).utf8)) as? [String: Any])
+        }
+        let filtered = try sent(AvailableAgentCommands.list(serverRunOnly: true))
+        XCTAssertEqual(filtered["kind"] as? String, "availableAgents")
+        XCTAssertEqual(filtered["serverRunOnly"] as? Bool, true)
+        let unfiltered = try sent(AvailableAgentCommands.list())
+        XCTAssertEqual(unfiltered["kind"] as? String, "availableAgents")
+        XCTAssertNil(unfiltered["serverRunOnly"],
                      "the unfiltered list is for assignee pickers and must stay unfiltered")
+    }
+
+    /// The core answers the route's own `{ agents }` rows.
+    func testTheCoresAvailableAgentsAnswerReads_AITD620() throws {
+        let answer = try JSONDecoder().decode(AvailableAgentsResponse.self, from: Data(#"""
+        {"agents":[{"id":"ai-agent-claude","name":"Claude Agent","email":"claude@astrid.cc","image":null,"service":"claude"}]}
+        """#.utf8))
+        XCTAssertEqual(answer.agents.first?.email, "claude@astrid.cc")
+        XCTAssertEqual(answer.agents.first?.service, "claude")
     }
 
     func testAITD297_CapabilitiesCarryCustomAgents() throws {
