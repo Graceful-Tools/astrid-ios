@@ -48,7 +48,9 @@ TARGETS=(aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios aarch64-apple-
 for target in "${TARGETS[@]}"; do
   rustup target add "$target" >/dev/null 2>&1 || true
   start=$(date +%s)
-  cargo build "${CARGO_ARGS[@]}" --target "$target"
+  # `--crate-type staticlib` overrides the manifest's ["staticlib", "lib"] for this build only:
+  # with a second crate type rustc silently skips LTO and keeps every crate's bitcode (AITD-625).
+  cargo rustc "${CARGO_ARGS[@]}" --lib --crate-type staticlib --target "$target"
   echo "── $target built in $(( $(date +%s) - start ))s"
 done
 
@@ -101,4 +103,6 @@ if [ "$ZIP" -eq 1 ]; then
   du -h "$OUT_DIR/AstridCoreFFI.xcframework.zip"
   echo "checksum: $(swift package compute-checksum "$OUT_DIR/AstridCoreFFI.xcframework.zip")"
 fi
+# A release must not publish a framework over its budget (scripts/core/size-budget.json).
+node "$ROOT/scripts/core/check-size.mjs" --built
 echo "RESULT: OK — Packages/AstridCore/AstridCoreFFI.xcframework"

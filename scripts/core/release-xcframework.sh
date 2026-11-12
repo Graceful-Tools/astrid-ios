@@ -2,21 +2,33 @@
 # Publish the astrid-core framework the apps pin, so Xcode Cloud can build them.
 #
 #   scripts/core/release-xcframework.sh <astrid-core commit>
+#   scripts/core/release-xcframework.sh <astrid-core commit> --label <name>   # same core, rebuilt
 #
 # 1. Pins core/Cargo.toml to that commit (which must be on astrid-core's origin — Xcode Cloud and
 #    everyone else fetch it from there).
 # 2. Builds the XCFramework from exactly that revision, never a local checkout.
-# 3. Uploads the zip as a release of astrid-ios, tagged `core-<short sha>`.
+# 3. Uploads the zip as a release of astrid-ios, tagged `core-<short sha>` (or
+#    `core-<short sha>-<label>` for a rebuild of a revision already released — a new build
+#    setting, say, as AITD-625's size work was).
 # 4. Points Packages/AstridCore/Package.swift at it by URL and checksum.
 #
 # Commit the three files it changes (core/Cargo.toml, core/Cargo.lock, Package.swift) with the
-# change that needed the new core. Re-running for a revision already released reuses the release.
+# change that needed the new core.
+#
+# A published tag is never overwritten. Its checksum is pinned by every commit that used it —
+# ios-prod and mac-prod among them — and replacing the bytes would make all of those unbuildable.
+# Rebuilding a released revision needs a --label, which makes a new tag.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 REPO="Graceful-Tools/astrid-ios"
 CORE_REPO="https://github.com/Graceful-Tools/astrid-core.git"
-REV="${1:?usage: release-xcframework.sh <astrid-core commit>}"
+REV="${1:?usage: release-xcframework.sh <astrid-core commit> [--label <name>]}"
+LABEL=""
+if [ "${2:-}" = "--label" ]; then
+  LABEL="${3:?--label needs a name}"
+  [[ "$LABEL" =~ ^[a-z0-9]+$ ]] || { echo "RESULT: FAILED — a label is lowercase letters and digits" >&2; exit 2; }
+fi
 export PATH="$HOME/.cargo/bin:$PATH"
 
 # The full sha, confirmed to exist upstream.
@@ -29,7 +41,11 @@ if [ -z "$FULL" ]; then
   fi
 fi
 SHORT="${FULL:0:7}"
-TAG="core-$SHORT"
+TAG="core-$SHORT${LABEL:+-$LABEL}"
+if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+  echo "RESULT: FAILED — $TAG is already released and pinned by checksum; rebuild with --label <name>" >&2
+  exit 1
+fi
 
 sed -i '' -E "s|(astrid-core = \{ git = \"$CORE_REPO\", rev = \")[0-9a-f]+(\")|\1$FULL\2|" "$ROOT/core/Cargo.toml"
 grep -q "rev = \"$FULL\"" "$ROOT/core/Cargo.toml" || { echo "RESULT: FAILED — could not pin core/Cargo.toml" >&2; exit 1; }
@@ -39,13 +55,8 @@ grep -q "rev = \"$FULL\"" "$ROOT/core/Cargo.toml" || { echo "RESULT: FAILED — 
 ZIP="$ROOT/build/core/AstridCoreFFI.xcframework.zip"
 CHECKSUM="$(swift package compute-checksum "$ZIP")"
 
-if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
-  # Same revision, rebuilt: the bytes differ run to run, so the checksum must follow the upload.
-  gh release upload "$TAG" "$ZIP" --repo "$REPO" --clobber
-else
-  gh release create "$TAG" "$ZIP" --repo "$REPO" --title "astrid-core $SHORT" --latest=false \
-    --notes "The astrid-core XCFramework the iOS and Mac apps link, built from Graceful-Tools/astrid-core@$FULL by scripts/core/release-xcframework.sh. Not an app release."
-fi
+gh release create "$TAG" "$ZIP" --repo "$REPO" --title "astrid-core $SHORT${LABEL:+ ($LABEL)}" --latest=false \
+  --notes "The astrid-core XCFramework the iOS and Mac apps link, built from Graceful-Tools/astrid-core@$FULL by scripts/core/release-xcframework.sh. Not an app release."
 URL="https://github.com/$REPO/releases/download/$TAG/AstridCoreFFI.xcframework.zip"
 
 PKG="$ROOT/Packages/AstridCore/Package.swift"

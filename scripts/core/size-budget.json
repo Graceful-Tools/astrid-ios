@@ -1,0 +1,9 @@
+{
+  "_comment": "astrid-core framework size budgets in bytes, checked by scripts/core/check-size.mjs (AITD-625). Measured 2026-11-12 at core 98596ed with fat LTO + opt-level \"s\": zip 26.9 MB (was 161 MB), ios 18.4 MB (was 96.2 MB), ios-sim 36.4 MB, macos 36.7 MB. Roughly 15% headroom. A deliberate rise edits these in the same commit, with the reason.",
+  "zipBytes": 31000000,
+  "sliceBytes": {
+    "ios": 21500000,
+    "ios-sim": 42000000,
+    "macos": 42000000
+  }
+}

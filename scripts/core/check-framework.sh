@@ -22,7 +22,8 @@ if grep -q 'releasedChecksum = "0\{64\}"' "$PKG"; then
   echo "RESULT: FAILED — no astrid-core framework is released for Xcode Cloud; run scripts/core/release-xcframework.sh <commit>" >&2
   exit 1
 fi
-if ! grep -q "core-${PINNED:0:7}/" "$PKG"; then
+# `core-<short>/`, or `core-<short>-<label>/` for a rebuild of the same revision (AITD-625).
+if ! grep -Eq "core-${PINNED:0:7}(-[a-z0-9]+)?/" "$PKG"; then
   echo "RESULT: FAILED — Package.swift links a release other than the pinned core ${PINNED:0:7}; run scripts/core/release-xcframework.sh ${PINNED:0:7}" >&2
   exit 1
 fi

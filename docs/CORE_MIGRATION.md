@@ -38,6 +38,15 @@ Astrid App / Astrid Mac (Swift)
 - **Xcode Cloud never builds Rust.** `Packages/AstridCore/Package.swift` links a local
   `AstridCoreFFI.xcframework` when one is present (built by `scripts/core/build-xcframework.sh`,
   gitignored) and otherwise a released zip pinned by URL and checksum.
+- **The staticlib is built alone, with fat LTO and `opt-level = "s"`** (AITD-625). The manifest's
+  `crate-type = ["staticlib", "lib"]` makes rustc skip LTO and keep every crate's embedded
+  bitcode, so the build script overrides it with `cargo rustc --crate-type staticlib`. That cut
+  the ios-arm64 slice from 96 MB to 18 MB, the zip every Xcode Cloud run downloads from 161 MB to
+  27 MB, and a dead-stripped link of the core from 15.2 MB to 7.8 MB. `scripts/core/size-budget.json`
+  holds the ceilings; predeploy and the build script enforce them.
+- **A released tag is never overwritten** — older commits, `ios-prod` and `mac-prod` among them,
+  pin its checksum. Rebuilding the same core revision is `release-xcframework.sh <rev> --label <name>`,
+  which publishes `core-<short>-<name>`.
 
 ### Commands
 
