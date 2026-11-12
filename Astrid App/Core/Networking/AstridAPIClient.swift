@@ -546,63 +546,10 @@ class AstridAPIClient {
         )
     }
 
-    // MARK: - User Search
-
-    /// Search for users with AI agents included (based on user's configured API keys)
-    /// - Parameters:
-    ///   - query: Search query string (can be empty to get all AI agents)
-    ///   - taskId: Optional task ID to filter by task's lists
-    ///   - listIds: Optional list IDs to filter members
-    /// - Returns: Array of User objects including AI agents with profile photos
-    func searchUsersWithAIAgents(query: String, taskId: String?, listIds: [String]?) async throws -> [User] {
-        var queryItems: [URLQueryItem] = [
-            URLQueryItem(name: "q", value: query),
-            URLQueryItem(name: "includeAIAgents", value: "true")
-        ]
-
-        if let taskId = taskId {
-            queryItems.append(URLQueryItem(name: "taskId", value: taskId))
-        }
-
-        if let listIds = listIds, !listIds.isEmpty {
-            queryItems.append(URLQueryItem(name: "listIds", value: listIds.joined(separator: ",")))
-        }
-
-        let response: UserSearchResponse = try await request(
-            method: "GET",
-            path: "/api/v1/users/search",
-            queryItems: queryItems
-        )
-
-        return response.users
-    }
-
     // MARK: - Contacts (Address Book)
-
-    /// Upload/sync contacts from device address book
-    func uploadContacts(contacts: [DeviceContact], replaceAll: Bool = true) async throws -> ContactSyncResult {
-        struct UploadContactsRequest: Codable {
-            let contacts: [DeviceContact]
-            let replaceAll: Bool
-        }
-
-        let body = UploadContactsRequest(contacts: contacts, replaceAll: replaceAll)
-
-        return try await request(
-            method: "POST",
-            path: "/api/v1/contacts",
-            body: body
-        )
-    }
-
-    /// Get current contact sync status (count of synced contacts)
-    func getContactStatus() async throws -> ContactStatusResponse {
-        return try await request(
-            method: "GET",
-            path: "/api/v1/contacts",
-            queryItems: [URLQueryItem(name: "limit", value: "1")] // Only need the count, not all contacts
-        )
-    }
+    //
+    // People search, contact sync and the synced count go through astrid-core (AITD-620,
+    // `ContactCommands`). Autocomplete and recommendations have no core command yet.
 
     /// Search contacts for autocomplete when adding list members
     func searchContacts(query: String, excludeListId: String? = nil, limit: Int = 10) async throws -> [ContactSearchResult] {
@@ -864,17 +811,6 @@ struct RecommendedCollaboratorsStats: Codable {
 }
 
 /// Response from GET /api/v1/contacts
-struct ContactStatusResponse: Codable {
-    let pagination: ContactPagination
-}
-
-struct ContactPagination: Codable {
-    let total: Int
-    let limit: Int
-    let offset: Int
-    let hasMore: Bool
-}
-
 // MARK: - Response DTOs (Non-duplicates only - others in APIModels.swift)
 
 struct TaskResponse: Codable {

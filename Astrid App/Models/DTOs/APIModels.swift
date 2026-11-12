@@ -471,9 +471,3 @@ struct AppVersionResponse: Codable {
     let releaseNotes: String?
 }
 
-// MARK: - User Search Response
-
-struct UserSearchResponse: Codable {
-    let users: [User]
-    let listMemberCount: Int?
-}

@@ -21,8 +21,8 @@
       "why": "Was 1674. AITD-387 lifted the quick-add options popover into MacDraftDefaultsPicker; AITD-431 moved the quick-add bar to MacQuickAddBar; AITD-460 put rows in astrid-core and MacRowPipeline; AITD-461 took the board column count from BoardModel."
     },
     "Astrid App/Core/Networking/AstridAPIClient.swift": {
-      "lines": 1025,
-      "why": "Was 1639. AITD-388 moved the member/invitation endpoints to +ListMembers; dead methods and DTOs left on 2026-09-13 and 2026-10-03; AITD-504 moved account calls to +Account; AITD-535 added init(session:) and removed the uncalled deleteTask; AITD-620 moved webhooks, account export and the public-list catalogue and copy, share links, list insights, server capabilities, the Copilot connect/disconnect and agent-mode writes onto astrid-core."
+      "lines": 961,
+      "why": "Was 1639. AITD-388 moved the member/invitation endpoints to +ListMembers; dead methods and DTOs left on 2026-09-13 and 2026-10-03; AITD-504 moved account calls to +Account; AITD-535 added init(session:) and removed the uncalled deleteTask; AITD-620 moved webhooks, account export and the public-list catalogue and copy, share links, list insights, server capabilities, the Copilot connect/disconnect and agent-mode writes, contact sync and count, and people search onto astrid-core."
     }
   }
 }

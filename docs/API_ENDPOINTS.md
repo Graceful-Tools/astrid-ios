@@ -14,7 +14,7 @@ disagree, which is the only reason to trust a generated list at all.
 Regenerate: see the test — it prints the expected list on failure.
 
 **Most of the app's traffic is not here.** Tasks, lists, comments, chat, members, blockers,
-settings, the live stream, Connections, webhooks, account delete/export, Custom Agents, public-list browse/copy, share links, list insights and the deployment's capabilities (AITD-620) go through astrid-core, whose paths are in
+settings, the live stream, Connections, webhooks, account delete/export, Custom Agents, public-list browse/copy, share links, list insights, the deployment's capabilities, Copilot connect/disconnect and agent modes, contact sync and people search (AITD-620) go through astrid-core, whose paths are in
 `astrid-core/crates/astrid-core/src/api/endpoints.rs` (see `docs/CORE_MIGRATION.md`). This list
 is what the Swift client still calls itself.
 
@@ -53,7 +53,6 @@ not by this client.)
 
 ### `/api/v1/contacts`
 
-- `/api/v1/contacts`
 - `/api/v1/contacts/recommended`
 - `/api/v1/contacts/search`
 
@@ -106,5 +105,4 @@ path there belongs in this list too.
 - `/api/v1/users/me/settings`
 - `/api/v1/users/me/smart-tasks`
 - `/api/v1/users/me/verify-email`
-- `/api/v1/users/search`
 - `/api/v1/users/{id}/profile`

@@ -177,7 +177,10 @@ final class RemoteResourceService {
     // MARK: - User & agent search
 
     func searchUsersWithAIAgents(query: String, taskId: String?, listIds: [String]?) async throws -> [User] {
-        try await apiClient.searchUsersWithAIAgents(query: query, taskId: taskId, listIds: listIds)
+        // Through astrid-core (AITD-620), which also caches the people it finds so names and
+        // avatars resolve offline afterwards.
+        try await core.run(ContactCommands.searchUsers(query: query, taskId: taskId, listIds: listIds),
+                           as: [User].self)
     }
 
     // MARK: - Integration discovery (Google Tasks / GitHub)
