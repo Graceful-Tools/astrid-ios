@@ -95,10 +95,26 @@ A second run finds the values to replace by reading `variant.json`. Switching fr
 partner's identity to another's is just another run. Don't edit the Whitelabel build settings
 by hand: the next run only rewrites values it recognises.
 
+## Building and signing a partner's apps
+
+```bash
+ASC_ENV_FILE=~/partners/acme/asc.env ./scripts/appstore-release.sh ios --brand acme   # build + sign only
+ASC_ENV_FILE=~/partners/acme/asc.env ./scripts/appstore-release.sh mac --brand acme
+```
+
+`--brand` does three things:
+1. It runs this script for the profile.
+2. It archives and exports the Whitelabel scheme, signed with the partner's App Store Connect key. `ASC_ENV_FILE` names **their** credentials, and its `APPLE_APP_STORE_APP_ID` is their app, so the build number and version check ask about it.
+3. It verifies the signed App Groups and ends with `RESULT:`, followed by the checklist of what is left outside this repository:
+   - the App IDs and the App Group capability
+   - the App Store Connect record
+   - the deployment's `BRAND_APPLE_APP_IDS`, `APPLE_CLIENT_IDS`, `GOOGLE_ALLOWED_AUDIENCES` and URL scheme
+
+`--upload` sends it, which is asked first, as for Astrid. A partner build pushes no `ios-build-N` tag; those track Astrid's releases.
+
 ## Not configurable here (yet)
 
-- **One command for build and sign.** Building and signing a partner's iOS and Mac apps in one
-  command is AITD-619.
+Nothing on the app side: everything above comes from the profile.
 
 The cross-client plan — one brand profile schema in astrid-core with `cargo xtask gen-brand`
 writing every client's resources — is astrid-core
