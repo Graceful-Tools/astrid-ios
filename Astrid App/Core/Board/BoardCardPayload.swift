@@ -7,9 +7,9 @@ extension UTType {
     /// so the system registers it; `BoardCardPayloadTests` pins the two together, because
     /// a drift between them breaks drag-and-drop with no compiler error.
     ///
-    /// A frozen wire identifier, in the same family as `cc.astrid.app.sync` — not
-    /// user-visible text, so it is not brand-dependent.
-    static let astridBoardCard = UTType(exportedAs: "cc.astrid.board-card", conformingTo: .data)
+    /// `cc.astrid.board-card` for Astrid; a partner variant exports its own
+    /// (`<bundleId>.board-card`, AITD-616), so two installed apps never claim one type.
+    static let astridBoardCard = UTType(exportedAs: Brand.boardCardTypeIdentifier, conformingTo: .data)
 }
 
 /// Typed drag-drop payload for board task cards.

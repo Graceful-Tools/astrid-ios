@@ -8,7 +8,7 @@ private let logger = Logger(subsystem: Brand.logSubsystem, category: "Background
 /// Completes pending sync operations when the app goes to background
 class BackgroundSyncHandler {
     static let shared = BackgroundSyncHandler()
-    static let syncTaskIdentifier = "cc.astrid.app.sync"
+    static let syncTaskIdentifier = Brand.backgroundSyncTaskIdentifier
 
     private var isRunningTests: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil

@@ -24,10 +24,15 @@
 #   2. the profile's optional "ios" block:
 #        "ios": { "bundleId": "com.acme.tasks", "appGroup": "group.com.acme.tasks",
 #                 "keychainGroup": "com.acme.tasks", "developmentTeam": "ABCDE12345",
-#                 "displayName": "Acme Tasks" }
-#   3. --bundle-id / --app-group / --keychain-group / --team / --display-name
+#                 "displayName": "Acme Tasks", "urlScheme": "acmetasks" }
+#   3. --bundle-id / --app-group / --keychain-group / --team / --display-name / --url-scheme
 # The Share extension is <bundleId>.Share; keychainGroup defaults to bundleId. The previous
 # identity is read back from variant.json, which is how a second run finds what to replace.
+#
+# The URL scheme is the profile's NEXT_PUBLIC_BRAND_APP_URL_SCHEME (apply-brand registers it),
+# which is what the deployment returns sign-in to; ios.urlScheme overrides it only for a server
+# configured to match. The board-card drag type and the background sync task are re-identified
+# as <bundleId>.board-card and <bundleId>.sync, so the two apps never share either (AITD-616).
 #
 # They are COPIES, so Astrid's files can move on without them. BrandVariantTests fails when a
 # base plist gains a key the variant lacks — re-run this script and commit the result.
@@ -50,7 +55,8 @@ while [[ $# -gt 0 ]]; do
         --keychain-group) OVERRIDES+=("keychainGroup=$2"); shift 2 ;;
         --team)           OVERRIDES+=("developmentTeam=$2"); shift 2 ;;
         --display-name)   OVERRIDES+=("displayName=$2"); shift 2 ;;
-        --help)           sed -n '3,33p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --url-scheme)     OVERRIDES+=("urlScheme=$2"); shift 2 ;;
+        --help)           sed -n '3,38p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         -*)               echo "Unknown option: $1"; exit 1 ;;
         *)                PROFILE="$1"; shift ;;
     esac
@@ -104,6 +110,10 @@ for arg in sys.argv[4:]:
     key, _, value = arg.partition('=')
     ident[key] = value
 ident.setdefault('keychainGroup', ident['bundleId'])
+scheme = (ident.pop('urlScheme', '') or '').strip().lower()
+scheme = scheme[:-3] if scheme.endswith('://') else scheme
+if scheme and not re.fullmatch(r'[a-z][a-z0-9+.-]*', scheme):
+    sys.exit('not a URL scheme: %r' % scheme)
 name = (env.get('NEXT_PUBLIC_BRAND_NAME') or '').strip() or ident['displayName']
 ident['brandName'] = name
 apple = env.get('NEXT_PUBLIC_BRAND_ENABLE_AUTH_APPLE', 'true').strip().lower() != 'false'
@@ -143,8 +153,15 @@ def plist(text):
     # which is named after the app. NSMessage is the Swift selector and stays addToAstrid.
     text = re.sub(r'(<key>NSMenuItem</key>\s*<dict>\s*<key>default</key>\s*<string>)([^<]*)',
                   lambda m: m.group(1) + m.group(2).replace('Astrid', ident['displayName']), text)
-    return re.sub(r'(<key>NSPortName</key>\s*<string>)Astrid(</string>)',
+    text = re.sub(r'(<key>NSPortName</key>\s*<string>)Astrid(</string>)',
                   lambda m: m.group(1) + ident['displayName'] + m.group(2), text)
+    # System identifiers two installed apps must not share (AITD-616).
+    text = text.replace('<string>cc.astrid.board-card</string>', '<string>%s.board-card</string>' % ident['bundleId'])
+    text = text.replace('<string>cc.astrid.app.sync</string>', '<string>%s.sync</string>' % ident['bundleId'])
+    if scheme:
+        text = re.sub(r'(<key>CFBundleURLName</key>\s*<string>cc\.astrid\.app</string>\s*<key>CFBundleURLSchemes</key>\s*<array>\s*<string>)[^<]*',
+                      lambda m: m.group(1) + scheme, text)
+    return text
 
 for p in ('Info-iOS.plist', 'Info-Mac.plist', 'Info-Share.plist'):
     rewrite(os.path.join(out, p), plist)
@@ -175,16 +192,20 @@ with open(record, 'w') as f:
     json.dump(ident, f, indent=2, sort_keys=True)
     f.write('\n')
 # For the shell: the plist identity keys, which PlistBuddy writes exactly as before.
-print(ident['displayName']); print(ident['appGroup']); print('' if apple else ' (apple sign-in removed)')
+print(ident['displayName']); print(ident['appGroup']); print('' if apple else ' (apple sign-in removed)'); print(scheme)
 PY
 
-{ read -r DISPLAY_NAME; read -r APP_GROUP; read -r APPLE_NOTE; } < "$OUT/.identity"
+{ read -r DISPLAY_NAME; read -r APP_GROUP; read -r APPLE_NOTE; read -r URL_SCHEME; } < "$OUT/.identity"
 rm -f "$OUT/.identity"
 
 # Identity in the plists: name and App Group.
 set_string "$OUT/Info-iOS.plist"   CFBundleDisplayName "$DISPLAY_NAME"
 set_string "$OUT/Info-iOS.plist"   AppGroupIdentifier  "$APP_GROUP"
 set_string "$OUT/Info-Share.plist" AppGroupIdentifier  "$APP_GROUP"
+if [[ -n "$URL_SCHEME" ]]; then   # ios.urlScheme / --url-scheme beat the profile's scheme
+    set_string "$OUT/Info-iOS.plist" BrandURLScheme "$URL_SCHEME"
+    set_string "$OUT/Info-Mac.plist" BrandURLScheme "$URL_SCHEME"
+fi
 
 echo "  identity: $DISPLAY_NAME, $APP_GROUP$APPLE_NOTE"
 echo "✓ Brands/Whitelabel regenerated from Astrid's files + $(basename "$PROFILE_PATH")"

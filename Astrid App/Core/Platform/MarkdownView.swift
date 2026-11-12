@@ -189,9 +189,9 @@ enum MarkdownRendering {
     /// platform only.
     static func url(for reference: MarkdownReference, id: String) -> URL? {
         switch reference {
-        case .user: return URL(string: "astrid://users/\(id)")
-        case .list: return URL(string: "astrid://lists/\(id)")
-        case .task: return URL(string: "astrid://tasks/\(id)")
+        case .user: return Brand.appURL("users/\(id)")
+        case .list: return Brand.appURL("lists/\(id)")
+        case .task: return Brand.appURL("tasks/\(id)")
         }
     }
 

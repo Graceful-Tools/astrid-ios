@@ -28,19 +28,35 @@ public final class CoreSession: Sendable {
     ///   - baseURL: the server; the core's default (astrid.cc) when nil.
     ///   - background: start the loops that keep the app current. A test, and a UI-test build that
     ///     must never reach the network, pass `false`.
+    ///   - urlScheme: the scheme this build registers for its sign-in callback, without `://`;
+    ///     the core's `astrid` when nil. A white-label build names its own (AWTD2-95, AITD-616).
+    ///   - handoffClientId: the id the server's desktop hand-off registry knows this app by; the
+    ///     platform's own when nil.
     public init(
         cachePath: String, baseURL: String? = nil, platform: CorePlatform? = nil,
+        urlScheme: String? = nil, handoffClientId: String? = nil,
         credentials: CoreCredentialStore, background: Bool
     ) throws {
+        client = try CoreClient.start(
+            configJson: Self.configJSON(cachePath: cachePath, baseURL: baseURL, platform: platform,
+                                        urlScheme: urlScheme, handoffClientId: handoffClientId),
+            credentials: credentials, background: background)
+    }
+
+    /// The start config as the core reads it. A value left nil is OMITTED, not sent empty: absence
+    /// is how a shell asks for the core's default, and the core ignores a key it does not know, so
+    /// the encoding is the only place a misspelled key would show (tested).
+    static func configJSON(cachePath: String, baseURL: String?, platform: CorePlatform?,
+                           urlScheme: String?, handoffClientId: String?) throws -> String {
         struct Config: Encodable {
             let cachePath: String
             let baseUrl: String?
             let platform: String?
+            let urlScheme: String?
+            let handoffClientId: String?
         }
-        client = try CoreClient.start(
-            configJson: CoreJSON.encode(
-                Config(cachePath: cachePath, baseUrl: baseURL, platform: platform?.rawValue)),
-            credentials: credentials, background: background)
+        return try CoreJSON.encode(Config(cachePath: cachePath, baseUrl: baseURL, platform: platform?.rawValue,
+                                          urlScheme: urlScheme, handoffClientId: handoffClientId))
     }
 
     /// Run one command and decode its answer.

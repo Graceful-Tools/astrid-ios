@@ -17,7 +17,40 @@ final class BrandVariantTests: XCTestCase {
         "BrandName", "BrandHost", "BrandAgentEmailDomain", "BrandSupportEmail", "BrandInboundTaskEmail",
         "BrandWordmark", "BrandSlogan", "BrandAgentName",
         "BrandAccentColor", "BrandAccentHoverColor", "BrandAccentTextColor", "BrandCharacterImage",
+        "BrandAccentInkColor", "BrandAccentInkDarkColor", "BrandURLScheme",
     ]
+
+    /// The variant's bundle id, as the script recorded it.
+    private var variantBundleId: String {
+        get throws {
+            let data = Data(try RepositoryLocator.source(at: "Brands/Whitelabel/variant.json").utf8)
+            let record = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+            return try XCTUnwrap(record["bundleId"] as? String)
+        }
+    }
+
+    /// Astrid's value as the variant must carry it: the drag type and the sync task renamed for
+    /// the variant, and the app's own URL type registering the variant's scheme (AITD-616).
+    private func reidentified(_ key: String, _ value: Any, bundleId: String, scheme: String) -> Any {
+        switch key {
+        case "BGTaskSchedulerPermittedIdentifiers":
+            return (value as? [String] ?? []).map { $0 == "cc.astrid.app.sync" ? "\(bundleId).sync" : $0 }
+        case "UTExportedTypeDeclarations":
+            return (value as? [[String: Any]] ?? []).map { type in
+                var type = type
+                if type["UTTypeIdentifier"] as? String == "cc.astrid.board-card" { type["UTTypeIdentifier"] = "\(bundleId).board-card" }
+                return type
+            }
+        case "CFBundleURLTypes":
+            return (value as? [[String: Any]] ?? []).map { urlType in
+                var urlType = urlType
+                if urlType["CFBundleURLName"] as? String == "cc.astrid.app" { urlType["CFBundleURLSchemes"] = [scheme] }
+                return urlType
+            }
+        default:
+            return value
+        }
+    }
 
     private func plist(_ path: String) throws -> [String: Any] {
         let data = Data(try RepositoryLocator.source(at: path).utf8)
@@ -58,13 +91,21 @@ final class BrandVariantTests: XCTestCase {
         let brand = try plist(variant)
         let name = try variantBrandName
         let appName = try variantAppName
-        for (key, value) in astrid where !brandedKeys.contains(key) {
+        let bundleId = try variantBundleId
+        let scheme = Brand.resolveURLScheme(try plist("Brands/Whitelabel/Info-iOS.plist")["BrandURLScheme"] as? String)
+        for (key, astridValue) in astrid where !brandedKeys.contains(key) {
+            let value = reidentified(key, astridValue, bundleId: bundleId, scheme: scheme)
             guard let copy = brand[key] else {
                 XCTFail("\(variant) lacks \(key), which \(base) has — re-run scripts/make-brand-variant.sh", file: file, line: line)
                 continue
             }
             var expected = String(describing: value)
             if isUsageDescription(key) { expected = expected.replacingOccurrences(of: "Astrid", with: name) }
+            if ["BGTaskSchedulerPermittedIdentifiers", "UTExportedTypeDeclarations", "CFBundleURLTypes"].contains(key) {
+                XCTAssertEqual(copy as? NSArray, value as? NSArray,
+                               "\(variant) has a stale \(key) — re-run scripts/make-brand-variant.sh", file: file, line: line)
+                continue
+            }
             if key == "NSServices", let services = value as? [[String: Any]] {
                 XCTAssertEqual(copy as? NSArray, services.map { renamedService($0, to: appName) } as NSArray,
                                "\(variant) has a stale \(key) — re-run scripts/make-brand-variant.sh", file: file, line: line)
@@ -149,6 +190,20 @@ final class BrandVariantTests: XCTestCase {
             XCTAssertFalse(entitlements.contains("astrid.cc"), "\(name) must not claim Astrid's domains")
             XCTAssertFalse(entitlements.contains("group.gracefultools.astrid"), "\(name) must not share Astrid's App Group")
         }
+    }
+
+    /// AITD-616: the variant's drag type and background task are its own, and the scheme it
+    /// registers is the one its Brand answers.
+    func testTheWhitelabelAppHasItsOwnSystemIdentifiers_AITD616() throws {
+        for path in ["Brands/Whitelabel/Info-iOS.plist", "Brands/Whitelabel/Info-Mac.plist"] {
+            let source = try RepositoryLocator.source(at: path)
+            XCTAssertFalse(source.contains("cc.astrid.board-card"), "\(path) exports Astrid's drag type")
+            XCTAssertFalse(source.contains("cc.astrid.app.sync"), "\(path) claims Astrid's BGTask id")
+        }
+        let ios = try plist("Brands/Whitelabel/Info-iOS.plist")
+        let registered = (ios["CFBundleURLTypes"] as? [[String: Any]] ?? [])
+            .first { $0["CFBundleURLName"] as? String == "cc.astrid.app" }?["CFBundleURLSchemes"] as? [String]
+        XCTAssertEqual(registered, [Brand.resolveURLScheme(ios["BrandURLScheme"] as? String)])
     }
 
     func testAstridKeepsItsOwnAppGroup() {

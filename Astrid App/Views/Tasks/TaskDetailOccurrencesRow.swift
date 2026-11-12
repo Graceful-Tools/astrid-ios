@@ -49,7 +49,7 @@ struct TaskDetailOccurrencesRow: View {
     /// navigation a "Waiting on" chip uses.
     private func chip(_ key: String, icon: String, opens taskId: String) -> some View {
         Button {
-            if let url = URL(string: "astrid://tasks/\(taskId)") { openURL(url) }
+            if let url = Brand.appURL("tasks/\(taskId)") { openURL(url) }
         } label: {
             Label(NSLocalizedString(key, comment: ""), systemImage: icon)
                 .font(Theme.Typography.body())

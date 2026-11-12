@@ -113,7 +113,7 @@ struct TaskDetailBlockersRow: View {
 
     /// The same in-stack navigation the description's `astrid://tasks/` links use.
     private func open(_ blocker: TaskBlocker) {
-        guard !blocker.isHidden, let url = URL(string: "astrid://tasks/\(blocker.id)") else { return }
+        guard !blocker.isHidden, let url = Brand.appURL("tasks/\(blocker.id)") else { return }
         openURL(url)
     }
 

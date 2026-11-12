@@ -1,4 +1,4 @@
-import AstridCore
+@testable import AstridCore
 import XCTest
 
 /// The client door, driven from Swift: an in-memory cache, no network, no background loops.
@@ -107,5 +107,27 @@ final class CoreChangeTests: XCTestCase {
         guard case .unknown = CoreChange(json: #"{"change":"somethingLater"}"#) else {
             return XCTFail("unknown")
         }
+    }
+
+    /// AITD-616: a white-label build names its scheme and hand-off client; Astrid sends neither,
+    /// and absence is the core's default — never an empty string.
+    func testTheStartConfigCarriesTheBrandsSchemeOnlyWhenGiven_AITD616() throws {
+        func keys(_ json: String) throws -> [String: Any] {
+            try XCTUnwrap(JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
+        }
+        let partner = try keys(CoreSession.configJSON(cachePath: ":memory:", baseURL: nil, platform: .ios,
+                                                      urlScheme: "acmetasks", handoffClientId: "acme-ios"))
+        XCTAssertEqual(partner["urlScheme"] as? String, "acmetasks")
+        XCTAssertEqual(partner["handoffClientId"] as? String, "acme-ios")
+        XCTAssertEqual(partner["platform"] as? String, "ios-app")
+
+        let plain = try keys(CoreSession.configJSON(cachePath: ":memory:", baseURL: nil, platform: nil,
+                                                    urlScheme: nil, handoffClientId: nil))
+        XCTAssertNil(plain["urlScheme"])
+        XCTAssertNil(plain["handoffClientId"])
+
+        // And the core accepts it.
+        _ = try CoreSession(cachePath: ":memory:", urlScheme: "acmetasks", handoffClientId: "acme-ios",
+                            credentials: CoreSessionTests.Credentials(), background: false)
     }
 }

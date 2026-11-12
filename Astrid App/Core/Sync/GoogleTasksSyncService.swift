@@ -110,7 +110,7 @@ final class GoogleTasksSyncService: ObservableObject {
     /// Throws on cancel or a backend-reported error (message carried on the callback URL).
     func connect() async throws {
         guard let url = await authorizeURL() else { throw CancellationError() }
-        let callback = try await OAuthWebConnector.shared.present(url: url, callbackScheme: "astrid")
+        let callback = try await OAuthWebConnector.shared.present(url: url, callbackScheme: Brand.urlScheme)
         if let message = GoogleTasksConnectCallback.errorMessage(from: callback) {
             throw NSError(domain: "GoogleTasksSyncService", code: 2,
                           userInfo: [NSLocalizedDescriptionKey: message])

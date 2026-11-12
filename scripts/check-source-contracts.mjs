@@ -256,6 +256,16 @@ export const rules = [
     },
   },
   {
+    id: 'brand-url-scheme',
+    why: 'The app\'s URL scheme is the brand\'s (`Brand.urlScheme`, AITD-616): a hardcoded `"astrid"` scheme makes a partner app answer — or send — Astrid\'s links and sign-in callbacks, so the two installed side by side fight over them. Build a URL with `Brand.appURL(...)`, compare with `Brand.urlScheme`.',
+    pattern: /"astrid:\/\/|scheme\s*==\s*"astrid"|[Ss]cheme:\s*"astrid"|[Ss]cheme\s*=\s*"astrid"/,
+    run(ctx) {
+      const dirs = ['Astrid App', 'Astrid Mac']
+      return [...missingDirs(ctx, dirs), ...eachCodeLine(ctx, ctx.files(dirs), (line) => this.pattern.test(line)
+        && 'hardcodes the "astrid" URL scheme — use Brand.urlScheme / Brand.appURL')]
+    },
+  },
+  {
     id: 'private-network-address',
     why: 'A private-network address in tracked source is one machine on one network (AITD-351). Use ASTRID_DEV_SERVER_URL, or 192.0.2.x (TEST-NET-1) in a fixture.',
     pattern: /\b(?:10\.\d{1,3}|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}\b/,
