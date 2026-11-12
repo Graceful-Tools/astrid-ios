@@ -5,6 +5,7 @@
 //  pin what the services do with the answer: which command a call becomes, and what the views
 //  read afterwards. The unit-test host's core is offline, so online-only commands are refused.
 
+import AstridCore
 import XCTest
 @testable import Astrid_App
 
@@ -38,10 +39,27 @@ final class BoardAndOwnershipWritePathTests: XCTestCase {
         let board = try await boardList()
         let card = try await tasks.createTask(listIds: [board.id], title: name("Card"))
 
-        let moved = try await tasks.moveToBoardColumn(taskId: card.id, columnId: "waiting")
+        let moved = try await tasks.moveToBoardColumn(taskId: card.id, columnId: "doing")
 
-        XCTAssertEqual(moved.statusRole, "waiting")
-        XCTAssertEqual(tasks.tasksById[card.id]?.statusRole, "waiting")
+        XCTAssertEqual(moved.statusRole, "doing")
+        XCTAssertEqual(tasks.tasksById[card.id]?.statusRole, "doing")
+    }
+
+    /// Waiting means waiting on a date or a task (Jon, 2026-11-12; core 084c2c0). A move there
+    /// with neither is refused before anything is written, and the card stays where it was —
+    /// the refusal AITD-631's picker answers.
+    func testWaitingWithNoDateOrTaskIsRefusedAndTheCardStays_AITD620() async throws {
+        let board = try await boardList()
+        let card = try await tasks.createTask(listIds: [board.id], title: name("Card"))
+
+        do {
+            _ = try await tasks.moveToBoardColumn(taskId: card.id, columnId: "waiting")
+            XCTFail("a move into Waiting with no condition should be refused")
+        } catch let failure as CoreFailure {
+            XCTAssertEqual(failure.kind, .refused)
+            XCTAssertEqual(failure.code, "WAITING_NEEDS_CONDITION")
+        }
+        XCTAssertNotEqual(tasks.tasksById[card.id]?.statusRole, "waiting")
     }
 
     /// Done completes (through the completion service, CONTRACTS D45) and leaving it re-opens.

@@ -234,6 +234,12 @@ enum CoreBoardFixture {
         var command = CoreCommand(kind: kind)
         command.set("taskId", task.id)
         command.set("columnId", column.id)
+        if column.id == "waiting" {
+            // Waiting needs a date or a task to wait on (core 084c2c0); the move stands for one
+            // the picker answered with a date (AITD-631).
+            command.set("dueDateTime", "2030-01-01T00:00:00.000Z")
+            command.set("isAllDay", true)
+        }
         let after: Task
         if kind == "dropBoardCard" {
             command.set("listId", domain)

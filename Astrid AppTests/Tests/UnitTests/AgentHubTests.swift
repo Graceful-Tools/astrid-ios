@@ -443,9 +443,12 @@ final class FakeAgentHubService: AgentHubServicing {
         keysReads += 1
         return try keysResult.get()
     }
-    func saveAIAPIKey(serviceId: String, apiKey: String) async throws -> SaveAPIKeyResponse { SaveAPIKeyResponse(success: true) }
-    func testAIAPIKey(serviceId: String) async throws -> TestAPIKeyResponse { TestAPIKeyResponse(success: true, error: nil) }
-    func deleteAIAPIKey(serviceId: String) async throws -> DeleteAPIKeyResponse { DeleteAPIKeyResponse(success: true) }
+    var savedKeys: [(serviceId: String, key: String)] = []
+    var testResult = TestAPIKeyResponse(success: true, error: nil)
+    var deletedKeys: [String] = []
+    func saveAIAPIKey(serviceId: String, apiKey: String) async throws { savedKeys.append((serviceId, apiKey)) }
+    func testAIAPIKey(serviceId: String) async throws -> TestAPIKeyResponse { testResult }
+    func deleteAIAPIKey(serviceId: String) async throws { deletedKeys.append(serviceId) }
     func getCopilotIntegrationStatus() async throws -> CopilotIntegrationStatus {
         copilotReads += 1
         return try copilotResult.get()

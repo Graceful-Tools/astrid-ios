@@ -16,9 +16,9 @@ protocol AgentHubServicing: AnyObject {
     func getAgentModes() async throws -> AgentModesResponse
     func updateAgentMode(agent: String, mode: AgentExecutionMode) async throws -> AgentModesResponse
     func getAIAPIKeys() async throws -> AIAPIKeysResponse
-    func saveAIAPIKey(serviceId: String, apiKey: String) async throws -> SaveAPIKeyResponse
+    func saveAIAPIKey(serviceId: String, apiKey: String) async throws
     func testAIAPIKey(serviceId: String) async throws -> TestAPIKeyResponse
-    func deleteAIAPIKey(serviceId: String) async throws -> DeleteAPIKeyResponse
+    func deleteAIAPIKey(serviceId: String) async throws
     func getCopilotIntegrationStatus() async throws -> CopilotIntegrationStatus
     func getCopilotAuthorization() async throws -> CopilotAuthorizationResponse
     func disconnectCopilot() async throws
@@ -180,7 +180,7 @@ final class AgentHubModel: ObservableObject {
         defer { keyOperationService = nil }
 
         do {
-            _ = try await service.saveAIAPIKey(serviceId: serviceID, apiKey: trimmed)
+            try await service.saveAIAPIKey(serviceId: serviceID, apiKey: trimmed)
             keyStatuses = try await service.getAIAPIKeys().keys
         } catch {
             actionErrorMessage = AgentHubErrors.message(error)
@@ -220,7 +220,7 @@ final class AgentHubModel: ObservableObject {
         defer { keyOperationService = nil }
 
         do {
-            _ = try await service.deleteAIAPIKey(serviceId: serviceID)
+            try await service.deleteAIAPIKey(serviceId: serviceID)
             keyStatuses.removeValue(forKey: serviceID)
         } catch {
             actionErrorMessage = AgentHubErrors.message(error)
