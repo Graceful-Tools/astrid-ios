@@ -333,6 +333,7 @@ google = info.get('BrandGoogleClientId')
 print(f"""
   Left to do outside this repository, once per partner:
     Apple Developer (team {team}):
+      [ ] the first signing of each new App ID (app, .Share, Mac): Xcode signed in to the team, or an Admin-role key
       [ ] App IDs {bundle} (iOS and Mac) and {bundle}.Share, with App Groups,
           Associated Domains{', Sign in with Apple' if apple else ''}{', Push Notifications' if push else ''} enabled
       [ ] App Group {group} on both App IDs — codesign drops it silently otherwise

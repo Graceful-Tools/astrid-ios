@@ -157,6 +157,7 @@ echo 'mock variant written'
   assert.match(readFileSync(brand.env.MOCK_XCODE_ARGS, 'utf8'), /-scheme\nWhitelabel Mac\n/)
   assert.match(brand.run.stdout, /App IDs com\.acme\.tasks .*and com\.acme\.tasks\.Share/)
   assert.match(brand.run.stdout, /BRAND_APPLE_APP_IDS includes ABCDE12345\.com\.acme\.tasks/)
+  assert.match(brand.run.stdout, /the first signing of each new App ID/)
   assert.match(brand.run.stdout, /Sign in with Apple: off for this brand/)
   assert.match(brand.run.stdout, /NEXT_PUBLIC_BRAND_APP_URL_SCHEME is acmetasks/)
   assert.match(brand.run.stdout, /RESULT: OK — Whitelabel Mac 1\.0 built and signed/)
