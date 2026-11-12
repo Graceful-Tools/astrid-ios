@@ -9,8 +9,8 @@ import Foundation
 /// one place and can be extended (caching, optimistic updates) without touching
 /// every screen.
 ///
-/// Delete, export, resend-verification and email change go through astrid-core (AITD-620);
-/// the rest are still passthroughs to the client.
+/// Writes (delete, export, name and photo, verification, email change) go through astrid-core
+/// (AITD-620); the account read and the photo upload are still passthroughs to the client.
 final class AccountService {
     static let shared = AccountService()
 
@@ -28,14 +28,16 @@ final class AccountService {
         try await updateAccount(UpdateAccountRequest(name: name, email: email, image: image))
     }
 
-    /// The server's "send" / "cancel" verification actions. The core has only a resend
-    /// (`resendVerification`), so these two stay on the client until it has the others.
+    /// The server's "send", "resend" and "cancel" verification actions, each the core's own command.
     func verifyEmail(action: String) async throws -> VerifyEmailResponse {
-        if action == "resend" {
-            let answer = try await core.run(AccountCommands.resendVerification(), as: VerificationResent.self)
-            return VerifyEmailResponse(success: true, message: answer.message ?? "")
+        let command: CoreCommand
+        switch action {
+        case "resend": command = AccountCommands.resendVerification()
+        case "cancel": command = AccountCommands.cancelVerification()
+        default: command = AccountCommands.sendVerification()
         }
-        return try await apiClient.verifyEmail(action: action)
+        let answer = try await core.run(command, as: VerificationResent.self)
+        return VerifyEmailResponse(success: true, message: answer.message ?? "")
     }
 
     /// The export, through the core, which writes it to a file; read back for the callers that
@@ -75,22 +77,18 @@ final class AccountService {
         try await apiClient.fetchAccountResponse()
     }
 
-    /// Name and photo go to `PUT /users/me` as before: the core's `updateProfile` takes a photo
-    /// *file* and uploads it itself, while these screens upload on pick and hold a URL. A changed
-    /// email goes through the core's `changeEmail`, which checks the address and turns a 409 into
-    /// a sentence.
+    /// Name and photo go through the core's `updateProfile`, with the photo's address (these
+    /// screens upload on pick). A changed email goes through the core's `changeEmail`, which
+    /// checks the address and turns a 409 into a sentence.
     func updateAccount(_ request: UpdateAccountRequest) async throws -> UpdateAccountResponse {
-        var profile = request
-        profile.email = nil
-        var message = ""
-        if profile.name != nil || profile.image != nil {
-            message = try await apiClient.updateAccount(profile).message
+        if request.name != nil || request.image != nil {
+            try await core.run(AccountCommands.updateProfile(name: request.name, image: request.image))
         }
         guard let email = request.email else {
-            return UpdateAccountResponse(success: true, message: message, emailVerificationRequired: nil)
+            return UpdateAccountResponse(success: true, message: "", emailVerificationRequired: nil)
         }
         let changed = try await core.run(AccountCommands.changeEmail(email), as: EmailChangeResult.self)
-        return UpdateAccountResponse(success: true, message: changed.message ?? message,
+        return UpdateAccountResponse(success: true, message: changed.message ?? "",
                                      emailVerificationRequired: changed.verificationRequired)
     }
 }

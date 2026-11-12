@@ -68,6 +68,27 @@ final class AccountCoreTests: XCTestCase {
         XCTAssertEqual(change["email"] as? String, "ada@example.com")
     }
 
+    /// Name and photo (AITD-620, slice 13): the screens upload a photo the moment it is picked and
+    /// hold its address, so `updateProfile` carries that `image`, never a `photoPath` the core
+    /// would upload a second time.
+    func testAProfileUpdateCarriesTheNameAndTheUploadedPhotosAddress_AITD620() throws {
+        let sent = try json(AccountCommands.updateProfile(name: "Ada", image: "https://blob.test/ada.png"))
+        XCTAssertEqual(sent["kind"] as? String, "updateProfile")
+        XCTAssertEqual(sent["name"] as? String, "Ada")
+        XCTAssertEqual(sent["image"] as? String, "https://blob.test/ada.png")
+        XCTAssertNil(sent["photoPath"], "the photo is already uploaded")
+    }
+
+    func testAPhotoOnlyUpdateSendsNoName_AITD620() throws {
+        let sent = try json(AccountCommands.updateProfile(name: nil, image: "https://blob.test/ada.png"))
+        XCTAssertTrue(sent["name"] == nil || sent["name"] is NSNull, "\(sent)")
+    }
+
+    func testSendAndCancelVerificationAreTheCoresCommands_AITD620() throws {
+        XCTAssertEqual(try json(AccountCommands.sendVerification())["kind"] as? String, "sendVerification")
+        XCTAssertEqual(try json(AccountCommands.cancelVerification())["kind"] as? String, "cancelVerification")
+    }
+
     func testAnEmailChangeAnswerReadsWhetherVerificationIsNeeded_AITD620() throws {
         let answer = try CoreJSON.answer(
             #"{"ok":true,"value":{"verificationRequired":true,"message":"Check your inbox"}}"#,

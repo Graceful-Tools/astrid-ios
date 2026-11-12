@@ -1,8 +1,8 @@
 import AstridCore
 import Foundation
 
-/// The astrid-core commands behind the account screen (AITD-620, third slice): delete, export,
-/// resend the verification mail, and change the email address.
+/// The astrid-core commands behind the account screen (AITD-620): delete, export, name and photo,
+/// send, resend and cancel the verification mail, and change the email address.
 ///
 /// The paths and wire names are the core's (`services/account.rs`); this only spells the commands,
 /// so `AccountService` stays a face and the spelling is testable without a server.
@@ -32,6 +32,26 @@ enum AccountCommands {
         CoreCommand(kind: "resendVerification")
     }
 
+    /// Send the verification mail for the account's address. Answers `{ message }`.
+    static func sendVerification() -> CoreCommand {
+        CoreCommand(kind: "sendVerification")
+    }
+
+    /// Withdraw a pending email change. Answers `{ message }`.
+    static func cancelVerification() -> CoreCommand {
+        CoreCommand(kind: "cancelVerification")
+    }
+
+    /// Name and photo. The screens upload a photo the moment it is picked and hold its address,
+    /// so this carries `image` (put on the account as it is), never the core's `photoPath`, which
+    /// would upload it a second time. The core refuses both at once before any request.
+    static func updateProfile(name: String?, image: String?) -> CoreCommand {
+        var command = CoreCommand(kind: "updateProfile")
+        command.set("name", name)
+        command.set("image", image)
+        return command
+    }
+
     /// The address only changes once the link in the mail is followed; the core answers
     /// `{ verificationRequired, message }`.
     static func changeEmail(_ email: String) -> CoreCommand {
@@ -47,7 +67,8 @@ struct EmailChangeResult: Decodable, Equatable {
     let message: String?
 }
 
-/// `resendVerification`'s answer: the server's sentence.
+/// The answer to `sendVerification`, `resendVerification` and `cancelVerification`: the server's
+/// sentence.
 struct VerificationResent: Decodable, Equatable {
     let message: String?
 }

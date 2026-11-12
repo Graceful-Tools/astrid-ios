@@ -1,5 +1,6 @@
-import Foundation
+import AstridCore
 import Combine
+import Foundation
 
 enum AstridFeature: String, Codable, CaseIterable {
     case googleTasks = "google_tasks"
@@ -30,9 +31,32 @@ struct FeatureFlagSnapshot: Codable, Equatable {
     }
 }
 
-struct EffectiveFeaturesResponse: Codable {
+/// The core's `featureFlags` answer: every flag the server sends, rollouts included, and the
+/// version a `featureFlagsUpdated` frame is compared against. An older server sends no version,
+/// which the core passes on as null; that reads as 0.
+nonisolated struct EffectiveFeaturesResponse: Codable, Sendable {
     let version: Int
     let features: [String: Bool]
+
+    init(version: Int, features: [String: Bool]) {
+        self.version = version
+        self.features = features
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        version = try container.decodeIfPresent(Int.self, forKey: .version) ?? 0
+        features = try container.decodeIfPresent([String: Bool].self, forKey: .features) ?? [:]
+    }
+}
+
+/// The astrid-core command behind the flag map (AITD-620). The route, the conditional request
+/// and the 304 are the core's (`services/account.rs`); offline it fails rather than answering an
+/// old copy, so the service below stays on its own cache.
+enum FeatureFlagCommands {
+    static func flags() -> CoreCommand {
+        CoreCommand(kind: "featureFlags")
+    }
 }
 
 struct FeatureFlagLaunchDecision: Equatable {
@@ -119,7 +143,8 @@ final class FeatureFlagService: ObservableObject {
         isRefreshing = true
         defer { isRefreshing = false }
         do {
-            let response = try await AstridAPIClient.shared.getEffectiveFeatures()
+            let response = try await AppCore.shared.session.run(FeatureFlagCommands.flags(),
+                                                                as: EffectiveFeaturesResponse.self)
             let next = FeatureFlagSnapshot(version: response.version, features: response.features, updatedAt: Date())
             snapshot = next
             if let data = try? JSONEncoder().encode(next) {
@@ -143,12 +168,6 @@ final class FeatureFlagService: ObservableObject {
     }
 
     private func cacheKey(userId: String) -> String { "featureFlags.snapshot.\(userId)" }
-}
-
-extension AstridAPIClient {
-    func getEffectiveFeatures() async throws -> EffectiveFeaturesResponse {
-        try await request(method: "GET", path: "/api/v1/features")
-    }
 }
 
 extension Notification.Name {
