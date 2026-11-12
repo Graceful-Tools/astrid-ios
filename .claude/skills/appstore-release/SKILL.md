@@ -28,6 +28,7 @@ repository, for example `export ASC_ENV_FILE=/path/to/private/credentials.env`.
 | Check that Mac builds — nothing sent to Apple | `npm run release:mac` |
 | Send an iOS build to Apple | `npm run release:ios:upload` |
 | Send a Mac build to Apple | `npm run release:mac:upload` |
+| Build and sign a **partner's** app (white label) | `ASC_ENV_FILE=<partner creds> ./scripts/appstore-release.sh ios --brand <profile>` (or `mac`); see docs/BRAND_VARIANT.md |
 
 Each takes 5–20 minutes. **Run it in the background and wait** — do not re-run it because it seems
 slow, and do not run iOS and Mac at the same time.

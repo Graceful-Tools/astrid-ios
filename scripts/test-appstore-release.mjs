@@ -59,15 +59,21 @@ exit 0
             perl -e 'printf "%o\\n", (stat($ARGV[0]))[2] & 0777' "$(dirname "$arg")" >> "$MOCK_KEY_DIR_MODES"
             cat "$arg" >> "$MOCK_KEY_CONTENT"
           fi
+          [ "$previous" = "-exportPath" ] && export_path="$arg"
           previous="$arg"
         done
         if [ "$action" = "archive" ] && [ "\${MOCK_FAIL_ARCHIVE:-0}" = 1 ]; then
           echo 'mock archive failure'
           exit 1
         fi
+        if [ "$action" = "archive" ] && [ "\${MOCK_FAIL_ARCHIVE:-0}" = auth ]; then
+          echo 'error: Authentication failed: Make sure a bearer token was provided, it is properly configured and signed, and it has not expired.'
+          echo 'error: Provisioning profile "iOS Team Provisioning Profile: *" doesn'"'"'t include the App Groups capability.'
+          exit 65
+        fi
         if [ "$action" = "-exportArchive" ]; then
-          mkdir -p "$MOCK_ROOT/build/appstore-export-mac"
-          touch "$MOCK_ROOT/build/appstore-export-mac/Astrid.pkg"
+          mkdir -p "$export_path"
+          touch "$export_path/Astrid.pkg"
         fi
         echo 'mock xcodebuild succeeded' ;;
       *) exit 1 ;;
@@ -97,7 +103,7 @@ exit 0
     MOCK_ROOT: root,
     MOCK_KEYS: external,
   };
-  const runRelease = (name, overrides = {}, target = 'mac') => {
+  const runRelease = (name, overrides = {}, target = 'mac', extra = []) => {
     const env = {
       ...baseEnv,
       MOCK_KEY_PATHS: join(external, `${name}-paths`),
@@ -109,7 +115,7 @@ exit 0
       MOCK_XCODE_ARGS: join(external, `${name}-xcode-args`),
       ...overrides,
     };
-    const run = spawnSync('/bin/bash', [join(scripts, 'appstore-release.sh'), target], {
+    const run = spawnSync('/bin/bash', [join(scripts, 'appstore-release.sh'), target, ...extra], {
       cwd: root, env, encoding: 'utf8',
     });
     return { run, env };
@@ -129,6 +135,39 @@ exit 0
   assert.match(readFileSync(env.MOCK_XCODE_ARGS, 'utf8'), /-authenticationKeyID\nmock-key-id\n-authenticationKeyIssuerID\nmock-issuer-id/);
   assert.ok(paths.every(path => !existsSync(path) && !existsSync(join(path, '..'))));
   assert.equal(readFileSync(credentials, 'utf8'), fixture);
+
+  // AITD-619: --brand builds the partner's Whitelabel app from its variant, and ends with what is
+  // left to do outside the repository. The variant script is stubbed: it is tested on its own.
+  mkdirSync(join(root, 'Brands', 'Whitelabel'), { recursive: true })
+  writeFileSync(join(scripts, 'make-brand-variant.sh'), `#!/bin/sh
+printf '%s\\n' "$@" > "$MOCK_ROOT/variant-args"
+cd "$MOCK_ROOT/Brands/Whitelabel"
+printf '{"appGroup": "group.com.acme.tasks", "bundleId": "com.acme.tasks", "developmentTeam": "ABCDE12345"}' > variant.json
+cat > Info-iOS.plist <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict><key>BrandHost</key><string>tasks.acme.example</string>
+<key>BrandURLScheme</key><string>acmetasks</string></dict></plist>
+PLIST
+printf '<plist><dict><key>aps-environment</key><string>production</string></dict></plist>' > Whitelabel-iOS.entitlements
+echo 'mock variant written'
+`, { mode: 0o755 })
+  const brand = runRelease('brand', {}, 'mac', ['--brand', 'acme'])
+  assert.equal(brand.run.status, 0, `${brand.run.stdout}\n${brand.run.stderr}`)
+  assert.equal(readFileSync(join(root, 'variant-args'), 'utf8').trim(), 'acme')
+  assert.match(readFileSync(brand.env.MOCK_XCODE_ARGS, 'utf8'), /-scheme\nWhitelabel Mac\n/)
+  assert.match(brand.run.stdout, /App IDs com\.acme\.tasks .*and com\.acme\.tasks\.Share/)
+  assert.match(brand.run.stdout, /BRAND_APPLE_APP_IDS includes ABCDE12345\.com\.acme\.tasks/)
+  assert.match(brand.run.stdout, /Sign in with Apple: off for this brand/)
+  assert.match(brand.run.stdout, /NEXT_PUBLIC_BRAND_APP_URL_SCHEME is acmetasks/)
+  assert.match(brand.run.stdout, /RESULT: OK — Whitelabel Mac 1\.0 built and signed/)
+  assert.doesNotMatch(brand.run.stdout, /altool|Uploading/)
+  // AITD-619: a new App ID with no Xcode-managed profile says what to do, not "bearer token".
+  const unsigned = runRelease('brand-unsigned', { MOCK_FAIL_ARCHIVE: 'auth' }, 'mac', ['--brand', 'acme'])
+  assert.notEqual(unsigned.run.status, 0)
+  assert.match(unsigned.run.stdout, /RESULT: FAILED — Whitelabel Mac could not be signed: this App ID has no Xcode-managed signing profile yet/)
+  const noProfile = runRelease('brand-missing', {}, 'mac', ['--brand'])
+  assert.notEqual(noProfile.run.status, 0)
+  assert.match(noProfile.run.stdout, /RESULT: FAILED — --brand needs a profile/)
 
   const inside = runRelease('inside', { ASC_ENV_FILE: join(root, '.env.local') });
   assert.notEqual(inside.run.status, 0);

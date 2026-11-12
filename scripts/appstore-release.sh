@@ -12,6 +12,7 @@
 #   ./scripts/appstore-release.sh ios              # build + export only, no upload
 #   ./scripts/appstore-release.sh ios --upload     # build, upload, wait for the build to go VALID
 #   ./scripts/appstore-release.sh mac --upload
+#   ./scripts/appstore-release.sh ios --brand whitelabel-partner   # a partner's app, build + sign only
 #
 # Options:
 #   --upload        actually send the build to App Store Connect (otherwise: build only)
@@ -19,6 +20,11 @@
 #   --build N       pin the build number instead of asking App Store Connect for the next free one
 #   --arch arm64    Mac only: skip the Intel slice (faster, but the result won't run on Intel Macs)
 #   --no-wait       return as soon as the upload is accepted, without waiting for VALID
+#   --brand P       build a PARTNER's app (AITD-619): runs make-brand-variant.sh P (a profile name in
+#                   ../astrid-web/brands/ or a path), then archives the Whitelabel scheme, signed with
+#                   the partner's App Store Connect key — ASC_ENV_FILE must name THEIR credentials,
+#                   whose APPLE_APP_STORE_APP_ID is their app. It ends with the portal and server
+#                   checklist a partner still has to work through. --upload is asked first, as ever.
 #
 # Every run ends with one line starting `RESULT:` saying exactly what happened.
 #
@@ -33,7 +39,7 @@ ROOT="$(pwd -P)"
 source "$ROOT/scripts/lib/asc-key.sh"
 
 TARGET="${1:-}"; shift || true
-UPLOAD=0; WAIT=1; SKIP_GATE=0; BUILD_NUM=""; ARCH=""
+UPLOAD=0; WAIT=1; SKIP_GATE=0; BUILD_NUM=""; ARCH=""; BRAND=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --upload)    UPLOAD=1 ;;
@@ -42,6 +48,8 @@ while [ $# -gt 0 ]; do
     --no-wait)   WAIT=0 ;;
     --build)     BUILD_NUM="${2:-}"; shift ;;
     --arch)      ARCH="${2:-}"; shift ;;
+    --brand)     BRAND="${2:-}"; shift
+                 [ -n "$BRAND" ] || { echo "RESULT: FAILED — --brand needs a profile name or path."; exit 2; } ;;
     *) echo "RESULT: FAILED — unknown option \"$1\". Run: ./scripts/appstore-release.sh <ios|mac> [--upload]"; exit 2 ;;
   esac
   shift
@@ -53,10 +61,23 @@ case "$TARGET" in
   *) echo "RESULT: FAILED — first argument must be ios or mac. Run: ./scripts/appstore-release.sh <ios|mac> [--upload]"; exit 2 ;;
 esac
 
+# A partner's app is the Whitelabel configuration, re-identified for that partner by
+# make-brand-variant.sh. Its entitlements are the variant's copies.
+APP_ENTITLEMENTS="$ROOT/Astrid App/Astrid App.entitlements"
+SHARE_ENTITLEMENTS="$ROOT/Astrid/Astrid.entitlements"
+if [ -n "$BRAND" ]; then
+  case "$TARGET" in
+    ios) SCHEME="Whitelabel App"; ARCHIVE_NAME="WhitelabeliOS-AppStore" ;;
+    mac) SCHEME="Whitelabel Mac"; ARCHIVE_NAME="WhitelabelMac-AppStore" ;;
+  esac
+  APP_ENTITLEMENTS="$ROOT/Brands/Whitelabel/Whitelabel-iOS.entitlements"
+  SHARE_ENTITLEMENTS="$ROOT/Brands/Whitelabel/Whitelabel-Share.entitlements"
+fi
+
 BUILD_DIR="$ROOT/build"
 ARCHIVE="$BUILD_DIR/$ARCHIVE_NAME.xcarchive"
-EXPORT_DIR="$BUILD_DIR/appstore-export-$TARGET"
-LOG="$BUILD_DIR/appstore-release-$TARGET.log"
+EXPORT_DIR="$BUILD_DIR/appstore-export-$TARGET${BRAND:+-brand}"
+LOG="$BUILD_DIR/appstore-release-$TARGET${BRAND:+-brand}.log"
 
 green() { printf "\033[0;32m%s\033[0m\n" "$1"; }
 step()  { CURRENT_STEP="$1"; printf "\n\033[0;36m=== %s ===\033[0m\n" "$1"; }
@@ -101,6 +122,16 @@ done
 asc_write_key || fail "could not securely prepare the App Store Connect key."
 mkdir -p "$BUILD_DIR"
 green "✓ App Store Connect API key loaded"
+
+# --- Brand variant ----------------------------------------------------------------
+if [ -n "$BRAND" ]; then
+  step "Brand variant ($BRAND)"
+  ./scripts/make-brand-variant.sh "$BRAND" 2>&1 | tee "$BUILD_DIR/make-brand-variant.log" | sed 's/^/  /'
+  [ "${PIPESTATUS[0]}" -eq 0 ] || fail "make-brand-variant.sh $BRAND failed — see $BUILD_DIR/make-brand-variant.log"
+  if ! git diff --quiet -- Brands "Astrid App.xcodeproj" "Astrid App/PartnerArt-iOS.xcassets" "Astrid Mac/PartnerArt-Mac.xcassets" 2>/dev/null; then
+    echo "  Note: the variant differs from what is committed — commit it if this partner is the one to keep."
+  fi
+fi
 
 # --- Versions ---------------------------------------------------------------------
 # Read from the scheme's own build settings. Grepping project.pbxproj returns whichever target
@@ -177,6 +208,14 @@ xcodebuild archive \
   "${ARCH_ARGS[@]+"${ARCH_ARGS[@]}"}" 2>&1 | tee "$LOG" | grep -vE "^ +|^$"
 ARCHIVE_RC=${PIPESTATUS[0]}
 set -e
+if [ "$ARCHIVE_RC" -ne 0 ] && grep -q "Authentication failed: Make sure a bearer token" "$LOG" \
+   && grep -q 'Provisioning profile "iOS Team Provisioning Profile: \*"\|Provisioning profile "Mac Team Provisioning Profile: \*"' "$LOG"; then
+  # Measured 2026-11-12 on the Whitelabel app: automatic signing wanted an Xcode-managed
+  # "Team Provisioning Profile" for an App ID that had none yet, and the API key could not mint
+  # one. Astrid's exist already, so its archive signs with the same key. The REST API can make
+  # other profiles, but automatic signing only uses Xcode-managed ones.
+  fail "$SCHEME could not be signed: this App ID has no Xcode-managed signing profile yet, and the App Store Connect key cannot create one. Once per App ID (app and .Share): open the project in Xcode signed in to team $TEAM_ID, pick the $SCHEME scheme, and let Signing & Capabilities create the profiles — or use an Admin-role key. Then re-run this."
+fi
 [ "$ARCHIVE_RC" -eq 0 ] || fail "the archive did not build. Search $LOG for 'error:'"
 green "✓ Archived"
 
@@ -267,9 +306,9 @@ if [ "$TARGET" = "ios" ]; then
   unzip -q "$UPLOAD_PACKAGE" -d "$VERIFY_DIR" \
     || fail "could not unpack $UPLOAD_PACKAGE to check its entitlements."
   APP_BUNDLE=$(ls -d "$VERIFY_DIR"/Payload/*.app 2>/dev/null | head -1)
-  check_app_groups "$APP_BUNDLE" "$ROOT/Astrid App/Astrid App.entitlements"
+  check_app_groups "$APP_BUNDLE" "$APP_ENTITLEMENTS"
   for appex in "$APP_BUNDLE"/PlugIns/*.appex; do
-    check_app_groups "$appex" "$ROOT/Astrid/Astrid.entitlements"
+    check_app_groups "$appex" "$SHARE_ENTITLEMENTS"
   done
   rm -rf "$VERIFY_DIR"
 else
@@ -278,7 +317,37 @@ else
 fi
 
 
+# What a partner still does outside this repository. Printed after every brand build, upload or
+# not: the build proves the files; these are the accounts and the server.
+brand_checklist() {
+  python3 - "$ROOT/Brands/Whitelabel/variant.json" "$ROOT/Brands/Whitelabel/Info-iOS.plist" "$APP_ENTITLEMENTS" <<'PY'
+import json, plistlib, sys
+ident = json.load(open(sys.argv[1]))
+info = plistlib.load(open(sys.argv[2], 'rb'))
+entitlements = open(sys.argv[3]).read()
+apple = 'com.apple.developer.applesignin' in entitlements
+push = 'aps-environment' in entitlements
+bundle, team, group = ident['bundleId'], ident['developmentTeam'], ident['appGroup']
+host = info.get('BrandHost', 'astrid.cc')
+google = info.get('BrandGoogleClientId')
+print(f"""
+  Left to do outside this repository, once per partner:
+    Apple Developer (team {team}):
+      [ ] App IDs {bundle} (iOS and Mac) and {bundle}.Share, with App Groups,
+          Associated Domains{', Sign in with Apple' if apple else ''}{', Push Notifications' if push else ''} enabled
+      [ ] App Group {group} on both App IDs — codesign drops it silently otherwise
+    App Store Connect:
+      [ ] an app record for {bundle}; its id is APPLE_APP_STORE_APP_ID in ASC_ENV_FILE
+    The partner's deployment ({host}):
+      [ ] BRAND_APPLE_APP_IDS includes {team}.{bundle} (apple-app-site-association: passkeys, links)
+      [ ] {'APPLE_CLIENT_IDS includes ' + bundle + ' (Sign in with Apple tokens from the app)' if apple else 'Sign in with Apple: off for this brand (the profile disables it)'}
+      [ ] {'GOOGLE_ALLOWED_AUDIENCES includes ' + google if google else 'Google sign-in: none configured (ios.googleClientId) — the app shows no Google button'}
+      [ ] NEXT_PUBLIC_BRAND_APP_URL_SCHEME is {info.get('BrandURLScheme', 'astrid')}, the scheme the app registers""")
+PY
+}
+
 if [ "$UPLOAD" = "0" ]; then
+  [ -z "$BRAND" ] || brand_checklist
   done_ok "$SCHEME $VERSION built and signed as build $BUILD_NUM. Nothing was uploaded — re-run with --upload to send it to Apple. Artifact: $EXPORT_DIR"
   exit 0
 fi
@@ -299,8 +368,11 @@ green "✓ Upload accepted"
 
 # A local upload has no Xcode Cloud run, so nothing else ties build $BUILD_NUM to a commit —
 # and scripts/sync-prod-branches.sh needs exactly that when this build is released (AITD-434).
-# Best effort: the build is uploaded either way.
-if git tag -f "$TARGET-build-$BUILD_NUM" HEAD >/dev/null 2>&1 \
+# Best effort: the build is uploaded either way. Not for a partner's app: those tags track
+# Astrid's own releases, and a partner's build number would collide with them.
+if [ -n "$BRAND" ]; then
+  echo "  (a partner build: no $TARGET-build-$BUILD_NUM tag)"
+elif git tag -f "$TARGET-build-$BUILD_NUM" HEAD >/dev/null 2>&1 \
    && git push -q -f origin "refs/tags/$TARGET-build-$BUILD_NUM" >/dev/null 2>&1; then
   green "✓ Tagged $TARGET-build-$BUILD_NUM at $(git rev-parse --short HEAD)"
 else
@@ -315,6 +387,7 @@ if [ "$WAIT" = "0" ]; then
   exit 0
 fi
 
+[ -z "$BRAND" ] || brand_checklist
 step "Waiting for App Store Connect to process the build (usually 5-15 minutes)"
 node scripts/asc-appstore.mjs wait "$TARGET" "$BUILD_NUM" --timeout-min 45 \
   || fail "$SCHEME build $BUILD_NUM was uploaded but did not become VALID. Apple emails the reason; App Store Connect > TestFlight shows it too."
