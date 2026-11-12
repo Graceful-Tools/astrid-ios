@@ -264,20 +264,26 @@ struct MacQuickAddBar: View {
         let assigneeOverride = draftAssigneeOverride
         draftPriorityOverride = nil          // the overrides apply to one task, like iOS
         draftAssigneeOverride = nil
+        let assigneeId = assigneeOverride == "unassigned" ? nil : (assigneeOverride ?? args.assigneeId)
+        let onOpen = onOpen
         AppActions.perform(column == nil ? "Add task" : "Add card") {
-            let created = try await TaskService.shared.createTask(
-                listIds: args.listIds, title: args.title, priority: args.priority,
-                whenDate: args.whenDate,
-                assigneeId: assigneeOverride == "unassigned" ? nil : (assigneeOverride ?? args.assigneeId),
-                isPrivate: args.isPrivate,
-                repeating: args.repeating, repeatingData: args.repeatingData,
-                statusRole: statusRole)
-            // Done goes through completeTask, never updateTask(completed:) — the only path that
-            // rolls a repeating task forward (ASTRID.md §0 rule 2).
-            if complete {
-                _ = try await TaskService.shared.completeTask(id: created.id, completed: true, task: created)
+            // Typed into the Waiting column, the core asks what it waits for (AITD-631): the
+            // prompt creates it with the answer, and Cancel creates nothing.
+            try await WaitingPromptPresenter.shared.move(Task(id: "new-task", title: args.title, assigneeId: assigneeId)) { wait in
+                let created = try await TaskService.shared.createTask(
+                    listIds: args.listIds, title: args.title, priority: args.priority,
+                    whenDate: args.whenDate,
+                    assigneeId: assigneeId,
+                    isPrivate: args.isPrivate,
+                    repeating: args.repeating, repeatingData: args.repeatingData,
+                    statusRole: statusRole, wait: wait)
+                // Done goes through completeTask, never updateTask(completed:) — the only path that
+                // rolls a repeating task forward (ASTRID.md §0 rule 2).
+                if complete {
+                    _ = try await TaskService.shared.completeTask(id: created.id, completed: true, task: created)
+                }
+                if openDetails { onOpen?(created) }
             }
-            if openDetails { onOpen?(created) }
         }
     }
 }

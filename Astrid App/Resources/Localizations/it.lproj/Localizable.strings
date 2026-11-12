@@ -1612,3 +1612,18 @@
 "board.status.doing" = "In corso";
 "board.status.waiting" = "In attesa";
 "board.status.done" = "Fatto";
+
+/* Waiting needs a date or a task (AITD-631) — web's waiting.prompt.* keys, PRODUCT_CONTRACT §2 */
+"waiting.prompt.title" = "Che cosa sta aspettando?";
+"waiting.prompt.description" = "Un’attività in attesa aspetta una data o un’altra attività.";
+"waiting.prompt.descriptionFor" = "«%@» aspetterà una data o un’altra attività.";
+"waiting.prompt.until" = "In attesa fino al…";
+"waiting.prompt.on" = "In attesa di…";
+"waiting.prompt.dateLabel" = "Fino al";
+"waiting.prompt.dateInPast" = "Scegli un giorno dopo oggi.";
+"waiting.prompt.taskLabel" = "L’attività che aspetta";
+"waiting.prompt.picked" = "In attesa di %@";
+"waiting.prompt.keepAssignedToMe" = "Lascia assegnata a me";
+"waiting.prompt.keepAssignedTo" = "Lascia assegnata a %@";
+"waiting.prompt.theAssignee" = "la persona assegnata";
+"waiting.prompt.confirm" = "Sposta in In attesa";

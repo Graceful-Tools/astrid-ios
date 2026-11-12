@@ -73,12 +73,18 @@ struct ProjectStateQuickPicker: View {
             do {
                 // The task's own board, the core's move: nothing when it is already there,
                 // completion only ever through the completion service (ASTRID.md rule 2).
-                let moved = try await TaskService.shared.moveToBoardColumn(taskId: task.id,
-                                                                            columnId: column.id)
-                // The OPTIMISTIC task, with nothing awaited on the network, so this lands as fast
-                // as any other control in the detail view.
-                onTaskUpdated?(moved)
-                await options.refresh(task.id)
+                // Into Waiting, the core may ask what the task waits for (AITD-631); the prompt
+                // sends this same move again with the answer.
+                let onTaskUpdated = onTaskUpdated
+                try await WaitingPromptPresenter.shared.move(task) { wait in
+                    let moved = try await TaskService.shared.moveToBoardColumn(taskId: task.id,
+                                                                                columnId: column.id,
+                                                                                wait: wait)
+                    // The OPTIMISTIC task, with nothing awaited on the network, so this lands as
+                    // fast as any other control in the detail view.
+                    onTaskUpdated?(moved)
+                    await TaskStatusOptions.shared.refresh(task.id)
+                }
             } catch {
                 // The Outbox owns the retry; surfacing a failure here would be a second,
                 // contradictory story about whether the move happened.

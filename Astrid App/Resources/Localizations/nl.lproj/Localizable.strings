@@ -1612,3 +1612,18 @@
 "board.status.doing" = "Bezig";
 "board.status.waiting" = "Wachten";
 "board.status.done" = "Gedaan";
+
+/* Waiting needs a date or a task (AITD-631) — web's waiting.prompt.* keys, PRODUCT_CONTRACT §2 */
+"waiting.prompt.title" = "Waarop wacht deze taak?";
+"waiting.prompt.description" = "Een wachtende taak wacht op een datum of op een andere taak.";
+"waiting.prompt.descriptionFor" = "‘%@’ wacht op een datum of op een andere taak.";
+"waiting.prompt.until" = "Wachten tot…";
+"waiting.prompt.on" = "Wachten op…";
+"waiting.prompt.dateLabel" = "Tot";
+"waiting.prompt.dateInPast" = "Kies een dag na vandaag.";
+"waiting.prompt.taskLabel" = "De taak waarop ze wacht";
+"waiting.prompt.picked" = "Wacht op %@";
+"waiting.prompt.keepAssignedToMe" = "Aan mij toegewezen laten";
+"waiting.prompt.keepAssignedTo" = "Aan %@ toegewezen laten";
+"waiting.prompt.theAssignee" = "de toegewezen persoon";
+"waiting.prompt.confirm" = "Naar Wachten verplaatsen";

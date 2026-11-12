@@ -44,6 +44,67 @@ final class ProjectStateMoveTests: XCTestCase {
         return try CoreRowsFixture.wait(session, command, as: Task.self)
     }
 
+    /// AITD-631, against the real core: into Waiting with nothing to wait on is refused with the
+    /// code the prompt keys on, and the prompt's answers — encoded by `WaitCondition` — are taken.
+    func testWaitingRefusesWithoutAConditionAndTakesThePromptsAnswer_AITD631() throws {
+        func waiting(_ condition: WaitCondition?, tasks extra: [Task] = []) throws -> Task {
+            let session = try CoreBoardFixture.session(tasks: [task(statusRole: "doing")] + extra, lists: lists,
+                                                       projects: [Project(id: "p1", name: "Board")])
+            var command = CoreCommand(kind: "setTaskStatus")
+            command.set("taskId", "t1")
+            command.set("columnId", "waiting")
+            condition?.apply(to: &command)
+            do {
+                return try CoreRowsFixture.wait(session, command, as: Task.self)
+            } catch let failure as CoreFailure {
+                // Say which rule refused, not "CoreFailure error 1".
+                throw NSError(domain: "core", code: 1, userInfo: [NSLocalizedDescriptionKey:
+                    "\(failure.kind) \(failure.code ?? "-"): \(failure.message)", "failure": failure])
+            }
+        }
+
+        XCTAssertThrowsError(try waiting(nil)) { error in
+            let failure = (error as NSError).userInfo["failure"] as? CoreFailure
+            XCTAssertEqual(failure?.code, WaitCondition.refusalCode, error.localizedDescription)
+        }
+
+        let nextWeek = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: 7, to: Date()))
+        let dated = try waiting(WaitCondition(kind: .until(nextWeek), keepAssignee: false))
+        XCTAssertEqual(dated.statusRole, "waiting")
+        XCTAssertEqual(dated.isAllDay, true)
+        XCTAssertNotNil(dated.dueDateTime)
+
+        // Waiting on a task: the core attaches the blocker ONLINE, at once (so a cycle the server
+        // refuses fails the move), and this test core has no session. Reaching that call is the
+        // proof `waitOnTaskId` was read — a misspelled key would be refused as "no condition".
+        XCTAssertThrowsError(try waiting(WaitCondition(kind: .on(taskId: "t2", title: "Other"), keepAssignee: false),
+                                         tasks: [task(id: "t2", statusRole: "doing")])) { error in
+            let failure = (error as NSError).userInfo["failure"] as? CoreFailure
+            XCTAssertNotEqual(failure?.code, WaitCondition.refusalCode, error.localizedDescription)
+            XCTAssertEqual(failure?.kind, .unauthorized, error.localizedDescription)
+        }
+    }
+
+    /// A card typed into the Waiting column is held to the same rule as a move (AITD-631).
+    func testACardTypedIntoWaitingNeedsAConditionToo_AITD631() throws {
+        func create(_ condition: WaitCondition?) throws -> Task {
+            let session = try CoreBoardFixture.session(tasks: [], lists: lists, projects: [Project(id: "p1", name: "Board")])
+            var command = CoreCommand.createTask(
+                title: "Waiting card", description: nil, listIds: ["board-list"], priority: nil,
+                dueDateTime: nil, isAllDay: false, assigneeId: nil, parentTaskId: nil,
+                statusRole: "waiting", repeating: nil, repeatingData: nil, isPrivate: nil)
+            condition?.apply(to: &command)
+            return try CoreRowsFixture.wait(session, command, as: Task.self)
+        }
+        XCTAssertThrowsError(try create(nil)) { error in
+            XCTAssertEqual((error as? CoreFailure)?.code, WaitCondition.refusalCode, "\(error)")
+        }
+        let nextWeek = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: 7, to: Date()))
+        let created = try create(WaitCondition(kind: .until(nextWeek), keepAssignee: false))
+        XCTAssertEqual(created.statusRole, "waiting")
+        XCTAssertEqual(created.isAllDay, true)
+    }
+
     // MARK: - The hand-back (the actual bug)
 
     func testAStatusMoveReturnsTheTaskItProduced() throws {

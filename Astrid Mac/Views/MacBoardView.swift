@@ -268,8 +268,15 @@ struct MacBoardView: View {
     private func move(taskId: String, to col: ProjectBoardColumn) {
         // The core's move against this board's columns (CONTRACTS D45): nothing when the card is
         // already there, un-complete before leaving Done, Done through the completion service.
+        // Into Waiting, the core may ask what the task waits for (AITD-631): the prompt moves it
+        // again with the answer, and Cancel leaves it where it was.
+        guard let task = taskService.tasksById[taskId] else { return }
+        let listId = self.listId
         AppActions.perform("Move task") {
-            try await taskService.moveToBoardColumn(taskId: taskId, columnId: col.id, listId: listId)
+            try await WaitingPromptPresenter.shared.move(task) { wait in
+                try await TaskService.shared.moveToBoardColumn(taskId: taskId, columnId: col.id,
+                                                               listId: listId, wait: wait)
+            }
         }
     }
 

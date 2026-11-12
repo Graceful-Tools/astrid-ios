@@ -1612,3 +1612,18 @@
 "board.status.doing" = "В работе";
 "board.status.waiting" = "Ожидание";
 "board.status.done" = "Сделано";
+
+/* Waiting needs a date or a task (AITD-631) — web's waiting.prompt.* keys, PRODUCT_CONTRACT §2 */
+"waiting.prompt.title" = "Чего ждёт задача?";
+"waiting.prompt.description" = "Задача в ожидании ждёт дату или другую задачу.";
+"waiting.prompt.descriptionFor" = "«%@» будет ждать дату или другую задачу.";
+"waiting.prompt.until" = "Ждать до…";
+"waiting.prompt.on" = "Ждать задачу…";
+"waiting.prompt.dateLabel" = "До";
+"waiting.prompt.dateInPast" = "Выберите день после сегодняшнего.";
+"waiting.prompt.taskLabel" = "Задача, которую она ждёт";
+"waiting.prompt.picked" = "Ждёт %@";
+"waiting.prompt.keepAssignedToMe" = "Оставить назначенной мне";
+"waiting.prompt.keepAssignedTo" = "Оставить назначенной: %@";
+"waiting.prompt.theAssignee" = "исполнитель";
+"waiting.prompt.confirm" = "Переместить в ожидание";

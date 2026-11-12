@@ -244,8 +244,11 @@ struct MacProjectStateSection: View {
             // The core's move, the task's own board: nothing when it is already there, completion
             // only ever through the completion service (ASTRID.md rule 2). The Mac's detail redraws
             // from the observed `TaskService`, so the returned task is not needed here.
-            try await TaskService.shared.moveToBoardColumn(taskId: task.id, columnId: column.id)
-            await options.refresh(task.id)
+            // Into Waiting, the core may ask what the task waits for (AITD-631).
+            try await WaitingPromptPresenter.shared.move(task) { wait in
+                try await TaskService.shared.moveToBoardColumn(taskId: task.id, columnId: column.id, wait: wait)
+                await TaskStatusOptions.shared.refresh(task.id)
+            }
         }
     }
 }
