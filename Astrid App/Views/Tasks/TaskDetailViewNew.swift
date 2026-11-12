@@ -175,7 +175,10 @@ struct TaskDetailViewNew: View {
                 Button(NSLocalizedString(TaskCapabilities.deleteWording(listIds: editedListIds, lists: listService.lists).buttonKey, comment: ""), role: .destructive) {
                     _Concurrency.Task {
                         try? await TaskService.shared.deleteTask(id: task.id, task: task)
-                        dismiss()
+                        // The panel / inline board card closes itself; only a presented detail
+                        // dismisses. An inline card has nothing presented, so `dismiss()` there
+                        // would pop the screen the board sits in (AITD-628).
+                        if let onClose { onClose() } else { dismiss() }
                     }
                 }
                 Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) { }

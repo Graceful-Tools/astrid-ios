@@ -59,6 +59,8 @@ struct ProjectStatusBoardView: View {
     /// thread, re-asked when tasks, lists or projects change, the last answer kept on screen.
     @StateObject private var board = BoardModel()
     @State private var dropError: String? = nil
+    /// The card open inline, if any (AITD-628). One across the whole board, as on web and Mac.
+    @State private var expandedTaskId: String?
     /// Tracks the currently-snapped column for haptic feedback on change.
     @State private var visibleColumnId: String?
 
@@ -129,8 +131,15 @@ struct ProjectStatusBoardView: View {
                             onDropAt: { payload, index in
                                 handleDrop(payload: payload, into: column, at: index)
                             },
-                            onTaskTap: onTaskTap,
+                            // A tap opens the card in place (AITD-628); the details'
+                            // full-screen button is what takes the task to the panel / push.
+                            onOpenFullDetails: { task in
+                                expandedTaskId = nil
+                                if let onTaskTap { onTaskTap(task) } else { TaskPresenter.shared.showTask(task) }
+                            },
                             selectedTaskId: selectedTaskId,
+                            expandedTaskId: $expandedTaskId,
+                            inlineDetailHeight: BoardCardExpansion.inlineDetailHeight(boardHeight: geo.size.height),
                             onDragMoved: { globalPoint in
                                 handleDragMoved(globalPoint,
                                                 from: column.id,
@@ -174,6 +183,13 @@ struct ProjectStatusBoardView: View {
                 }
             }
             .task(id: boardQuery) { board.update(boardQuery) }
+            // The open card left the board (deleted, moved, aged out of Done): close it rather
+            // than keep an editor for a task that is not there.
+            .onChange(of: board.columns.flatMap { tasksFor($0.column).map(\.id) }) { _, ids in
+                let kept = BoardCardExpansion.retained(current: expandedTaskId,
+                                                       visibleTaskIds: Set(ids))
+                if kept != expandedTaskId { expandedTaskId = kept }
+            }
             .onDisappear {
                 // A drag can be interrupted by navigation; don't leave a pending
                 // advance to scroll a board nobody is looking at.
