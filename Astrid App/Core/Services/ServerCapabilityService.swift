@@ -1,3 +1,4 @@
+import AstridCore
 import Foundation
 import Combine
 import os.log
@@ -24,7 +25,21 @@ final class ServerCapabilityService: ObservableObject {
     private var isRefreshing = false
     private var lastFetchedBaseURL: String?
 
-    private init() {}
+    /// Asks the deployment what it offers. astrid-core in the app (AITD-620); a stub in tests.
+    typealias Fetch = @MainActor () async throws -> ServerCapabilities
+    private let fetch: Fetch
+    /// Caches the brand's voice for the reminder view. `BrandCopyStore` in the app.
+    private let storeCopy: @MainActor (ServerCapabilities.BrandCopy?) -> Void
+
+    init(fetch: Fetch? = nil,
+         storeCopy: (@MainActor (ServerCapabilities.BrandCopy?) -> Void)? = nil) {
+        // Unauthenticated on the server, so this works before sign-in — which is when the app
+        // needs to know which sign-in methods to show. The core sends it without a session.
+        self.fetch = fetch ?? {
+            try await AppCore.shared.session.run(ServerCapabilityCommands.refresh(), as: ServerCapabilities.self)
+        }
+        self.storeCopy = storeCopy ?? { BrandCopyStore.shared.store($0) }
+    }
 
     /// Fetch capabilities for the current server, unless a fetch is already in flight.
     ///
@@ -39,13 +54,13 @@ final class ServerCapabilityService: ObservableObject {
 
         let baseURL = Constants.API.baseURL
         do {
-            let fetched = try await AstridAPIClient.shared.getServerCapabilities()
+            let fetched = try await fetch()
             capabilities = fetched
             // Cache the brand's voice so the in-app reminder view has it before/without
             // a fetch. Only written on a SUCCESSFUL fetch: a failed request must leave the
             // last known voice alone rather than reverting a partner's app to Astrid's
             // nags the first time the network is away. Task 97208a72.
-            BrandCopyStore.shared.store(fetched.copy)
+            storeCopy(fetched.copy)
             lastFetchedBaseURL = baseURL
             logger.debug("Loaded server capabilities from \(baseURL, privacy: .public)")
         } catch {

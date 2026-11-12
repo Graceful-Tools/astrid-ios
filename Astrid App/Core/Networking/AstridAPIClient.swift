@@ -814,14 +814,6 @@ class AstridAPIClient {
 
     // MARK: - AI Agent Settings
 
-    /// What the connected deployment offers (task 97208a72).
-    ///
-    /// Unauthenticated on the server, so this works before sign-in — which is when the
-    /// app needs to know which sign-in methods to show.
-    func getServerCapabilities() async throws -> ServerCapabilities {
-        try await request(method: "GET", path: "/api/v1/capabilities")
-    }
-
     /// Get available AI agents for the current user.
     ///
     /// `serverRunOnly` narrows to what the server can execute — api-mode built-ins with a
