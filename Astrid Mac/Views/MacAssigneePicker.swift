@@ -78,7 +78,46 @@ struct MacAssigneePicker: View {
                                  isCurrentUser: selectedId == AuthManager.shared.userId)
     }
 
+    /// Who the × would clear: everyone on a board, the one person otherwise (AITD-650).
+    private var heldIds: [String] {
+        allowsMultiple ? selectedIds : [selectedId].compactMap { $0 }
+    }
+
+    /// The × — the "Unassigned" row without opening the popover.
+    private func clear() {
+        if allowsMultiple {
+            pickedIds = AssigneeSelection.cleared
+            AppActions.perform("Set assignees") {
+                _ = try await TaskService.shared.setAssignees(taskId: task.id,
+                                                              assigneeIds: AssigneeSelection.cleared)
+            }
+        } else {
+            pickedIds = AssigneeSelection.cleared
+            onSelect(nil)
+        }
+    }
+
+    /// The picker, then — while somebody holds the task — a one-click × that unassigns it
+    /// (AITD-650), the same rule as iOS.
     var body: some View {
+        HStack(spacing: 2) {
+            picker
+            if AssigneeSelection.showsClear(heldIds) {
+                Button(action: clear) {
+                    Image(systemName: "xmark.circle.fill")
+                        .macFont(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .macPointingHand()
+                .help(NSLocalizedString("assignee.clear", comment: "Unassign"))
+                .accessibilityLabel(Text(NSLocalizedString("assignee.clear", comment: "Unassign")))
+                .accessibilityIdentifier("assignee-clear")
+            }
+        }
+    }
+
+    private var picker: some View {
         Button { showingPicker = true } label: {
             HStack(spacing: 6) {
                 face(for: selected, size: 20)

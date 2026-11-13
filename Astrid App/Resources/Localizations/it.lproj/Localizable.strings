@@ -240,6 +240,7 @@
 /* Assignee */
 "assignee.unassigned" = "Non assegnato";
 "assignee.you" = "Tu";
+"assignee.clear" = "Rimuovi assegnazione";
 
 /* Reminders */
 "reminders.counting_on_you" = "Queste persone contano su di te!";

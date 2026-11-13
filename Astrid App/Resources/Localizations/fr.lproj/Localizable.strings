@@ -222,6 +222,7 @@
 /* Assignee */
 "assignee.unassigned" = "Non assigné";
 "assignee.you" = "Vous";
+"assignee.clear" = "Désassigner";
 
 /* Reminders */
 "reminders.counting_on_you" = "Ces personnes comptent sur vous !";

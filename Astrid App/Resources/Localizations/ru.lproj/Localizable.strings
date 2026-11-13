@@ -241,6 +241,7 @@
 /* Assignee */
 "assignee.unassigned" = "Не назначено";
 "assignee.you" = "Вы";
+"assignee.clear" = "Снять назначение";
 
 /* Reminders */
 "reminders.counting_on_you" = "Эти люди рассчитывают на вас!";

@@ -241,6 +241,7 @@
 /* Assignee */
 "assignee.unassigned" = "Niet toegewezen";
 "assignee.you" = "Jij";
+"assignee.clear" = "Toewijzing opheffen";
 
 /* Reminders */
 "reminders.counting_on_you" = "Deze mensen rekenen op je!";

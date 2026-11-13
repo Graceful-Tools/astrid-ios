@@ -35,6 +35,15 @@ enum AssigneeSelection {
         return current + [id]
     }
 
+    /// Whether the picker draws its one-tap "×" (AITD-650): only while the task holds someone.
+    /// Every assignee counts, not just the primary — on a board the × clears them all.
+    static func showsClear(_ ids: [String]) -> Bool {
+        ids.contains { !$0.isEmpty }
+    }
+
+    /// What the × writes: nobody. On a single-assignee list that is `assigneeId = nil`.
+    static let cleared: [String] = []
+
     /// The people drawn after the primary, and how many more there are than faces for them.
     static func additionalFaces(in ids: [String]) -> (shown: [String], overflow: Int) {
         let others = Array(ids.dropFirst())

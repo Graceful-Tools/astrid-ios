@@ -363,6 +363,7 @@
 /* Assignee */
 "assignee.unassigned" = "Unassigned";
 "assignee.you" = "You";
+"assignee.clear" = "Unassign";
 
 /* Reminders */
 "reminders.counting_on_you" = "These people are counting on you!";

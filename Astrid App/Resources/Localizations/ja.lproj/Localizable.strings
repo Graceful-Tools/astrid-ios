@@ -241,6 +241,7 @@
 /* Assignee */
 "assignee.unassigned" = "未割り当て";
 "assignee.you" = "あなた";
+"assignee.clear" = "割り当てを解除";
 
 /* Reminders */
 "reminders.counting_on_you" = "みんながあなたを頼りにしています！";
