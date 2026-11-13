@@ -266,6 +266,16 @@ export const rules = [
     },
   },
   {
+    id: 'core-base-url-required',
+    why: 'The server is always the shell\'s to name (AITD-651, astrid-web AWTD-1627): a core built with `require-base-url` has no default server and refuses a start config without `baseUrl` (`CONFIG_BASE_URL_REQUIRED`), so a white-label binary can never reach astrid.cc by omission. An optional `baseURL` on `CoreSession` would let a caller leave it out again — the app passes `Constants.API.baseURL`, a test any server (it runs with `background: false`).',
+    pattern: /\bbaseURL:\s*String\?/,
+    run(ctx) {
+      const dirs = ['Packages/AstridCore/Sources']
+      return [...missingDirs(ctx, dirs), ...eachCodeLine(ctx, ctx.files(dirs), (line) => this.pattern.test(line)
+        && 'makes the core\'s server optional — `baseURL` is a required String')]
+    },
+  },
+  {
     id: 'brand-art-catalogs',
     why: 'Each brand\'s art is compiled only into its own app (AITD-618): Astrid\'s character in `AstridArt-iOS/-Mac.xcassets`, the partner\'s icon and character in `PartnerArt-iOS/-Mac.xcassets`, and each app configuration excludes the other brand\'s catalogs and the other platform\'s (`EXCLUDED_SOURCE_FILE_NAMES`). Brand art in the shared `Assets.xcassets`, or a configuration that stops excluding, puts one brand\'s art in the other\'s app.',
     run(ctx) {

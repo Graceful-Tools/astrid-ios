@@ -25,7 +25,10 @@ public final class CoreSession: Sendable {
 
     /// - Parameters:
     ///   - cachePath: the SQLite file the cache lives in, or `":memory:"` for a test.
-    ///   - baseURL: the server; the core's default (astrid.cc) when nil.
+    ///   - baseURL: the server. Always named: a core built with `require-base-url` has no default
+    ///     and refuses to start without one, so a white-label binary never reaches astrid.cc by
+    ///     omission (AITD-651, astrid-web AWTD-1627). A test names any server and passes
+    ///     `background: false`, so it is never reached.
     ///   - background: start the loops that keep the app current. A test, and a UI-test build that
     ///     must never reach the network, pass `false`.
     ///   - urlScheme: the scheme this build registers for its sign-in callback, without `://`;
@@ -33,7 +36,7 @@ public final class CoreSession: Sendable {
     ///   - handoffClientId: the id the server's desktop hand-off registry knows this app by; the
     ///     platform's own when nil.
     public init(
-        cachePath: String, baseURL: String? = nil, platform: CorePlatform? = nil,
+        cachePath: String, baseURL: String, platform: CorePlatform? = nil,
         urlScheme: String? = nil, handoffClientId: String? = nil,
         credentials: CoreCredentialStore, background: Bool
     ) throws {
@@ -43,14 +46,14 @@ public final class CoreSession: Sendable {
             credentials: credentials, background: background)
     }
 
-    /// The start config as the core reads it. A value left nil is OMITTED, not sent empty: absence
-    /// is how a shell asks for the core's default, and the core ignores a key it does not know, so
+    /// The start config as the core reads it. The server is always sent; any other value left nil
+    /// is OMITTED, not sent empty: absence is how a shell asks for the core's default, and the core ignores a key it does not know, so
     /// the encoding is the only place a misspelled key would show (tested).
-    static func configJSON(cachePath: String, baseURL: String?, platform: CorePlatform?,
+    static func configJSON(cachePath: String, baseURL: String, platform: CorePlatform?,
                            urlScheme: String?, handoffClientId: String?) throws -> String {
         struct Config: Encodable {
             let cachePath: String
-            let baseUrl: String?
+            let baseUrl: String
             let platform: String?
             let urlScheme: String?
             let handoffClientId: String?

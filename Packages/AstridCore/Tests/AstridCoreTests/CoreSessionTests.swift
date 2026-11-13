@@ -11,8 +11,11 @@ final class CoreSessionTests: XCTestCase {
         func delete(key: String) -> Bool { lock.withLock { values[key] = nil }; return true }
     }
 
+    /// Named because the core has no default server (AITD-651); never reached — no background loops.
+    static let server = "https://astrid.cc"
+
     private func session() throws -> CoreSession {
-        try CoreSession(cachePath: ":memory:", credentials: Credentials(), background: false)
+        try CoreSession(cachePath: ":memory:", baseURL: Self.server, credentials: Credentials(), background: false)
     }
 
     private struct Command: Encodable {
@@ -123,19 +126,30 @@ final class CoreChangeTests: XCTestCase {
         func keys(_ json: String) throws -> [String: Any] {
             try XCTUnwrap(JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
         }
-        let partner = try keys(CoreSession.configJSON(cachePath: ":memory:", baseURL: nil, platform: .ios,
+        let partner = try keys(CoreSession.configJSON(cachePath: ":memory:", baseURL: CoreSessionTests.server, platform: .ios,
                                                       urlScheme: "acmetasks", handoffClientId: "acme-ios"))
         XCTAssertEqual(partner["urlScheme"] as? String, "acmetasks")
         XCTAssertEqual(partner["handoffClientId"] as? String, "acme-ios")
         XCTAssertEqual(partner["platform"] as? String, "ios-app")
 
-        let plain = try keys(CoreSession.configJSON(cachePath: ":memory:", baseURL: nil, platform: nil,
+        let plain = try keys(CoreSession.configJSON(cachePath: ":memory:", baseURL: CoreSessionTests.server, platform: nil,
                                                     urlScheme: nil, handoffClientId: nil))
         XCTAssertNil(plain["urlScheme"])
         XCTAssertNil(plain["handoffClientId"])
 
         // And the core accepts it.
-        _ = try CoreSession(cachePath: ":memory:", urlScheme: "acmetasks", handoffClientId: "acme-ios",
+        _ = try CoreSession(cachePath: ":memory:", baseURL: CoreSessionTests.server, urlScheme: "acmetasks", handoffClientId: "acme-ios",
                             credentials: CoreSessionTests.Credentials(), background: false)
+    }
+
+    /// AITD-651 (astrid-web AWTD-1627): the server is the shell's to name, always. A core built
+    /// with `require-base-url` has no default and refuses a start config without one, so a
+    /// white-label binary can never reach astrid.cc by omission. `baseURL` is a required `String`
+    /// (the `core-base-url-required` source contract keeps it so) and it is always on the wire.
+    func testTheStartConfigAlwaysNamesTheServer_AITD651() throws {
+        let json = try CoreSession.configJSON(cachePath: ":memory:", baseURL: "https://tasks.example.com",
+                                              platform: nil, urlScheme: nil, handoffClientId: nil)
+        let keys = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
+        XCTAssertEqual(keys["baseUrl"] as? String, "https://tasks.example.com")
     }
 }
