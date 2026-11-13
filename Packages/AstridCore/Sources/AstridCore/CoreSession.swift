@@ -44,6 +44,8 @@ public final class CoreSession: Sendable {
             configJson: Self.configJSON(cachePath: cachePath, baseURL: baseURL, platform: platform,
                                         urlScheme: urlScheme, handoffClientId: handoffClientId),
             credentials: credentials, background: background)
+        // The rules door draws markdown too, and its relative links open on this same server.
+        CoreRules.markdownOrigin = baseURL
     }
 
     /// The start config as the core reads it. The server is always sent; any other value left nil

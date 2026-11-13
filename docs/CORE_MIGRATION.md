@@ -85,7 +85,7 @@ scripts/core/build-xcframework.sh                         # build the pinned rev
 | Domain | Swift that goes | Status |
 |---|---|---|
 | Repeating rollover + completion outcome | `RepeatingTaskHandler.swift` math, `TaskService.calculateNextOccurrence` (deleted, AITD-532) | **done** — `rules` `completion` / `nextOccurrence`; 78 Swift tests pass against the core |
-| Markdown | `MarkdownBlocks.swift`, `String+Markdown.swift`, two platform renderers | **done** — `rules` `renderMarkdown`; one shared `MarkdownView` |
+| Markdown | `MarkdownBlocks.swift`, `String+Markdown.swift`, two platform renderers | **done** — `rules` `renderMarkdown`; one shared `MarkdownView`. Relative links (`/lists/…`, `/t/…`) open on the `origin` the request names, which `CoreSession` sets to its `baseURL`, the brand's server (AITD-652, core `654e004`) |
 | Permissions | `TaskList.role(for:)`, `ListPermissions` (D6, D29) | **done** — `rules` `listAccess` |
 | Smart parse | `SmartTaskParser.swift` (D12, D30) | **done** — `rules` `smartParse`, 12 languages |
 | Search | `Core/Filters/TaskSearch.swift` | **done** (AITD-459) — the core's `searchTasks` answers as iOS's search did; both apps ask it through `TaskSearchModel`, asynchronously, and the old Swift tests run against the core |

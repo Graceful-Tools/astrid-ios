@@ -98,6 +98,9 @@ struct MarkdownView: View {
             return AnyView(Divider().padding(.vertical, 2))
         case .table(_, let header, let rows):
             return AnyView(table(header: header, rows: rows))
+        case .tradeoffGrid:
+            // `init(blocks:)` has already made every grid a `.tradeOff`; this is for completeness.
+            return AnyView(Decisions.tradeOff(block).map { TradeOffGridView(grid: $0, style: style, inline: inline) })
         }
     }
 
@@ -295,6 +298,15 @@ enum MarkdownRendering {
                 lines.append(AttributedString("—"))
             case .table(_, let header, let rows):
                 for row in [header] + rows {
+                    var line = AttributedString()
+                    for (index, cell) in row.enumerated() {
+                        if index > 0 { line += AttributedString(" · ") }
+                        line += attributed(cell, defaultColor: defaultColor, referenceFont: referenceFont)
+                    }
+                    lines.append(line)
+                }
+            case .tradeoffGrid(let header, let rows):
+                for row in [header] + rows.map({ [$0.name] + $0.cells.map(\.inlines) }) {
                     var line = AttributedString()
                     for (index, cell) in row.enumerated() {
                         if index > 0 { line += AttributedString(" · ") }

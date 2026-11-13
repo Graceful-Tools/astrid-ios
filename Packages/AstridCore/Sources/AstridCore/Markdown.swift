@@ -17,6 +17,10 @@ public indirect enum MarkdownBlock: Equatable, Sendable, Decodable {
     case quote([MarkdownBlock])
     case rule
     case table(alignments: [MarkdownAlignment], header: [[MarkdownInline]], rows: [[[MarkdownInline]]])
+    /// A table whose body cells all lead with a rating: a trade-off grid, picked out by the core
+    /// (astrid-core AWTD-1626). `header` is the option column's heading, then one per criterion.
+    /// `Decisions.grids` turns it into the `TradeOff` the views draw.
+    case tradeoffGrid(header: [[MarkdownInline]], rows: [MarkdownGridRow])
 
     private enum Keys: String, CodingKey {
         case kind, inlines, level, language, text, ordered, start, items, blocks, alignments, header, rows
@@ -49,6 +53,10 @@ public indirect enum MarkdownBlock: Equatable, Sendable, Decodable {
                 alignments: try block.decode([MarkdownAlignment].self, forKey: .alignments),
                 header: try block.decode([[MarkdownInline]].self, forKey: .header),
                 rows: try block.decode([[[MarkdownInline]]].self, forKey: .rows))
+        case "tradeoffGrid":
+            self = .tradeoffGrid(
+                header: try block.decode([[MarkdownInline]].self, forKey: .header),
+                rows: try block.decode([MarkdownGridRow].self, forKey: .rows))
         default:
             // A block kind a newer core draws and this build does not: keep its words.
             self = .paragraph([])
@@ -64,6 +72,33 @@ public struct MarkdownListItem: Equatable, Sendable, Decodable {
     public init(checked: Bool?, blocks: [MarkdownBlock]) {
         self.checked = checked
         self.blocks = blocks
+    }
+}
+
+/// One option of a trade-off grid, as the core answers it.
+public struct MarkdownGridRow: Equatable, Sendable, Decodable {
+    /// The option, without the marker its writer put in front (`A. Lisbon` → `Lisbon`).
+    public let name: [MarkdownInline]
+    /// One per criterion.
+    public let cells: [MarkdownGridCell]
+
+    public init(name: [MarkdownInline], cells: [MarkdownGridCell]) {
+        self.name = name
+        self.cells = cells
+    }
+}
+
+/// One criterion's cell in a trade-off grid.
+public struct MarkdownGridCell: Equatable, Sendable, Decodable {
+    /// The rating's label key — `veryPoor`, `poor`, `mixed`, `good`, `veryGood` — or nil for an
+    /// empty cell.
+    public let rating: String?
+    /// The reason, without its rating. A cell that is only a rating carries the token.
+    public let inlines: [MarkdownInline]
+
+    public init(rating: String?, inlines: [MarkdownInline]) {
+        self.rating = rating
+        self.inlines = inlines
     }
 }
 
@@ -124,12 +159,28 @@ public enum MarkdownReference: String, Equatable, Sendable, Decodable {
 extension CoreRules {
     /// Render `text` the way the web renders it. Never throws: text the core somehow cannot
     /// answer for comes back as one plain paragraph, because a message must never vanish.
-    public static func markdown(_ text: String) -> [MarkdownBlock] {
+    ///
+    /// A link written relative to the app (`/lists/…`, `/u/…`, a task id's `/t/…`) opens on
+    /// `origin` — the server the running session was started on unless one is named here. Without
+    /// any, an ordinary core falls back to astrid.cc and a `require-base-url` one leaves the link
+    /// relative, so a partner build must have one (AITD-652, astrid-web AWTD-1630).
+    public static func markdown(_ text: String, origin: String? = nil) -> [MarkdownBlock] {
         struct Request: Encodable {
             let kind = "renderMarkdown"
             let text: String
+            let origin: String?
         }
-        return (try? ask(Request(text: text), as: [MarkdownBlock].self))
+        return (try? ask(Request(text: text, origin: origin ?? markdownOrigin), as: [MarkdownBlock].self))
             ?? [.paragraph([.text(MarkdownRun(text: text))])]
     }
+
+    /// Where `markdown`'s relative links open when a call names no origin. `CoreSession` sets it to
+    /// its `baseURL` — the brand's server, which is the shell's to name (AITD-651) — so the app never
+    /// threads it through each view.
+    static var markdownOrigin: String? {
+        get { originLock.withLock { storedOrigin } }
+        set { originLock.withLock { storedOrigin = newValue } }
+    }
+    private static let originLock = NSLock()
+    private nonisolated(unsafe) static var storedOrigin: String?
 }

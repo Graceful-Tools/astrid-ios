@@ -29,6 +29,7 @@ final class MarkdownBlocksTests: XCTestCase {
             case .quote: return ["quote"]
             case .rule: return ["rule"]
             case .table: return ["table"]
+            case .tradeoffGrid: return ["grid"]
             }
         }
     }

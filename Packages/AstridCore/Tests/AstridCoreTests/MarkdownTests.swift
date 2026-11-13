@@ -1,4 +1,4 @@
-import AstridCore
+@testable import AstridCore
 import XCTest
 
 final class MarkdownTests: XCTestCase {
@@ -40,5 +40,29 @@ final class MarkdownTests: XCTestCase {
         guard case .paragraph(let inlines)? = CoreRules.markdown("[x](javascript:alert(1))").first,
               case .text(let run)? = inlines.first else { return XCTFail("a run") }
         XCTAssertNil(run.link)
+    }
+
+    // MARK: AITD-652 — a relative link opens on the app's own server (astrid-web AWTD-1630)
+
+    private static let partner = "https://tasks.partner.example"
+
+    private func link(_ blocks: [MarkdownBlock]) -> String? {
+        guard case .paragraph(let inlines)? = blocks.first, case .text(let run)? = inlines.first else { return nil }
+        return run.link
+    }
+
+    func testARelativeLinkOpensOnTheOriginItIsGiven_AITD652() {
+        XCTAssertEqual(
+            link(CoreRules.markdown("[home](/lists/abc)", origin: Self.partner)),
+            "https://tasks.partner.example/lists/abc")
+    }
+
+    /// The app never names the origin per call: the server its session was started on is the one.
+    func testTheSessionsServerIsTheDefaultOrigin_AITD652() throws {
+        let before = CoreRules.markdownOrigin
+        defer { CoreRules.markdownOrigin = before }
+        _ = try CoreSession(cachePath: ":memory:", baseURL: Self.partner,
+                            credentials: CoreSessionTests.Credentials(), background: false)
+        XCTAssertEqual(link(CoreRules.markdown("[home](/lists/abc)")), "https://tasks.partner.example/lists/abc")
     }
 }
