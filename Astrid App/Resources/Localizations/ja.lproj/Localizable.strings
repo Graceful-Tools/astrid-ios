@@ -74,6 +74,7 @@
 "tasks.new_task" = "新しいタスク";
 "tasks.add_task" = "タスクを追加";
 "tasks.task_details" = "タスクの詳細";
+"tasks.task_details_for_id" = "%@ の詳細";
 "tasks.edit_task" = "タスクを編集";
 "tasks.delete_task" = "タスクを削除";
 "tasks.complete_task" = "完了する / 完了済み！";

@@ -83,6 +83,7 @@
 "tasks.new_task" = "Neue Aufgabe";
 "tasks.add_task" = "Aufgabe hinzufügen";
 "tasks.task_details" = "Aufgabendetails";
+"tasks.task_details_for_id" = "Details zu %@";
 "tasks.edit_task" = "Aufgabe bearbeiten";
 "tasks.delete_task" = "Aufgabe löschen";
 "tasks.complete_task" = "Abschließen / Fertig!";

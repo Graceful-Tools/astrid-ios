@@ -73,6 +73,7 @@
 "tasks.new_task" = "Nuovo compito";
 "tasks.add_task" = "Aggiungi compito";
 "tasks.task_details" = "Dettagli compito";
+"tasks.task_details_for_id" = "Dettagli di %@";
 "tasks.edit_task" = "Modifica compito";
 "tasks.delete_task" = "Elimina compito";
 "tasks.complete_task" = "Completa / Fatto!";

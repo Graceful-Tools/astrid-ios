@@ -48,4 +48,34 @@ enum TaskDetailHeader {
     static func backAction(hasPanelClose: Bool) -> TaskDetailBackAction {
         hasPanelClose ? .closePanel : .dismissStack
     }
+
+    // MARK: - Title (AITD-647)
+
+    /// The header's words around the task id. A board task used to show its id in a row of its
+    /// own; now the header reads "<id> Details" and the id is the part that copies. The words
+    /// either side come from one localized sentence, so each language keeps its own word order.
+    struct Title: Equatable {
+        let prefix: String
+        /// Nil when there is no id to show — the title is then just "Task Details".
+        let identifier: String?
+        let suffix: String
+    }
+
+    /// `identifier` should already have passed `TaskIdentifiers.shows(_:lists:on: .details)`.
+    static func title(identifier: String?) -> Title {
+        guard let identifier, !identifier.isEmpty else {
+            return Title(prefix: NSLocalizedString("tasks.task_details", comment: ""), identifier: nil, suffix: "")
+        }
+        return splitTitle(format: NSLocalizedString("tasks.task_details_for_id", comment: ""), identifier: identifier)
+    }
+
+    /// Splits a `%@` sentence around the id. A translation that lost its placeholder still shows
+    /// the id, ahead of the words.
+    static func splitTitle(format: String, identifier: String) -> Title {
+        guard let range = format.range(of: "%@") else {
+            return Title(prefix: "", identifier: identifier, suffix: " " + format)
+        }
+        return Title(prefix: String(format[..<range.lowerBound]), identifier: identifier,
+                     suffix: String(format[range.upperBound...]))
+    }
 }
