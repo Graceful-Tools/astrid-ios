@@ -173,6 +173,10 @@ gate "astrid-core framework matches the pinned release" \
 gate "astrid-core framework within its size budget" \
     "astrid-core framework over its size budget — see scripts/core/size-budget.json" \
     node "$SCRIPT_DIR/core/check-size.mjs"
+# A local framework must link the system SQLite, like the release built by the same script (AITD-644).
+gate "astrid-core framework links the system SQLite" \
+    "astrid-core framework bundles its own SQLite — see scripts/core/check-sqlite.mjs" \
+    node "$SCRIPT_DIR/core/check-sqlite.mjs"
 
 # Step 6: Build verification (unless skipped). Quick mode builds too, after the cheap checks.
 if [[ "$SKIP_BUILD" != "true" ]]; then

@@ -14,8 +14,8 @@
 import Foundation
 import PackageDescription
 
-let releasedURL = "https://github.com/Graceful-Tools/astrid-ios/releases/download/core-9128b8a/AstridCoreFFI.xcframework.zip"
-let releasedChecksum = "0850b5f4539f7829a6ef599decd02e9976163ba9e0466fe20f44760b35b9adbc"
+let releasedURL = "https://github.com/Graceful-Tools/astrid-ios/releases/download/core-9128b8a-syssqlite/AstridCoreFFI.xcframework.zip"
+let releasedChecksum = "6afaf2311249f27dc00269daea0dd6074cf6cf09fdb99d7a3d466f7b654e25c9"
 
 let localFramework = Context.packageDirectory + "/AstridCoreFFI.xcframework"
 let framework: Target = FileManager.default.fileExists(atPath: localFramework)
@@ -39,6 +39,8 @@ let package = Package(
                 .linkedFramework("Security"),
                 .linkedFramework("SystemConfiguration"),
                 .linkedFramework("CoreFoundation"),
+                // The OS's SQLite: the core is built without its bundled copy (AITD-644).
+                .linkedLibrary("sqlite3"),
             ]
         ),
         .target(name: "AstridCore", dependencies: ["AstridCoreBindings"]),

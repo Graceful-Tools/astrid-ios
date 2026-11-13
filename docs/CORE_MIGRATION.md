@@ -49,6 +49,13 @@ Astrid App / Astrid Mac (Swift)
   the ios-arm64 slice from 96 MB to 18 MB, the zip every Xcode Cloud run downloads from 161 MB to
   27 MB, and a dead-stripped link of the core from 15.2 MB to 7.8 MB. `scripts/core/size-budget.json`
   holds the ceilings; predeploy and the build script enforce them.
+- **The apps link the system SQLite** (AITD-644). `core/Cargo.toml` takes `astrid-uniffi` with
+  `default-features = false`, which drops astrid-core's `bundled-sqlite` (`rusqlite/bundled`);
+  `Package.swift` adds `-lsqlite3`. Measured 2026-11-13 at core `9128b8a`, before → after: ios-arm64
+  slice 19.0 → 17.4 MB, ios-sim 37.5 → 34.5 MB, macos 37.8 → 34.7 MB, zip 27.9 → 24.4 MB; stripped
+  Release binaries iOS 22.0 → 21.0 MB, Mac universal 35.3 → 33.1 MB. The apps also stop carrying
+  their own copy of SQLite, which is how RUSTSEC-2026-0459 reached them. `scripts/core/check-sqlite.mjs`
+  fails a framework that defines `sqlite3_*` again; both predeploy and the build script run it.
 - **A released tag is never overwritten** — older commits, `ios-prod` and `mac-prod` among them,
   pin its checksum. Rebuilding the same core revision is `release-xcframework.sh <rev> --label <name>`,
   which publishes `core-<short>-<name>`.
