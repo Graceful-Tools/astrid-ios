@@ -129,6 +129,9 @@ struct BoardColumnView: View {
     var onOpenFullDetails: ((Task) -> Void)?
     /// The task currently open in the detail panel (for the selected highlight).
     var selectedTaskId: String?
+    /// Whether a tap opens the card inline or goes straight to the full details
+    /// (`BoardCardExpansion.cardTapOpensInline` — iPhone goes straight there, AITD-642).
+    var opensCardsInline: Bool = true
     /// The card open inline, shared across the board's columns so only one is open.
     @Binding var expandedTaskId: String?
     /// How tall an open card's details are (`BoardCardExpansion.inlineDetailHeight`).
@@ -362,6 +365,11 @@ struct BoardColumnView: View {
                 // intercepts its own taps first, so picking a status doesn't also
                 // open the card.
                 .onTapGesture {
+                    // iPhone: the full details, as before AITD-628 (AITD-642).
+                    if !opensCardsInline, let onOpenFullDetails {
+                        onOpenFullDetails(task)
+                        return
+                    }
                     withAnimation(ReducedMotion.spring(response: AstridTokens.Motion.panelSpringDuration,
                                                dampingFraction: AstridTokens.Motion.panelSpringDamping)) {
                         expandedTaskId = BoardCardExpansion.toggle(current: expandedTaskId,

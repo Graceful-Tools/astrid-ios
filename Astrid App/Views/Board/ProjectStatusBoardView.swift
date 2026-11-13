@@ -48,6 +48,9 @@ struct ProjectStatusBoardView: View {
     /// presenter (iPhone).
     var onTaskTap: ((Task) -> Void)?
 
+    /// Whether a card tap opens the card inline (iPad) or the full details (iPhone, AITD-642).
+    var opensCardsInline: Bool = true
+
     /// The task currently shown in the side panel, if any. When set, the board
     /// snaps to the column that contains it so the user sees where it lives
     /// (e.g. opening a done task scrolls the board to the Done column).
@@ -138,6 +141,7 @@ struct ProjectStatusBoardView: View {
                                 if let onTaskTap { onTaskTap(task) } else { TaskPresenter.shared.showTask(task) }
                             },
                             selectedTaskId: selectedTaskId,
+                            opensCardsInline: opensCardsInline,
                             expandedTaskId: $expandedTaskId,
                             inlineDetailHeight: BoardCardExpansion.inlineDetailHeight(boardHeight: geo.size.height),
                             onDragMoved: { globalPoint in
