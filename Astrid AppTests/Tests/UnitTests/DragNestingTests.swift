@@ -202,4 +202,35 @@ final class DragNestingTests: XCTestCase {
         after["o"] = moved
         XCTAssertEqual(DragNesting.outdent(moved, byId: after), .moveToTopLevel(taskId: "o"))
     }
+
+    // MARK: AITD-645 — answered by astrid-core
+
+    /// The core refuses a drop whose dragged row it was never shown. A task the store has not
+    /// indexed yet (an optimistic one) must still get an answer, not a silent `.none`.
+    func testAITD645_aDraggedTaskMissingFromTheStoreIsStillAnswered() {
+        let byId = tree()
+        var fresh = Task(id: "new", title: "just created")
+        fresh.parentTaskId = "p"
+        XCTAssertEqual(DragNesting.outcome(for: .betweenRows(above: nil), dragged: fresh, byId: byId),
+                       .moveToTopLevel(taskId: "new"))
+        XCTAssertEqual(DragNesting.outdent(fresh, byId: byId), .moveToTopLevel(taskId: "new"))
+    }
+
+    /// The dragged task as the caller holds it wins over a stale copy in the store: the outcome
+    /// turns on its own parent.
+    func testAITD645_theDraggedTaskAsHeldBeatsTheStoresCopy() {
+        let byId = tree()
+        var moved = byId["o"]!
+        moved.parentTaskId = "p"
+        XCTAssertEqual(DragNesting.outcome(for: .onRow("p"), dragged: moved, byId: byId), .none)
+    }
+
+    /// Indent reads the rows as drawn, including rows the store has not indexed.
+    func testAITD645_indentSeesRowsTheStoreDoesNotHold() {
+        let byId = tree()
+        let drawnOnly = Task(id: "x", title: "drawn only")
+        let rows = [byId["p"]!, drawnOnly, byId["o"]!]
+        XCTAssertEqual(DragNesting.indent(byId["o"]!, in: rows, byId: byId),
+                       .makeSubtask(taskId: "o", parentId: "x"))
+    }
 }
