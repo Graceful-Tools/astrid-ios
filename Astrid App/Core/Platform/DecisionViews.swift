@@ -2,7 +2,7 @@
 //  A decision's options as cards you tap (AITD-579), and a trade-off grid of coloured cells
 //  (AITD-578) — on iOS and on the Mac. Options are numbered, criteria lettered (AITD-585).
 //
-//  Both are ordinary markdown that `Decisions` (AstridCore) picks out of the rendered blocks;
+//  Both are ordinary markdown that astrid-core picks out (`Decisions`, AITD-641);
 //  `MarkdownView` hands them here. What a card does when tapped belongs to the comment thread
 //  around it, which passes a `DecisionResponse` down; without one the cards only show the options.
 

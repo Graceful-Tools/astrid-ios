@@ -25,7 +25,7 @@ final class DecisionThreadTests: XCTestCase {
     }
 
     private var decision: Decision {
-        for block in Decisions.blocks(CoreRules.markdown(question)) {
+        for block in Decisions.blocks(source: question) {
             if case .decision(let decision) = block { return decision }
         }
         XCTFail("the question is a decision")

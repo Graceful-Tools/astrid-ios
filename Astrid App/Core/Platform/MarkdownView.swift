@@ -34,7 +34,9 @@ struct MarkdownStyle {
 }
 
 struct MarkdownView: View {
-    let blocks: [MarkdownBlock]
+    /// The blocks to draw, a decision's options and each trade-off grid already picked out by
+    /// astrid-core (AITD-641).
+    let blocks: [DecisionBlock]
     let style: MarkdownStyle
     /// Set by a comment thread or a chat (AITD-439); everywhere else task ids stay text.
     @Environment(\.taskIdentifierLinks) private var identifiers
@@ -42,11 +44,14 @@ struct MarkdownView: View {
     @ThemedPalette private var palette
 
     init(source: String, style: MarkdownStyle) {
-        self.init(blocks: CoreRules.markdown(source), style: style)
+        self.blocks = Decisions.blocks(source: source)
+        self.style = style
     }
 
+    /// Blocks with no source of their own — a quote's, a list item's. A decision is read from a
+    /// whole comment, never from inside one of its blocks, so only grids are picked out here.
     init(blocks: [MarkdownBlock], style: MarkdownStyle) {
-        self.blocks = blocks
+        self.blocks = Decisions.grids(blocks)
         self.style = style
     }
 
@@ -54,7 +59,7 @@ struct MarkdownView: View {
         VStack(alignment: .leading, spacing: style.blockSpacing) {
             // A decision's options and a trade-off grid are markdown too, drawn richer
             // (AITD-579, AITD-578); everything else is the block as rendered.
-            ForEach(Array(Decisions.blocks(blocks).enumerated()), id: \.offset) { _, block in
+            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
                 switch block {
                 case .markdown(let block):
                     self.block(block)
