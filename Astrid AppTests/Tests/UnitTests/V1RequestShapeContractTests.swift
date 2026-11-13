@@ -85,18 +85,18 @@ final class V1RequestShapeContractTests: XCTestCase {
     /// nil = whoever creates the task, "unassigned" = nobody, anything else = that user.
     /// Collapsing the middle case has already cost a bug on the web side.
     func testTheListDefaultAssigneeKeepsItsThreeMeanings() {
-        XCTAssertEqual(NewTaskDefaults.assignee(nil, currentUserId: "me"), "me",
+        XCTAssertEqual(ListQuickAddDefaults.assignee(listDefault: nil, currentUserId: "me"), "me",
                        "no default means the creator")
-        XCTAssertEqual(NewTaskDefaults.assignee("", currentUserId: "me"), "me",
+        XCTAssertEqual(ListQuickAddDefaults.assignee(listDefault: "", currentUserId: "me"), "me",
                        "empty is the same as absent here")
-        XCTAssertNil(NewTaskDefaults.assignee("unassigned", currentUserId: "me"),
+        XCTAssertNil(ListQuickAddDefaults.assignee(listDefault: "unassigned", currentUserId: "me"),
                      "the literal 'unassigned' means NOBODY, not the creator")
-        XCTAssertEqual(NewTaskDefaults.assignee("someone-else", currentUserId: "me"), "someone-else")
+        XCTAssertEqual(ListQuickAddDefaults.assignee(listDefault: "someone-else", currentUserId: "me"), "someone-else")
     }
 
     /// Signed out, "creator" resolves to nobody rather than crashing or inventing an id.
     func testTheCreatorDefaultWithNoSignedInUserIsUnassigned() {
-        XCTAssertNil(NewTaskDefaults.assignee(nil, currentUserId: nil))
+        XCTAssertNil(ListQuickAddDefaults.assignee(listDefault: nil, currentUserId: nil))
     }
 
     // MARK: - Privacy is upper-case, and the server now rejects anything else

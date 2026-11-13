@@ -18,6 +18,7 @@ enum MacQuickAdd {
         let repeatingData: CustomRepeatingPattern?
         var assigneeId: String?      // from the list's default assignee
         var isPrivate: Bool?         // from the list's default privacy
+        var whenTime: Date? = nil    // a list default with a time: a timed task, not all-day
     }
 
     /// Build create args from raw quick-add text. Returns nil when there is nothing to
@@ -68,50 +69,44 @@ enum MacQuickAdd {
             from: defaultsList, priorityOverride: priorityOverride, currentUserId: currentUserId)
     }
 
-    /// Fill only the gaps the user left, using the SHARED `NewTaskDefaults` (the same resolution iOS
-    /// uses) — a default must never overwrite something they typed or chose.
+    /// Fill only the gaps the user left, asking astrid-core's `quickAddDefaults` (the same rule iOS
+    /// and the web use) — a default must never overwrite something they typed or chose.
+    ///
+    /// NO DESTINATION LIST is My Tasks (AITD-387): there are no list defaults to apply, but the
+    /// CREATOR default is not a list default, so a task typed into the quick-add window still
+    /// starts as yours — exactly as the same text typed into the add bar of an unopinionated list
+    /// does. Left nil, every quick-added task would be nobody's, which since AITD-382 is also a
+    /// task you cannot tick off in one tap.
     private static func applyingDefaults(_ args: CreateArgs, from list: TaskList?,
                                          priorityOverride: Int?,
                                          currentUserId: String?) -> CreateArgs {
-        var out = args
         // Priority: typed > checkbox override > list default.
-        if out.priority == nil {
-            let resolved = priorityOverride ?? NewTaskDefaults.priority(list?.defaultPriority)
-            out = CreateArgs(title: out.title, listIds: out.listIds, priority: resolved,
-                             whenDate: out.whenDate, repeating: out.repeating,
-                             repeatingData: out.repeatingData,
-                             assigneeId: out.assigneeId, isPrivate: out.isPrivate)
-        }
-        guard let list else {
-            // NO DESTINATION LIST — My Tasks (AITD-387). There are no list defaults to apply, but
-            // the CREATOR default is not a list default: `NewTaskDefaults.assignee(nil, …)` is
-            // "task_creator", which is the same answer a real list gives when it names no default
-            // assignee of its own. So a task typed into the quick-add window starts as yours,
-            // exactly as the same text typed into the add bar of an unopinionated list does.
-            //
-            // Leaving it nil would make every quick-added task nobody's — which since AITD-382 is
-            // also a task you cannot tick off in one tap, because an unassigned task draws the "U"
-            // glyph and opens the options popover instead of completing. Capturing a thought and
-            // then needing two taps to finish it is not what that window is for.
-            out.assigneeId = NewTaskDefaults.assignee(nil, currentUserId: currentUserId)
-            return out
-        }
-        if out.whenDate == nil {
+        let chosenPriority = args.priority ?? priorityOverride
+        let defaults = ListQuickAddDefaults.resolve(list, currentUserId: currentUserId,
+                                                    priority: chosenPriority)
+        var out = CreateArgs(title: args.title, listIds: args.listIds,
+                             priority: chosenPriority ?? (defaults.priority > 0 ? defaults.priority : nil),
+                             whenDate: args.whenDate, repeating: args.repeating,
+                             repeatingData: args.repeatingData,
+                             assigneeId: defaults.assigneeId, isPrivate: args.isPrivate,
+                             whenTime: args.whenTime)
+        guard list != nil else { return out }
+        if out.whenDate == nil, let due = defaults.dueDateTime {
+            // createTask reads a date alone as all-day and a time as a timed task.
             out = CreateArgs(title: out.title, listIds: out.listIds, priority: out.priority,
-                             whenDate: NewTaskDefaults.dueDate(from: list.defaultDueDate,
-                                                            time: list.defaultDueTime),
-                             repeating: out.repeating, repeatingData: out.repeatingData,
-                             assigneeId: out.assigneeId, isPrivate: out.isPrivate)
+                             whenDate: due, repeating: out.repeating,
+                             repeatingData: out.repeatingData,
+                             assigneeId: out.assigneeId, isPrivate: out.isPrivate,
+                             whenTime: defaults.isAllDay ? nil : due)
         }
         if out.repeating == nil {
             out = CreateArgs(title: out.title, listIds: out.listIds, priority: out.priority,
-                             whenDate: out.whenDate,
-                             repeating: NewTaskDefaults.repeating(list.defaultRepeating),
+                             whenDate: out.whenDate, repeating: defaults.repeating,
                              repeatingData: out.repeatingData,
-                             assigneeId: out.assigneeId, isPrivate: out.isPrivate)
+                             assigneeId: out.assigneeId, isPrivate: out.isPrivate,
+                             whenTime: out.whenTime)
         }
-        out.assigneeId = NewTaskDefaults.assignee(list.defaultAssigneeId, currentUserId: currentUserId)
-        out.isPrivate = list.defaultIsPrivate
+        out.isPrivate = list?.defaultIsPrivate
         return out
     }
 

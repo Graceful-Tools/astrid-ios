@@ -33,11 +33,36 @@ final class MacQuickAddDefaultsTests: XCTestCase {
     func testListDefaultDueDateIsApplied() {
         let args = MacQuickAdd.makeArgs(rawText: "Buy milk", selectedListId: "list-1",
                                         lists: [list(defaultDueDate: "tomorrow")])
-        let expected = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
+        // An all-day default is the person's tomorrow at UTC midnight, like a typed date (D12);
+        // since AITD-646 it is astrid-core's answer, and it carries no time.
+        let tomorrow = Calendar.current.dateComponents(
+            [.year, .month, .day], from: Calendar.current.date(byAdding: .day, value: 1, to: Date())!)
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
         let due = try? XCTUnwrap(args?.whenDate)
         XCTAssertNotNil(due)
-        XCTAssertTrue(Calendar.current.isDate(due!, inSameDayAs: expected),
-                      "Default due date 'tomorrow' must land on tomorrow")
+        XCTAssertEqual(utc.dateComponents([.year, .month, .day], from: due!), tomorrow,
+                       "Default due date 'tomorrow' must land on tomorrow")
+        XCTAssertNil(args?.whenTime, "a default with no time is all-day")
+    }
+
+    /// AITD-646: a default with a time is a TIMED task. Only `whenDate` used to be passed, so
+    /// createTask read "tomorrow at 09:00" as all-day and the time was lost.
+    func testAITD646_aListDefaultTimeMakesATimedTask() throws {
+        let args = try XCTUnwrap(MacQuickAdd.makeArgs(rawText: "Buy milk", selectedListId: "list-1",
+                                                      lists: [list(defaultDueDate: "tomorrow",
+                                                                   defaultDueTime: "09:00")]))
+        let time = try XCTUnwrap(args.whenTime, "a default time must reach createTask")
+        let parts = Calendar.current.dateComponents([.hour, .minute], from: time)
+        XCTAssertEqual(parts.hour, 9)
+        XCTAssertEqual(parts.minute, 0)
+    }
+
+    /// AITD-646: "next month", which the Mac list settings offer, is applied (core D59).
+    func testAITD646_aNextMonthDefaultIsApplied() {
+        let args = MacQuickAdd.makeArgs(rawText: "Buy milk", selectedListId: "list-1",
+                                        lists: [list(defaultDueDate: "next_month")])
+        XCTAssertNotNil(args?.whenDate)
     }
 
     func testListDefaultRepeatIsApplied() {

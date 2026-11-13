@@ -39,7 +39,7 @@ enum MacDraftDefaults {
     static func defaultAssigneeLabel(defaultAssigneeId: String?,
                                      currentUserId: String?,
                                      members: [MacAssigneeChoice]) -> String {
-        let id = NewTaskDefaults.assignee(defaultAssigneeId, currentUserId: currentUserId)
+        let id = ListQuickAddDefaults.assignee(listDefault: defaultAssigneeId, currentUserId: currentUserId)
         guard let id, !id.isEmpty else { return NSLocalizedString("assignee.unassigned", comment: "") }
         if id == currentUserId { return NSLocalizedString("lists.me", comment: "") }
         return members.first { $0.id == id }?.label ?? NSLocalizedString("lists.me", comment: "")

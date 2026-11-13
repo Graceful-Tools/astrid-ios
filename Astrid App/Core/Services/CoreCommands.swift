@@ -50,7 +50,7 @@ extension CoreCommand {
         command.set("repeating", repeating)
         command.set("repeatingData", repeatingData)
         command.set("isPrivate", isPrivate)
-        // The app decided its own defaults before calling (NewTaskDefaults); the core must not
+        // The app decided its own defaults before calling (ListQuickAddDefaults); the core must not
         // apply the list's a second time, least of all to a sync provider's import.
         command.set("applyListDefaults", false)
         return command

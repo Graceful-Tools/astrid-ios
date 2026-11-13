@@ -146,29 +146,29 @@ final class DueDateLabelTests: XCTestCase {
 final class NewTaskDefaultTimeOfDayTests: XCTestCase {
 
     func testParsesAValidTime() {
-        let time = NewTaskDefaults.timeOfDay("09:30")
+        let time = ListQuickAddDefaults.timeOfDay("09:30")
         XCTAssertEqual(time?.hour, 9)
         XCTAssertEqual(time?.minute, 30)
     }
 
     func testMidnightIsAValidDefault() {
-        XCTAssertEqual(NewTaskDefaults.timeOfDay("00:00")?.hour, 0)
+        XCTAssertEqual(ListQuickAddDefaults.timeOfDay("00:00")?.hour, 0)
     }
 
     /// No default means all-day, not "midnight".
     func testMissingOrEmptyMeansNoDefault() {
-        XCTAssertNil(NewTaskDefaults.timeOfDay(nil))
-        XCTAssertNil(NewTaskDefaults.timeOfDay(""))
+        XCTAssertNil(ListQuickAddDefaults.timeOfDay(nil))
+        XCTAssertNil(ListQuickAddDefaults.timeOfDay(""))
     }
 
     /// Garbage on the wire must not become a real time — an out-of-range hour
     /// would otherwise be handed to Calendar and silently roll the date.
     func testNonsenseIsRejected() {
-        XCTAssertNil(NewTaskDefaults.timeOfDay("nine"))
-        XCTAssertNil(NewTaskDefaults.timeOfDay("9"))
-        XCTAssertNil(NewTaskDefaults.timeOfDay("25:00"))
-        XCTAssertNil(NewTaskDefaults.timeOfDay("09:75"))
-        XCTAssertNil(NewTaskDefaults.timeOfDay("-1:30"))
+        XCTAssertNil(ListQuickAddDefaults.timeOfDay("nine"))
+        XCTAssertNil(ListQuickAddDefaults.timeOfDay("9"))
+        XCTAssertNil(ListQuickAddDefaults.timeOfDay("25:00"))
+        XCTAssertNil(ListQuickAddDefaults.timeOfDay("09:75"))
+        XCTAssertNil(ListQuickAddDefaults.timeOfDay("-1:30"))
     }
 }
 

@@ -174,7 +174,7 @@ struct MacQuickAddBar: View {
     /// stays with the creator, which is drawn as a checkbox rather than an avatar (row parity).
     private var draftAssignee: User? {
         let id = draftAssigneeOverride
-            ?? NewTaskDefaults.assignee(list?.defaultAssigneeId, currentUserId: auth.userId)
+            ?? ListQuickAddDefaults.resolve(list, currentUserId: auth.userId).assigneeId
         // Unassigned, or assigned to ME, draws as the CHECKBOX — exactly like a task row. Only a
         // task headed to someone ELSE shows an avatar.
         guard let id, !id.isEmpty, id != auth.userId else { return nil }
@@ -224,15 +224,14 @@ struct MacQuickAddBar: View {
     /// Whether a task added right now would repeat — i.e. the list carries a default repeat.
     /// The checkbox previews it, the same way it previews the default priority.
     private var draftRepeats: Bool {
-        NewTaskDefaults.repeating(list?.defaultRepeating) != nil
+        ListQuickAddDefaults.resolve(list, currentUserId: nil).repeating != nil
     }
 
     /// The priority the checkbox displays: the user's override if they picked one, otherwise the
     /// destination list's default.
     private var draftPriority: Task.Priority {
-        let raw = draftPriorityOverride
-            ?? NewTaskDefaults.priority(list?.defaultPriority)
-            ?? 0
+        let raw = ListQuickAddDefaults.resolve(list, currentUserId: nil,
+                                               priority: draftPriorityOverride).priority
         return Task.Priority(rawValue: raw) ?? .none
     }
 
@@ -272,7 +271,7 @@ struct MacQuickAddBar: View {
             try await WaitingPromptPresenter.shared.move(Task(id: "new-task", title: args.title, assigneeId: assigneeId)) { wait in
                 let created = try await TaskService.shared.createTask(
                     listIds: args.listIds, title: args.title, priority: args.priority,
-                    whenDate: args.whenDate,
+                    whenDate: args.whenDate, whenTime: args.whenTime,
                     assigneeId: assigneeId,
                     isPrivate: args.isPrivate,
                     repeating: args.repeating, repeatingData: args.repeatingData,

@@ -7,7 +7,7 @@
 //  Two halves, and the gap was in different places for each.
 //
 //  APPLIED: the add bar at the bottom of a list already resolved every default through the shared
-//  `NewTaskDefaults`. The GLOBAL quick-add — the menu-bar item and the ⌥Space window — did not. It
+//  `NewTaskDefaults` (since AITD-646, astrid-core's `quickAddDefaults`). The GLOBAL quick-add — the menu-bar item and the ⌥Space window — did not. It
 //  parsed the text and created the task raw, so adding to a list from the menu bar produced a task
 //  missing that list's priority, due date, repeat, assignee and privacy. Two paths that create a
 //  task in the same list must agree about what that task starts as.
@@ -128,8 +128,11 @@ final class MacGlobalQuickAddDefaultsTests: XCTestCase {
     /// The preview must describe the SAME date the task will actually get, or it is a lie.
     func testThePreviewMatchesTheDateThatWillBeApplied() throws {
         let list = opinionatedList()
-        let applied = try XCTUnwrap(NewTaskDefaults.dueDate(from: list.defaultDueDate,
-                                                            time: list.defaultDueTime))
+        let args = try XCTUnwrap(MacQuickAdd.makeGlobalArgs(rawText: "Call #\(list.name)", lists: [list],
+                                                            smartEnabled: true, currentUserId: "me"))
+        let due = try XCTUnwrap(args.whenDate, "the list's default date is applied")
+        // An all-day date is the day at UTC midnight; a timed one carries its time too.
+        let applied = args.whenTime ?? MacWhenDate.localDay(ofAllDay: due)
         XCTAssertEqual(MacQuickAddPreview.dueDateLabel(for: list),
                        MacQuickAddPreview.label(for: applied))
     }

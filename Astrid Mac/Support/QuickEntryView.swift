@@ -124,7 +124,7 @@ struct QuickEntryView: View {
         AppActions.perform("Add task") {
             _ = try await TaskService.shared.createTask(
                 listIds: args.listIds, title: args.title, priority: args.priority,
-                whenDate: args.whenDate,
+                whenDate: args.whenDate, whenTime: args.whenTime,
                 assigneeId: chosenAssignee == "unassigned" ? nil : (chosenAssignee ?? args.assigneeId),
                 isPrivate: args.isPrivate,
                 repeating: args.repeating, repeatingData: args.repeatingData)

@@ -17,9 +17,9 @@ enum MacQuickAddPreview {
 
     /// Short, row-style date text ("Tomorrow", "Fri", "12 Mar"), matching how a task row reads.
     static func label(for date: Date, now: Date = Date(), calendar: Calendar = .current) -> String {
-        // The day naming is SHARED (AITD-317) rather than re-compared here. These dates come from
-        // `NewTaskDefaults`, which builds them in the local calendar, so `isAllDay: false` is the
-        // correct reading — but the words themselves must come from one place, or the quick-add
+        // The day naming is SHARED (AITD-317) rather than re-compared here. `dueDateLabel` hands
+        // over a local date (an all-day default already moved onto the reader's day), so
+        // `isAllDay: false` is the correct reading — but the words themselves must come from one place, or the quick-add
         // bar and the row it previews can disagree about what to call the same day.
         if let name = DueDateLabel.relativeDayName(for: date, isAllDay: false,
                                                    now: now, localCalendar: calendar),
@@ -39,11 +39,12 @@ enum MacQuickAddPreview {
     /// entirely rather than showing an empty slot. `nil` list = My Tasks, which has no defaults.
     static func dueDateLabel(for list: TaskList?, now: Date = Date(),
                              calendar: Calendar = .current) -> String? {
-        guard let list,
-              let date = NewTaskDefaults.dueDate(from: list.defaultDueDate,
-                                                 time: list.defaultDueTime,
-                                                 now: now, calendar: calendar)
-        else { return nil }
+        guard let list else { return nil }
+        let defaults = ListQuickAddDefaults.resolve(list, currentUserId: nil, now: now,
+                                                    timeZone: calendar.timeZone)
+        guard let due = defaults.dueDateTime else { return nil }
+        // An all-day answer is the day at UTC midnight; label the reader's own day for it.
+        let date = defaults.isAllDay ? MacWhenDate.localDay(ofAllDay: due, calendar: calendar) : due
         return label(for: date, now: now, calendar: calendar)
     }
 }
