@@ -8,13 +8,14 @@
 //    · on the line BETWEEN rows → become top level, positioned there
 //    · dragged far enough left  → outdent one level
 //
-//  The rules live here rather than in the drag handlers for the same reason
-//  `SubtaskPromotion` does: they are answerable without a view, they are the part that goes
-//  wrong quietly (a cycle, or a write of null over null), and Mac and iOS must not disagree
-//  about them. Both platforms call this; neither re-derives it.
+//  The decision is astrid-core's `nesting` rule (AITD-645): it is answerable without a view, it
+//  is the part that goes wrong quietly (a cycle, or a write of null over null), and no client may
+//  disagree about it. What stays here is the drag's geometry and the wire spelling of the write.
+//  Both platforms call this; neither re-derives it.
 
-import Foundation
+import AstridCore
 import CoreGraphics
+import Foundation
 
 /// Where a drag is currently hovering.
 enum DragNestingZone: Equatable {
@@ -55,80 +56,60 @@ enum DragNesting {
         horizontalTranslation <= -outdentDragThreshold
     }
 
-    /// Whether `parentId` can adopt `childId` without creating a cycle.
-    ///
-    /// Shared rather than per-platform: a cycle costs you BOTH tasks — the splicing walk
-    /// never reaches them, so they vanish from the list with no way back through the UI.
-    static func canParent(childId: String, parentId: String, byId: [String: Task]) -> Bool {
-        guard childId != parentId else { return false }
-        // Walk the proposed parent's ancestors. Reaching the child means the drop would
-        // close a loop. The cap matches `subtaskDepth`'s: a corrupt store must not hang.
-        var cursor: String? = parentId
-        var steps = 0
-        while let id = cursor, steps < 100 {
-            if id == childId { return false }
-            cursor = byId[id]?.parentTaskId
-            steps += 1
-        }
-        return true
-    }
+    // MARK: - The decision — astrid-core's `nesting` rule (AITD-645)
+    //
+    // What a drop MEANS (cycles, a parent it already has, null over null, outdent one level,
+    // indent under the previous sibling) is answered by astrid-core, the same function the web,
+    // Windows and Android drops ask. These three keep their Swift signatures so the drop
+    // handlers and the keyboard bindings did not change; none of them re-derives the rule.
 
     /// What a drop in this zone should do to the dragged task's parent.
     static func outcome(for zone: DragNestingZone,
                         dragged: PromotableTask,
                         byId: [String: Task]) -> DragNestingOutcome {
+        let coreZone: NestingZone
         switch zone {
-        case .onRow(let targetId):
-            guard canParent(childId: dragged.id, parentId: targetId, byId: byId) else { return .none }
-            // Already there — a write that changes nothing is still a write, and it would
-            // round-trip through the Outbox for no reason.
-            guard dragged.parentTaskId != targetId else { return .none }
-            return .makeSubtask(taskId: dragged.id, parentId: targetId)
-
-        case .betweenRows:
-            // The line means "top level, here". For a task that already IS top level there is
-            // no parent to clear, so the drop is a pure reorder — never a null over a null.
-            guard SubtaskPromotion.canPromoteToTopLevel(dragged) else {
-                return .reorderOnly(taskId: dragged.id)
-            }
-            return .moveToTopLevel(taskId: dragged.id)
-
-        case .outdent:
-            // The SAME function the keyboard binding calls, so pulling a task left and
-            // pressing the outdent key cannot mean two different things.
-            return outdent(dragged, byId: byId)
+        case .onRow(let targetId): coreZone = .on(targetId)
+        case .betweenRows: coreZone = .line
+        case .outdent: coreZone = .outdent
         }
+        return ask(coreZone, dragged: dragged, rows: byId.values)
     }
 
     /// One level out, the outliner convention: a direct subtask reaches top level, a deeper
-    /// one lands under its grandparent. Repeated drags walk it the rest of the way out.
-    /// Jumping a deeply nested task straight to the top from one sideways nudge would be a
-    /// surprise that is awkward to undo.
+    /// one lands under its grandparent. The SAME rule the drag's gutter uses, so pulling a task
+    /// left and pressing the outdent key cannot mean two different things.
     static func outdent(_ task: PromotableTask, byId: [String: Task]) -> DragNestingOutcome {
-        guard let parentId = task.parentTaskId, !parentId.isEmpty else { return .none }
-        guard let grandparentId = byId[parentId]?.parentTaskId, !grandparentId.isEmpty else {
-            return .moveToTopLevel(taskId: task.id)
-        }
-        return .makeSubtask(taskId: task.id, parentId: grandparentId)
+        ask(.outdent, dragged: task, rows: byId.values)
     }
 
-    /// The other direction: nest a task under its PREVIOUS SIBLING.
-    ///
-    /// The row directly above is not the right answer — it may be a deep descendant of
-    /// something else entirely, and nesting under it would jump the task several levels in.
-    /// The previous SIBLING (same parent, earlier in the rendered order) is what an outliner
-    /// indents into, and it is what keeps indent and outdent inverses of each other.
+    /// The other direction: nest a task under its PREVIOUS SIBLING among `rows` as drawn —
+    /// not the row directly above, which may be a deep descendant of something else.
     static func indent(_ task: PromotableTask, in rows: [Task], byId: [String: Task]) -> DragNestingOutcome {
-        guard let index = rows.firstIndex(where: { $0.id == task.id }), index > 0 else { return .none }
-        let parentId = task.parentTaskId?.isEmpty == true ? nil : task.parentTaskId
-        // Walk back for the nearest earlier row sharing this task's parent.
-        for row in rows[..<index].reversed() {
-            let rowParent = row.parentTaskId?.isEmpty == true ? nil : row.parentTaskId
-            guard rowParent == parentId else { continue }
-            guard canParent(childId: task.id, parentId: row.id, byId: byId) else { return .none }
-            return .makeSubtask(taskId: task.id, parentId: row.id)
+        ask(.indent(rows.map(\.id)), dragged: task, rows: Array(byId.values) + rows)
+    }
+
+    /// One question to the core. The rows go as `id` + `parentTaskId` only — all the rule reads —
+    /// and the dragged row always goes, as the caller holds it: the core refuses a drop whose
+    /// dragged row it was never shown rather than answer `none`.
+    private static func ask(_ zone: NestingZone, dragged: PromotableTask,
+                            rows: some Sequence<Task>) -> DragNestingOutcome {
+        var byId: [String: NestingRow] = [:]
+        for row in rows { byId[row.id] = NestingRow(id: row.id, parentTaskId: row.parentTaskId) }
+        byId[dragged.id] = NestingRow(id: dragged.id, parentTaskId: dragged.parentTaskId)
+        do {
+            switch try CoreRules.nesting(zone: zone, draggedId: dragged.id, rows: Array(byId.values)) {
+            case .makeSubtask(let parentId): return .makeSubtask(taskId: dragged.id, parentId: parentId)
+            case .moveToTopLevel: return .moveToTopLevel(taskId: dragged.id)
+            case .reorderOnly: return .reorderOnly(taskId: dragged.id)
+            case .none: return .none
+            }
+        } catch {
+            // Every row this sends includes the dragged one, so a refusal is a bug in the request.
+            // Doing nothing is the safe drop: no write goes out.
+            AppLog.debug("⚠️ [DragNesting] astrid-core refused nesting: \(error)")
+            return .none
         }
-        return .none
     }
 
     /// How tall the "line between rows" band is for a row of this height.
