@@ -10,16 +10,13 @@ final class V1APIContractIntegrationTests: XCTestCase {
         let clientURL = root.appendingPathComponent("Astrid App/Core/Networking/AstridAPIClient.swift")
         let source = try String(contentsOf: clientURL)
 
+        // Lists, task writes, comments, chat and smart-task settings go through astrid-core;
+        // their client methods were deleted once nothing called them (AITD-654), so only the
+        // paths the Swift client still spends are pinned here. Their server routes stay in the
+        // check below. available-agents is the core's `availableAgents` since AITD-620.
         let expectedPaths = [
             "/api/v1/tasks",
-            "/api/v1/lists",
-            "/api/v1/tasks/\\(taskId)/comments",
-            "/api/v1/chat/channels",
             "/api/v1/users/me/settings",
-            "/api/v1/users/me/smart-tasks",
-            "/api/v1/users/me/my-tasks-preferences",
-            // available-agents goes through astrid-core's `availableAgents` since AITD-620; its
-            // route stays in the server check below.
             "/api/v1/users/me/ai-preferences"
         ]
 

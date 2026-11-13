@@ -157,22 +157,6 @@ nonisolated struct UpdateTaskRequest: Codable {
     }
 }
 
-struct CreateListRequest: Codable {
-    var name: String
-    var description: String?
-    var color: String?
-    var imageUrl: String?
-    var privacy: String
-    var adminIds: [String]?
-    var memberIds: [String]?
-    var memberEmails: [String]?
-    var defaultAssigneeId: String?
-    var defaultPriority: Int?
-    var defaultRepeating: String?
-    var defaultIsPrivate: Bool?
-    var defaultDueDate: String?
-}
-
 struct UpdateListRequest: Codable {
     var name: String?
     var description: String?
@@ -235,15 +219,6 @@ struct ProjectResponse: Codable {
 struct DeleteProjectResponse: Codable {
     var success: Bool
     var detachedListIds: [String]?
-}
-
-struct CreateCommentRequest: Codable {
-    var content: String
-    var type: String?
-    var fileId: String?
-    var parentCommentId: String?
-    var createdAt: Date?  // Client timestamp for correct ordering
-    var clientRequestId: String?  // Idempotency key — server dedups retries by this
 }
 
 // MARK: - Response DTOs
