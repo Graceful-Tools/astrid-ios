@@ -47,8 +47,9 @@ if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
   exit 1
 fi
 
-sed -i '' -E "s|(astrid-core = \{ git = \"$CORE_REPO\", rev = \")[0-9a-f]+(\")|\1$FULL\2|" "$ROOT/core/Cargo.toml"
-grep -q "rev = \"$FULL\"" "$ROOT/core/Cargo.toml" || { echo "RESULT: FAILED — could not pin core/Cargo.toml" >&2; exit 1; }
+# Both lines: the binding crate comes from the same core checkout (AITD-643).
+sed -i '' -E "s|((astrid-core\|astrid-uniffi) = \{ git = \"$CORE_REPO\", rev = \")[0-9a-f]+(\")|\1$FULL\3|" "$ROOT/core/Cargo.toml"
+[ "$(grep -c "rev = \"$FULL\"" "$ROOT/core/Cargo.toml")" = 2 ] || { echo "RESULT: FAILED — could not pin core/Cargo.toml" >&2; exit 1; }
 (cd "$ROOT/core" && cargo update -p astrid-core --precise "$FULL" >/dev/null 2>&1 || cargo update -p astrid-core >/dev/null)
 
 "$ROOT/scripts/core/build-xcframework.sh" --zip

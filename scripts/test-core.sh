@@ -3,7 +3,9 @@
 #   - Packages/AstridCore's own tests (the Swift layer over astrid-core: CoreSession, the rules
 #     bridge, markdown), via `swift test`. The package resolves the pinned XCFramework release,
 #     or the local build beside Package.swift when there is one.
-#   - core/astrid-apple's Rust tests (the UniFFI binding layer), via `cargo test`.
+#   - the UniFFI binding crate (astrid-core's `crates/astrid-uniffi`, AITD-643) still compiles at
+#     the pin, via `cargo check`. Its tests run in astrid-core's CI: cargo refuses `cargo test -p`
+#     for a package outside the workspace.
 # A missing toolchain is a visible skip, never a silent pass.
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -23,12 +25,12 @@ else
 fi
 
 if command -v cargo >/dev/null 2>&1; then
-    if cargo test --manifest-path core/Cargo.toml >"$LOG" 2>&1; then
-        echo "✓ astrid-apple Rust: $(grep -E '^test result' "$LOG" | head -1)"
+    if cargo check --manifest-path core/Cargo.toml -p astrid-uniffi >"$LOG" 2>&1; then
+        echo "✓ astrid-uniffi Rust: builds at the pinned core"
     else
-        echo "✗ astrid-apple Rust tests failed:"; grep -E "^test .*FAILED|error" "$LOG" | head -10; status=1
+        echo "✗ astrid-uniffi Rust check failed:"; grep -E "^error" "$LOG" | head -10; status=1
     fi
 else
-    echo "⚠ cargo not found — astrid-apple Rust tests SKIPPED (install Rust: https://rustup.rs)"
+    echo "⚠ cargo not found — astrid-uniffi Rust check SKIPPED (install Rust: https://rustup.rs)"
 fi
 exit $status

@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 export const BUDGET_FILE = path.join(ROOT, 'scripts/core/size-budget.json')
-const LIB = 'libastrid_apple.a'
+const LIB = 'libastrid_uniffi.a'
 
 // Where each slice sits in build/core (--built) and inside the XCFramework.
 export const SLICES = {

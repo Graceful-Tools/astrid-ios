@@ -17,6 +17,14 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 PKG="$ROOT/Packages/AstridCore/Package.swift"
 LOCAL="$ROOT/Packages/AstridCore/AstridCoreFFI.xcframework"
 PINNED="$(sed -nE 's/^astrid-core = \{ git = "[^"]+", rev = "([0-9a-f]+)".*/\1/p' "$ROOT/core/Cargo.toml")"
+BINDINGS="$(sed -nE 's/^astrid-uniffi = \{ git = "[^"]+", rev = "([0-9a-f]+)".*/\1/p' "$ROOT/core/Cargo.toml")"
+
+# The binding crate comes from the same core checkout (AITD-643). Two revs would build bindings for
+# one core against another — and only `astrid-core`'s rev is what the release and check-pins read.
+if [ "$BINDINGS" != "$PINNED" ]; then
+  echo "RESULT: FAILED — core/Cargo.toml pins astrid-core ${PINNED:0:7} but astrid-uniffi ${BINDINGS:0:7}; bump both lines together" >&2
+  exit 1
+fi
 
 if grep -q 'releasedChecksum = "0\{64\}"' "$PKG"; then
   echo "RESULT: FAILED — no astrid-core framework is released for Xcode Cloud; run scripts/core/release-xcframework.sh <commit>" >&2

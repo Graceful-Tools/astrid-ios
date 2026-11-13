@@ -1,15 +1,17 @@
-# The Apple apps' bindings to astrid-core.
+# The Apple apps' build of astrid-core's UniFFI bindings.
 #
-# astrid-core is the shared client core (https://github.com/Graceful-Tools/astrid-core). Its rule 8
-# puts each platform's binding layer in that platform's repository, as astrid-windows keeps its C
-# ABI beside its shell. This is the Apple one: UniFFI, whose Swift generator is first-party.
+# astrid-core is the shared client core (https://github.com/Graceful-Tools/astrid-core). The binding
+# crate itself lives there too, as `crates/astrid-uniffi`, which Android builds as well (Jon,
+# 2026-11-12; AITD-643 retired this repository's own copy, `core/astrid-apple`). What stays here is
+# what is Apple's: the revision, the release profile the XCFramework is built with, and a bindgen
+# pinned to the same UniFFI.
 #
 # The core is pinned by revision and bumped deliberately — the same discipline as the contract
 # fixtures. Building against a local checkout instead is `scripts/core/build-xcframework.sh
 # --core ../astrid-core`, which patches the dependency for that build only.
 [workspace]
 resolver = "2"
-members = ["astrid-apple", "bindgen"]
+members = ["bindgen"]
 
 [workspace.package]
 version = "0.1.0"
@@ -23,7 +25,11 @@ publish = false
 # version as a wildcard and fails `bans` on it (AITD-507). It is also a real check — a core whose
 # crate version leaves 0.1 stops resolving here, which is the signal a breaking bump should give.
 # The scripts in scripts/core/ read the rev from this line; keep `git` and `rev` first.
-astrid-core = { git = "https://github.com/Graceful-Tools/astrid-core.git", rev = "60b8aa8ee2e50a6ce96a33246e4478ed0f26da06", version = "0.1" }
+astrid-core = { git = "https://github.com/Graceful-Tools/astrid-core.git", rev = "9128b8a9d3da9ea0c022c358d661c8a31c0ffd42", version = "0.1" }
+# The binding crate, from the same checkout: ALWAYS the same rev as the line above, which is the one
+# the scripts and astrid-core's `check-pins` read (scripts/core/check-framework.sh asserts the two
+# agree).
+astrid-uniffi = { git = "https://github.com/Graceful-Tools/astrid-core.git", rev = "9128b8a9d3da9ea0c022c358d661c8a31c0ffd42", version = "0.1" }
 uniffi = "0.32"
 
 # Measured for AITD-625 on the ios-arm64 slice: a dead-stripped link of the staticlib went from

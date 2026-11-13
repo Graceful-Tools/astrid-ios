@@ -7,8 +7,8 @@ import Foundation
 // Depending on the consumer's build setup, the low-level FFI code
 // might be in a separate module, or it might be compiled inline into
 // this module. This is a bit of light hackery to work with both.
-#if canImport(astrid_appleFFI)
-import astrid_appleFFI
+#if canImport(astrid_uniffiFFI)
+import astrid_uniffiFFI
 #endif
 
 fileprivate extension RustBuffer {
@@ -25,13 +25,13 @@ fileprivate extension RustBuffer {
     }
 
     static func from(_ ptr: UnsafeBufferPointer<UInt8>) -> RustBuffer {
-        try! rustCall { ffi_astrid_apple_rustbuffer_from_bytes(ForeignBytes(bufferPointer: ptr), $0) }
+        try! rustCall { ffi_astrid_uniffi_rustbuffer_from_bytes(ForeignBytes(bufferPointer: ptr), $0) }
     }
 
     // Frees the buffer in place.
     // The buffer must not be used after this is called.
     func deallocate() {
-        try! rustCall { ffi_astrid_apple_rustbuffer_free(self, $0) }
+        try! rustCall { ffi_astrid_uniffi_rustbuffer_free(self, $0) }
     }
 }
 
@@ -327,7 +327,7 @@ private func makeRustCall<T, E: Swift.Error>(
     _ callback: (UnsafeMutablePointer<RustCallStatus>) -> T,
     errorHandler: ((RustBuffer) throws -> E)?
 ) throws -> T {
-    uniffiEnsureAstridAppleInitialized()
+    uniffiEnsureAstridUniffiInitialized()
     var callStatus = RustCallStatus.init()
     let returnedVal = callback(&callStatus)
     try uniffiCheckCallStatus(callStatus: callStatus, errorHandler: errorHandler)
@@ -546,6 +546,10 @@ fileprivate struct FfiConverterString: FfiConverter {
  * reminder coming due. `change_json` is the core's own vocabulary — `{"change":"task","id":…}`,
  * `{"change":"synced","taskIds":[…],"listIds":[…]}` and so on (`Change::to_json`).
  *
+ * A due reminder arrives here too (`{"change":"remindersDue"}`), for a shell that posts its
+ * notification while it runs; one that schedules every reminder ahead (Apple's
+ * UserNotifications) ignores it.
+ *
  * Called on one of the core's threads, never the main one: the app hops to where it draws.
  */
 public protocol ChangeListener: AnyObject, Sendable {
@@ -557,6 +561,10 @@ public protocol ChangeListener: AnyObject, Sendable {
  * Told when the cache moves: a colleague's edit arriving on the live stream, a sync pass, a
  * reminder coming due. `change_json` is the core's own vocabulary — `{"change":"task","id":…}`,
  * `{"change":"synced","taskIds":[…],"listIds":[…]}` and so on (`Change::to_json`).
+ *
+ * A due reminder arrives here too (`{"change":"remindersDue"}`), for a shell that posts its
+ * notification while it runs; one that schedules every reminder ahead (Apple's
+ * UserNotifications) ignores it.
  *
  * Called on one of the core's threads, never the main one: the app hops to where it draws.
  */
@@ -597,7 +605,7 @@ open class ChangeListenerImpl: ChangeListener, @unchecked Sendable {
     @_documentation(visibility: private)
 #endif
     public func uniffiCloneHandle() -> UInt64 {
-        return try! rustCall { uniffi_astrid_apple_fn_clone_changelistener(self.handle, $0) }
+        return try! rustCall { uniffi_astrid_uniffi_fn_clone_changelistener(self.handle, $0) }
     }
     // No primary constructor declared for this class.
 
@@ -607,7 +615,7 @@ open class ChangeListenerImpl: ChangeListener, @unchecked Sendable {
             return
         }
 
-        try! rustCall { uniffi_astrid_apple_fn_free_changelistener(handle, $0) }
+        try! rustCall { uniffi_astrid_uniffi_fn_free_changelistener(handle, $0) }
     }
 
     
@@ -615,7 +623,7 @@ open class ChangeListenerImpl: ChangeListener, @unchecked Sendable {
     
 open func onChange(changeJson: String)  {try! rustCall() {
         uniffiCallStatus in
-    uniffi_astrid_apple_fn_method_changelistener_on_change(
+    uniffi_astrid_uniffi_fn_method_changelistener_on_change(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(changeJson),uniffiCallStatus
     )
@@ -690,7 +698,7 @@ fileprivate struct UniffiCallbackInterfaceChangeListener {
 }
 
 private func uniffiCallbackInitChangeListener() {
-    uniffi_astrid_apple_fn_init_callback_vtable_changelistener(UniffiCallbackInterfaceChangeListener.vtablePtr)
+    uniffi_astrid_uniffi_fn_init_callback_vtable_changelistener(UniffiCallbackInterfaceChangeListener.vtablePtr)
 }
 
 #if swift(>=5.8)
@@ -832,7 +840,7 @@ open class CoreClient: CoreClientProtocol, @unchecked Sendable {
     @_documentation(visibility: private)
 #endif
     public func uniffiCloneHandle() -> UInt64 {
-        return try! rustCall { uniffi_astrid_apple_fn_clone_coreclient(self.handle, $0) }
+        return try! rustCall { uniffi_astrid_uniffi_fn_clone_coreclient(self.handle, $0) }
     }
     // No primary constructor declared for this class.
 
@@ -842,7 +850,7 @@ open class CoreClient: CoreClientProtocol, @unchecked Sendable {
             return
         }
 
-        try! rustCall { uniffi_astrid_apple_fn_free_coreclient(handle, $0) }
+        try! rustCall { uniffi_astrid_uniffi_fn_free_coreclient(handle, $0) }
     }
 
     
@@ -850,14 +858,15 @@ open class CoreClient: CoreClientProtocol, @unchecked Sendable {
      * Open the cache at `config_json`'s `cachePath` (`":memory:"` for a test) and wire everything
      * to it.
      *
-     * `background` starts the loops that keep the app current without being asked — the sync
-     * pass, the Outbox delivery, the live stream. A test, and a UI-test build that must never
+     * `background` starts the loops that keep the app current without being asked —
+     * [`LoopSet::ALL`]: the sync pass, the Outbox delivery, the live stream, due reminders and the
+     * Google mirror, the same five on every platform. A test, and a UI-test build that must never
      * reach the network, passes `false`.
      */
 public static func start(configJson: String, credentials: CredentialStore, background: Bool)throws  -> CoreClient  {
     return try  FfiConverterTypeCoreClient_lift(try rustCallWithError(FfiConverterTypeStartError_lift) {
         uniffiCallStatus in
-    uniffi_astrid_apple_fn_constructor_coreclient_start(
+    uniffi_astrid_uniffi_fn_constructor_coreclient_start(
         FfiConverterString.lower(configJson),
         FfiConverterTypeCredentialStore_lower(credentials),
         FfiConverterBool.lower(background),uniffiCallStatus
@@ -877,13 +886,13 @@ open func run(request: String)async  -> String  {
     return
         try!  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_astrid_apple_fn_method_coreclient_run(
+                uniffi_astrid_uniffi_fn_method_coreclient_run(
                         self.uniffiCloneHandle(),FfiConverterString.lower(request)
                 )
             },
-            pollFunc: ffi_astrid_apple_rust_future_poll_rust_buffer,
-            completeFunc: ffi_astrid_apple_rust_future_complete_rust_buffer,
-            freeFunc: ffi_astrid_apple_rust_future_free_rust_buffer,
+            pollFunc: ffi_astrid_uniffi_rust_future_poll_rust_buffer,
+            completeFunc: ffi_astrid_uniffi_rust_future_complete_rust_buffer,
+            freeFunc: ffi_astrid_uniffi_rust_future_free_rust_buffer,
             liftFunc: FfiConverterString.lift,
             errorHandler: nil
             
@@ -906,7 +915,7 @@ open func run(request: String)async  -> String  {
 open func runBlocking(request: String) -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
         uniffiCallStatus in
-    uniffi_astrid_apple_fn_method_coreclient_run_blocking(
+    uniffi_astrid_uniffi_fn_method_coreclient_run_blocking(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(request),uniffiCallStatus
     )
@@ -918,7 +927,7 @@ open func runBlocking(request: String) -> String  {
      */
 open func stop()  {try! rustCall() {
         uniffiCallStatus in
-    uniffi_astrid_apple_fn_method_coreclient_stop(
+    uniffi_astrid_uniffi_fn_method_coreclient_stop(
             self.uniffiCloneHandle(),uniffiCallStatus
     )
 }
@@ -929,7 +938,7 @@ open func stop()  {try! rustCall() {
      */
 open func subscribe(listener: ChangeListener)  {try! rustCall() {
         uniffiCallStatus in
-    uniffi_astrid_apple_fn_method_coreclient_subscribe(
+    uniffi_astrid_uniffi_fn_method_coreclient_subscribe(
             self.uniffiCloneHandle(),
         FfiConverterTypeChangeListener_lower(listener),uniffiCallStatus
     )
@@ -987,31 +996,33 @@ public func FfiConverterTypeCoreClient_lower(_ value: CoreClient) -> UInt64 {
 
 
 /**
- * Credentials at rest, implemented by the app over the Keychain.
+ * Credentials at rest, implemented by the app over its platform's secure store — the Keychain,
+ * the Android Keystore.
  *
- * Synchronous because the Keychain is: a Keychain read is a local call that answers in
- * microseconds, and making it async would buy nothing but a hop.
+ * Synchronous because those are: a read is a local call that answers in microseconds, and making
+ * it async would buy nothing but a hop.
  */
 public protocol CredentialStore: AnyObject, Sendable {
     
     func get(key: String)  -> String?
     
     /**
-     * `false` when the Keychain refused the write.
+     * `false` when the store refused the write.
      */
     func set(key: String, value: String)  -> Bool
     
     /**
-     * `false` when the Keychain refused the delete. Deleting what is not there is `true`.
+     * `false` when the store refused the delete. Deleting what is not there is `true`.
      */
     func delete(key: String)  -> Bool
     
 }
 /**
- * Credentials at rest, implemented by the app over the Keychain.
+ * Credentials at rest, implemented by the app over its platform's secure store — the Keychain,
+ * the Android Keystore.
  *
- * Synchronous because the Keychain is: a Keychain read is a local call that answers in
- * microseconds, and making it async would buy nothing but a hop.
+ * Synchronous because those are: a read is a local call that answers in microseconds, and making
+ * it async would buy nothing but a hop.
  */
 open class CredentialStoreImpl: CredentialStore, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -1050,7 +1061,7 @@ open class CredentialStoreImpl: CredentialStore, @unchecked Sendable {
     @_documentation(visibility: private)
 #endif
     public func uniffiCloneHandle() -> UInt64 {
-        return try! rustCall { uniffi_astrid_apple_fn_clone_credentialstore(self.handle, $0) }
+        return try! rustCall { uniffi_astrid_uniffi_fn_clone_credentialstore(self.handle, $0) }
     }
     // No primary constructor declared for this class.
 
@@ -1060,7 +1071,7 @@ open class CredentialStoreImpl: CredentialStore, @unchecked Sendable {
             return
         }
 
-        try! rustCall { uniffi_astrid_apple_fn_free_credentialstore(handle, $0) }
+        try! rustCall { uniffi_astrid_uniffi_fn_free_credentialstore(handle, $0) }
     }
 
     
@@ -1069,7 +1080,7 @@ open class CredentialStoreImpl: CredentialStore, @unchecked Sendable {
 open func get(key: String) -> String?  {
     return try!  FfiConverterOptionString.lift(try! rustCall() {
         uniffiCallStatus in
-    uniffi_astrid_apple_fn_method_credentialstore_get(
+    uniffi_astrid_uniffi_fn_method_credentialstore_get(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(key),uniffiCallStatus
     )
@@ -1077,12 +1088,12 @@ open func get(key: String) -> String?  {
 }
     
     /**
-     * `false` when the Keychain refused the write.
+     * `false` when the store refused the write.
      */
 open func set(key: String, value: String) -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
         uniffiCallStatus in
-    uniffi_astrid_apple_fn_method_credentialstore_set(
+    uniffi_astrid_uniffi_fn_method_credentialstore_set(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(key),
         FfiConverterString.lower(value),uniffiCallStatus
@@ -1091,12 +1102,12 @@ open func set(key: String, value: String) -> Bool  {
 }
     
     /**
-     * `false` when the Keychain refused the delete. Deleting what is not there is `true`.
+     * `false` when the store refused the delete. Deleting what is not there is `true`.
      */
 open func delete(key: String) -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
         uniffiCallStatus in
-    uniffi_astrid_apple_fn_method_credentialstore_delete(
+    uniffi_astrid_uniffi_fn_method_credentialstore_delete(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(key),uniffiCallStatus
     )
@@ -1221,7 +1232,7 @@ fileprivate struct UniffiCallbackInterfaceCredentialStore {
 }
 
 private func uniffiCallbackInitCredentialStore() {
-    uniffi_astrid_apple_fn_init_callback_vtable_credentialstore(UniffiCallbackInterfaceCredentialStore.vtablePtr)
+    uniffi_astrid_uniffi_fn_init_callback_vtable_credentialstore(UniffiCallbackInterfaceCredentialStore.vtablePtr)
 }
 
 #if swift(>=5.8)
@@ -1290,7 +1301,7 @@ enum StartError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
     
     
-    case Failed(message: String
+    case Failed(reason: String
     )
 
     
@@ -1322,7 +1333,7 @@ public struct FfiConverterTypeStartError: FfiConverterRustBuffer {
 
         
         case 1: return .Failed(
-            message: try FfiConverterString.read(from: &buf)
+            reason: try FfiConverterString.read(from: &buf)
             )
 
          default: throw UniffiInternalError.unexpectedEnumCase
@@ -1336,9 +1347,9 @@ public struct FfiConverterTypeStartError: FfiConverterRustBuffer {
 
         
         
-        case let .Failed(message):
+        case let .Failed(reason):
             writeInt(&buf, Int32(1))
-            FfiConverterString.write(message, into: &buf)
+            FfiConverterString.write(reason, into: &buf)
             
         }
     }
@@ -1397,7 +1408,7 @@ fileprivate func uniffiRustCallAsync<F, T>(
 ) async throws -> T {
     // Make sure to call the ensure init function since future creation doesn't have a
     // RustCallStatus param, so doesn't use makeRustCall()
-    uniffiEnsureAstridAppleInitialized()
+    uniffiEnsureAstridUniffiInitialized()
     let rustFuture = rustFutureFunc()
     defer {
         freeFunc(rustFuture)
@@ -1432,12 +1443,13 @@ fileprivate func uniffiFutureContinuationCallback(handle: UInt64, pollResult: In
 }
 /**
  * The version of astrid-core these bindings were built from, for an about box and a crash
- * report.
+ * report: `0.1.0 (core a8591a93c022)` — the crate version and [`astrid_core::BUILD_REV`], the
+ * same string astrid-windows reports.
  */
 public func coreVersion() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
         uniffiCallStatus in
-    uniffi_astrid_apple_fn_func_core_version(uniffiCallStatus
+    uniffi_astrid_uniffi_fn_func_core_version(uniffiCallStatus
     )
 })
 }
@@ -1448,7 +1460,7 @@ public func coreVersion() -> String  {
 public func runRule(request: String) -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
         uniffiCallStatus in
-    uniffi_astrid_apple_fn_func_run_rule(
+    uniffi_astrid_uniffi_fn_func_run_rule(
         FfiConverterString.lower(request),uniffiCallStatus
     )
 })
@@ -1465,41 +1477,41 @@ private let initializationResult: InitializationResult = {
     // Get the bindings contract version from our ComponentInterface
     let bindings_contract_version = 30
     // Get the scaffolding contract version by calling the into the dylib
-    let scaffolding_contract_version = ffi_astrid_apple_uniffi_contract_version()
+    let scaffolding_contract_version = ffi_astrid_uniffi_uniffi_contract_version()
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_astrid_apple_checksum_func_core_version() != 57243) {
+    if (uniffi_astrid_uniffi_checksum_func_core_version() != 52825) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_astrid_apple_checksum_func_run_rule() != 46327) {
+    if (uniffi_astrid_uniffi_checksum_func_run_rule() != 40909) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_astrid_apple_checksum_method_changelistener_on_change() != 58626) {
+    if (uniffi_astrid_uniffi_checksum_method_changelistener_on_change() != 55532) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_astrid_apple_checksum_method_coreclient_run() != 37189) {
+    if (uniffi_astrid_uniffi_checksum_method_coreclient_run() != 56543) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_astrid_apple_checksum_method_coreclient_run_blocking() != 27478) {
+    if (uniffi_astrid_uniffi_checksum_method_coreclient_run_blocking() != 65011) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_astrid_apple_checksum_method_coreclient_stop() != 34766) {
+    if (uniffi_astrid_uniffi_checksum_method_coreclient_stop() != 19552) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_astrid_apple_checksum_method_coreclient_subscribe() != 5316) {
+    if (uniffi_astrid_uniffi_checksum_method_coreclient_subscribe() != 7516) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_astrid_apple_checksum_method_credentialstore_get() != 24417) {
+    if (uniffi_astrid_uniffi_checksum_method_credentialstore_get() != 21623) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_astrid_apple_checksum_method_credentialstore_set() != 9750) {
+    if (uniffi_astrid_uniffi_checksum_method_credentialstore_set() != 52710) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_astrid_apple_checksum_method_credentialstore_delete() != 3377) {
+    if (uniffi_astrid_uniffi_checksum_method_credentialstore_delete() != 34922) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_astrid_apple_checksum_constructor_coreclient_start() != 3518) {
+    if (uniffi_astrid_uniffi_checksum_constructor_coreclient_start() != 36189) {
         return InitializationResult.apiChecksumMismatch
     }
 
@@ -1510,7 +1522,7 @@ private let initializationResult: InitializationResult = {
 
 // Make the ensure init function public so that other modules which have external type references to
 // our types can call it.
-public func uniffiEnsureAstridAppleInitialized() {
+public func uniffiEnsureAstridUniffiInitialized() {
     switch initializationResult {
     case .ok:
         break

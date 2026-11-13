@@ -1,5 +1,10 @@
 # The bindings generator, pinned to the same UniFFI as the library it reads. A crate of its own so
 # its command-line dependencies never reach the static library the apps link.
+#
+# It also depends on `astrid-uniffi`, and that is what puts the binding crate in this workspace's
+# graph: `cargo rustc -p astrid-uniffi` (scripts/core/build-xcframework.sh) can only name a package
+# the workspace resolves. The direction is the safe one — the library never sees the CLI, and a
+# build that selects only `astrid-uniffi` unifies no feature from here.
 [package]
 name = "uniffi-bindgen"
 version.workspace = true
@@ -13,3 +18,4 @@ path = "main.rs"
 
 [dependencies]
 uniffi = { workspace = true, features = ["cli"] }
+astrid-uniffi = { workspace = true }

@@ -20,7 +20,7 @@ Astrid App / Astrid Mac (Swift)
         ├── CoreRules.ask(...)      sync, stateless ─┐   Sources/AstridCore        hand-written facade
         └── CoreSession.run(...)    async, stateful ─┤   Sources/AstridCoreBindings  generated (UniFFI)
                                                      │   AstridCoreFFI.xcframework   the Rust static lib
-                                     core/astrid-apple (Rust, UniFFI)
+                  astrid-core crates/astrid-uniffi (Rust, UniFFI)
                                                      │
                      astrid_core::rules::run_json ───┤   the pure contracts (repeating, markdown, …)
                      astrid_core::app::App::run_json ┘   the client: cache, Outbox, sync, network
@@ -30,8 +30,13 @@ Astrid App / Astrid Mac (Swift)
   body — a round trip is ~15 µs); `App::run_json` runs commands against the cache and network.
   Both take and return JSON in the `/api/v1` wire shape the Swift models already encode, inside
   `{"ok":…,"value":…,"error":…}`. A new capability is a new `kind`, not a new symbol.
-- **The bindings live here**, not in astrid-core (its rule 8: each platform keeps its own binding
-  layer, as astrid-windows keeps `astrid-ffi`).
+- **The bindings live in astrid-core**, as `crates/astrid-uniffi`, shared with Android (Jon,
+  2026-11-12; AITD-643 deleted this repository's `core/astrid-apple`). What stays in `core/` is
+  Apple's: the pin, the release profile and a bindgen. astrid-windows keeps its C ABI, `astrid-ffi`,
+  beside its shell. The binding starts `LoopSet::ALL`, so Apple runs the core's reminder and Google
+  loops as well as sync, Outbox and the live stream: the reminder loop's `remindersDue` is routed
+  nowhere (UserNotifications schedules Apple's reminders), and the Google loop runs a pass every
+  five minutes beside the ones the Swift service starts.
 - **The core is pinned by revision** in `core/Cargo.toml` and bumped deliberately. On 2026-11-11
   that was `a503a62`, 12 commits behind core `main` and short of the SQLite advisory fix
   (RUSTSEC-2026-0459, core `69f26d7`); the bump, with the ink tokens it needs, is AITD-615.
@@ -334,10 +339,11 @@ Most of them hit Windows too.
 - Chat: forgetting an unsent message withdraws only what is still pending; a channel the account
   cannot open (403–405) is no channel, not an error.
 
-**Apple bindings (`core/astrid-apple`)**
+**Apple bindings (`core/astrid-apple`, now astrid-core's `crates/astrid-uniffi`)**
 - `runBlocking` answers only commands that read or write the cache — a network command there froze
   the main thread — and a panic in the core answers as a failure instead of taking the app down.
-- The core's reminder loop is not started: UserNotifications schedules Apple's reminders.
+- The core's reminder loop was not started: UserNotifications schedules Apple's reminders. Since
+  AITD-643 every loop starts (`LoopSet::ALL`); the Swift router ignores `remindersDue`.
 
 **Swift, besides**
 - Reminder settings had a second queue of their own that retried only on a network notification,
