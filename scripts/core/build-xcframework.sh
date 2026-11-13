@@ -116,4 +116,6 @@ if [ "$ZIP" -eq 1 ]; then
 fi
 # A release must not publish a framework over its budget (scripts/core/size-budget.json).
 node "$ROOT/scripts/core/check-size.mjs" --built
+# Nor one carrying its own SQLite: the apps link the system copy (AITD-644).
+node "$ROOT/scripts/core/check-sqlite.mjs" --built
 echo "RESULT: OK — Packages/AstridCore/AstridCoreFFI.xcframework"
