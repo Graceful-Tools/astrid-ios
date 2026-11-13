@@ -272,7 +272,7 @@ struct MacTaskFieldsView: View {
     private var listDefaultTimeOfDay: (hour: Int, minute: Int)? {
         (task.listIds ?? [])
             .compactMap { listService.listsById[$0]?.defaultDueTime }
-            .compactMap { NewTaskDefaults.timeOfDay($0) }
+            .compactMap { ListQuickAddDefaults.timeOfDay($0) }
             .first
     }
 
@@ -283,7 +283,7 @@ struct MacTaskFieldsView: View {
                 if let newValue {
                     // FIRST date on this task: the time comes from the LIST's default,
                     // not the clock. `due` starts at Date(), so dating a task at 4pm
-                    // was making it due at 4pm — the shared NewTaskDefaults is what
+                    // was making it due at 4pm — the shared ListQuickAddDefaults is what
                     // iOS resolves this from.
                     if !hasDue, let time = listDefaultTimeOfDay {
                         let day = isAllDay ? MacWhenDate.localDay(ofAllDay: newValue) : newValue
