@@ -42,9 +42,12 @@ struct InlineTextAreaEditor: View {
     var accessibilityIdentifier: String? = nil
     /// Shows the expand button that opens the text full screen (AITD-577) — the task
     /// description wants it; a list's one-line blurb does not.
+    /// With it, tapping the text to write opens the full-screen reader already editing rather
+    /// than the few-line box below (AITD-649).
     var offersFullScreen: Bool = false
 
     @State private var isEditing = false
+    @State private var readerEntry: DescriptionReader.Entry?
     @FocusState private var isFocused: Bool
 
     private var defaultTextColor: Color {
@@ -65,7 +68,8 @@ struct InlineTextAreaEditor: View {
                     .foregroundColor(palette.textSecondary)
                 Spacer(minLength: 0)
                 if offersFullScreen {
-                    DescriptionExpandButton(text: $text, onSave: onSave)
+                    DescriptionExpandButton(text: $text, onSave: onSave,
+                                            onExpand: { readerEntry = .expand })
                 }
             }
 
@@ -133,10 +137,17 @@ struct InlineTextAreaEditor: View {
                 }
                 .accessibilityIdentifier(accessibilityIdentifier ?? "")
                 .onTapGesture {
-                    isEditing = true
-                    isFocused = true
+                    if offersFullScreen {
+                        readerEntry = .write
+                    } else {
+                        isEditing = true
+                        isFocused = true
+                    }
                 }
             }
+        }
+        .fullScreenCover(item: $readerEntry) { entry in
+            DescriptionReaderView(text: $text, isReadOnly: false, onSave: onSave, entry: entry)
         }
     }
 }

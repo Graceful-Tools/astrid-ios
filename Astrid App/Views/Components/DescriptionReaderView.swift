@@ -14,13 +14,16 @@ struct DescriptionExpandButton: View {
     @Binding var text: String
     var isReadOnly: Bool = false
     var onSave: (() -> Void)?
+    /// When the owner presents the reader itself (the editable description does, so a tap on
+    /// the text can open it too — AITD-649), the button only asks for it.
+    var onExpand: (() -> Void)?
 
     @State private var isPresented = false
 
     var body: some View {
         if DescriptionReader.offersFullScreen(text: text, isReadOnly: isReadOnly) {
             Button {
-                isPresented = true
+                if let onExpand { onExpand() } else { isPresented = true }
             } label: {
                 Image(systemName: "arrow.up.left.and.arrow.down.right")
                     .font(.system(size: 13, weight: .semibold))
@@ -67,12 +70,14 @@ struct DescriptionReaderView: View {
     @State private var mode: DescriptionReader.Mode
     @FocusState private var isFocused: Bool
 
-    init(text: Binding<String>, isReadOnly: Bool, onSave: (() -> Void)?) {
+    init(text: Binding<String>, isReadOnly: Bool, onSave: (() -> Void)?,
+         entry: DescriptionReader.Entry = .expand) {
         _text = text
         self.isReadOnly = isReadOnly
         self.onSave = onSave
         _draft = State(initialValue: text.wrappedValue)
-        _mode = State(initialValue: DescriptionReader.initialMode(text: text.wrappedValue, isReadOnly: isReadOnly))
+        _mode = State(initialValue: DescriptionReader.initialMode(text: text.wrappedValue,
+                                                                  isReadOnly: isReadOnly, entry: entry))
     }
 
     private var textColor: Color { palette.textPrimary }

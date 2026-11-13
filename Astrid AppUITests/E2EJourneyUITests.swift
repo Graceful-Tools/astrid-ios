@@ -148,13 +148,13 @@ final class E2EJourneyUITests: XCTestCase {
         let description = "Description \(tag)"
         let display = try element("taskDetail.description")
         UITestLaunch.tapCenter(display)
-        let editor = app.textViews.matching(identifier: "taskDetail.description").firstMatch
-        XCTAssertTrue(editor.waitForExistence(timeout: 5), "tapping the description opens its editor")
+        // Tapping the description opens it full screen, already editing (AITD-649).
+        let editor = app.textViews.matching(identifier: "descriptionReader.editor").firstMatch
+        XCTAssertTrue(editor.waitForExistence(timeout: 5), "tapping the description opens the full-screen editor")
         try waitFor("the keyboard for the description") { self.app.keyboards.count > 0 }
         editor.typeText(description)
-        // The keyboard's Done ends the edit, which is what saves it.
-        let done = app.toolbars.buttons.element(boundBy: app.toolbars.buttons.count - 1)
-        XCTAssertTrue(done.waitForExistence(timeout: 5), "the description keyboard offers Done")
+        // The reader's Done closes it, which is what saves it.
+        let done = try element("descriptionReader.done")
         done.tap()
 
         try UITestAPI.waitForTask(id: fixture.id, "the new title and description") {

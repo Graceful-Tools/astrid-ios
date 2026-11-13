@@ -30,6 +30,26 @@ final class DescriptionReaderTests: XCTestCase {
         XCTAssertEqual(DescriptionReader.initialMode(text: "", isReadOnly: true), .reading)
     }
 
+    // MARK: - Writing it (AITD-649)
+
+    /// AITD-649 — tapping the description to add or edit it opens the full-screen reader
+    /// already editing, not a few-line box in the detail sheet; the expand button still opens a
+    /// written description for reading, with the Edit toggle to switch.
+    func testAITD649_tappingToWriteOpensTheReaderEditing_evenOverAWrittenDescription() {
+        XCTAssertEqual(DescriptionReader.initialMode(text: "## Plan\n- one", isReadOnly: false, entry: .write), .editing)
+        XCTAssertEqual(DescriptionReader.initialMode(text: "", isReadOnly: false, entry: .write), .editing)
+    }
+
+    func testAITD649_theExpandButtonStillOpensAWrittenDescriptionForReading() {
+        XCTAssertEqual(DescriptionReader.initialMode(text: "## Plan", isReadOnly: false, entry: .expand), .reading)
+        XCTAssertEqual(DescriptionReader.initialMode(text: "", isReadOnly: false, entry: .expand), .editing)
+    }
+
+    func testAITD649_aTaskYouCanOnlyReadNeverOpensAnEditor() {
+        XCTAssertEqual(DescriptionReader.initialMode(text: "Some text", isReadOnly: true, entry: .write), .reading)
+        XCTAssertEqual(DescriptionReader.initialMode(text: "", isReadOnly: true, entry: .write), .reading)
+    }
+
     // MARK: - What closing it saves
 
     func testAITD577_closingSavesOnlyAChangedDescription() {
