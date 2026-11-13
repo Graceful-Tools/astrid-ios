@@ -1547,11 +1547,26 @@ struct TaskDetailViewNew: View {
 
                 // Use the server-first service path to avoid intermediate
                 // optimistic state churn while editing custom repeats.
+                let keepsTime = !isAllDay && editedDueTime != nil
+                if keepsTime {
+                    // A timed task: the picker already moved it to the new day at its own time
+                    // (DayPick). Keep the time chip on that instant and save it AS timed — the
+                    // `when` path below stores a bare day, which turned the task all-day while this
+                    // view still drew it as timed, on the old day (AITD-635).
+                    await MainActor.run { editedDueTime = editedDueDate }
+                }
+
                 if editedRepeating == .custom {
                     await saveDirectToAPI()
+                } else if keepsTime, let due = editedDueDate {
+                    _ = try? await taskService.updateTask(
+                        taskId: task.id,
+                        dueDateTime: due,
+                        isAllDay: false,
+                        task: task
+                    )
                 } else {
-                    // Set date only - preserve existing time if it exists
-                    // Only pass whenTime if we need to change it (nil = don't update)
+                    // An all-day date: the day alone.
                     _ = try? await taskService.updateTask(
                         taskId: task.id,
                         when: editedDueDate,
