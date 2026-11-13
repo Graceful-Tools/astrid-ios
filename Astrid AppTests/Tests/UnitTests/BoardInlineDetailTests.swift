@@ -33,4 +33,19 @@ final class BoardInlineDetailTests: XCTestCase {
                        BoardCardExpansion.minimumInlineDetailHeight,
                        "a short board still gets usable details")
     }
+
+    // MARK: - The details' full-screen button (AITD-636)
+
+    /// Jon: "full screen doesn't go directly to full screen on iPad. It should." On iPad the button
+    /// opened the side panel, one more tap away from full screen. It opens the task full screen.
+    func testOnIPadTheFullScreenButtonOpensTheTaskFullScreen_AITD636() {
+        XCTAssertEqual(BoardCardExpansion.fullDetailsRoute(splitLayout: true, forcePush: false),
+                       .panel(fullScreen: true))
+    }
+
+    /// iPhone, or an iPad that pushes, has only one way to show a task: the full-screen push.
+    func testWithoutASplitLayoutItPushes_AITD636() {
+        XCTAssertEqual(BoardCardExpansion.fullDetailsRoute(splitLayout: false, forcePush: false), .push)
+        XCTAssertEqual(BoardCardExpansion.fullDetailsRoute(splitLayout: true, forcePush: true), .push)
+    }
 }

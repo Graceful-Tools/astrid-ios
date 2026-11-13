@@ -30,6 +30,21 @@ enum BoardCardExpansion {
         max(minimumInlineDetailHeight, boardHeight * inlineDetailShareOfBoard)
     }
 
+    /// Where the inline details' full-screen button takes the task (AITD-636).
+    enum FullDetailsRoute: Equatable {
+        /// iPad's detail panel, already in its full-screen state.
+        case panel(fullScreen: Bool)
+        /// The full-screen push — iPhone, or an iPad set to push.
+        case push
+    }
+
+    /// Jon: "full screen doesn't go directly to full screen on iPad. It should." On iPad the button
+    /// used to open the side panel, which needed a second tap to go full screen. It opens the panel
+    /// full screen now, and always opens it: unlike a card tap, the button never toggles it closed.
+    static func fullDetailsRoute(splitLayout: Bool, forcePush: Bool) -> FullDetailsRoute {
+        splitLayout && !forcePush ? .panel(fullScreen: true) : .push
+    }
+
     static let minimumInlineDetailHeight: CGFloat = 320
     static let inlineDetailShareOfBoard: CGFloat = 0.72
 }
