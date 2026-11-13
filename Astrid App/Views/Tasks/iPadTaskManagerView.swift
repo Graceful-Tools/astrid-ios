@@ -84,8 +84,9 @@ struct iPadTaskManagerView: View {
     @AppStorage("iPadBoardFullScreen") private var boardFullScreen: Bool = false
     /// The messages pane's hide/show, remembered on this iPad apart from the picker's (AITD-485).
     @AppStorage("iPadMessagesPaneHidden") private var messagesPaneHidden: Bool = false
-    // Expanded task detail (task c5ba07ed). Persisted like the Mac's macDetailFullScreen, so a
-    // panel you expanded is still expanded next launch.
+    // Expanded task detail (task c5ba07ed). Stored so TaskListView's board can open a task
+    // straight to full screen (AITD-636), but it lasts one task: closing the panel resets it,
+    // and the app starts with it off (AITD-648).
     @AppStorage("iPadDetailFullScreen") private var detailFullScreen: Bool = false
 
     // Portrait mode: sidebar shown via sliding overlay (like iPhone)
@@ -181,9 +182,16 @@ struct iPadTaskManagerView: View {
         // deep links) into the side detail panel instead of the list column's
         // navigation stack.
         .onAppear {
+            if selectedTask == nil { detailFullScreen = DetailPanelChrome.fullScreenAtLaunch }
             TaskPresenter.shared.panelHandler = { task in
                 selectedTask = task
             }
+        }
+        // Full screen lasts one task: closing the panel puts the next one back in the side
+        // panel (AITD-648).
+        .onChange(of: selectedTask?.id) { _, newId in
+            detailFullScreen = DetailPanelChrome.fullScreen(detailFullScreen,
+                                                            afterSelectionChangeTo: newId)
         }
         .onDisappear {
             TaskPresenter.shared.panelHandler = nil

@@ -57,6 +57,30 @@ final class iPadDetailFullScreenTests: XCTestCase {
         XCTAssertEqual(before, after)
     }
 
+    // MARK: - AITD-648 "iPad full screen task details should reset after each task"
+    //
+    // The flag was a remembered setting: one task expanded meant every task after it opened full
+    // screen, even after a relaunch. It belongs to the task that was expanded.
+
+    /// Closing the panel — close button, swipe, tap again, a list switch — ends full screen, so the
+    /// next task opens as the normal side panel.
+    func testAITD648ClosingThePanelResetsFullScreen() {
+        XCTAssertFalse(DetailPanelChrome.fullScreen(true, afterSelectionChangeTo: nil))
+        XCTAssertFalse(DetailPanelChrome.fullScreen(false, afterSelectionChangeTo: nil))
+    }
+
+    /// Moving straight to another task with the panel still open (a subtask or parent link, a board
+    /// card's full-screen button) keeps what was asked for: that is still one reading session.
+    func testAITD648MovingBetweenTasksWithoutClosingKeepsTheFlag() {
+        XCTAssertTrue(DetailPanelChrome.fullScreen(true, afterSelectionChangeTo: "subtask"))
+        XCTAssertFalse(DetailPanelChrome.fullScreen(false, afterSelectionChangeTo: "subtask"))
+    }
+
+    /// A relaunch never opens the first task full screen.
+    func testAITD648AppStartsWithFullScreenOff() {
+        XCTAssertFalse(DetailPanelChrome.fullScreenAtLaunch)
+    }
+
     private func source(of path: String) throws -> String {
         try String(contentsOf: RepositoryLocator.root.appendingPathComponent(path),
                    encoding: .utf8)
