@@ -100,7 +100,7 @@ struct TaskDetailHeaderBar: View {
             if !title.prefix.isEmpty { scrollToTopText(title.prefix) }
             if let identifier = title.identifier {
                 Button {
-                    UIPasteboard.general.string = identifier
+                    PlatformPasteboard.copy(identifier)
                     showsCopied = true
                     _Concurrency.Task {
                         try? await _Concurrency.Task.sleep(for: .seconds(1.5))
