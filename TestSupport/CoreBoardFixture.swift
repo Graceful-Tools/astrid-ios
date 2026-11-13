@@ -59,7 +59,8 @@ enum CoreBoardFixture {
 
     /// An in-memory core holding `tasks`, `lists` and `projects`.
     static func session(tasks: [Task] = [], lists: [TaskList], projects: [Project]) throws -> CoreSession {
-        let session = try CoreSession(cachePath: ":memory:", credentials: CoreSearchFixture.NoCredentials(),
+        let session = try CoreSession(cachePath: ":memory:", baseURL: CoreSearchFixture.server,
+                                      credentials: CoreSearchFixture.NoCredentials(),
                                       background: false)
         var command = CoreCommand(kind: "seedCache")
         command.set("tasks", stored(tasks))

@@ -99,6 +99,10 @@ const trips = {
       + 'present(url: u, callbackScheme: "astrid")\n// astrid:// in a comment is fine\nlet ok = Brand.appURL("tasks/x")\n',
     'Astrid Mac/M.swift': 'static let callbackScheme = "astrid"\nlet service = "astrid" // an agent id, not a scheme\n',
   }),
+  'core-base-url-required': () => fixture({
+    'Packages/AstridCore/Sources/AstridCore/CoreSession.swift': 'public init(cachePath: String, baseURL: String? = nil) {}\n'
+      + 'static func configJSON(cachePath: String, baseURL: String) {}\n// baseURL: String? in a comment is fine\n',
+  }),
   'brand-art-catalogs': () => fixture({
     'Astrid App/Assets.xcassets/AstridCharacter.imageset/Contents.json': '{}',
     'Astrid App/AstridArt-iOS.xcassets/Contents.json': '{}', 'Astrid App/PartnerArt-iOS.xcassets/Contents.json': '{}',
@@ -206,6 +210,11 @@ test('shared-url-session ignores comments and the networking layer itself', () =
 test('brand-url-scheme trips on scheme literals and leaves comments and other "astrid" strings alone', () => {
   const found = violations(trips['brand-url-scheme'](), 'brand-url-scheme')
   assert.deepEqual(found.map((v) => `${v.file}:${v.line}`), ['Astrid App/Links.swift:1', 'Astrid App/Links.swift:2', 'Astrid App/Links.swift:3', 'Astrid Mac/M.swift:1'])
+})
+
+test('core-base-url-required trips on an optional server and leaves a required one alone', () => {
+  const found = violations(trips['core-base-url-required'](), 'core-base-url-required')
+  assert.deepEqual(found.map((v) => `${v.file}:${v.line}`), ['Packages/AstridCore/Sources/AstridCore/CoreSession.swift:1'])
 })
 
 test('brand-art-catalogs: brand art in the shared catalog, and a configuration that compiles the other brand\'s', () => {

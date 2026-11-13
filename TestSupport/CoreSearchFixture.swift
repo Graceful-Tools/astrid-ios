@@ -19,10 +19,14 @@ enum CoreSearchFixture {
         func delete(key: String) -> Bool { true }
     }
 
+    /// The server every test core names, because the core has none of its own (AITD-651). Never
+    /// reached: no credentials and no background loops.
+    static let server = "https://astrid.cc"
+
     /// An in-memory core whose cache holds exactly `tasks`, and `comments` — which, unlike a
     /// comment written in the offline unit host, can carry ids the server gave them.
     static func session(seeding tasks: [Task], comments: [Comment] = []) throws -> CoreSession {
-        let session = try CoreSession(cachePath: ":memory:", credentials: NoCredentials(), background: false)
+        let session = try CoreSession(cachePath: ":memory:", baseURL: server, credentials: NoCredentials(), background: false)
         var command = CoreCommand(kind: "seedCache")
         command.set("tasks", tasks)
         command.set("comments", comments)
