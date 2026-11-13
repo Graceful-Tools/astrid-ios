@@ -193,6 +193,9 @@ struct InlineDatePicker: View {
                                             } else {
                                                 date = newDate
                                             }
+                                        } else if let existing = date {
+                                            // A timed task keeps its time on the new day (AITD-635).
+                                            date = DayPick.keepingTime(of: existing, on: newDate, dayIsUTCMidnight: false)
                                         } else {
                                             date = newDate
                                         }
@@ -244,7 +247,13 @@ struct InlineDatePicker: View {
     /// on Nov 22 is the 22nd, not the 23rd it is in UTC.
     private func setQuickDate(_ option: DueOptions.DatePick) {
         guard let picked = option.date else { return }
-        date = picked
+        // A quick pick is a day at UTC midnight. On a TIMED task that instant is the wrong day west
+        // of UTC, so the task moves to the picked day and keeps its time (AITD-635).
+        if !isAllDay, let existing = date {
+            date = DayPick.keepingTime(of: existing, on: picked, dayIsUTCMidnight: true)
+        } else {
+            date = picked
+        }
         showingPicker = false
         onSave?()
     }
