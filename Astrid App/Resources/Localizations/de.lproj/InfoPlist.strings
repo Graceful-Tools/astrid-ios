@@ -2,9 +2,9 @@
    so every brand build reads correctly. Keys must match the NS*UsageDescription keys the
    iOS and Mac Info.plists declare — scripts/check-localizations.sh enforces both. */
 
-"NSCameraUsageDescription" = "Nehmen Sie ein Foto auf und hängen Sie es an eine Aufgabe oder einen Kommentar an.";
-"NSPhotoLibraryUsageDescription" = "Hängen Sie Fotos an Aufgaben und Kommentare an. Der Zugriff zeigt außerdem, welche Fotos auf diesem Gerät gespeichert sind, damit sie auch offline angehängt werden können.";
-"NSContactsUsageDescription" = "Beim Teilen einer Liste Mitwirkende aus Ihren Kontakten vorschlagen. Ihre Kontakte werden verschlüsselt und nie an Dritte weitergegeben.";
-"NSRemindersFullAccessUsageDescription" = "Ihre Aufgaben mit Apple Erinnerungen synchron halten, damit Sie sie mit Siri hinzufügen und auf Ihren anderen Geräten sehen können.";
-"NSRemindersUsageDescription" = "Ihre Aufgaben mit Apple Erinnerungen synchron halten, damit Sie sie mit Siri hinzufügen und auf Ihren anderen Geräten sehen können.";
-"NSCalendarsFullAccessUsageDescription" = "Ihre Fälligkeitstermine neben den Ereignissen in Ihrem Kalender anzeigen.";
+"NSCameraUsageDescription" = "Nimm ein Foto auf und häng es an eine Aufgabe oder einen Kommentar an.";
+"NSPhotoLibraryUsageDescription" = "Häng Fotos an Aufgaben und Kommentare an. Der Zugriff zeigt außerdem, welche Fotos auf diesem Gerät gespeichert sind, damit sie auch offline angehängt werden können.";
+"NSContactsUsageDescription" = "Beim Teilen einer Liste Mitwirkende aus deinen Kontakten vorschlagen. Deine Kontakte werden verschlüsselt und nie an Dritte weitergegeben.";
+"NSRemindersFullAccessUsageDescription" = "Deine Aufgaben mit Apple Erinnerungen synchron halten, damit du sie mit Siri hinzufügen und auf deinen anderen Geräten sehen kannst.";
+"NSRemindersUsageDescription" = "Deine Aufgaben mit Apple Erinnerungen synchron halten, damit du sie mit Siri hinzufügen und auf deinen anderen Geräten sehen kannst.";
+"NSCalendarsFullAccessUsageDescription" = "Deine Fälligkeitstermine neben den Ereignissen in deinem Kalender anzeigen.";
