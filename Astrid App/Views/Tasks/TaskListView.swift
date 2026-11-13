@@ -607,6 +607,9 @@ struct TaskListView: View {
                                             TaskPresenter.shared.showTask(task)
                                         }
                                     },
+                                    // iPhone: a card tap opens the full-screen push, as before
+                                    // inline details (AITD-642); iPad opens the card in place.
+                                    opensCardsInline: BoardCardExpansion.cardTapOpensInline(splitLayout: usesSplitLayout),
                                     selectedTaskId: selectedTaskForPanel?.id
                                 )
                             } else {

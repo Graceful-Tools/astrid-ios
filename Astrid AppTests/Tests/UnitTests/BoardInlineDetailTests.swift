@@ -48,4 +48,17 @@ final class BoardInlineDetailTests: XCTestCase {
         XCTAssertEqual(BoardCardExpansion.fullDetailsRoute(splitLayout: false, forcePush: false), .push)
         XCTAssertEqual(BoardCardExpansion.fullDetailsRoute(splitLayout: true, forcePush: true), .push)
     }
+
+    // MARK: - Where a card tap goes (AITD-642)
+
+    /// AITD-642 — "On iPhone open task details old way on board". A phone column is too narrow
+    /// for the details to fit under the card, so a tap there opens the full-screen push again.
+    func testOnIPhoneACardTapOpensTheFullDetails_AITD642() {
+        XCTAssertFalse(BoardCardExpansion.cardTapOpensInline(splitLayout: false))
+    }
+
+    /// iPad keeps the inline details AITD-628 brought.
+    func testOnIPadACardTapStillOpensInline_AITD642() {
+        XCTAssertTrue(BoardCardExpansion.cardTapOpensInline(splitLayout: true))
+    }
 }

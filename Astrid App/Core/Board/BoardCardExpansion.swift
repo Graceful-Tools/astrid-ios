@@ -30,6 +30,14 @@ enum BoardCardExpansion {
         max(minimumInlineDetailHeight, boardHeight * inlineDetailShareOfBoard)
     }
 
+    /// Does a card tap open the details inline? Only where the board has room for them (AITD-642,
+    /// "On iPhone open task details old way on board"): on iPhone a column is the width of the
+    /// screen, so the inline details are a cramped scroll inside a scroll, and a tap opens the
+    /// full-screen push as it did before AITD-628. iPad keeps them inline.
+    static func cardTapOpensInline(splitLayout: Bool) -> Bool {
+        splitLayout
+    }
+
     /// Where the inline details' full-screen button takes the task (AITD-636).
     enum FullDetailsRoute: Equatable {
         /// iPad's detail panel, already in its full-screen state.
