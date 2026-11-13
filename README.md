@@ -100,7 +100,7 @@ astrid-ios/
 ├── Astrid Mac/                # macOS app shell (shares Astrid App/Core)
 ├── Shared/                    # Files compiled into the app and the share extension
 ├── Packages/AstridCore/       # Swift facade over astrid-core (+ generated UniFFI bindings)
-├── core/astrid-apple/         # The Rust bindings crate; pins the astrid-core revision
+├── core/                     # Pins astrid-core (bindings: its crates/astrid-uniffi) + bindgen
 ├── Astrid/                    # Share extension target
 ├── Astrid AppTests/, Astrid AppUITests/, Astrid MacTests/, Astrid MacUITests/
 ├── docs/                      # Technical documentation

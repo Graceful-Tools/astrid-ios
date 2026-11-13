@@ -51,6 +51,14 @@ final class CoreSessionTests: XCTestCase {
         }
     }
 
+    /// AITD-643: the binding is astrid-core's shared `astrid-uniffi`, and its version names the core
+    /// revision it was built from (`0.1.0 (core 9128b8a9d3da)`), so a crash report says which core.
+    func testTheCoreVersionNamesItsRevision_AITD643() {
+        let version = CoreSession.coreVersion
+        XCTAssertTrue(version.contains(" (core "), version)
+        XCTAssertFalse(version.contains("(core unknown)"), version)
+    }
+
     /// The spike's number: one window of a 10,000-task list, asked from Swift. Windows measured
     /// ~30 ms in the core alone (astrid-windows docs/PROGRESS.md); the bridge adds a JSON encode, a
     /// hop onto the core's pool and back, and a decode.

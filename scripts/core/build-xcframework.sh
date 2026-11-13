@@ -8,7 +8,7 @@
 #
 # Output:
 #   Packages/AstridCore/AstridCoreFFI.xcframework           (gitignored; what a local build links)
-#   Packages/AstridCore/Sources/AstridCoreBindings/astrid_apple.swift   (committed)
+#   Packages/AstridCore/Sources/AstridCoreBindings/astrid_uniffi.swift  (committed)
 #   build/core/AstridCoreFFI.xcframework.zip + its checksum (with --zip; what a release uploads)
 #
 # Why a prebuilt framework rather than building Rust inside Xcode: Xcode Cloud has no Rust
@@ -33,10 +33,20 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-CARGO_ARGS=(--release -p astrid-apple --manifest-path "$CORE_DIR/Cargo.toml")
+# The binding crate is astrid-core's own `crates/astrid-uniffi` (AITD-643), shared with Android.
+CARGO_ARGS=(--release -p astrid-uniffi --manifest-path "$CORE_DIR/Cargo.toml")
+PINNED_REV="$(sed -nE 's/^astrid-core = \{ git = "[^"]+", rev = "([0-9a-f]+)".*/\1/p' "$CORE_DIR/Cargo.toml")"
 if [ -n "$LOCAL_CORE" ]; then
-  CARGO_ARGS+=(--config "patch.\"https://github.com/Graceful-Tools/astrid-core.git\".astrid-core.path=\"$LOCAL_CORE/crates/astrid-core\"")
+  # Both crates from the checkout: patching only astrid-core would leave the bindings at the pin.
+  for crate in astrid-core astrid-uniffi; do
+    CARGO_ARGS+=(--config "patch.\"https://github.com/Graceful-Tools/astrid-core.git\".$crate.path=\"$LOCAL_CORE/crates/$crate\"")
+  done
   echo "── building against the local core at $LOCAL_CORE ($(git -C "$LOCAL_CORE" rev-parse --short HEAD))"
+  export ASTRID_BUILD_REV="$(git -C "$LOCAL_CORE" rev-parse --short=12 HEAD)+local"
+else
+  # A git dependency's checkout has no history for core's build.rs to ask, so say which revision
+  # it is: `coreVersion()` reads `0.1.0 (core <rev>)` in an about box and a crash report.
+  export ASTRID_BUILD_REV="${PINNED_REV:0:12}"
 fi
 
 # The deployment targets the apps declare. Rust links against these SDK versions; a newer one would
@@ -54,9 +64,9 @@ for target in "${TARGETS[@]}"; do
   echo "── $target built in $(( $(date +%s) - start ))s"
 done
 
-LIB=libastrid_apple.a
+LIB=libastrid_uniffi.a
 TARGET_DIR="$CORE_DIR/target"
-rm -rf "$OUT_DIR" && mkdir -p "$OUT_DIR"/{ios,ios-sim,macos,headers/astrid_appleFFI,swift}
+rm -rf "$OUT_DIR" && mkdir -p "$OUT_DIR"/{ios,ios-sim,macos,headers/astrid_uniffiFFI,swift}
 
 # One slice per platform; the simulator and the Mac each carry both architectures.
 cp "$TARGET_DIR/aarch64-apple-ios/release/$LIB" "$OUT_DIR/ios/$LIB"
@@ -72,8 +82,8 @@ lipo -create "$TARGET_DIR/aarch64-apple-darwin/release/$LIB" "$TARGET_DIR/x86_64
 
 # Headers in a directory of their own: two XCFrameworks that both put `module.modulemap` at the top
 # of Headers collide in Xcode's build products.
-cp "$OUT_DIR/swift/astrid_appleFFI.h" "$OUT_DIR/headers/astrid_appleFFI/"
-cp "$OUT_DIR/swift/astrid_appleFFI.modulemap" "$OUT_DIR/headers/astrid_appleFFI/module.modulemap"
+cp "$OUT_DIR/swift/astrid_uniffiFFI.h" "$OUT_DIR/headers/astrid_uniffiFFI/"
+cp "$OUT_DIR/swift/astrid_uniffiFFI.modulemap" "$OUT_DIR/headers/astrid_uniffiFFI/module.modulemap"
 
 rm -rf "$PACKAGE_DIR/AstridCoreFFI.xcframework"
 xcodebuild -create-xcframework \
@@ -87,12 +97,13 @@ xcodebuild -create-xcframework \
 if [ -n "$LOCAL_CORE" ]; then
   STAMP="$(git -C "$LOCAL_CORE" rev-parse HEAD)+local"
 else
-  STAMP="$(sed -nE 's/^astrid-core = \{ git = "[^"]+", rev = "([0-9a-f]+)".*/\1/p' "$CORE_DIR/Cargo.toml")"
+  STAMP="$PINNED_REV"
 fi
 echo "$STAMP" > "$PACKAGE_DIR/AstridCoreFFI.xcframework/astrid-core-revision"
 
 mkdir -p "$PACKAGE_DIR/Sources/AstridCoreBindings"
-cp "$OUT_DIR/swift/astrid_apple.swift" "$PACKAGE_DIR/Sources/AstridCoreBindings/astrid_apple.swift"
+rm -f "$PACKAGE_DIR/Sources/AstridCoreBindings/"*.swift
+cp "$OUT_DIR/swift/astrid_uniffi.swift" "$PACKAGE_DIR/Sources/AstridCoreBindings/astrid_uniffi.swift"
 
 echo "── sizes"
 for slice in ios ios-sim macos; do du -h "$OUT_DIR/$slice/$LIB" | sed "s|$OUT_DIR/||"; done
