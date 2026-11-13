@@ -8,9 +8,11 @@
 //  PR, and updating `KeyboardShortcutsParityTests` (which locks this table against the
 //  web set). See docs/archive/MAC_APP_SPEC.md §7.1 / §10.2.
 //
-//  This file is pure data (no UIKit/AppKit). ⌘-menu equivalents and the ⌘K palette are
+//  The table is data for the help listing and the parity test; WHETHER a press fires is
+//  astrid-core's `shortcut` rule (AITD-655). No UIKit/AppKit here. ⌘-menu equivalents and the ⌘K palette are
 //  ADDITIVE and live in AstridCommands.swift — they are NOT part of this shared contract.
 
+import AstridCore
 import Foundation
 
 /// One logical action a key can trigger. `rawValue` is stable and used by the parity test.
@@ -107,12 +109,17 @@ public enum KeyboardShortcutHandler {
     }
 
     /// Returns the action to perform for `key`, or nil if the key is unbound or suppressed.
+    /// astrid-core's `shortcut` rule decides, guards included (AITD-655), so the Mac and the
+    /// other desktop clients cannot disagree about when a key is text.
     public static func action(for key: String, context: Context) -> ShortcutAction? {
-        // Web parity: never hijack keys while the user is typing or inside a modal.
-        guard !context.isTextFieldFocused, !context.isModalPresented else { return nil }
-        guard let binding = KeyboardShortcuts.binding(for: key) else { return nil }
-        // Web parity: selection-scoped actions require a selected task.
-        if binding.requiresSelection && !context.hasSelection { return nil }
-        return binding.action
+        do {
+            return try CoreRules.shortcut(key: key, hasSelection: context.hasSelection,
+                                          isTextFieldFocused: context.isTextFieldFocused,
+                                          isModalPresented: context.isModalPresented)
+                .flatMap { ShortcutAction(rawValue: $0.action) }
+        } catch {
+            AppLog.debug("❌ [KeyboardShortcutHandler] shortcut failed: \(error)")
+            return nil
+        }
     }
 }

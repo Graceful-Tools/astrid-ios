@@ -1,3 +1,4 @@
+import AstridCore
 import Foundation
 
 /// The rules behind the reminder triage deck (AITD-441).
@@ -26,24 +27,38 @@ enum ReminderTriage {
     // MARK: - Deck
 
     /// The tasks to triage, in order: the reminded task first, then everything else the badge
-    /// counts, oldest due date first.
+    /// counts, oldest due date first. astrid-core's `reminderTriage` rule decides (AITD-655), so
+    /// every client deals the same deck.
     ///
     /// Someone else's task is never dealt, even as the reminded one: completing another
     /// person's task asks for confirmation first (AITD-375), and a swipe is not a confirmation.
-    static func deck(from tasks: [Task], currentUserId: String?, remindedTaskId: String?) -> [Task] {
-        guard let currentUserId else { return [] }
+    static func deck(from tasks: [Task], currentUserId: String?, remindedTaskId: String?,
+                     now: Date = Date(), timeZone: TimeZone = .current) -> [Task] {
+        guard currentUserId != nil else { return [] }
+        do {
+            // Only the fields the rule reads cross: one odd field on one cached task must not
+            // fail the whole deck.
+            let ids = try CoreRules.reminderTriage(
+                tasks: tasks.map { TriageTask(id: $0.id, title: $0.title, assigneeId: $0.assigneeId,
+                                              dueDateTime: $0.dueDateTime, isAllDay: $0.isAllDay,
+                                              completed: $0.completed) },
+                userId: currentUserId, remindedTaskId: remindedTaskId, now: now, timeZone: timeZone)
+            let byId = Dictionary(tasks.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            return ids.compactMap { byId[$0] }
+        } catch {
+            // Only an impossible UTC offset is refused; no deck is better than a wrong one.
+            AppLog.debug("❌ [ReminderTriage] reminderTriage failed: \(error)")
+            return []
+        }
+    }
 
-        let due = tasks
-            .filter { $0.assigneeId == currentUserId && !$0.completed && ($0.isDueToday || $0.isOverdue) }
-            .sorted { ($0.dueDateTime ?? .distantFuture) < ($1.dueDateTime ?? .distantFuture) }
-
-        guard let remindedTaskId,
-              let reminded = tasks.first(where: { $0.id == remindedTaskId }),
-              !reminded.completed,
-              !TaskLeadingControl.isSomeoneElsesTask(assigneeId: reminded.assigneeId, currentUserId: currentUserId)
-        else { return due }
-
-        return [reminded] + due.filter { $0.id != remindedTaskId }
+    private struct TriageTask: Encodable {
+        let id: String
+        let title: String
+        let assigneeId: String?
+        let dueDateTime: Date?
+        let isAllDay: Bool
+        let completed: Bool
     }
 
     // MARK: - Swipes
