@@ -9,6 +9,7 @@
 //  now serves both; a board column passes its column, and the card is born in it.
 
 #if os(macOS)
+import AstridCore
 import SwiftUI
 
 struct MacQuickAddBar: View {

@@ -1,3 +1,4 @@
+import AstridCore
 import SwiftUI
 
 /// Outer chrome for QuickAddTaskView.

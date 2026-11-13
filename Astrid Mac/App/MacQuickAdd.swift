@@ -6,6 +6,7 @@
 //  makes an abandoned draft create nothing (the old flow eagerly created a junk "New Task").
 
 #if os(macOS)
+import AstridCore
 import Foundation
 
 enum MacQuickAdd {

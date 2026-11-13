@@ -11,6 +11,7 @@
 //  worse than no preview.
 
 #if os(macOS)
+import AstridCore
 import Foundation
 
 enum MacQuickAddPreview {

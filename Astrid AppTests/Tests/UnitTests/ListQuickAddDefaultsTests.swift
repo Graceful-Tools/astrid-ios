@@ -7,6 +7,7 @@
 //  creator produced UNASSIGNED tasks. These pinned the Swift copy, `NewTaskDefaults`; since
 //  AITD-646 they run against astrid-core's `quickAddDefaults`, which replaced it.
 
+import AstridCore
 import XCTest
 @testable import Astrid_App
 
