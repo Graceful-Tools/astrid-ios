@@ -21,7 +21,8 @@ import Foundation
 ///     | A. Rust  | ++ one codebase | ~ new |
 ///
 /// **What is a decision and what is a grid is astrid-core's** (`astrid_rules::decisions`, AITD-641),
-/// asked over the rules door: `decision`, `tradeoffGrid` and `ratingKey`. The core is a port of web's
+/// asked over the rules door: `decision`, and the `tradeoffGrid` block `renderMarkdown` returns for
+/// a rated table (AWTD-1626). The core is a port of web's
 /// `lib/comment-formats.ts`, checked against `contracts/fixtures/decisions.json`. This file only
 /// turns its answer into the inlines the views draw; before it, Swift recognised both shapes itself
 /// (Decision.swift) and drifted from the web — options written with mixed list markers (`-`, `*`,
@@ -71,6 +72,12 @@ public struct DecisionOption: Equatable, Sendable {
 /// How an option does on one criterion, worst to best — the core's `rank`, 0 to 4.
 public enum TradeOffRating: Int, CaseIterable, Equatable, Sendable {
     case veryPoor, poor, mixed, good, veryGood
+
+    /// The core's label key for a rating (`"veryGood"`), which is also the case's name.
+    init?(key: String) {
+        guard let rating = Self.allCases.first(where: { "\($0)" == key }) else { return nil }
+        self = rating
+    }
 }
 
 public struct TradeOff: Equatable, Sendable {
@@ -80,8 +87,6 @@ public struct TradeOff: Equatable, Sendable {
 }
 
 public struct TradeOffRow: Equatable, Sendable {
-    /// The first cell as written.
-    public let option: [MarkdownInline]
     /// The option without the marker its writer put in front ("A. Lisbon" → "Lisbon"); the grid
     /// numbers its rows itself, like the cards (AITD-585).
     public let name: [MarkdownInline]
@@ -178,38 +183,6 @@ public enum Decisions {
         let after: String
     }
 
-    private struct GridRequest: Encodable {
-        let kind = "tradeoffGrid"
-        let rows: [[String]]
-    }
-
-    private struct CoreGrid: Decodable {
-        struct Rating: Decodable {
-            let rating: String
-            let rest: String
-        }
-        let isGrid: Bool
-        let cells: [[Rating?]]
-        let rowNames: [String]
-    }
-
-    private struct RatingKeyRequest: Encodable {
-        let kind = "ratingKey"
-    }
-
-    private struct RatingEntry: Decodable {
-        let token: String
-        let rank: Int
-    }
-
-    /// Each rating token's place, worst to best, as the core ranks it.
-    private static let ranks: [String: TradeOffRating] = {
-        let key = (try? CoreRules.ask(RatingKeyRequest(), as: [RatingEntry].self)) ?? []
-        return Dictionary(key.compactMap { entry in
-            TradeOffRating(rawValue: entry.rank).map { (entry.token, $0) }
-        }, uniquingKeysWith: { first, _ in first })
-    }()
-
     private static func markdown(_ source: String) -> [DecisionBlock] {
         source.isEmpty ? [] : grids(CoreRules.markdown(source))
     }
@@ -223,81 +196,13 @@ public enum Decisions {
         }
     }
 
-    private static func tradeOff(_ block: MarkdownBlock) -> TradeOff? {
-        guard case .table(_, let header, let rows) = block, header.count >= 2, !rows.isEmpty,
-              let grid = try? CoreRules.ask(GridRequest(rows: rows.map { $0.map(cellText) }),
-                                            as: CoreGrid.self),
-              grid.isGrid, grid.cells.count == rows.count, grid.rowNames.count == rows.count
-        else { return nil }
-        let gridRows = zip(rows, zip(grid.cells, grid.rowNames)).map { row, answer in
-            let (ratings, rowName) = answer
-            let option = row.first ?? []
-            let cells = row.dropFirst().enumerated().map { column, cell -> TradeOffCell in
-                guard column < ratings.count, let rated = ratings[column] else {
-                    return TradeOffCell(rating: nil, reason: [])
-                }
-                let reason = droppingLeading(cell, characters: rated.rating.count)
-                return TradeOffCell(rating: ranks[rated.rating], reason: reason)
-            }
-            return TradeOffRow(option: option, name: name(option, as: rowName), cells: cells)
-        }
-        return TradeOff(header: header, rows: gridRows)
-    }
-
-    /// A cell as the core reads it: its words, with a code span kept in backticks so `` `++` ``
-    /// is shown as code rather than read as a rating, as on web, which reads the cell's source.
-    private static func cellText(_ inlines: [MarkdownInline]) -> String {
-        inlines.map { inline -> String in
-            switch inline {
-            case .text(let run): return run.code ? "`\(run.text)`" : run.text
-            case .reference(_, let label, _): return label
-            case .lineBreak: return " "
-            }
-        }.joined()
-    }
-
-    /// The first cell without the marker the core took off it: as many characters as the core's
-    /// name is shorter than the cell's words. A name the cell does not end with keeps the cell.
-    private static func name(_ option: [MarkdownInline], as name: String) -> [MarkdownInline] {
-        let written = plainText(trimmingLeadingSpace(option))
-        guard written.hasSuffix(name) else { return option }
-        return droppingLeading(option, characters: written.count - name.count)
-    }
-
-    /// `inlines` without their first `characters` characters of plain words — a rating token, a
-    /// row marker — and the space around them.
-    private static func droppingLeading(_ inlines: [MarkdownInline], characters: Int) -> [MarkdownInline] {
-        var inlines = trimmingLeadingSpace(inlines)
-        var remaining = characters
-        while remaining > 0, case .text(var run)? = inlines.first, !run.code {
-            if run.text.count <= remaining {
-                remaining -= run.text.count
-                inlines.removeFirst()
-            } else {
-                run.text = String(run.text.dropFirst(remaining))
-                inlines[0] = .text(run)
-                remaining = 0
-            }
-        }
-        return trimmingLeadingSpace(inlines)
-    }
-
-    private static func trimmingLeadingSpace(_ inlines: [MarkdownInline]) -> [MarkdownInline] {
-        var inlines = inlines
-        while let first = inlines.first {
-            switch first {
-            case .lineBreak:
-                inlines.removeFirst()
-            case .text(var run) where !run.code:
-                let trimmed = String(run.text.drop { $0.isWhitespace })
-                if trimmed.isEmpty { inlines.removeFirst(); continue }
-                run.text = trimmed
-                inlines[0] = .text(run)
-                return inlines
-            default:
-                return inlines
-            }
-        }
-        return inlines
+    /// The grid the core picked out of a table (AWTD-1626), in the shape the views draw.
+    public static func tradeOff(_ block: MarkdownBlock) -> TradeOff? {
+        guard case .tradeoffGrid(let header, let rows) = block else { return nil }
+        return TradeOff(header: header, rows: rows.map { row in
+            TradeOffRow(name: row.name, cells: row.cells.map { cell in
+                TradeOffCell(rating: cell.rating.flatMap(TradeOffRating.init(key:)), reason: cell.inlines)
+            })
+        })
     }
 }

@@ -124,7 +124,7 @@ final class DecisionTests: XCTestCase {
             return XCTFail("one grid, got \(blocks)")
         }
         XCTAssertEqual(grid.header.map(plain), ["Option", "Cost", "Speed", "Risk"])
-        XCTAssertEqual(grid.rows.map { plain($0.option) }, ["A. Rust core", "B. Swift"])
+        XCTAssertEqual(grid.rows.map { plain($0.name) }, ["Rust core", "Swift"])
         XCTAssertEqual(grid.rows[0].cells.map(\.rating), [.veryGood, .good, .mixed])
         XCTAssertEqual(grid.rows[1].cells.map(\.rating), [.veryPoor, .poor, nil])
         XCTAssertEqual(grid.rows[0].cells.map { plain($0.reason) }, ["one codebase", "fast", "new"])
@@ -140,7 +140,9 @@ final class DecisionTests: XCTestCase {
             """)
         guard case .tradeOff(let grid)? = blocks.first else { return XCTFail("a grid, got \(blocks)") }
         XCTAssertEqual(grid.rows.map { $0.cells.first?.rating }, [.good, .mixed, .poor])
-        XCTAssertEqual(grid.rows.map { plain($0.cells[0].reason) }, ["good", "", "poor"])
+        // A cell that is only a rating keeps its token, so it still reads without colour — as on
+        // web, and astrid-core's grid block (AWTD-1626).
+        XCTAssertEqual(grid.rows.map { plain($0.cells[0].reason) }, ["good", "🟡", "poor"])
     }
 
     func testAITD578_anOrdinaryTableStaysATable() {
