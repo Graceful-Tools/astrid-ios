@@ -1545,32 +1545,19 @@ struct TaskDetailViewNew: View {
                     }
                 }
 
-                // Use the server-first service path to avoid intermediate
-                // optimistic state churn while editing custom repeats.
+                // A timed task: the picker moved it to the new day at its own time (DayPick), so it
+                // is saved AS timed. A bare day turned it all-day on the old day (AITD-635).
                 let keepsTime = !isAllDay && editedDueTime != nil
-                if keepsTime {
-                    // A timed task: the picker already moved it to the new day at its own time
-                    // (DayPick). Keep the time chip on that instant and save it AS timed — the
-                    // `when` path below stores a bare day, which turned the task all-day while this
-                    // view still drew it as timed, on the old day (AITD-635).
-                    await MainActor.run { editedDueTime = editedDueDate }
-                }
-
+                if keepsTime { await MainActor.run { editedDueTime = editedDueDate } }
                 if editedRepeating == .custom {
                     await saveDirectToAPI()
                 } else if keepsTime, let due = editedDueDate {
-                    _ = try? await taskService.updateTask(
-                        taskId: task.id,
-                        dueDateTime: due,
-                        isAllDay: false,
-                        task: task
-                    )
+                    _ = try? await taskService.updateTask(taskId: task.id, dueDateTime: due, isAllDay: false, task: task)
                 } else {
-                    // An all-day date: the day alone.
                     _ = try? await taskService.updateTask(
                         taskId: task.id,
                         when: editedDueDate,
-                        whenTime: nil,  // nil = don't update time, preserve existing
+                        whenTime: nil,  // an all-day date: the day alone
                         task: task
                     )
                 }
