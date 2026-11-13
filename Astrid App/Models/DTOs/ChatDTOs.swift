@@ -8,22 +8,6 @@ struct ChatMessagesResponse: Codable {
     let nextCursor: String?
 }
 
-struct ChatMessageResponse: Codable {
-    let message: ChatMessage
-}
-
-struct CreateChatMessageRequest: Codable {
-    var content: String
-    var type: String?  // TEXT, MARKDOWN, ATTACHMENT
-    var fileId: String?
-    var attachmentUrl: String?
-    var attachmentName: String?
-    var attachmentType: String?
-    var attachmentSize: Int?
-    var replyToId: String?
-    var clientRequestId: String?
-}
-
 // MARK: - Agent DTOs
 
 struct AvailableAgentsResponse: Codable {

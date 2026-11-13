@@ -8,7 +8,7 @@ import XCTest
 /// and until this helper only one test made it, by reopening the task and reading the chip
 /// (`TaskDueDateClearUITests`). This asks `/api/v1` directly with the run's own session cookie.
 ///
-/// Every path here is in `docs/API_ENDPOINTS.md`. It talks to the same host as the app under
+/// `docs/API_ENDPOINTS.md` names every path here. It talks to the same host as the app under
 /// test (`UITestSessionResource.baseURL`), so a `-uiTestBaseURL` staging run checks staging.
 enum UITestAPI {
 

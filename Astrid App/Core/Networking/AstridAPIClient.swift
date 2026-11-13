@@ -314,121 +314,6 @@ class AstridAPIClient {
         return allTasks
     }
 
-    /// Update a task
-    func updateTask(id: String, updates: UpdateTaskRequest) async throws -> Task {
-        let response: TaskResponse = try await request(
-            method: "PUT",
-            path: "/api/v1/tasks/\(id)",
-            body: updates
-        )
-        return response.task
-    }
-
-    // MARK: - List Operations
-
-    /// Get all lists
-    func getLists() async throws -> [TaskList] {
-        let response: ListsResponse = try await request(
-            method: "GET",
-            path: "/api/v1/lists"
-        )
-        return response.lists
-    }
-
-    /// Create a new list
-    func createList(name: String, description: String? = nil, color: String? = nil, privacy: String = "PRIVATE") async throws -> TaskList {
-        let body = CreateListRequest(
-            name: name,
-            description: description,
-            color: color,
-            imageUrl: nil,
-            privacy: privacy,
-            adminIds: nil,
-            memberIds: nil,
-            memberEmails: nil,
-            defaultAssigneeId: nil,
-            defaultPriority: nil,
-            defaultRepeating: nil,
-            defaultIsPrivate: nil,
-            defaultDueDate: nil
-        )
-
-        let response: ListResponse = try await request(
-            method: "POST",
-            path: "/api/v1/lists",
-            body: body
-        )
-        return response.list
-    }
-
-    /// Update a list
-    func updateList(id: String, updates: UpdateListRequest) async throws -> TaskList {
-        let response: ListResponse = try await request(
-            method: "PUT",
-            path: "/api/v1/lists/\(id)",
-            body: updates
-        )
-        return response.list
-    }
-
-    /// Delete a list
-    func deleteList(id: String) async throws {
-        struct EmptyResponse: Codable {}
-        let _: EmptyResponse = try await request(
-            method: "DELETE",
-            path: "/api/v1/lists/\(id)"
-        )
-    }
-
-    /// Leave a shared list
-    func leaveList(id: String) async throws {
-        struct EmptyResponse: Codable {}
-        let _: EmptyResponse = try await request(
-            method: "POST",
-            path: "/api/v1/lists/\(id)/leave"
-        )
-    }
-
-    // MARK: - Project (Status Board) Operations
-    //
-    // Mirrors /api/v1/projects on astrid-web. Each project seeds three
-    // status lists on the server (Ready / Doing / Waiting); Inbox + Done
-    // remain virtual columns derived from task state. See
-    // docs/product/project-status-board.md in astrid-web for the spec.
-
-    /// Create a project + seed Ready/Doing/Waiting status lists.
-    /// Requires the `projects:write` OAuth scope.
-    func createProject(
-        name: String,
-        description: String? = nil,
-        color: String? = nil,
-        imageUrl: String? = nil
-    ) async throws -> Project {
-        let body = CreateProjectRequest(
-            name: name,
-            description: description,
-            color: color,
-            imageUrl: imageUrl
-        )
-        let response: ProjectResponse = try await request(
-            method: "POST",
-            path: "/api/v1/projects",
-            body: body
-        )
-        return response.project
-    }
-
-    /// Delete a project (owner only). Detaches domain lists, cascade-deletes
-    /// the project + its status lists. Requires the `projects:delete` scope.
-    @discardableResult
-    func deleteProject(id: String) async throws -> DeleteProjectResponse {
-        let response: DeleteProjectResponse = try await request(
-            method: "DELETE",
-            path: "/api/v1/projects/\(id)"
-        )
-        return response
-    }
-
     // MARK: - GitHub Integration
 
     /// Get GitHub connection and AI provider status
@@ -456,58 +341,6 @@ class AstridAPIClient {
         )
     }
 
-    // MARK: - Comment Operations
-
-    /// Create a new comment on a task.
-    /// - Parameter clientRequestId: Idempotency key — when iOS replays a queued
-    ///   create after a network reconnect, the server returns the same row
-    ///   instead of inserting a duplicate. Pass the optimistic temp ID so the
-    ///   key is stable across all retry attempts (it's already persisted in
-    ///   CDComment.id).
-    func createComment(
-        taskId: String,
-        content: String,
-        type: Comment.CommentType = .TEXT,
-        fileId: String? = nil,
-        parentCommentId: String? = nil,
-        createdAt: Date? = nil,
-        clientRequestId: String? = nil
-    ) async throws -> CommentResponse {
-        let body = CreateCommentRequest(
-            content: content,
-            type: type.rawValue,
-            fileId: fileId,
-            parentCommentId: parentCommentId,
-            createdAt: createdAt,
-            clientRequestId: clientRequestId
-        )
-
-        return try await request(
-            method: "POST",
-            path: "/api/v1/tasks/\(taskId)/comments",
-            body: body
-        )
-    }
-
-    /// Update a comment
-    func updateComment(commentId: String, content: String) async throws -> CommentResponse {
-        let body = UpdateCommentRequest(content: content)
-
-        return try await request(
-            method: "PUT",
-            path: "/api/v1/comments/\(commentId)",
-            body: body
-        )
-    }
-
-    /// Delete a comment
-    func deleteComment(commentId: String) async throws -> DeleteResponse {
-        return try await request(
-            method: "DELETE",
-            path: "/api/v1/comments/\(commentId)"
-        )
-    }
-
     // MARK: - User Settings
 
     /// Get current user's settings
@@ -518,113 +351,12 @@ class AstridAPIClient {
         )
     }
 
-    // MARK: - User Preferences (app-level settings)
-    //
-    // These target `/api/v1/users/me/smart-tasks` and
-    // `/api/v1/users/me/my-tasks-preferences`, distinct from
-    // `/api/v1/users/me/settings` above (used for reminder settings). Do not
-    // merge them — they hold different fields. Keep iOS and web aligned by
-    // using the same Codable shape the web returns.
-
-    /// Fetch the user's "smart task" settings (smart creation, email-to-task,
-    /// default due offset, default due time).
-    func getSmartTaskSettings() async throws -> UserSettings {
-        return try await request(
-            method: "GET",
-            path: "/api/v1/users/me/smart-tasks"
-        )
-    }
-
-    /// Patch the user's smart-task settings. Accepts the merged struct; only
-    /// non-nil fields are sent by virtue of Codable optional encoding rules.
-    func updateSmartTaskSettings(_ settings: UserSettings) async throws {
-        struct EmptyResponse: Codable {}
-        let _: EmptyResponse = try await request(
-            method: "PATCH",
-            path: "/api/v1/users/me/smart-tasks",
-            body: settings
-        )
-    }
-
     // MARK: - Copilot cloud agent token
 
     /// Mint the user-level MCP token the GitHub.com Copilot coding agent authenticates with.
     /// Not a v1 path: this is the same route the web setup card calls (AITD-297).
     func createCopilotCloudAgentToken() async throws -> MCPUserTokenResponse {
         try await request(method: "POST", path: "/api/mcp/user-tokens", body: MCPUserTokenRequest.copilotCloudAgent)
-    }
-
-    // MARK: - Chat Channels
-
-    // MARK: - Chat Messages
-
-    /// Send a message to a channel
-    func sendChatMessage(
-        channelId: String,
-        content: String,
-        type: Comment.CommentType = .TEXT,
-        fileId: String? = nil,
-        attachmentUrl: String? = nil,
-        attachmentName: String? = nil,
-        attachmentType: String? = nil,
-        attachmentSize: Int? = nil,
-        replyToId: String? = nil,
-        clientRequestId: String? = nil
-    ) async throws -> ChatMessage {
-        let body = CreateChatMessageRequest(
-            content: content,
-            type: type.rawValue,
-            fileId: fileId,
-            attachmentUrl: attachmentUrl,
-            attachmentName: attachmentName,
-            attachmentType: attachmentType,
-            attachmentSize: attachmentSize,
-            replyToId: replyToId,
-            clientRequestId: clientRequestId
-        )
-        let response: ChatMessageResponse = try await request(
-            method: "POST",
-            path: "/api/v1/chat/channels/\(channelId)/messages",
-            body: body
-        )
-        return response.message
-    }
-
-    // MARK: - On-Device Agent Response
-
-    /// Post a response from the on-device AI model as Astrid
-    func postAgentResponse(channelId: String, content: String) async throws {
-        struct AgentResponseBody: Encodable {
-            let content: String
-        }
-        let _: ChatMessageResponse = try await request(
-            method: "POST",
-            path: "/api/v1/chat/channels/\(channelId)/agent-response",
-            body: AgentResponseBody(content: content)
-        )
-    }
-
-    /// Ask the SERVER to answer as Astrid, for a message this device cannot answer (task 9dce4c73).
-    ///
-    /// Distinct from `postAgentResponse`, which delivers an answer we already produced. This one
-    /// asks for an answer, and is only ever called when the on-device model is not the selected
-    /// agent or is unavailable — so the server can dispatch Astrid without risking a second reply.
-    ///
-    /// `messageId` is the idempotency key: a retry on a flaky network must not produce two replies.
-    func requestServerAstridResponse(channelId: String, messageId: String?, content: String) async throws {
-        struct AstridRequestBody: Encodable {
-            let messageId: String?
-            let content: String
-            enum CodingKeys: String, CodingKey {
-                case messageId = "message_id"
-                case content
-            }
-        }
-        let _: ChatMessageResponse = try await request(
-            method: "POST",
-            path: "/api/v1/chat/channels/\(channelId)/astrid-response",
-            body: AstridRequestBody(messageId: messageId, content: content)
-        )
     }
 
     // MARK: - AI Agent Settings
@@ -660,20 +392,6 @@ class AstridAPIClient {
             preferredService: response.preferredService
         )
     }
-}
-
-// MARK: - Response DTOs (Non-duplicates only - others in APIModels.swift)
-
-struct TaskResponse: Codable {
-    let task: Task
-}
-
-struct ListResponse: Codable {
-    let list: TaskList
-}
-
-struct UpdateCommentRequest: Codable {
-    let content: String
 }
 
 // MARK: - User Settings Types

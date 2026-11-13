@@ -24,8 +24,13 @@ named in `APIEndpointInventoryTests.nonV1Exceptions` so a second one cannot appe
 passkey routes under `/api/auth/webauthn/*` are built by `PasskeyManager` through `AstridHTTP`,
 not by this client.)
 
+**The UI suite reads the server too.** `UITestAPI` (`UITestSupport/UITestAPI.swift`) asks
+`/api/v1/tasks`, `/api/v1/tasks/{id}`, `/api/v1/tasks/{id}/comments` and `/api/v1/lists` with the
+run's own session, to check what a journey persisted (AITD-527, AITD-528). That is test support,
+not the app, so those paths are named here rather than listed below.
 
-## `AstridAPIClient` — the only client (28 paths)
+
+## `AstridAPIClient` — the only client (16 paths)
 
 
 ### `/api/v1/app-version`
@@ -41,16 +46,6 @@ not by this client.)
 - `/api/v1/auth/mobile-signup`
 - `/api/v1/auth/signout`
 
-### `/api/v1/chat`
-
-- `/api/v1/chat/channels/{id}/agent-response`
-- `/api/v1/chat/channels/{id}/astrid-response`
-- `/api/v1/chat/channels/{id}/messages`
-
-### `/api/v1/comments`
-
-- `/api/v1/comments/{id}`
-
 ### `/api/v1/github`
 
 - `/api/v1/github/repositories`
@@ -61,15 +56,7 @@ not by this client.)
 
 ### `/api/v1/lists`
 
-- `/api/v1/lists`
-- `/api/v1/lists/{id}`
-- `/api/v1/lists/{id}/leave`
 - `/api/v1/lists/{id}/transfer-ownership`
-
-### `/api/v1/projects`
-
-- `/api/v1/projects`
-- `/api/v1/projects/{id}`
 
 ### `/api/v1/public`
 
@@ -77,12 +64,8 @@ not by this client.)
 ### `/api/v1/tasks`
 
 - `/api/v1/tasks`
-- `/api/v1/tasks/{id}`
-- `/api/v1/tasks/{id}/comments`
 
-The UI suite's `UITestAPI` (`Astrid AppUITests/UITestAPI.swift`) reads these three and
-`/api/v1/lists`, and only these, to check what a journey persisted (AITD-527, AITD-528). A new
-path there belongs in this list too.
+The client reads `/api/v1/tasks` only for a public list's tasks (`getAllTasks`, AITD-634).
 
 ### `/api/v1/upload`
 
@@ -93,5 +76,4 @@ path there belongs in this list too.
 - `/api/v1/users/me`
 - `/api/v1/users/me/ai-preferences`
 - `/api/v1/users/me/settings`
-- `/api/v1/users/me/smart-tasks`
 - `/api/v1/users/{id}/profile`
