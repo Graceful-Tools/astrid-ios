@@ -241,6 +241,7 @@
 /* Assignee */
 "assignee.unassigned" = "Não atribuído";
 "assignee.you" = "Você";
+"assignee.clear" = "Remover atribuição";
 
 /* Reminders */
 "reminders.counting_on_you" = "Estas pessoas estão contando com você!";

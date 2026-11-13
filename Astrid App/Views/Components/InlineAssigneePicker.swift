@@ -391,7 +391,52 @@ struct InlineAssigneePicker: View {
         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
     }
 
+    /// Who the × would clear: everyone on a board, the one person otherwise. The single case
+    /// reads the binding, which a pick updates before the task catches up.
+    private var heldIds: [String] {
+        allowsMultiple ? selectedIds : [assigneeId].compactMap { $0 }
+    }
+
+    /// The picker, then — while somebody holds the task — a one-tap × that unassigns it (AITD-650).
     @ViewBuilder private var trigger: some View {
+        HStack(spacing: Theme.spacing4) {
+            triggerButton
+            if AssigneeSelection.showsClear(heldIds) {
+                Button(action: clearAssignee) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(Theme.Typography.body())
+                        .foregroundColor(palette.textMuted)
+                        .padding(Theme.spacing8)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text(NSLocalizedString("assignee.clear", comment: "Unassign")))
+                .accessibilityIdentifier("assignee-clear")
+            }
+        }
+    }
+
+    /// The × — the "Unassigned" row without opening the editor. A board writes the whole (empty)
+    /// list through the service; a classic list saves nil the way the row does.
+    private func clearAssignee() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        if allowsMultiple, let taskId {
+            pickedIds = AssigneeSelection.cleared
+            assigneeId = nil
+            _Concurrency.Task {
+                _ = try? await TaskService.shared.setAssignees(taskId: taskId,
+                                                               assigneeIds: AssigneeSelection.cleared)
+            }
+            return
+        }
+        assigneeId = nil
+        let saveAction = onSave
+        _Concurrency.Task.detached {
+            await saveAction?(nil)
+        }
+    }
+
+    @ViewBuilder private var triggerButton: some View {
                 Button {
                     isEditing = true
                 } label: {

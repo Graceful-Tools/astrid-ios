@@ -241,6 +241,7 @@
 /* Assignee */
 "assignee.unassigned" = "未分配";
 "assignee.you" = "您";
+"assignee.clear" = "取消分配";
 
 /* Reminders */
 "reminders.counting_on_you" = "这些人正指望着您！";

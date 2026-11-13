@@ -59,3 +59,19 @@ final class AssigneeSelectionTests: XCTestCase {
         XCTAssertTrue(AssigneeSelection.additionalFaces(in: []).shown.isEmpty)
     }
 }
+
+/// AITD-650 — a one-tap "×" beside the assignee picker, shown only while the task holds someone.
+final class AssigneeClearButtonTests: XCTestCase {
+
+    func test_aitd650_theClearButtonShowsOnlyWhenSomeoneHoldsTheTask() {
+        XCTAssertFalse(AssigneeSelection.showsClear([]))
+        XCTAssertFalse(AssigneeSelection.showsClear([""]))
+        XCTAssertTrue(AssigneeSelection.showsClear(["u1"]))
+        XCTAssertTrue(AssigneeSelection.showsClear(["u1", "u2"]))
+    }
+
+    /// Clearing empties the whole list — everyone, not just the primary.
+    func test_aitd650_clearingLeavesNobody() {
+        XCTAssertEqual(AssigneeSelection.cleared, [])
+    }
+}

@@ -241,6 +241,7 @@
 /* Assignee */
 "assignee.unassigned" = "미할당";
 "assignee.you" = "나";
+"assignee.clear" = "할당 해제";
 
 /* Reminders */
 "reminders.counting_on_you" = "사람들이 당신을 믿고 있어요!";
