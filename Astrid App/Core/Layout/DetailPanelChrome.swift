@@ -59,6 +59,19 @@ enum DetailPanelChrome {
         viewMode != .board
     }
 
+    // MARK: - The iPad panel's full-screen flag — AITD-648
+
+    /// Jon: "iPad full screen task details should reset after each task." Full screen belongs to
+    /// the task that was expanded, not to the iPad: closing the panel ends it, so the next task
+    /// opens as the side panel. Moving to another task without closing (a subtask or parent link,
+    /// a board card's full-screen button) keeps what was asked for.
+    static func fullScreen(_ current: Bool, afterSelectionChangeTo newTaskId: String?) -> Bool {
+        newTaskId == nil ? false : current
+    }
+
+    /// No task is open at launch, so nothing is full screen either.
+    static let fullScreenAtLaunch = false
+
     // MARK: - Full-screen details (iPhone, forced push) — AITD-609
 
     /// A row tap that pushes the details full screen has no row beside them to outline or point
