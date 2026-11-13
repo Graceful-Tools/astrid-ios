@@ -34,6 +34,9 @@ struct TaskDetailHeaderBar: View {
 
     @Environment(\.dismiss) private var dismiss
     @ThemedPalette private var palette
+    @StateObject private var listService = ListService.shared
+    /// Briefly true after the id was copied, so the tap visibly did something (AITD-647).
+    @State private var showsCopied = false
 
     private var foreground: Color {
         palette.textPrimary
@@ -45,21 +48,7 @@ struct TaskDetailHeaderBar: View {
 
             Spacer()
 
-            Button {
-                scrollToTopAction?()
-            } label: {
-                Text(NSLocalizedString("tasks.task_details", comment: ""))
-                    .font(.headline)
-                    .foregroundColor(foreground)
-            }
-            .buttonStyle(.plain)
-            // How a UI test knows the detail is open (task b86c97c5). The suite matched
-            // `app.staticTexts["Task Details"]`, which never could: the header is a
-            // BUTTON — it scrolls the panel to the top — so the label belongs to the
-            // button, not to a static text. Nine tests read that as "detail did not
-            // appear" when it had. An identifier says which element rather than hoping
-            // for a type, and it does not change when the app is in French.
-            .accessibilityIdentifier(TaskDetailHeader.accessibilityIdentifier)
+            titleView
 
             Spacer()
 
@@ -95,6 +84,59 @@ struct TaskDetailHeaderBar: View {
         .padding(.horizontal, Theme.spacing16)
         .padding(.vertical, Theme.spacing12)
         .background(background)
+    }
+
+    /// "Task Details", or "<id> Details" on a board task (AITD-647). The id used to sit in a row
+    /// of its own; in the header it is the part that copies, while the words around it keep
+    /// scrolling the details back to the top.
+    private var title: TaskDetailHeader.Title {
+        let shows = TaskIdentifiers.shows(task, lists: listService.lists, on: .details)
+        return TaskDetailHeader.title(identifier: shows ? task.identifier : nil)
+    }
+
+    private var titleView: some View {
+        let title = title
+        return HStack(spacing: 0) {
+            if !title.prefix.isEmpty { scrollToTopText(title.prefix) }
+            if let identifier = title.identifier {
+                Button {
+                    UIPasteboard.general.string = identifier
+                    showsCopied = true
+                    _Concurrency.Task {
+                        try? await _Concurrency.Task.sleep(for: .seconds(1.5))
+                        showsCopied = false
+                    }
+                } label: {
+                    Text(showsCopied ? NSLocalizedString("messages.copied", comment: "") : identifier)
+                        .font(.headline)
+                        .foregroundColor(foreground)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("taskDetail.header.identifier")
+                .accessibilityHint(Text(NSLocalizedString("tasks.taskId.copy", comment: "")))
+            }
+            if !title.suffix.isEmpty { scrollToTopText(title.suffix) }
+        }
+        .lineLimit(1)
+    }
+
+    private func scrollToTopText(_ text: String) -> some View {
+        Button {
+            scrollToTopAction?()
+        } label: {
+            Text(verbatim: text)
+                .font(.headline)
+                .foregroundColor(foreground)
+        }
+        .buttonStyle(.plain)
+        // How a UI test knows the detail is open (task b86c97c5). The suite matched
+        // `app.staticTexts["Task Details"]`, which never could: the header is a
+        // BUTTON — it scrolls the panel to the top — so the label belongs to the
+        // button, not to a static text. Nine tests read that as "detail did not
+        // appear" when it had. An identifier says which element rather than hoping
+        // for a type, and it does not change when the app is in French. On the
+        // words, not the row, so the copyable id keeps its own (AITD-647).
+        .accessibilityIdentifier(TaskDetailHeader.accessibilityIdentifier)
     }
 
     /// Close as won't-do, or reopen with `nil` (AITD-496). Not the completion toggle: a won't-do

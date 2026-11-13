@@ -100,8 +100,14 @@ struct iPadTaskManagerView: View {
     /// The panel opens OUT OF the selected row — from the list side, fading in — and closes back
     /// into it, like web's `slideInFromLeft`. It used to slide in from the screen's trailing edge,
     /// which read as a sheet arriving rather than the row unfolding (AITD-607).
-    private static let panelTransition: AnyTransition =
-        .offset(x: -DetailPanelChrome.arrowWidth * 2).combined(with: .opacity)
+    ///
+    /// Only beside a LIST: a board has no row for the arrow to aim at, so there the panel is the
+    /// old side panel again, sliding in from the trailing edge with no arrow (AITD-647).
+    private var panelTransition: AnyTransition {
+        DetailPanelChrome.pointsAtRow(viewMode: listViewMode)
+            ? .offset(x: -DetailPanelChrome.arrowWidth * 2).combined(with: .opacity)
+            : .move(edge: .trailing).combined(with: .opacity)
+    }
 
     /// Where the selected row is, so the panel's arrow can point at it (AITD-607).
     @StateObject private var selectedRowReporter = SelectedRowReporter()
@@ -280,7 +286,7 @@ struct iPadTaskManagerView: View {
                     if let task = selectedTask {
                         taskDetailPanel(for: task)
                             .frame(width: detailWidth)
-                            .transition(Self.panelTransition)
+                            .transition(panelTransition)
                     }
                 }
                 .frame(width: width - panes.sidebar)
@@ -443,7 +449,7 @@ struct iPadTaskManagerView: View {
                 if let task = selectedTask {
                     taskDetailPanel(for: task)
                         .frame(width: detailWidth)
-                        .transition(Self.panelTransition)
+                        .transition(panelTransition)
                 }
             }
             .frame(width: width)
@@ -632,6 +638,7 @@ struct iPadTaskManagerView: View {
             // Drawn over the card, overlapping its edge, so its base merges into the card face
             // and the outline runs on around the notch's two outer edges (the Mac's AITD-302).
             .overlay(alignment: .topLeading) {
+                if DetailPanelChrome.pointsAtRow(viewMode: listViewMode) {
                 GeometryReader { g in
                     ZStack {
                         DetailPanelChrome.arrowFill(theme: effectiveTheme).clipShape(DetailPanelArrow())
@@ -646,9 +653,10 @@ struct iPadTaskManagerView: View {
                     .animation(DetailPanelChrome.arrowFollowAnimation, value: selectedRowReporter.midY)
                 }
                 .accessibilityHidden(true)
+                }
             }
-            // Room for the arrow between the list and the card.
-            .padding(.leading, DetailPanelChrome.arrowWidth)
+            // Room for the arrow between the list and the card — none on a board, as before AITD-607.
+            .padding(.leading, DetailPanelChrome.pointsAtRow(viewMode: listViewMode) ? DetailPanelChrome.arrowWidth : 0)
             .padding(.top, 8)      // Top margin (aligns with floating header)
             .padding(.bottom, 4)   // Bottom margin (aligns with quick add input)
             .padding(.trailing, 8) // Right margin (matches left side of screen)

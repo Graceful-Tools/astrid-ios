@@ -301,6 +301,7 @@
 
 /* Tasks */
 "tasks.task_details" = "Detalles de la Tarea";
+"tasks.task_details_for_id" = "Detalles de %@";
 "tasks.created_by" = "Creado por";
 "tasks.priority_only" = "Solo %@";
 

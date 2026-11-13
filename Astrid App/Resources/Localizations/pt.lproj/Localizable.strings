@@ -74,6 +74,7 @@
 "tasks.new_task" = "Nova Tarefa";
 "tasks.add_task" = "Adicionar Tarefa";
 "tasks.task_details" = "Detalhes da Tarefa";
+"tasks.task_details_for_id" = "Detalhes de %@";
 "tasks.edit_task" = "Editar Tarefa";
 "tasks.delete_task" = "Excluir Tarefa";
 "tasks.complete_task" = "Concluir / Concluído!";

@@ -450,7 +450,7 @@ struct TaskDetailViewNew: View {
                         )
                     }
                 }
-                TaskDetailIdentifierRow(task: task) // 7. (cont.) TASK ID, beside the lists (AITD-437)
+                // The task id is in the header now — "<id> Details", tap to copy (AITD-647).
                 // 7a. PROJECT STATE, for a task that actually has a board column (AITD-332 —
                 // the iOS half of the Mac's AITD-327), in both display modes since AITD-555.
                 //

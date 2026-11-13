@@ -97,6 +97,7 @@
 "tasks.new_task" = "New task";
 "tasks.add_task" = "Add task";
 "tasks.task_details" = "Task Details";
+"tasks.task_details_for_id" = "%@ Details";
 "tasks.edit_task" = "Edit task";
 "tasks.delete_task" = "Delete task";
 "tasks.complete_task" = "Complete / Done!";
