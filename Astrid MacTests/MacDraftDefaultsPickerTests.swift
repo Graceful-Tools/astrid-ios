@@ -24,7 +24,7 @@ final class MacDraftDefaultsPickerTests: XCTestCase {
     /// With no list the default is YOU, and the row has to say so.
     ///
     /// The obvious guess is "Unassigned" — no list, no default. It is wrong:
-    /// `NewTaskDefaults.assignee(nil, …)` is "task_creator", which is the same answer a real list
+    /// A nil list default (astrid-core's `quickAddDefaults`) is "task_creator", which is the same answer a real list
     /// gives when it names no assignee of its own, so the task really does start as yours
     /// (AITD-387). A row reading "Unassigned" above a task that arrives assigned to you is the
     /// kind of small lie that makes people stop trusting the picker.

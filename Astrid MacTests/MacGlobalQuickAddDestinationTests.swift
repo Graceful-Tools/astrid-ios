@@ -78,7 +78,7 @@ final class MacGlobalQuickAddDestinationTests: XCTestCase {
     /// inheriting them from a list the user never named is the bug.
     ///
     /// The assignee is the exception, and deliberately so: "task_creator" is what
-    /// `NewTaskDefaults.assignee` answers when nothing names an assignee, list or no list, so the
+    /// astrid-core's `quickAddDefaults` answers when nothing names an assignee, list or no list, so the
     /// task starts as YOURS. That is what the add bar does in a list with no default of its own,
     /// it is what puts the task in My Tasks on both platforms, and since AITD-382 it is also what
     /// keeps the checkbox tappable — an unassigned task opens the options popover instead.

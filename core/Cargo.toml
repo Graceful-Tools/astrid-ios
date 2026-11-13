@@ -23,7 +23,7 @@ publish = false
 # version as a wildcard and fails `bans` on it (AITD-507). It is also a real check — a core whose
 # crate version leaves 0.1 stops resolving here, which is the signal a breaking bump should give.
 # The scripts in scripts/core/ read the rev from this line; keep `git` and `rev` first.
-astrid-core = { git = "https://github.com/Graceful-Tools/astrid-core.git", rev = "084c2c005e7aa673f3fba69147ca48081fad8e9e", version = "0.1" }
+astrid-core = { git = "https://github.com/Graceful-Tools/astrid-core.git", rev = "60b8aa8ee2e50a6ce96a33246e4478ed0f26da06", version = "0.1" }
 uniffi = "0.32"
 
 # Measured for AITD-625 on the ios-arm64 slice: a dead-stripped link of the staticlib went from

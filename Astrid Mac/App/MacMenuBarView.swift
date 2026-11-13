@@ -56,7 +56,7 @@ struct MacMenuBarView: View {
         AppActions.perform("Add task") {
             _ = try await taskService.createTask(
                 listIds: args.listIds, title: args.title, priority: args.priority,
-                whenDate: args.whenDate, assigneeId: args.assigneeId, isPrivate: args.isPrivate,
+                whenDate: args.whenDate, whenTime: args.whenTime, assigneeId: args.assigneeId, isPrivate: args.isPrivate,
                 repeating: args.repeating, repeatingData: args.repeatingData)
         }
     }

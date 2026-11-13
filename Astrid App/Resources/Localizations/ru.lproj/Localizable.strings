@@ -74,6 +74,7 @@
 "tasks.new_task" = "Новая задача";
 "tasks.add_task" = "Добавить задачу";
 "tasks.task_details" = "Детали задачи";
+"tasks.task_details_for_id" = "Детали %@";
 "tasks.edit_task" = "Изменить задачу";
 "tasks.delete_task" = "Удалить задачу";
 "tasks.complete_task" = "Завершить / Готово!";

@@ -74,6 +74,7 @@
 "tasks.new_task" = "Nieuwe taak";
 "tasks.add_task" = "Taak toevoegen";
 "tasks.task_details" = "Taakdetails";
+"tasks.task_details_for_id" = "Details van %@";
 "tasks.edit_task" = "Taak bewerken";
 "tasks.delete_task" = "Taak verwijderen";
 "tasks.complete_task" = "Voltooien / Klaar!";

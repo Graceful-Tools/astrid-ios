@@ -3,10 +3,12 @@
 //  Spec of record: astrid-web docs/specs/TASK_IDENTIFIERS.md.
 //
 //  The server is the only minter: a task's id arrives as `Task.identifier` and is never derived
-//  here. What IS here is the three rules every client shares — parse, show, autolink — ported
-//  from web's lib/task-identifier-core.ts and lib/task-identifier-links.ts and pinned to the
-//  shared fixture (`TaskIdentifiersTests`). Views ask this; none of them open-codes the rule.
+//  here. Parse and format are astrid-core's (`identifierParse` / `identifierFormat`, AITD-645);
+//  autolink is still the port of web's lib/task-identifier-links.ts until the core's door has it
+//  (AWTD2-161). All pinned to the shared fixture (`TaskIdentifiersTests`). Views ask this; none
+//  of them open-codes the rule.
 
+import AstridCore
 import Foundation
 
 enum TaskIdentifiers {
@@ -20,14 +22,17 @@ enum TaskIdentifiers {
 
     /// `KEY-N`: a 2–5 character key starting with a letter, and N ≥ 1. Case-insensitive in,
     /// uppercase out — `awtd-12` must not resolve differently from `AWTD-12`. `#12` is not an
-    /// identifier; it is an autolink rule.
+    /// identifier; it is an autolink rule. Answered by astrid-core's `identifierParse`
+    /// (AITD-645); `nil` — not a title, not a uuid — is its answer, not a failure.
     static func parse(_ value: String?) -> Parsed? {
-        guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines),
-              let match = identifierPattern.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)),
-              let keyRange = Range(match.range(at: 1), in: trimmed),
-              let numberRange = Range(match.range(at: 2), in: trimmed),
-              let sequence = Int(trimmed[numberRange]), sequence >= 1 else { return nil }
-        return Parsed(key: trimmed[keyRange].uppercased(), sequence: sequence)
+        guard let value, let parsed = CoreRules.identifierParse(value) else { return nil }
+        return Parsed(key: parsed.key, sequence: parsed.sequence)
+    }
+
+    /// The parts written out — `awtd` + 12 → `AWTD-12`. astrid-core's `identifierFormat`;
+    /// `nil` only if the core refused, which no parsed id gives it reason to.
+    static func format(_ parsed: Parsed) -> String? {
+        try? CoreRules.identifierFormat(key: parsed.key, sequence: parsed.sequence)
     }
 
     // MARK: - Where it is shown (spec §7)
@@ -168,12 +173,10 @@ enum TaskIdentifiers {
         guard url.scheme == "https", let host = url.host, Brand.webHosts.contains(host) else { return nil }
         let parts = url.pathComponents.filter { $0 != "/" }
         guard parts.count == 2, parts[0] == "t", let parsed = parse(parts[1]) else { return nil }
-        return "\(parsed.key)-\(parsed.sequence)"
+        return format(parsed)
     }
 
     // MARK: - Patterns — web's, character for character
-
-    private static let identifierPattern = try! NSRegularExpression(pattern: "^([A-Za-z][A-Za-z0-9]{1,4})-(\\d+)$")
 
     /// Not after a word character, hyphen, slash, dot or `#` (URLs, paths, `XAWTD-1`), not before one.
     private static let fullForm = try! NSRegularExpression(

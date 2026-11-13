@@ -50,7 +50,8 @@ enum MacBoardAdd {
         return MacQuickAdd.CreateArgs(title: args.title, listIds: listIds, priority: args.priority,
                                       whenDate: args.whenDate, repeating: args.repeating,
                                       repeatingData: args.repeatingData,
-                                      assigneeId: args.assigneeId, isPrivate: args.isPrivate)
+                                      assigneeId: args.assigneeId, isPrivate: args.isPrivate,
+                                      whenTime: args.whenTime)
     }
 }
 #endif

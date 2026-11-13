@@ -51,6 +51,14 @@ enum DetailPanelChrome {
         return arrowY(rowMidY: rowMidY - panelOriginY, panelHeight: panelHeight, inset: inset)
     }
 
+    /// Whether the iPad panel opens out of the selected row with an arrow aimed at it (AITD-647).
+    /// Only a list has that row: the row reports its position, a board card does not, so on a
+    /// board the arrow pointed at nothing. A board opens the plain side panel from the trailing
+    /// edge, as before AITD-607.
+    static func pointsAtRow(viewMode: HeaderToggleSegment) -> Bool {
+        viewMode != .board
+    }
+
     // MARK: - Full-screen details (iPhone, forced push) — AITD-609
 
     /// A row tap that pushes the details full screen has no row beside them to outline or point

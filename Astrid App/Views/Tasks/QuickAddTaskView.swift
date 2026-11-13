@@ -1,3 +1,4 @@
+import AstridCore
 import SwiftUI
 
 /// Outer chrome for QuickAddTaskView.
@@ -322,7 +323,7 @@ struct QuickAddTaskView: View {
 
     /// Whether the task being added will repeat — the destination list's default repeat.
     private var draftRepeats: Bool {
-        NewTaskDefaults.repeating(selectedList?.defaultRepeating) != nil
+        ListQuickAddDefaults.resolve(selectedList, currentUserId: nil).repeating != nil
     }
 
     /// The assignee's photo, or initials while it loads. Unsized and unclipped: the square and

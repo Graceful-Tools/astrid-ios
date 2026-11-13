@@ -20,6 +20,9 @@ private struct ConditionalRefreshable: ViewModifier {
 }
 
 struct TaskListView: View {
+    /// iPad's detail panel full-screen state — the same key `iPadTaskManagerView` draws from, so
+    /// the board's full-screen button can open a task straight there (AITD-636).
+    @AppStorage("iPadDetailFullScreen") private var iPadDetailFullScreen: Bool = false
     @Environment(\.colorScheme) var colorScheme
     @ThemedPalette private var palette
     @Environment(\.usesSplitLayout) private var usesSplitLayout
@@ -592,16 +595,21 @@ struct TaskListView: View {
                                     projectId: projectId,
                                     onOpenSidebar: onMenuTap,
                                     onTaskTap: { task in
-                                        // iPad split view: open in the side panel so the
-                                        // board stays visible in the left column, just like
-                                        // the flat list does. Tapping the open task again
-                                        // closes it. iPhone / forced-push: full screen.
-                                        if usesSplitLayout && !forcePushNavigation {
-                                            selectedTaskForPanel = (selectedTaskForPanel?.id == task.id) ? nil : task
-                                        } else {
+                                        // The inline details' full-screen button (AITD-628):
+                                        // on iPad straight to the panel's full-screen state
+                                        // (AITD-636), elsewhere the full-screen push.
+                                        switch BoardCardExpansion.fullDetailsRoute(splitLayout: usesSplitLayout,
+                                                                                   forcePush: forcePushNavigation) {
+                                        case .panel(let fullScreen):
+                                            iPadDetailFullScreen = fullScreen
+                                            selectedTaskForPanel = task
+                                        case .push:
                                             TaskPresenter.shared.showTask(task)
                                         }
                                     },
+                                    // iPhone: a card tap opens the full-screen push, as before
+                                    // inline details (AITD-642); iPad opens the card in place.
+                                    opensCardsInline: BoardCardExpansion.cardTapOpensInline(splitLayout: usesSplitLayout),
                                     selectedTaskId: selectedTaskForPanel?.id
                                 )
                             } else {
