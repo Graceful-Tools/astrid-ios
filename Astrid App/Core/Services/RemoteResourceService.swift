@@ -27,6 +27,10 @@ final class RemoteResourceService {
         try await apiClient.getUserSettings()
     }
 
+    func updateUserLocale(_ locale: String) async throws -> UserSettingsResponse {
+        try await apiClient.updateUserLocale(locale)
+    }
+
     // MARK: - App version (AITD-383)
 
     func getAppVersion(platform: String) async throws -> AppVersionResponse {
