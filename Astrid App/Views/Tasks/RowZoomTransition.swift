@@ -1,7 +1,8 @@
 //  RowZoomTransition.swift
 //  Full-screen task details zoom out of the tapped row (AITD-609, register DS7). The rule for when
 //  lives in `DetailPanelChrome.zoomsFromRow`; this only applies it, so a push with no row to grow
-//  out of (quick add, deep links) keeps the ordinary slide.
+//  out of (quick add, deep links) keeps the ordinary slide. Since AITD-664 the rule says no zoom at
+//  all: a row pushes with the slide a board card uses.
 
 import SwiftUI
 

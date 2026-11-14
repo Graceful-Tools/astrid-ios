@@ -1,5 +1,5 @@
 //  iPhoneDetailZoomTests.swift
-//  AITD-609 — "[design] iPhone: what carries the task-details outline and motion when details take
+//  AITD-609, superseded by AITD-664 for the zoom — "[design] iPhone: what carries the task-details outline and motion when details take
 //  the whole screen?" (register DS7 in astrid-core `design/README.md`).
 //
 //  On iPad the details panel wears the selected row's outline and opens out of it (AITD-607). On
@@ -12,11 +12,13 @@ import XCTest
 
 final class iPhoneDetailZoomTests: XCTestCase {
 
-    /// Every row tap that pushes (iPhone, or a forced push on iPad) zooms out of the row; the split
-    /// layout's side panel keeps its own open-out-of-the-row treatment and never zooms.
-    func testAPushFromARowZoomsOutOfTheRow() {
-        XCTAssertTrue(DetailPanelChrome.zoomsFromRow(usesSplitLayout: false, forcePushNavigation: false))
-        XCTAssertTrue(DetailPanelChrome.zoomsFromRow(usesSplitLayout: true, forcePushNavigation: true))
+    /// AITD-664 — "iOS iPhone open task rows to task details should open same way as board Tasks.
+    /// See old way of opened." A board card on iPhone pushes the details with the ordinary slide
+    /// (AITD-642, the old way), so a list row does too: no push from a row zooms out of it, on
+    /// iPhone or as a forced push on iPad. One-pane views open details one way.
+    func testAPushFromARowSlidesLikeABoardCard_AITD664() {
+        XCTAssertFalse(DetailPanelChrome.zoomsFromRow(usesSplitLayout: false, forcePushNavigation: false))
+        XCTAssertFalse(DetailPanelChrome.zoomsFromRow(usesSplitLayout: true, forcePushNavigation: true))
         XCTAssertFalse(DetailPanelChrome.zoomsFromRow(usesSplitLayout: true, forcePushNavigation: false))
     }
 

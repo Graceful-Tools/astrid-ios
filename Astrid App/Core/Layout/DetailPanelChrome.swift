@@ -72,13 +72,16 @@ enum DetailPanelChrome {
     /// No task is open at launch, so nothing is full screen either.
     static let fullScreenAtLaunch = false
 
-    // MARK: - Full-screen details (iPhone, forced push) — AITD-609
+    // MARK: - Full-screen details (iPhone, forced push) — AITD-609, AITD-664
 
-    /// A row tap that pushes the details full screen has no row beside them to outline or point
-    /// at, so DS7 is carried by the motion: the details zoom out of the tapped row. The split
-    /// layout's side panel keeps its own treatment above.
+    /// Does a row tap that pushes the details full screen zoom out of the row? No (AITD-664, Jon:
+    /// "iPhone open task rows to task details should open same way as board Tasks. See old way of
+    /// opened"). AITD-609 zoomed them; a board card on iPhone pushes with the ordinary slide
+    /// (`BoardCardExpansion.cardTapOpensInline`, AITD-642), and every one-pane view now opens its
+    /// details that one way. DS7 is not a phone's single pane (astrid-core `design/README.md`).
+    /// Kept as the named rule so the list's push and the board's cannot drift apart again.
     static func zoomsFromRow(usesSplitLayout: Bool, forcePushNavigation: Bool) -> Bool {
-        !usesSplitLayout || forcePushNavigation
+        false
     }
 
     /// How long the row the details closed back into wears the selection outline — one
