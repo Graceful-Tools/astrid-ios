@@ -91,8 +91,8 @@ class TaskService: ObservableObject {
     /// this only brings the published `[Task]` level with it.
     func coreDidChange(_ change: CoreChange) {
         switch change {
-        case .task(let id):
-            _Concurrency.Task { await self.reload(ids: [id]) }
+        case .task(let id, let listIds):
+            _Concurrency.Task { await self.reload(ids: [id], coreListIds: listIds) }
         case .synced(let taskIds, _) where !taskIds.isEmpty:
             _Concurrency.Task { await self.reload(ids: taskIds) }
         case .delivered(let delivery) where !delivery.undescribed:
@@ -113,7 +113,10 @@ class TaskService: ObservableObject {
     /// a temporary id that became a real one reads as that task.
     ///
     /// `refreshingCounts: false` when the change already carried the journal's counts.
-    private func reload(ids: [String], refreshingCounts: Bool = true) async {
+    ///
+    /// `coreListIds`: the lists a `task` change named (AITD-666), so a list on screen that none of
+    /// them is can skip its read. `nil` for every other reload — those say "any list".
+    private func reload(ids: [String], refreshingCounts: Bool = true, coreListIds: [String]? = nil) async {
         let temps = ids.filter { $0.hasPrefix("temp_") }
         let moved = temps.isEmpty
             ? [:] : ((try? await core.run(CoreCommand.resolveIds(temps), as: [String: String].self)) ?? [:])
@@ -135,7 +138,13 @@ class TaskService: ObservableObject {
         let dropped = Set(moved.keys).union(wanted.filter { !foundIds.contains($0) })
         var next = tasks.filter { !dropped.contains($0.id) }
         upsert(found, into: &next)
-        publish(next)
+        let touched = coreListIds.map { coreListIds in
+            let ids = Set(wanted)
+            return TaskListsTouched.forChange(
+                coreListIds: coreListIds, before: wanted.compactMap { cachedTasks[$0] }, after: found,
+                hasSubtasks: next.contains { $0.parentTaskId.map(ids.contains) ?? false })
+        } ?? .anyList
+        publish(next, touching: touched)
         if refreshingCounts { refreshOutboxCounts() }
     }
 
@@ -160,6 +169,10 @@ class TaskService: ObservableObject {
         }
         refreshOutboxCounts()
     }
+
+    /// After `tasks` is replaced: which lists that can have moved rows in (AITD-666). Sent once
+    /// the new tasks are in place, so a reader sees them.
+    let tasksChanged = PassthroughSubject<TaskListsTouched, Never>()
 
     /// How many times `tasks` has been replaced — what `reloadAll` checks its read against.
     private var publishCount = 0
@@ -193,13 +206,17 @@ class TaskService: ObservableObject {
     /// Publish a new set: joined with the lists they belong to, in the order every list draws
     /// from, and only when something actually changed — reassigning `@Published` re-renders every
     /// observer even for identical content.
-    private func publish(_ next: [Task]) {
+    ///
+    /// `touching`: which lists the change can have moved rows in — what `tasksChanged` carries to
+    /// the list views, so one off screen is not read again (AITD-666).
+    private func publish(_ next: [Task], touching: TaskListsTouched = .anyList) {
         let hydrated = TaskListHydration.hydrated(next, using: ListService.shared.lists)
         let sorted = hydrated.sorted(by: TaskOrdering.isOrderedBefore)
         guard sorted != tasks else { return }
         publishCount += 1
         tasks = sorted
         cachedTasks = Dictionary(sorted.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+        tasksChanged.send(touching)
         _Concurrency.Task { await badgeManager.updateBadge(with: sorted) }
     }
 

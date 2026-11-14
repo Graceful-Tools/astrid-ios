@@ -90,8 +90,17 @@ final class CoreSessionTests: XCTestCase {
 }
 
 final class CoreChangeTests: XCTestCase {
+    /// AITD-666 (core b83f179): a task change names the lists it touched, the ones it left
+    /// included. A core that does not say reads as empty, which means "could not say".
+    func testATaskChangeNamesItsLists_AITD666() {
+        XCTAssertEqual(CoreChange(json: #"{"change":"task","id":"t1","listIds":["l1","l2"]}"#),
+                       .task(id: "t1", listIds: ["l1", "l2"]))
+        XCTAssertEqual(CoreChange(json: #"{"change":"task","id":"t1","listIds":[]}"#),
+                       .task(id: "t1", listIds: []))
+    }
+
     func testTheCoresWordsReadAsChanges() {
-        XCTAssertEqual(CoreChange(json: #"{"change":"task","id":"t1"}"#), .task(id: "t1"))
+        XCTAssertEqual(CoreChange(json: #"{"change":"task","id":"t1"}"#), .task(id: "t1", listIds: []))
         XCTAssertEqual(CoreChange(json: #"{"change":"synced","taskIds":[],"listIds":["l1"]}"#),
                        .synced(taskIds: [], listIds: ["l1"]))
         XCTAssertEqual(CoreChange(json: #"{"change":"agentTyping","channelId":"c","active":true}"#),

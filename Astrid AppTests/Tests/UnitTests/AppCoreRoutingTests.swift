@@ -58,7 +58,7 @@ final class AppCoreRoutingTests: XCTestCase {
 
     /// The stream's single-row events go where they always did, and nowhere else.
     func testTheStreamsEventsReachTheirOwnService_AITD454() {
-        XCTAssertEqual(AppCore.audiences(for: .task(id: "t1")), [.tasks])
+        XCTAssertEqual(AppCore.audiences(for: .task(id: "t1", listIds: ["l1"])), [.tasks])
         XCTAssertEqual(AppCore.audiences(for: .list(id: "l1")), [.lists, .members])
         XCTAssertEqual(AppCore.audiences(for: .comments(taskId: "t1")), [.comments])
         XCTAssertEqual(AppCore.audiences(for: .chat(channelId: "c1")), [.chat])

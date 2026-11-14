@@ -68,13 +68,18 @@ final class ListRowsModel: ObservableObject {
     ///   - session: the core to ask; the app's own by default.
     ///   - tasksChanged: when to ask again — a task edited, completed or synced can move into or
     ///     out of a list, or change place in it.
+    ///     A change that names lists, none of them the one on screen, is not asked about
+    ///     (AITD-666): a colleague working a list nobody has open costs this one nothing.
     init(session: CoreSession = AppCore.shared.session,
-         tasksChanged: AnyPublisher<Void, Never>? = nil) {
+         tasksChanged: AnyPublisher<TaskListsTouched, Never>? = nil) {
         self.session = session
-        let changes = tasksChanged ?? TaskService.shared.$tasks.map { _ in () }.eraseToAnyPublisher()
+        let changes = tasksChanged ?? TaskService.shared.tasksChanged.eraseToAnyPublisher()
         self.tasksChanged = changes
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] in self?.refresh() }
+            .sink { [weak self] touched in
+                guard let self, let listId = self.query?.listId, touched.touches(listId) else { return }
+                self.refresh()
+            }
     }
 
     /// Show the rows for `query`: its last answer at once when there is one, the core's as soon as
@@ -114,8 +119,12 @@ final class ListRowsModel: ObservableObject {
         return ids.compactMap { tasksById[$0] ?? carried?[$0] }
     }
 
+    /// How many times the core has been asked for rows — what the tests count.
+    private(set) var asked = 0
+
     private func refresh() {
         guard let query else { return }
+        asked += 1
         running?.cancel()
         running = _Concurrency.Task { [session] in
             guard let ids = await Self.rowIds(for: query, session: session) else { return }
@@ -160,5 +169,35 @@ final class ListRowsModel: ObservableObject {
     nonisolated struct IdsAnswer: Decodable {
         let ids: [String]
         let matched: Int
+    }
+}
+
+/// Which lists a change to the tasks can have moved rows in (AITD-666).
+///
+/// The core names the lists a `task` change touched — the ones the task is in and any it left.
+/// An empty name is "could not say", the rule an empty `synced` already carries: read anyway.
+enum TaskListsTouched: Equatable, Sendable {
+    /// Could not say, or not a single-task change: any list may have moved.
+    case anyList
+    /// These lists. Empty is the same as `anyList`.
+    case lists(Set<String>)
+
+    /// Whether the list with `listId` should read its rows again. A `virtual:` list (My Tasks,
+    /// everything) is assembled across the account, so no task ever names it: always.
+    func touches(_ listId: String) -> Bool {
+        guard case .lists(let ids) = self, !ids.isEmpty, !listId.hasPrefix("virtual:") else { return true }
+        return ids.contains(listId)
+    }
+
+    /// The lists a `task` change touched: the core's, widened by the lists the task was in and
+    /// is in as the app held it. Subtasks are spliced across lists — a subtask under its parent
+    /// wherever the parent is, a parent's change deciding where its subtasks show — so a subtask
+    /// or a task with subtasks says "any list".
+    static func forChange(coreListIds: [String], before: [Task], after: [Task],
+                          hasSubtasks: Bool = false) -> TaskListsTouched {
+        guard !coreListIds.isEmpty, !hasSubtasks else { return .anyList }
+        let tasks = before + after
+        if tasks.contains(where: { $0.parentTaskId != nil }) { return .anyList }
+        return .lists(Set(coreListIds).union(tasks.flatMap { $0.listIds ?? [] }))
     }
 }
