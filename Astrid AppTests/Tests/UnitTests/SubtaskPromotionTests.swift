@@ -105,4 +105,18 @@ final class SubtaskPromotionTests: XCTestCase {
         task.parentTaskId = nil
         XCTAssertFalse(SubtaskPromotion.canPromoteToTopLevel(task))
     }
+
+    // MARK: AITD-621 — the decision is astrid-core's, the same as a drop on the line
+
+    /// Promoting from the actions menu and dropping on the line between rows must agree: both
+    /// are the core's `nesting` rule now, not a Swift copy beside it.
+    func testAITD621_PromotionAgreesWithTheCoresLineDrop() {
+        for parent in [nil, "", "p1"] as [String?] {
+            let row = Row(id: "t1", parentTaskId: parent)
+            let lineDrop = DragNesting.outcome(for: .betweenRows(above: nil), dragged: row, byId: [:])
+            XCTAssertEqual(SubtaskPromotion.canPromoteToTopLevel(row),
+                           lineDrop == .moveToTopLevel(taskId: "t1"),
+                           "parent \(String(describing: parent))")
+        }
+    }
 }
