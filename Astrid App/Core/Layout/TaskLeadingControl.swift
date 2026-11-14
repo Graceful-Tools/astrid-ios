@@ -1,3 +1,4 @@
+import AstridCore
 import Foundation
 
 /// What the control at the leading edge of a task shows (Task 42013da7).
@@ -34,14 +35,34 @@ enum TaskLeadingControl: Equatable {
     /// in the sense of "click to finish". A board where every card you own is a bare checkbox
     /// and everyone else's is a face makes your own work the only thing you cannot see at a
     /// glance.
+    ///
+    /// Asked of astrid-core (`rows::LeadingControl::for_task`, AITD-622), which shares the rule
+    /// with web and Windows. The surface does not change the mark, only what tapping it does.
     static func kind(assigneeId: String?,
                      currentUserId: String?,
                      displayMode: TaskDisplayMode) -> TaskLeadingControl {
-        guard let assigneeId, !assigneeId.isEmpty else { return .unassigned }
-        if let currentUserId, assigneeId == currentUserId {
-            return displayMode.usesCompactTaskDetail ? .avatar(assigneeId) : .checkbox
+        let answer = CoreRules.leadingControl(assigneeId: assigneeId, currentUserId: currentUserId,
+                                              displayMode: displayMode.wireValue, surface: "listRow")
+        switch answer?.kind {
+        case .checkbox: return .checkbox
+        case .avatar(let id): return .avatar(id)
+        case .unassigned, .copy: return .unassigned
+        case nil:
+            // The core could not answer: show whose it is, never a checkbox — the mark that
+            // finishes a task on a tap is not one to draw on a guess.
+            guard let assigneeId, !assigneeId.isEmpty else { return .unassigned }
+            return .avatar(assigneeId)
         }
-        return .avatar(assigneeId)
+    }
+
+    /// The assignee this mark depicts — what the core is asked about. A checkbox is always the
+    /// reader's own task.
+    fileprivate func assigneeId(currentUserId: String?) -> String? {
+        switch self {
+        case .checkbox: return currentUserId
+        case .avatar(let id): return id
+        case .unassigned: return nil
+        }
     }
 }
 
@@ -61,6 +82,15 @@ enum TaskLeadingControlSurface: Equatable {
     case listRow
     /// The task detail screen or panel.
     case detail
+
+    /// astrid-core's name for the surface (`rows::Surface::from_wire`).
+    var wireValue: String {
+        switch self {
+        case .boardCard: return "boardCard"
+        case .listRow: return "listRow"
+        case .detail: return "detail"
+        }
+    }
 }
 
 /// What clicking or tapping the leading control does.
@@ -119,21 +149,14 @@ extension TaskLeadingControl {
                        kind: TaskLeadingControl,
                        displayMode: TaskDisplayMode,
                        currentUserId: String?) -> TaskLeadingControlAction {
-        if kind.isSomeoneElses(currentUserId: currentUserId) { return .openPicker }
-
-        switch surface {
-        case .boardCard:
-            // A board is where a task has a status, so the control is how you set it — and
-            // completing outright from a card is the trapdoor tasks 9be8cb1b / f9d7ed42 removed.
-            return .openPicker
-        case .listRow, .detail:
-            // ONLY A CHECKBOX FINISHES A TASK ON A TAP (AITD-382). One case, not two, because
-            // the row and the detail screen have no business disagreeing about the same task —
-            // and they did: the row asked about the display mode alone and never looked at the
-            // mark it had just drawn, so an UNASSIGNED task was completed by a tap on a row
-            // while the detail screen already offered the popover for it.
-            return displayMode.checkboxCompletesTask && kind == .checkbox ? .complete : .openPicker
-        }
+        // Asked of astrid-core (`rows::LeadingControl::action`, AITD-622), which has followed
+        // exactly this rule since core e0d8ce7 (AWTD2-214, CONTRACTS D62). A failed answer opens
+        // the picker: it cannot finish a task by accident, and completion is on the picker.
+        let answer = CoreRules.leadingControl(assigneeId: kind.assigneeId(currentUserId: currentUserId),
+                                              currentUserId: currentUserId,
+                                              displayMode: displayMode.wireValue,
+                                              surface: surface.wireValue)
+        return answer?.action == .complete ? .complete : .openPicker
     }
 
     /// Is this control showing a task that belongs to somebody else?
