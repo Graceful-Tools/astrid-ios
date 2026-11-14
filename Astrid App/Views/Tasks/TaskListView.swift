@@ -1,17 +1,15 @@
 import SwiftUI
 import UniformTypeIdentifiers   // `.text` for the drag payload's UTType (task 4eb92ce1)
 
-/// Applies `.refreshable` only when `isEnabled` — `.refreshable`
-/// returns an opaque type, so it can't be toggled with a plain
-/// ternary. Used to suppress pull-to-refresh in board mode, where an
-/// inherited refresh control caused a vertical bounce while swiping
-/// between columns.
-private struct ConditionalRefreshable: ViewModifier {
-    let isEnabled: Bool
-    let action: () async -> Void
+/// Applies `.refreshable` only when there is an action — `.refreshable`
+/// returns an opaque type, so it can't be toggled with a plain ternary.
+/// Which scroll view gets one is `PullToRefreshHost`'s call (AITD-670):
+/// the page on a list, each column's card scroll on a board.
+struct ConditionalRefreshable: ViewModifier {
+    let action: (() async -> Void)?
 
     func body(content: Content) -> some View {
-        if isEnabled {
+        if let action {
             content.refreshable { await action() }
         } else {
             content
@@ -610,7 +608,9 @@ struct TaskListView: View {
                                     // iPhone: a card tap opens the full-screen push, as before
                                     // inline details (AITD-642); iPad opens the card in place.
                                     opensCardsInline: BoardCardExpansion.cardTapOpensInline(splitLayout: usesSplitLayout),
-                                    selectedTaskId: selectedTaskForPanel?.id
+                                    selectedTaskId: selectedTaskForPanel?.id,
+                                    onRefresh: pullToRefreshHost.columnsAreRefreshable
+                                        ? { await refreshFromPull() } : nil
                                 )
                             } else {
                                 // Compute the filtered rows ONCE per body eval
@@ -728,20 +728,12 @@ struct TaskListView: View {
                 }
             }
         }
-        // Pull-to-refresh is suppressed in board mode: the column
-        // carousel owns vertical drags, and an inherited `.refreshable`
-        // caused a vertical bounce while swiping between columns.
-        .modifier(ConditionalRefreshable(isEnabled: taskViewMode != .board) {
-            do {
-                try await loadData()
-            } catch {
-                // Errors on refresh are less critical, don't show to user
-            }
-            // Pull-to-refresh also nudges the external sync providers
-            // (debounced no-ops when not connected / nothing linked).
-            GitHubSyncService.shared.scheduleSync()
-            GoogleTasksSyncService.shared.scheduleSync()
-        })
+        // A list refreshes from the page; a board from each column's own card
+        // scroll (AITD-670). A page-level `.refreshable` on the board bounced
+        // the column carousel vertically while swiping between columns.
+        .modifier(ConditionalRefreshable(
+            action: pullToRefreshHost.pageIsRefreshable ? { await refreshFromPull() } : nil
+        ))
         // Ask the core for the search box's results; the rows follow when they land (AITD-459).
         // iOS draws each result's subtasks under it, so the core splices them in (AITD-460).
         .task(id: searchSplice) { search.update(query: searchText, splice: searchSplice.splice) }
@@ -1146,6 +1138,25 @@ struct TaskListView: View {
         } catch {
             featuredListTasks = []
         }
+    }
+
+    /// Where the pull lives right now: the page, or each board column (AITD-670).
+    private var pullToRefreshHost: PullToRefreshHost {
+        .resolve(showingBoard: taskViewMode == .board && selectedList?.projectId != nil)
+    }
+
+    /// What a pull runs, whether on the list's page or a board column (AITD-670): one
+    /// action, so the two cannot drift.
+    private func refreshFromPull() async {
+        do {
+            try await loadData()
+        } catch {
+            // Errors on refresh are less critical, don't show to user
+        }
+        // Pull-to-refresh also nudges the external sync providers
+        // (debounced no-ops when not connected / nothing linked).
+        GitHubSyncService.shared.scheduleSync()
+        GoogleTasksSyncService.shared.scheduleSync()
     }
 
     private func loadData() async throws {

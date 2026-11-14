@@ -56,6 +56,9 @@ struct ProjectStatusBoardView: View {
     /// (e.g. opening a done task scrolls the board to the Done column).
     var selectedTaskId: String?
 
+    /// What pulling a column down runs — the list's own refresh (AITD-670).
+    var onRefresh: (() async -> Void)?
+
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
     /// The columns and their cards, as astrid-core draws them (AITD-461): asked off the main
@@ -149,7 +152,8 @@ struct ProjectStatusBoardView: View {
                                                 from: column.id,
                                                 boardFrame: geo.frame(in: .global),
                                                 proxy: proxy)
-                            }
+                            },
+                            onRefresh: onRefresh
                         )
                         // Match the floating header's `.padding(.horizontal, 8)`
                         // so the column's border lines up under the header
