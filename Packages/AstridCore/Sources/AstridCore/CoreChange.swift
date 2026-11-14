@@ -2,7 +2,9 @@ import Foundation
 
 /// What moved in the core's cache — `astrid_core::realtime::Change`, as `Change::to_json` spells it.
 public enum CoreChange: Equatable, Sendable {
-    case task(id: String)
+    /// A task moved. `listIds` names the lists it is in and any it just left (core b83f179);
+    /// **empty means the core could not say**, which is "refresh anyway", never "no list".
+    case task(id: String, listIds: [String])
     case list(id: String)
     case comments(taskId: String)
     case chat(channelId: String)
@@ -49,7 +51,7 @@ public enum CoreChange: Equatable, Sendable {
             return
         }
         switch wire.change {
-        case "task": self = wire.id.map { .task(id: $0) } ?? .unknown(json)
+        case "task": self = wire.id.map { .task(id: $0, listIds: wire.listIds ?? []) } ?? .unknown(json)
         case "list": self = wire.id.map { .list(id: $0) } ?? .unknown(json)
         case "comments": self = wire.taskId.map { .comments(taskId: $0) } ?? .unknown(json)
         case "chat": self = wire.channelId.map { .chat(channelId: $0) } ?? .unknown(json)

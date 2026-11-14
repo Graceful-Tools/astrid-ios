@@ -144,7 +144,7 @@ final class ListRowsModelTests: XCTestCase {
     /// A change to the tasks asks again, so the rows follow an edit.
     func testAITD460_aChangeToTheTasksAsksAgain() async throws {
         let session = try CoreSearchFixture.session(seeding: [task("a"), task("b")])
-        let changed = PassthroughSubject<Void, Never>()
+        let changed = PassthroughSubject<TaskListsTouched, Never>()
         let model = ListRowsModel(session: session, tasksChanged: changed.eraseToAnyPublisher())
         await model.load(query("l1", list(priority: "0")))
         XCTAssertEqual(Set(model.rowIds), ["a", "b"])
@@ -152,9 +152,84 @@ final class ListRowsModelTests: XCTestCase {
         var command = CoreCommand(kind: "updateTask", taskId: "a")
         command.set("changes", ["priority": 3])
         try await session.run(command)
-        changed.send(())
+        changed.send(.anyList)
 
         await waitUntil(model, "the re-prioritised row to leave the filter") { model.rowIds.count != 2 }
         XCTAssertEqual(model.rowIds, ["b"])
+    }
+
+    // MARK: - A change in a list off screen reads nothing (AITD-666)
+
+    /// Loads `listId`, then reports how many more times the model asked the core after `touched`.
+    private func asksAfter(_ touched: TaskListsTouched, showing listId: String,
+                           _ l: TaskList? = nil) async throws -> Int {
+        let session = try CoreSearchFixture.session(seeding: [task("a"), task("b", listIds: ["l2"])])
+        let changed = PassthroughSubject<TaskListsTouched, Never>()
+        let model = ListRowsModel(session: session, tasksChanged: changed.eraseToAnyPublisher())
+        await model.load(query(listId, l ?? list(listId)))
+        let before = model.asked
+        changed.send(touched)
+        // The sink hops to the main queue; let it run before counting.
+        await _Concurrency.Task.yield()
+        try await _Concurrency.Task.sleep(nanoseconds: 50_000_000)
+        return model.asked - before
+    }
+
+    /// AITD-666: a colleague's edit in a list nobody has open costs the open list no read.
+    func testAITD666_aTaskChangeInAnotherListDoesNotReadThisOne() async throws {
+        let asks = try await asksAfter(.lists(["l2"]), showing: "l1")
+        XCTAssertEqual(asks, 0)
+    }
+
+    func testAITD666_aTaskChangeInTheOpenListReadsIt() async throws {
+        let asks = try await asksAfter(.lists(["l2", "l1"]), showing: "l1")
+        XCTAssertEqual(asks, 1)
+    }
+
+    /// An empty `listIds` is "could not say", never "no list is affected".
+    func testAITD666_aChangeNamingNoListReadsAnyway() async throws {
+        let none = try await asksAfter(.lists([]), showing: "l1")
+        XCTAssertEqual(none, 1)
+        let unknown = try await asksAfter(.anyList, showing: "l1")
+        XCTAssertEqual(unknown, 1)
+    }
+
+    /// My Tasks and the everything view are assembled across the account: no task names them.
+    func testAITD666_aVirtualListAlwaysReads() async throws {
+        let mine = try await asksAfter(.lists(["l2"]), showing: ListRowsModel.myTasksId,
+                                       TaskList(id: ListRowsModel.myTasksId, name: ""))
+        XCTAssertEqual(mine, 1)
+        let all = try await asksAfter(.lists(["l2"]), showing: ListRowsModel.everythingId,
+                                      ListRowsModel.everything)
+        XCTAssertEqual(all, 1)
+    }
+
+    func testAITD666_whatTouchesWhichList() {
+        XCTAssertFalse(TaskListsTouched.lists(["l2"]).touches("l1"))
+        XCTAssertTrue(TaskListsTouched.lists(["l1"]).touches("l1"))
+        XCTAssertTrue(TaskListsTouched.lists([]).touches("l1"))
+        XCTAssertTrue(TaskListsTouched.anyList.touches("l1"))
+        XCTAssertTrue(TaskListsTouched.lists(["l2"]).touches("virtual:my-tasks"))
+    }
+
+    /// TaskService's half: the core's lists, widened by where the task was and is, and "any list"
+    /// for a subtask, which is spliced under its parent wherever the parent is.
+    func testAITD666_theListsATaskChangeTouches() {
+        var before = task("a", listIds: ["l1"])
+        var after = task("a", listIds: ["l3"])
+        XCTAssertEqual(TaskListsTouched.forChange(coreListIds: ["l2"], before: [before], after: [after]),
+                       .lists(["l1", "l2", "l3"]))
+        XCTAssertEqual(TaskListsTouched.forChange(coreListIds: [], before: [before], after: [after]),
+                       .anyList, "the core could not say")
+        before.parentTaskId = "p"
+        XCTAssertEqual(TaskListsTouched.forChange(coreListIds: ["l2"], before: [before], after: [after]),
+                       .anyList, "a subtask can show in its parent's list")
+        before.parentTaskId = nil
+        after.parentTaskId = "p"
+        XCTAssertEqual(TaskListsTouched.forChange(coreListIds: ["l2"], before: [before], after: [after]),
+                       .anyList)
+        XCTAssertEqual(TaskListsTouched.forChange(coreListIds: ["l2"], before: [], after: [task("p")],
+                                                  hasSubtasks: true),
+                       .anyList, "a parent decides where its subtasks show")
     }
 }
