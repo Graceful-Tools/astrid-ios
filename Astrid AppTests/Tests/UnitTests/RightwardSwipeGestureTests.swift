@@ -104,6 +104,40 @@ final class SidewaysScrollRegionReportTests: XCTestCase {
             """), [])
     }
 
+    // MARK: - AITD-659: wide tables scroll; a description draws the grid as a comment does
+
+    /// A plain table (no ratings, so not a grid) wider than its column scrolls sideways, and says
+    /// so, so the panel's swipe-to-close leaves the drag to it.
+    func testAITD659_aWidePlainTableScrollsSideways() {
+        XCTAssertEqual(regions(reportedBy: Self.wideTable).count, 1, "one wide table, one region")
+    }
+
+    func testAITD659_aPlainTableThatFitsReportsNoRegion() {
+        XCTAssertEqual(regions(reportedBy: """
+            | Name | Owner |
+            |---|---|
+            | Docs | Sam |
+            """), [])
+    }
+
+    /// The task-details description, not editing: the traffic-light grid is drawn — and so
+    /// reports where it scrolls — exactly as it is in a comment.
+    func testAITD659_theDescriptionDrawsTheTrafficLightGrid() {
+        XCTAssertEqual(regions(of: InlineTextAreaEditor(label: "Description", text: .constant(Self.wideGrid),
+                                                        placeholder: "", onSave: nil,
+                                                        offersFullScreen: true)).count, 1)
+    }
+
+    func testAITD659_aViewOnlyDescriptionDrawsTheTrafficLightGrid() {
+        XCTAssertEqual(regions(of: ReadOnlyDescriptionRow(text: .constant(Self.wideGrid))).count, 1)
+    }
+
+    private static let wideTable = """
+        | Name | Owner | Status | Started | Finished | Notes | Link | Area | Size |
+        |---|---|---|---|---|---|---|---|---|
+        | Write the onboarding docs | Samantha Rodriguez | In progress | 2026-11-01 | 2026-11-20 | Needs a review from design | https://example.com/docs | Growth | Large |
+        """
+
     /// Eight criteria at 84pt or more each cannot fit in 600.
     private static let wideGrid = """
         | Option | Cost | Speed | Risk | Reach | Effort | Fit | Fun | Time |
@@ -112,10 +146,14 @@ final class SidewaysScrollRegionReportTests: XCTestCase {
         """
 
     private func regions(reportedBy source: String) -> [CGRect] {
+        regions(of: MarkdownText(source: source))
+    }
+
+    private func regions(of content: some View) -> [CGRect] {
         var reported: [CGRect] = []
         let view = NavigationStack {
             ScrollView {
-                MarkdownText(source: source)
+                content
             }
             .onPreferenceChange(SidewaysScrollRegions.self) { reported = $0 }
         }

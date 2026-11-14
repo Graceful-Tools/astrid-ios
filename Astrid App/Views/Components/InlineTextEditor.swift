@@ -116,7 +116,8 @@ struct InlineTextAreaEditor: View {
                     }
                 }
             } else {
-                // Display mode — render markdown and colored @mentions/#lists/!tasks
+                // Display mode — drawn by the block renderer comments use, so a table, a list or
+                // a traffic-light grid looks the same here as in a comment (AITD-659).
                 Group {
                     if text.isEmpty {
                         Text(placeholder)
@@ -127,8 +128,7 @@ struct InlineTextAreaEditor: View {
                             .background(bgColor)
                             .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
                     } else {
-                        Text(text.attributedWithReferences(defaultColor: defaultTextColor))
-                            .font(Theme.Typography.body())
+                        MarkdownText(source: text, defaultColor: defaultTextColor)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(Theme.spacing12)
                             .background(bgColor)

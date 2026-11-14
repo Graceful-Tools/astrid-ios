@@ -364,33 +364,40 @@ struct MacTaskFieldsView: View {
                     }
                 }
             } else {
-                Button {
-                    editingNotes = true
-                    notesFocused = true
-                } label: {
-                    Group {
-                        switch MacTaskFields.descriptionDisplay(notes) {
-                        case .body(let text):
-                            // Rendered when you are LOOKING at it; the editor above stays
-                            // plain text, because what you edit has to be the characters you
-                            // typed (task f5520874).
-                            MacMarkdownText(source: text)
-                                .textSelection(.enabled)
-                        case .placeholder:
-                            Text(NSLocalizedString("mac.click_add_description", comment: ""))
-                                .macFont(MacTypography.detailBody)
-                                .foregroundStyle(Theme.textMuted)
-                        }
+                // A click anywhere starts editing — but not as a Button: a traffic-light grid in
+                // the description has controls of its own (Full screen) and scrolls sideways, and
+                // a Button's label swallows its children's clicks. A tap gesture yields to them
+                // (AITD-659); it is still a button to VoiceOver.
+                Group {
+                    switch MacTaskFields.descriptionDisplay(notes) {
+                    case .body(let text):
+                        // Rendered when you are LOOKING at it; the editor above stays
+                        // plain text, because what you edit has to be the characters you
+                        // typed (task f5520874).
+                        MacMarkdownText(source: text)
+                            .textSelection(.enabled)
+                    case .placeholder:
+                        Text(NSLocalizedString("mac.click_add_description", comment: ""))
+                            .macFont(MacTypography.detailBody)
+                            .foregroundStyle(Theme.textMuted)
                     }
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture(perform: beginEditingNotes)
+                .accessibilityElement(children: .contain)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { beginEditingNotes() }
                 .macPointingHand()
             }
         }
+    }
+
+    private func beginEditingNotes() {
+        editingNotes = true
+        notesFocused = true
     }
 
     // MARK: - Row chrome

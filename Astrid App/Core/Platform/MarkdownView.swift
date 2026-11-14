@@ -149,21 +149,35 @@ struct MarkdownView: View {
             .clipShape(RoundedRectangle(cornerRadius: style.codeCornerRadius))
     }
 
+    /// In place when it fits, even squeezed to its columns' floors; otherwise in a sideways
+    /// scroller that says where it is, so the iPad panel's swipe-to-close leaves the drag to it
+    /// (AITD-659, as the trade-off grid does — AITD-594/595). In place, a narrow table still hugs
+    /// its text in a comment bubble.
     private func table(header: [[MarkdownInline]], rows: [[[MarkdownInline]]]) -> some View {
-        Grid(alignment: .leading, horizontalSpacing: style.markerSpacing * 2, verticalSpacing: style.blockSpacing) {
-            GridRow {
-                ForEach(Array(header.enumerated()), id: \.offset) { _, cell in
-                    inline(cell).font(style.body.bold())
+        ViewThatFits(in: .horizontal) {
+            tableLayout(header: header, rows: rows, scrolls: false)
+            ScrollView(.horizontal, showsIndicators: false) {
+                tableLayout(header: header, rows: rows, scrolls: true)
+            }
+            .reportsSidewaysScrollRegion()
+        }
+    }
+
+    private func tableLayout(header: [[MarkdownInline]], rows: [[[MarkdownInline]]], scrolls: Bool) -> some View {
+        let columns = max(header.count, rows.map(\.count).max() ?? 0)
+        func cells(_ row: [[MarkdownInline]]) -> [[MarkdownInline]] {
+            (0..<columns).map { $0 < row.count ? row[$0] : [] }
+        }
+        return MarkdownTableLayout(columns: columns, spacing: style.markerSpacing, scrolls: scrolls) {
+            ForEach(Array(cells(header).enumerated()), id: \.offset) { _, cell in
+                inline(cell).font(style.body.bold()).frame(maxWidth: .infinity, alignment: .leading)
+            }
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                ForEach(Array(cells(row).enumerated()), id: \.offset) { _, cell in
+                    inline(cell).font(style.body).frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             Divider()
-            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                GridRow {
-                    ForEach(Array(row.enumerated()), id: \.offset) { _, cell in
-                        inline(cell).font(style.body)
-                    }
-                }
-            }
         }
     }
 }
