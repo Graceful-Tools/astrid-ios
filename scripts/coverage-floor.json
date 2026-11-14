@@ -57,7 +57,7 @@
   "mac": {
     "target:Astrid.app": 7,
     "Astrid Mac/App": 14,
-    "Astrid Mac/Commands": 29,
+    "Astrid Mac/Commands": 36,
     "Astrid Mac/Views": 10
   },
   "measured_2026_10_23_second_run": {
@@ -80,5 +80,11 @@
       "Astrid": 0
     },
     "_note": "AITD-542 moved the Share Extension's logic into Shared/ and tested it: Shared 13.1% -> 95.5%, the appex target 2.4% -> 39.6%. Astrid/ itself stays at 0 \u2014 no test host loads the appex, so what is left there is UIKit glue. Shared's floor is that run less two points, rounded down."
+  },
+  "measured_2026_11_14": {
+    "mac": {
+      "Astrid Mac/Commands": 38.6
+    },
+    "_note": "AITD-667 moved FuzzyMatch's scoring loop to astrid-core (paletteRank), which took its covered lines out of Astrid Mac/Commands (25.4% against the 29 floor), and extracted the palette view's row order into CommandPaletteRow.rows with tests: 38.6%. The floor is that run less two points, rounded down."
   }
 }
