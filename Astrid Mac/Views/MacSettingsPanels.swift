@@ -63,7 +63,10 @@ struct MacLanguageSettingsView: View {
                         Text(Locale.current.localizedString(forLanguageCode: code)?.capitalized ?? code).tag(code)
                     }
                 }
-                .onChange(of: language) { LocalizationManager.shared.setLanguage(language) }
+                .onChange(of: language) {
+                    LocalizationManager.shared.setLanguage(language)
+                    ServerLocaleSync.shared.languageChanged()  // emails follow (AITD-663)
+                }
                 Text(NSLocalizedString("mac.relaunch_note", comment: ""))
                     .macFont(.caption).foregroundStyle(Theme.textMuted)
             }

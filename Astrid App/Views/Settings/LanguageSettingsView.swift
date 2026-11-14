@@ -32,6 +32,7 @@ struct LanguageSettingsView: View {
                             isAutomatic = true
                             LocalizationManager.shared.clearLanguageOverride()
                             selectedLanguage = LocalizationManager.shared.getCurrentLanguage()
+                            ServerLocaleSync.shared.languageChanged()  // emails follow (AITD-663)
                         } label: {
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
@@ -58,6 +59,7 @@ struct LanguageSettingsView: View {
                                 isAutomatic = false
                                 selectedLanguage = languageCode
                                 LocalizationManager.shared.setLanguage(languageCode)
+                                ServerLocaleSync.shared.languageChanged()  // emails follow (AITD-663)
                             } label: {
                                 HStack {
                                     Text(LocalizationManager.shared.getLanguageDisplayName(languageCode))

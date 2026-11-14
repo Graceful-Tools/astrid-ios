@@ -133,6 +133,12 @@ struct AstridApp: App {
                             }
                         }
 
+                        // Pushes and reminder emails in the app's language (AITD-663). A no-op
+                        // unless it changed since this account's server was last told.
+                        _Concurrency.Task(priority: .utility) { @MainActor in
+                            await ServerLocaleSync.shared.syncIfNeeded()
+                        }
+
                         // Process any pending shared tasks from Share Extension (requires network)
                         await processSharedTasks()
 
@@ -151,6 +157,9 @@ struct AstridApp: App {
                         if newValue {
                             // Signed in: live updates now rather than on the core's retry.
                             await reviveLiveUpdates()
+
+                            // A new account's server has not been told the language (AITD-663).
+                            await ServerLocaleSync.shared.syncIfNeeded()
 
                             // Prompt new users to enable push notifications
                             // Small delay to let the main UI appear first

@@ -143,6 +143,9 @@ struct MacAuthGateView: View {
             await GoogleTasksSyncService.shared.refreshStatus()
             GoogleTasksSyncService.shared.scheduleSync()
         }
+
+        // Pushes and reminder emails in the app's language (AITD-663); a no-op unless it changed.
+        await ServerLocaleSync.shared.syncIfNeeded()
     }
 }
 

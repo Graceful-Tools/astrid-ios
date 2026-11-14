@@ -351,6 +351,17 @@ class AstridAPIClient {
         )
     }
 
+    /// Tell the server which language the user reads, for pushes and reminder emails (AITD-663,
+    /// astrid-web AWTD-1592). A top-level `locale` beside `reminderSettings`, which this sends
+    /// alone so it changes nothing else. `null` would forget it; the app never sends that.
+    func updateUserLocale(_ locale: String) async throws -> UserSettingsResponse {
+        try await request(
+            method: "PUT",
+            path: "/api/v1/users/me/settings",
+            body: UpdateUserLocaleRequest(locale: locale)
+        )
+    }
+
     // MARK: - Copilot cloud agent token
 
     /// Mint the user-level MCP token the GitHub.com Copilot coding agent authenticates with.
@@ -402,7 +413,15 @@ struct UserSettingsResponse: Codable {
 }
 
 struct UserSettingsData: Codable {
+    /// One of the app's twelve locales as the server spells them (`zh-TW`, not `zh-Hant`), or nil
+    /// when unknown — and nil from a server that predates the field (AITD-663).
+    let locale: String?
     let reminderSettings: ReminderSettingsData
+}
+
+/// The body of `PUT /api/v1/users/me/settings` when only the language changes (AITD-663).
+struct UpdateUserLocaleRequest: Encodable {
+    let locale: String
 }
 
 struct ReminderSettingsData: Codable {
