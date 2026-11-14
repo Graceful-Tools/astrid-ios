@@ -49,9 +49,8 @@ struct ReadOnlyDescriptionRow: View {
     var body: some View {
         TwoColumnRow(label: "Description") {
             HStack(alignment: .top, spacing: 0) {
-                Text(text)
-                    .font(Theme.Typography.body())
-                    .foregroundColor(palette.textPrimary)
+                // As a comment draws it — tables, lists, traffic-light grids (AITD-659).
+                MarkdownText(source: text, defaultColor: palette.textPrimary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 DescriptionExpandButton(text: $text, isReadOnly: true)
             }

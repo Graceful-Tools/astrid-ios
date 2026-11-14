@@ -119,9 +119,8 @@ struct TaskDetailViewOnly: View {
                 // Description - only show if not empty
                 if !task.description.isEmpty {
                     ViewOnlyTwoColumnRow(label: "Description") {
-                        Text(task.description)
-                            .font(Theme.Typography.body())
-                            .foregroundColor(palette.textPrimary)
+                        // As a comment draws it — tables, lists, traffic-light grids (AITD-659).
+                        MarkdownText(source: task.description, defaultColor: palette.textPrimary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
