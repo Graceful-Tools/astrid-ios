@@ -1,22 +1,50 @@
-# What the Apple apps' Rust workspace accepts from crates.io, and what fails the build.
+# GENERATED for astrid-ios by `cargo xtask gen-deny` in astrid-core. DO NOT EDIT HERE.
 #
-# The iOS third of the dependency-advisory gate astrid-core and astrid-windows already run (task
-# b6147418, AITD-507). This workspace is what the XCFramework is built from, so its lockfile is the
-# one that decides which HTTP stack, TLS, SQLite and PKCE crates ship inside the iOS and Mac apps —
-# and until this file existed nothing here asked whether any of them had an advisory.
+# The source is astrid-core's own `deny.toml`. A change to what the Rust workspaces accept
+# is made there and reaches this repository when its pin on the core is bumped, like every
+# other shared decision — editing this copy instead makes the gate disagree with the core
+# it pins, which is what this repository's own test fails on.
 #
-# This file is COPIED from astrid-core's, not referenced across repos. A shared config would make a
-# licence decision in one repo silently change the gate in the other two, and the repos are pinned
-# to each other by revision precisely so that nothing crosses between them implicitly. What differs
-# from that copy is said where it differs: `allow-git`, and MPL-2.0.
+# What a Rust workspace of Astrid's accepts from crates.io, and what fails its build.
 #
-# Run it the way CI does (`.github/workflows/core-supply-chain.yml`), from `core/`:
-# `cargo deny check` (all four checks), or one at a time — `cargo deny check advisories`,
-# `cargo deny check licenses bans sources`.
+# **astrid-core's own `deny.toml` is the SOURCE of all four.** `cargo xtask gen-deny` writes each
+# consumer's copy from it into `supply-chain/deny.<repo>.toml`, and a consumer's own gate asserts
+# its committed `deny.toml` against `astrid_core::supply_chain` at the revision it pins. Everything
+# above the `<<per-repo>>` marker near the end is identical in all four copies by construction;
+# `[sources] allow-git` below it is the only variance.
+#
+# That is deliberately NOT one shared config read across repositories, and the distinction is the
+# whole point. A shared config would make a licence decision in one repo silently change the gate
+# in the others, and the repos are pinned to each other by revision precisely so that nothing
+# crosses between them implicitly. A generated copy changes when the pin is bumped, like every
+# other shared decision. Task `32d7c04d`; before it, four copies drifted and a licence decision
+# reached the others only when a person remembered.
+#
+# The Rust half of astrid-web's `npm audit --audit-level=high` gate. Until this file existed the
+# Rust workspaces — this one, astrid-windows, astrid-ios' `core/` and astrid-android's `core/` —
+# had no advisory gate at all, so an advisory against the HTTP stack, TLS, SQLite or the PKCE
+# crates on the sign-in path would have hit every client at once with nothing to say so. Each repo
+# resolves its own lockfile and gates it with its own copy; the lockfiles resolve much the same
+# versions, which is good hygiene and also means one advisory is one failure in four places.
+#
+# Run it the way CI does: `cargo deny check` (all four checks), or one at a time —
+# `cargo deny check advisories`, `cargo deny check licenses bans sources`.
+#
+# **It is a CI gate, not part of any repo's predeploy.** `advisories` needs the RustSec database,
+# which means the network, and cargo-deny is not installed on the dev machines; `cargo install
+# cargo-deny --locked` does not fix that on the Windows machine either, where it dies in `ring`'s
+# build script for want of clang. So astrid-windows asserts the half that needs NO network — the
+# licences, the wildcard ban and the sources — locally in
+# `crates/astrid-ffi/tests/supply_chain_contract.rs`, which reads the lists BELOW rather than
+# restating them (task `e750d9c1`: the wildcard ban had been red in CI since this file landed,
+# because nothing local could ask the question). `advisories` is still CI's alone; it is the one
+# check that needs the world.
 
-# One graph for every target: the XCFramework covers iOS, the simulator and macOS, and a
-# platform-gated dependency with an advisory against it is still an advisory. `all-features` for the
-# same reason — a feature nobody enables today is enabled by the next caller.
+# One graph for every target, because the clients do not share one. astrid-windows builds x64 and
+# ARM64 Windows, astrid-ios builds Apple platforms, astrid-android builds the Android ABIs, and
+# astrid-rules builds wasm32: a platform-gated dependency with an advisory against it is still an
+# advisory. `all-features` for the same reason — a feature nobody enables today is enabled by the
+# next caller.
 [graph]
 all-features = true
 
@@ -27,40 +55,52 @@ version = 2
 # behaviour and it is not configurable per-kind. To ACCEPT one deliberately, add its id here with
 # the date and the reason — an empty list is a claim that nothing has been waved through.
 ignore = [
-    # 2026-10-21, AITD-519 (copied from astrid-android's, AATD-74). `basic-toml` 0.1.10 is
-    # unmaintained (no vulnerability), reached only through uniffi_bindgen 0.32.2 → askama 0.16.1 →
-    # askama_derive: a proc-macro's dependency, so it runs at build time and nothing of it is in the
-    # XCFramework. Both are the newest releases and neither has dropped it. Remove this the day a
-    # uniffi release does, and regenerate bindings.
-    { id = "RUSTSEC-2026-0374", reason = "build-time only, via uniffi_bindgen's askama; no upgrade exists (AATD-74, AITD-519)" },
+    # 2026-10-21, AITD-519 / AATD-74; one source since AITD-665. `basic-toml` 0.1.10 is
+    # unmaintained (no vulnerability), reached only through uniffi_bindgen 0.32 → askama →
+    # askama_derive: a proc-macro's dependency, so it runs at build time and nothing of it reaches a
+    # shipped binary. astrid-ios and astrid-android both build their bindings with that bindgen and
+    # each carried this entry by hand until the copies became generated; dropped from the shared
+    # source, their `cargo deny check advisories` failed on the first byte-identical copy. This
+    # graph does not resolve it, which cargo-deny reports as a warning, not a failure. Remove it
+    # the day a uniffi release drops basic-toml.
+    { id = "RUSTSEC-2026-0374", reason = "build-time only, via uniffi_bindgen's askama; no upgrade exists (AATD-74, AITD-519, AITD-665)" },
 ]
 
 # A yank is not a vulnerability. Upstream yanks for a bad release as often as for a security
 # problem, and a lockfile that lags a yank by a day should not stop a release.
 yanked = "warn"
 
-# Computed from the real graph (`cargo metadata --all-features`, 249 packages on 2026-10-18), not
-# copied from core's list. Every term here is REQUIRED by something in the tree: BSD-3-Clause and
-# Unicode-3.0 and ISC each arrive through an `AND` that no `OR` branch can satisfy, and Zlib arrives
-# alone. A new licence in the graph is meant to fail here and be read.
+# Computed from the real graph (`cargo metadata --all-features` over THIS workspace, 218 packages
+# on 2026-10-18), not copied from a list of licences that are usually fine. Every term here is
+# REQUIRED by something in the tree: BSD-3-Clause and Unicode-3.0 and ISC each arrive through an
+# `AND` that no `OR` branch can satisfy, and Zlib arrives alone. A new licence in the graph is
+# meant to fail here and be read.
 #
-# MPL-2.0 is the one term core's list does not have: it is UniFFI (`uniffi`, `uniffi_core`,
-# `uniffi_bindgen` and five more), the binding generator this workspace exists to host. MPL is
-# copyleft per FILE — linking it into the apps is fine, and only a modified UniFFI source file would
-# have to be published — so it is accepted here, where it is a deliberate choice, and nowhere else.
+# A consumer resolves a narrower graph than this one, so a term here may be satisfied by nothing in
+# its tree. That is a WARNING in cargo-deny, never a failure, and the alternative — four allow
+# lists diverging by whichever repo noticed a crate first — is what task `32d7c04d` ended.
 #
-# ISC (`rustls`, `rustls-webpki`, `untrusted`) and CDLA-Permissive-2.0 (`webpki-roots`) are core's
-# terms for its Android TLS stack. Neither ships in the iOS or Mac apps — `cargo tree --target
-# aarch64-apple-ios` has no rustls — but the graph above is every target, and since core-d9c0bc3
-# (AITD-517) the lockfile carries that stack, so its licences are checked here too (AITD-519).
+# CDLA-Permissive-2.0 is `webpki-roots`, which carries the Mozilla root certificate set rather than
+# code — it arrived with rustls on Android (AATD-4) and is the one entry here that is a DATA
+# licence. It is also why this list is computed and not assumed: nothing about "a TLS stack"
+# suggests a Community Data License Agreement.
 [licenses]
 version = 2
 allow = [
     "Apache-2.0",
     "MIT",
     "BSD-3-Clause",
+    # `arrayref`, reached only through `tiny-skia` from the `resvg` that `cargo xtask gen-brand`
+    # rasterises brand icons with (task b76ce8bf). BSD-2-Clause is BSD-3-Clause without the
+    # no-endorsement clause — strictly the more permissive of the two, and the three-clause form
+    # is allowed above. It reaches no shipped binary either way: xtask is `publish = false`
+    # repo tooling and no client crate depends on it.
+    "BSD-2-Clause",
     "CDLA-Permissive-2.0",
     "ISC",
+    # UniFFI (`crates/astrid-uniffi`). File-level copyleft: it binds only changes to UniFFI's own
+    # files, which nothing here modifies — the same allowance astrid-ios and astrid-android carried
+    # when the binding crate lived in each of them.
     "MPL-2.0",
     "Unicode-3.0",
     "Zlib",
@@ -76,7 +116,9 @@ wildcards = "deny"
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
-# The one git dependency this workspace has, and the reason it has one: `Cargo.toml` pins the shared
-# core by revision. Matched by URL, not by revision, so bumping the pin — which is how every
-# shared-behaviour change reaches the Apple apps — does not need this list touched.
+# <<per-repo: allow-git>> — astrid-ios
+#
+# The one git dependency this repository has, and the reason it has one: it pins the shared
+# core by revision. Matched by URL and not by revision, so bumping the pin — which is how
+# every shared-behaviour change arrives — does not need this list touched.
 allow-git = ["https://github.com/Graceful-Tools/astrid-core.git"]

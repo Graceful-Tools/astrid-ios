@@ -85,7 +85,7 @@ dependencies = [
 [[package]]
 name = "astrid-core"
 version = "0.1.0"
-source = "git+https://github.com/Graceful-Tools/astrid-core.git?rev=ba570d756fb867707d8eef310398c825542698a3#ba570d756fb867707d8eef310398c825542698a3"
+source = "git+https://github.com/Graceful-Tools/astrid-core.git?rev=00d05b1a364a14d4f606a1b9e428ebf29ebc36e9#00d05b1a364a14d4f606a1b9e428ebf29ebc36e9"
 dependencies = [
  "astrid-rules",
  "async-trait",
@@ -111,7 +111,7 @@ dependencies = [
 [[package]]
 name = "astrid-rules"
 version = "0.1.0"
-source = "git+https://github.com/Graceful-Tools/astrid-core.git?rev=ba570d756fb867707d8eef310398c825542698a3#ba570d756fb867707d8eef310398c825542698a3"
+source = "git+https://github.com/Graceful-Tools/astrid-core.git?rev=00d05b1a364a14d4f606a1b9e428ebf29ebc36e9#00d05b1a364a14d4f606a1b9e428ebf29ebc36e9"
 dependencies = [
  "chrono",
  "chrono-tz",
@@ -123,7 +123,7 @@ dependencies = [
 [[package]]
 name = "astrid-uniffi"
 version = "0.1.0"
-source = "git+https://github.com/Graceful-Tools/astrid-core.git?rev=ba570d756fb867707d8eef310398c825542698a3#ba570d756fb867707d8eef310398c825542698a3"
+source = "git+https://github.com/Graceful-Tools/astrid-core.git?rev=00d05b1a364a14d4f606a1b9e428ebf29ebc36e9#00d05b1a364a14d4f606a1b9e428ebf29ebc36e9"
 dependencies = [
  "astrid-core",
  "async-trait",
@@ -1000,6 +1000,7 @@ version = "0.39.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "14a5f01b87b92705d07b433c06f96cbc764637d81a0bffb5734ce17cf0f9a2b3"
 dependencies = [
+ "cc",
  "pkg-config",
  "vcpkg",
 ]
@@ -2060,6 +2061,7 @@ dependencies = [
 name = "uniffi-bindgen"
 version = "0.1.0"
 dependencies = [
+ "astrid-core",
  "astrid-uniffi",
  "uniffi",
 ]
