@@ -57,7 +57,7 @@ class ListService: ObservableObject {
 
     /// Publish a new set in the one sidebar order, only when something changed.
     private func publish(_ next: [TaskList]) {
-        let sorted = next.sorted(by: ListOrdering.isOrderedBefore)
+        let sorted = SelfProfileOverride.shared.apply(to: next).sorted(by: ListOrdering.isOrderedBefore)
         // `@Published` fires on every assignment, equal or not — and every list row observes this.
         let pending = sorted.filter { $0.id.hasPrefix("temp_") }.count
         if pending != pendingListsCount { pendingListsCount = pending }
@@ -68,6 +68,10 @@ class ListService: ObservableObject {
         // the rows too.
         if isReady { TaskService.shared.rejoinLists() }
     }
+
+    /// Redraw with the signed-in user's just-saved name and photo over their embedded copies
+    /// (AITD-669).
+    func reapplySelfProfile() { publish(lists) }
 
     /// Show a list another service's core command answered with — a board drop's reordered list.
     func adopt(_ list: TaskList) { show(list) }

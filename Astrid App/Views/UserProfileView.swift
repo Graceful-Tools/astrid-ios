@@ -142,7 +142,7 @@ struct UserProfileView: View {
             ScrollView {
                 VStack(spacing: Theme.spacing16) {
                     // User info card
-                    userInfoCard(user: profile.user)
+                    userInfoCard(user: profile.user.showing(authManager.currentUser))
 
                     // Statistics cards
                     statsGrid(stats: profile.stats)
@@ -497,6 +497,14 @@ class UserProfileViewModel: ObservableObject {
 // MARK: - Helper Extensions
 
 extension UserProfileData {
+    /// Your own card shows the name and photo you just saved, not the profile loaded before the
+    /// edit (AITD-669). Anyone else's card is unchanged.
+    func showing(_ current: User?) -> UserProfileData {
+        guard let current, current.id == id, current.name != name || current.image != image else { return self }
+        return UserProfileData(id: id, name: current.name, email: email, image: current.image,
+                               createdAt: createdAt, isAIAgent: isAIAgent, aiAgentType: aiAgentType)
+    }
+
     var displayName: String {
         name ?? email.split(separator: "@").first.map(String.init) ?? "Unknown User"
     }

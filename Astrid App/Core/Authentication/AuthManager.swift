@@ -752,6 +752,7 @@ class AuthManager: ObservableObject {
         // Clear all user-related caches to prevent data leakage between users
         UserImageCache.shared.clearCache()
         ProfileCache.shared.clearAllCache()
+        SelfProfileOverride.shared.clear()
         ImageCache.shared.clearCache()
         AIAgentCache.shared.clear()
 
@@ -780,6 +781,12 @@ class AuthManager: ObservableObject {
         } else {
             defaults.removeObject(forKey: Constants.UserDefaults.userImage)
         }
+
+        // Every other copy of this user — list members, assignees, the profile card — redraws
+        // with the saved name and photo now, not after a sync that never refreshes them (AITD-669).
+        UserImageCache.shared.setImageURL(user.image, for: user.id)
+        ProfileCache.shared.clearCache(userId: user.id)
+        SelfProfileOverride.shared.set(SelfProfile(userId: user.id, name: user.name, image: user.image))
 
         AppLog.debug("✅ [AuthManager] Current user updated")
     }
