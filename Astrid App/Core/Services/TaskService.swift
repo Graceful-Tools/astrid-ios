@@ -210,7 +210,8 @@ class TaskService: ObservableObject {
     /// `touching`: which lists the change can have moved rows in — what `tasksChanged` carries to
     /// the list views, so one off screen is not read again (AITD-666).
     private func publish(_ next: [Task], touching: TaskListsTouched = .anyList) {
-        let hydrated = TaskListHydration.hydrated(next, using: ListService.shared.lists)
+        let hydrated = TaskListHydration.hydrated(SelfProfileOverride.shared.apply(to: next),
+                                                  using: ListService.shared.lists)
         let sorted = hydrated.sorted(by: TaskOrdering.isOrderedBefore)
         guard sorted != tasks else { return }
         publishCount += 1
