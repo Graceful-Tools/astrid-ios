@@ -25,14 +25,14 @@ publish = false
 # version as a wildcard and fails `bans` on it (AITD-507). It is also a real check — a core whose
 # crate version leaves 0.1 stops resolving here, which is the signal a breaking bump should give.
 # The scripts in scripts/core/ read the rev from this line; keep `git` and `rev` first.
-astrid-core = { git = "https://github.com/Graceful-Tools/astrid-core.git", rev = "ba570d756fb867707d8eef310398c825542698a3", version = "0.1" }
+astrid-core = { git = "https://github.com/Graceful-Tools/astrid-core.git", rev = "00d05b1a364a14d4f606a1b9e428ebf29ebc36e9", version = "0.1" }
 # The binding crate, from the same checkout: ALWAYS the same rev as the line above, which is the one
 # the scripts and astrid-core's `check-pins` read (scripts/core/check-framework.sh asserts the two
 # agree).
 # `default-features = false` drops `bundled-sqlite`, its only default: iOS and macOS ship libsqlite3,
 # so the staticlib references the system SQLite instead of compiling a second engine in (AITD-644).
 # Package.swift links it; scripts/core/check-sqlite.mjs fails a framework that defines the API again.
-astrid-uniffi = { git = "https://github.com/Graceful-Tools/astrid-core.git", rev = "ba570d756fb867707d8eef310398c825542698a3", version = "0.1", default-features = false }
+astrid-uniffi = { git = "https://github.com/Graceful-Tools/astrid-core.git", rev = "00d05b1a364a14d4f606a1b9e428ebf29ebc36e9", version = "0.1", default-features = false }
 uniffi = "0.32"
 
 # Measured for AITD-625 on the ios-arm64 slice: a dead-stripped link of the staticlib went from

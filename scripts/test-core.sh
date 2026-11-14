@@ -6,6 +6,8 @@
 #   - the UniFFI binding crate (astrid-core's `crates/astrid-uniffi`, AITD-643) still compiles at
 #     the pin, via `cargo check`. Its tests run in astrid-core's CI: cargo refuses `cargo test -p`
 #     for a package outside the workspace.
+#   - core/deny.toml is byte-for-byte the copy the pinned core generated (AITD-665), via
+#     core/bindgen/tests/supply_chain_contract.rs.
 # A missing toolchain is a visible skip, never a silent pass.
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -29,6 +31,12 @@ if command -v cargo >/dev/null 2>&1; then
         echo "✓ astrid-uniffi Rust: builds at the pinned core"
     else
         echo "✗ astrid-uniffi Rust check failed:"; grep -E "^error" "$LOG" | head -10; status=1
+    fi
+    # core/deny.toml is the copy the pinned astrid-core generated for this repository (AITD-665).
+    if cargo test --manifest-path core/Cargo.toml -p uniffi-bindgen --test supply_chain_contract >"$LOG" 2>&1; then
+        echo "✓ core/deny.toml: the pinned core's generated copy"
+    else
+        echo "✗ core/deny.toml is not the pinned core's generated copy:"; grep -E "^error|panicked|core/deny.toml" "$LOG" | head -10; status=1
     fi
 else
     echo "⚠ cargo not found — astrid-uniffi Rust check SKIPPED (install Rust: https://rustup.rs)"

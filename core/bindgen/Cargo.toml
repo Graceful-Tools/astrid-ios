@@ -19,3 +19,9 @@ path = "main.rs"
 [dependencies]
 uniffi = { workspace = true, features = ["cli"] }
 astrid-uniffi = { workspace = true }
+
+[dev-dependencies]
+# Only for `tests/supply_chain_contract.rs` (AITD-665): `astrid_core::supply_chain` carries the
+# deny.toml the pinned core generated for this repository. A dev-dependency never reaches the
+# static library the apps link.
+astrid-core = { workspace = true }
