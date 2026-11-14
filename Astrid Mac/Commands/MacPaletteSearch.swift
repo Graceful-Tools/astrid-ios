@@ -13,12 +13,8 @@ enum MacPaletteSearch {
         guard !q.isEmpty else { return [] }
         let open = tasks.filter { !$0.completed }
         let byId = identifierMatch(q, tasks: open)
-        var scored: [(task: Task, score: Int)] = []
-        for t in open where t.id != byId?.id {
-            if let s = FuzzyMatch.score(q, t.title) { scored.append((t, s)) }
-        }
-        scored.sort { $0.score != $1.score ? $0.score > $1.score : $0.task.title.count < $1.task.title.count }
-        return ([byId].compactMap { $0 } + scored.map { $0.task }).prefix(limit).map { $0 }
+        let ranked = FuzzyMatch.ranked(q, open.filter { $0.id != byId?.id }, title: \.title)
+        return ([byId].compactMap { $0 } + ranked).prefix(limit).map { $0 }
     }
 
     /// The task whose identifier the query names, compared after the shared parse — so case and
@@ -32,12 +28,7 @@ enum MacPaletteSearch {
     static func matchingLists(_ query: String, lists: [TaskList], limit: Int = 6) -> [TaskList] {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return [] }
-        var scored: [(list: TaskList, score: Int)] = []
-        for l in lists {
-            if let s = FuzzyMatch.score(q, l.name) { scored.append((l, s)) }
-        }
-        scored.sort { $0.score != $1.score ? $0.score > $1.score : $0.list.name.count < $1.list.name.count }
-        return scored.prefix(limit).map { $0.list }
+        return FuzzyMatch.ranked(q, lists, title: \.name).prefix(limit).map { $0 }
     }
 }
 #endif

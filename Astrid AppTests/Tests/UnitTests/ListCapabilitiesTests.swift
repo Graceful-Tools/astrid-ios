@@ -192,4 +192,26 @@ final class ListCapabilitiesTests: XCTestCase {
             XCTAssertTrue(TaskCapabilities.allows(control, on: home))
         }
     }
+
+    /// The rule is astrid-core's `capabilities` now (AITD-667). The app's own models, as decoded
+    /// from the wire, go across and the answer comes back the same as the Swift rule's: a board
+    /// refuses and removes, a task also on a classic list is deleted, an unloaded list is classic.
+    func testTheCoreAnswersFromTheAppsOwnLists_AITD667() throws {
+        let board = try list(#"{"id":"b","name":"Board","supports":{"priority":false,"dueDate":false,"privateTasks":false,"deleteTask":"remove_from_list"}}"#)
+        let home = try list(#"{"id":"h","name":"Home"}"#)
+        let lists = [board, home]
+
+        XCTAssertEqual(TaskCapabilities.refused(listIds: ["b"], lists: lists), [.priority, .dueDate, .privateTasks])
+        XCTAssertEqual(TaskCapabilities.deleteWording(listIds: ["b"], lists: lists), .removeFromBoard)
+        XCTAssertEqual(TaskCapabilities.deleteWording(listIds: ["b", "h"], lists: lists), .delete)
+        XCTAssertEqual(TaskCapabilities.deleteWording(listIds: ["unloaded"], lists: lists), .delete)
+        XCTAssertTrue(TaskCapabilities.refused(listIds: ["unloaded"], lists: lists).isEmpty)
+
+        let admitted = TaskCapabilities.admitted(priority: 2, whenDate: Date(), whenTime: Date(), isPrivate: true,
+                                                 listIds: ["b"], lists: lists)
+        XCTAssertNil(admitted.priority)
+        XCTAssertNil(admitted.whenDate)
+        XCTAssertNil(admitted.whenTime)
+        XCTAssertNil(admitted.isPrivate)
+    }
 }
