@@ -49,6 +49,20 @@ enum TaskDetailHeader {
         hasPanelClose ? .closePanel : .dismissStack
     }
 
+    // MARK: - The back glyph (AITD-661)
+
+    /// The leading control's glyph. Details opened inline on a board card fold back UP into the
+    /// card, so they close with an up chevron, the Mac board card's collapse caret (AITD-661,
+    /// "make left arrow an up arrow to close"). The panel and the push go back to the left.
+    static func backSymbol(collapsesInPlace: Bool) -> String {
+        collapsesInPlace ? "chevron.up" : "chevron.left"
+    }
+
+    /// Its spoken label: "Close" for the inline card, where nothing is behind it to go back to.
+    static func backLabelKey(collapsesInPlace: Bool) -> String {
+        collapsesInPlace ? "actions.close" : "actions.back"
+    }
+
     // MARK: - Title (AITD-647)
 
     /// The header's words around the task id. A board task used to show its id in a row of its
