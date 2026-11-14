@@ -27,11 +27,6 @@ final class CommandRegistry {
     func search(_ query: String) -> [AppCommand] {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return commands }
-        return commands
-            .compactMap { cmd -> (AppCommand, Int)? in
-                FuzzyMatch.score(trimmed, cmd.title).map { (cmd, $0) }
-            }
-            .sorted { $0.1 != $1.1 ? $0.1 > $1.1 : $0.0.title.count < $1.0.title.count }
-            .map { $0.0 }
+        return FuzzyMatch.ranked(trimmed, commands, title: \.title)
     }
 }

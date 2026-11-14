@@ -127,4 +127,13 @@ final class CommentVisibilityTests: XCTestCase {
             }
         }
     }
+
+    /// astrid-core's rule now (AITD-667): a GitHub commenter with no Astrid account is a person,
+    /// online or off, and an authorless comment is the server's only while online.
+    func testTheCoreDrawsTheSystemLine_AITD667() {
+        XCTAssertTrue(CommentVisibility.isSystem(authorId: nil, remoteAuthorLogin: nil, isOffline: false))
+        XCTAssertFalse(CommentVisibility.isSystem(authorId: nil, remoteAuthorLogin: nil, isOffline: true))
+        XCTAssertFalse(CommentVisibility.isSystem(authorId: nil, remoteAuthorLogin: "octocat", isOffline: false))
+        XCTAssertFalse(CommentVisibility.isSystem(authorId: "u1", remoteAuthorLogin: nil, isOffline: false))
+    }
 }

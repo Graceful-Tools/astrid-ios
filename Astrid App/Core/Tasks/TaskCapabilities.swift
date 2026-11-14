@@ -4,7 +4,13 @@
 //  A GitHub Projects board refuses a priority or due-date write when the board has no such field
 //  mapped, so the server says so in `list.supports` and the editor does not offer the control.
 //  Asked here once, so the phone and the Mac cannot answer it differently.
+//
+//  The rule itself is astrid-core's `capabilities` (AITD-667): which lists refuse, and when a
+//  delete is a removal, are decided there, so web, Windows and Android cannot answer it a third
+//  way. What stays here is the Swift vocabulary the views speak — `Control`, `Deletion`'s keys,
+//  and `admitted`'s dropping of refused values.
 
+import AstridCore
 import Foundation
 
 enum TaskCapabilities {
@@ -15,16 +21,23 @@ enum TaskCapabilities {
         case privateTasks
     }
 
+    /// The core's answer for a task on `listIds`. Sent only the lists the task is on — the only
+    /// ones the rule reads — so a view drawing a row does not encode every list it knows.
+    static func answer(listIds: [String], lists: [TaskList]) -> ListCapabilities {
+        CoreRules.capabilities(listIds: listIds, lists: lists.filter { listIds.contains($0.id) })
+    }
+
     /// A control is offered unless a list the task is on refuses it. A list that is not loaded
     /// yet refuses nothing: hiding a control that works is the worse mistake.
     static func allows(_ control: Control, listIds: [String], lists: [TaskList]) -> Bool {
-        !lists.contains { list in
-            guard listIds.contains(list.id), let supports = list.supports else { return false }
-            switch control {
-            case .priority: return !supports.priority
-            case .dueDate: return !supports.dueDate
-            case .privateTasks: return !supports.privateTasks
-            }
+        allows(control, in: answer(listIds: listIds, lists: lists))
+    }
+
+    private static func allows(_ control: Control, in answer: ListCapabilities) -> Bool {
+        switch control {
+        case .priority: return answer.priority
+        case .dueDate: return answer.dueDate
+        case .privateTasks: return answer.privateTasks
         }
     }
 
@@ -34,9 +47,10 @@ enum TaskCapabilities {
         allows(control, listIds: [list.id], lists: [list])
     }
 
-    /// The controls those lists refuse.
+    /// The controls those lists refuse. One question for all three.
     static func refused(listIds: [String], lists: [TaskList]) -> Set<Control> {
-        Set([Control.priority, .dueDate, .privateTasks].filter { !allows($0, listIds: listIds, lists: lists) })
+        let answer = answer(listIds: listIds, lists: lists)
+        return Set([Control.priority, .dueDate, .privateTasks].filter { !allows($0, in: answer) })
     }
 
     /// What a new task may carry onto these lists. A value they refuse is dropped rather than
@@ -45,11 +59,11 @@ enum TaskCapabilities {
     static func admitted(priority: Int?, whenDate: Date?, whenTime: Date?, isPrivate: Bool?,
                          listIds: [String], lists: [TaskList])
         -> (priority: Int?, whenDate: Date?, whenTime: Date?, isPrivate: Bool?) {
-        let datesAllowed = allows(.dueDate, listIds: listIds, lists: lists)
-        return (allows(.priority, listIds: listIds, lists: lists) ? priority : nil,
-                datesAllowed ? whenDate : nil,
-                datesAllowed ? whenTime : nil,
-                allows(.privateTasks, listIds: listIds, lists: lists) ? isPrivate : nil)
+        let answer = answer(listIds: listIds, lists: lists)
+        return (answer.priority ? priority : nil,
+                answer.dueDate ? whenDate : nil,
+                answer.dueDate ? whenTime : nil,
+                answer.privateTasks ? isPrivate : nil)
     }
 
     /// What deleting the task is called. On a GitHub board an Astrid delete removes the item from
@@ -65,8 +79,7 @@ enum TaskCapabilities {
     /// A removal when a loaded list the task is on removes and none deletes. A task also on a
     /// classic list really is deleted from Astrid; a list not loaded yet changes neither answer.
     static func deleteWording(listIds: [String], lists: [TaskList]) -> Deletion {
-        let modes = lists.filter { listIds.contains($0.id) }.map { $0.supports?.deleteTask ?? .delete }
-        return modes.contains(.removeFromList) && !modes.contains(.delete) ? .removeFromBoard : .delete
+        answer(listIds: listIds, lists: lists).deletion == .removeFromList ? .removeFromBoard : .delete
     }
 
     static func deleteWording(for task: Task, lists: [TaskList]) -> Deletion {

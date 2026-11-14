@@ -1,3 +1,4 @@
+import AstridCore
 import Foundation
 
 /// Which comments a thread shows, and what counts as a system comment (Task 946c41c6).
@@ -17,9 +18,12 @@ enum CommentVisibility {
     ///
     /// A GitHub commenter with no Astrid account has no `authorId` either, but carries
     /// `remoteAuthorLogin` — a person, not the server (AITD-517, web's `isSystemComment`).
+    ///
+    /// astrid-core's rule (`commentVisibility`'s `isSystem`, AITD-667), offline guard included, so
+    /// web, Windows and Android cannot draw that line somewhere else.
     static func isSystem(authorId: String?, remoteAuthorLogin: String? = nil, isOffline: Bool) -> Bool {
-        guard !isOffline else { return false }
-        return authorId == nil && remoteAuthorLogin == nil
+        CoreRules.isSystemComment(authorId: authorId, remoteAuthorLogin: remoteAuthorLogin,
+                                  offline: isOffline)
     }
 
     static func isSystem(_ comment: Comment, isOffline: Bool) -> Bool {

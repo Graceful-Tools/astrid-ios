@@ -13,31 +13,12 @@ struct CommandPaletteView: View {
     @State private var selection: String?
     @Environment(\.dismiss) private var dismiss
 
-    private enum Row: Identifiable {
-        case command(AppCommand)
-        case list(TaskList)
-        case task(Task)
-        var id: String {
-            switch self {
-            case .command(let c): return "cmd:\(c.id)"
-            case .list(let l): return "list:\(l.id)"
-            case .task(let t): return "task:\(t.id)"
-            }
-        }
-    }
-
-    private var allTasks: [Task] { MacGlanceTasks.all(lists: listService.lists, tasksForList: taskService.getTasksForList) }
+    private typealias Row = CommandPaletteRow
 
     private var rows: [Row] {
-        let tasks = allTasks
-        let commands = registry.search(query).map { Row.command($0) }
-        let lists = MacPaletteSearch.matchingLists(query, lists: listService.lists).map { Row.list($0) }
-        let taskRows = MacPaletteSearch.matchingTasks(query, tasks: tasks).map { Row.task($0) }
-        // A task id is the most specific thing the box can hold: its task leads, so Return opens it (AITD-565).
-        if MacPaletteSearch.identifierMatch(query, tasks: tasks.filter { !$0.completed }) != nil {
-            return taskRows + commands + lists
-        }
-        return commands + lists + taskRows
+        CommandPaletteRow.rows(query: query, registry: registry, lists: listService.lists,
+                               tasks: MacGlanceTasks.all(lists: listService.lists,
+                                                         tasksForList: taskService.getTasksForList))
     }
 
     var body: some View {
@@ -99,6 +80,35 @@ struct CommandPaletteView: View {
         dismiss()
     }
 }
+/// One row of the ⌘K palette.
+enum CommandPaletteRow: Identifiable {
+    case command(AppCommand)
+    case list(TaskList)
+    case task(Task)
+
+    var id: String {
+        switch self {
+        case .command(let c): return "cmd:\(c.id)"
+        case .list(let l): return "list:\(l.id)"
+        case .task(let t): return "task:\(t.id)"
+        }
+    }
+
+    /// What the palette shows for `query`: commands, then lists, then tasks — each ranked by the
+    /// core's `paletteRank` (AITD-667). A task id is the most specific thing the box can hold, so
+    /// its task leads and Return opens it (AITD-565).
+    static func rows(query: String, registry: CommandRegistry, lists: [TaskList],
+                     tasks: [Task]) -> [CommandPaletteRow] {
+        let commands = registry.search(query).map { CommandPaletteRow.command($0) }
+        let listRows = MacPaletteSearch.matchingLists(query, lists: lists).map { CommandPaletteRow.list($0) }
+        let taskRows = MacPaletteSearch.matchingTasks(query, tasks: tasks).map { CommandPaletteRow.task($0) }
+        if MacPaletteSearch.identifierMatch(query, tasks: tasks.filter { !$0.completed }) != nil {
+            return taskRows + commands + listRows
+        }
+        return commands + listRows + taskRows
+    }
+}
+
 /// Return in the palette runs the selected row — or the first, when nothing is selected or the
 /// selection has filtered away (AITD-540).
 enum CommandPalettePick {

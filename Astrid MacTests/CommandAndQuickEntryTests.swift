@@ -6,16 +6,21 @@ import XCTest
 
 final class CommandAndQuickEntryTests: XCTestCase {
 
-    // MARK: FuzzyMatch
+    // MARK: FuzzyMatch — astrid-core's paletteRank (AITD-667)
     func testFuzzyMatchesSubsequence() {
-        XCTAssertNotNil(FuzzyMatch.score("nt", "New Task"))
-        XCTAssertNil(FuzzyMatch.score("zzz", "New Task"))
+        XCTAssertEqual(FuzzyMatch.ranked("nt", ["New Task"], title: { $0 }), ["New Task"])
+        XCTAssertEqual(FuzzyMatch.ranked("zzz", ["New Task"], title: { $0 }), [])
     }
 
     func testFuzzyPrefixOutscoresMidword() {
-        let prefix = FuzzyMatch.score("new", "New Task")!
-        let mid = FuzzyMatch.score("new", "Renew Ticket")!
-        XCTAssertGreaterThan(prefix, mid)
+        XCTAssertEqual(FuzzyMatch.ranked("new", ["Renew Ticket", "New Task"], title: { $0 }),
+                       ["New Task", "Renew Ticket"])
+    }
+
+    /// The Mac's tie-break, now the core's: the same score goes to the shorter title (AITD-667).
+    func testFuzzyTieGoesToTheShorterTitle_AITD667() {
+        XCTAssertEqual(FuzzyMatch.ranked("tdy", ["Today's plan", "Today"], title: { $0 }),
+                       ["Today", "Today's plan"])
     }
 
     // MARK: CommandRegistry

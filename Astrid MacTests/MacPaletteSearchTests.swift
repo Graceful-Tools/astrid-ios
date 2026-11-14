@@ -52,4 +52,38 @@ final class MacPaletteSearchTests: XCTestCase {
         // matchingLists shares matchingTasks' ranking; verify the empty-query guard here too.
         XCTAssertTrue(MacPaletteSearch.matchingLists("", lists: []).isEmpty)
     }
+
+    // MARK: - The palette's rows (AITD-667, AITD-565)
+
+    private func registry() -> CommandRegistry {
+        CommandRegistry(commands: [
+            AppCommand(id: "new", title: "New Task", subtitle: nil, shortcut: nil, run: {}),
+            AppCommand(id: "today", title: "Go to Today", subtitle: nil, shortcut: nil, run: {}),
+        ])
+    }
+
+    /// Commands, then lists, then tasks — each ranked by the core's `paletteRank`.
+    func testRowsAreCommandsThenListsThenTasks_AITD667() {
+        let lists = [TaskList(id: "l1", name: "Errands")]
+        // Every title has an "a"; the two commands tie and the shorter leads.
+        let rows = CommandPaletteRow.rows(query: "a", registry: registry(), lists: lists,
+                                          tasks: [task("t1", "Read a book")])
+        XCTAssertEqual(rows.map(\.id), ["cmd:new", "cmd:today", "list:l1", "task:t1"])
+    }
+
+    /// A task id in the box puts its task first, so Return opens it (AITD-565).
+    func testATaskIdPutsItsTaskFirst_AITD667() {
+        var named = task("t1", "Fix the sync banner")
+        named.identifier = "AWTD-1405"
+        let rows = CommandPaletteRow.rows(query: "AWTD-1405", registry: registry(), lists: [],
+                                          tasks: [named])
+        XCTAssertEqual(rows.first?.id, "task:t1")
+    }
+
+    func testABlankQueryShowsEveryCommandAndNothingElse_AITD667() {
+        let rows = CommandPaletteRow.rows(query: " ", registry: registry(),
+                                          lists: [TaskList(id: "l1", name: "Errands")],
+                                          tasks: [task("t1", "Exercise")])
+        XCTAssertEqual(rows.map(\.id), ["cmd:new", "cmd:today"])
+    }
 }
