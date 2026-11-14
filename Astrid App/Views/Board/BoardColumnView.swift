@@ -140,6 +140,9 @@ struct BoardColumnView: View {
     /// (nil when it leaves or lands). The board uses it to auto-advance columns
     /// when the drag reaches its edges — task 233ec244.
     var onDragMoved: ((CGPoint?) -> Void)?
+    /// Pull-to-refresh for this column's cards (AITD-670) — the same refresh the list's pull
+    /// runs. Nil leaves the column without one.
+    var onRefresh: (() async -> Void)?
 
     @State private var isTargeted = false
     /// Insertion index the drag is currently aiming at, if any. Drives the
@@ -253,6 +256,9 @@ struct BoardColumnView: View {
                 .animation(ReducedMotion.spring(response: 0.2, dampingFraction: 0.85),
                            value: hoveringIndex)
             }
+            // The pull lives on the column's own vertical scroll, never the board's page, so the
+            // carousel cannot bounce on a refresh control while swiping columns (AITD-670).
+            .modifier(ConditionalRefreshable(action: onRefresh))
             .frame(minHeight: 160)
             // Cyan interior, inset from the column edges by the border
             // width — the frame colour shows through as the side walls.
