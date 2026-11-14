@@ -6,6 +6,8 @@ struct UserProfileView: View {
     @Environment(\.dismiss) var dismiss
     @StateObject private var viewModel: UserProfileViewModel
     @EnvironmentObject var authManager: AuthManager
+    /// The live tasks, so a row completed here shows as completed here (AITD-668).
+    @ObservedObject private var taskService = TaskService.shared
     @State private var showEditProfile = false
     @State private var accountDataForEdit: AccountData?
 
@@ -358,12 +360,20 @@ struct UserProfileView: View {
             .padding(.horizontal, Theme.spacing16)
             .padding(.top, Theme.spacing16)
 
-            // Tasks list
+            // The same row as every task list (AITD-668): it used to be the reminder card
+            // `CompactTaskRow`, with a different title size and a checkbox that did nothing.
             VStack(spacing: Theme.spacing8) {
-                ForEach(tasks) { task in
-                    CompactTaskRow(task: task, onToggle: {
-                        // Read-only profile view - no toggle action
+                ForEach(Self.sharedTaskRows(profileTasks: tasks, liveTasks: taskService.tasks)) { task in
+                    TaskRowView(task: task, onToggle: {
+                        _Concurrency.Task {
+                            do {
+                                _ = try await taskService.completeTask(id: task.id, completed: !task.completed, task: task)
+                            } catch {
+                                // Completion errors surface via the service's own state.
+                            }
+                        }
                     })
+                    .environmentObject(authManager)
                     .padding(.horizontal, Theme.spacing8)
                 }
             }
@@ -375,6 +385,14 @@ struct UserProfileView: View {
             RoundedRectangle(cornerRadius: Theme.radiusMedium)
                 .stroke(palette.border, lineWidth: 1)
         )
+    }
+
+    /// The profile's tasks are a server snapshot taken when it loaded. Each row shows the live copy
+    /// of its task when `TaskService` has one, so completing (or editing) a task shows on the
+    /// profile at once; the profile still decides which tasks appear and in what order.
+    static func sharedTaskRows(profileTasks: [Task], liveTasks: [Task]) -> [Task] {
+        let live = Dictionary(liveTasks.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return profileTasks.map { live[$0.id] ?? $0 }
     }
 
     // MARK: - Date Formatter
