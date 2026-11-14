@@ -75,13 +75,43 @@ final class ListTaskCountTests: XCTestCase {
         XCTAssertEqual(ListTaskCount.count(tasks, list: list()), 1)
     }
 
-    /// A public list's membership is not fully local, so the server's number wins.
-    func testAPublicListTrustsTheServerCount() {
+    /// A public list that is only BROWSED — not one of yours, so its tasks are not synced —
+    /// has no local membership to count; the server's number is all there is.
+    func testABrowsedPublicListTrustsTheServerCount() {
         var publicList = list()
         publicList.privacy = .PUBLIC
         publicList.taskCount = 42
 
-        XCTAssertEqual(ListTaskCount.count([], list: publicList), 42)
+        XCTAssertEqual(ListTaskCount.count([], list: publicList, synced: false), 42)
+        XCTAssertEqual(ListTaskCount.counts([], lists: [], browsedPublicLists: [publicList],
+                                            virtualCounts: [:])[publicList.id], 42)
+    }
+
+    /// AITD-671 — "Astrid bugs and requests show a large number (18) in side list". The list is
+    /// PUBLIC and the viewer owns it, so its tasks ARE synced; but `taskCount` arrived with the
+    /// list and a delta sync only resends a list whose own `updatedAt` changed, which completing
+    /// a task does not do. The badge stayed frozen at the 18 open months ago, with 3 open now.
+    func testAITD671ASyncedPublicListCountsItsOpenTasksNotTheStaleServerCount() {
+        var bugs = list("bugs")
+        bugs.privacy = .PUBLIC
+        bugs.taskCount = 18
+        let tasks = [task("a", listIds: ["bugs"]), task("b", listIds: ["bugs"]),
+                     task("c", listIds: ["bugs"]), task("d", listIds: ["bugs"], completed: true)]
+
+        XCTAssertEqual(ListTaskCount.count(tasks, list: bugs), 3)
+        XCTAssertEqual(ListTaskCount.counts(tasks, lists: [bugs], virtualCounts: [:])["bugs"], 3)
+        // The same list also listed in the public browser: your synced copy still wins.
+        XCTAssertEqual(ListTaskCount.counts(tasks, lists: [bugs], browsedPublicLists: [bugs],
+                                            virtualCounts: [:])["bugs"], 3)
+    }
+
+    /// A saved filter on a public list of yours is still a saved filter: its number comes from
+    /// the core, not from a `taskCount` snapshot (AITD-671).
+    func testAITD671ASyncedPublicSavedFilterIsAskedOfTheCore() {
+        var smart = list(virtual: true)
+        smart.privacy = .PUBLIC
+        smart.taskCount = 18
+        XCTAssertEqual(ListTaskCount.counts([], lists: [smart], virtualCounts: [smart.id: 2])[smart.id], 2)
     }
 
     /// A saved-filter list counts whatever its filters admit — asked of astrid-core (AITD-460),

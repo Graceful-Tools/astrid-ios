@@ -22,6 +22,19 @@ final class MacListCountTests: XCTestCase {
         return l
     }
 
+    /// AITD-671: the Mac sidebar counts `listService.lists` — lists you belong to, whose tasks
+    /// are synced — so a PUBLIC one of them counts its open tasks, not the stale `taskCount`
+    /// snapshot that arrived with the list (18 shown, 3 open).
+    func testAITD671AYourPublicListCountsItsOpenTasksNotTheStaleServerCount() {
+        var bugs = list("bugs")
+        bugs.privacy = .PUBLIC
+        bugs.taskCount = 18
+        let tasks = [task("a", listIds: ["bugs"]), task("b", listIds: ["bugs"]),
+                     task("c", listIds: ["bugs"]), task("d", listIds: ["bugs"], completed: true)]
+        XCTAssertEqual(MacListCount.counts(tasks, lists: [bugs], virtualCounts: [:])["bugs"], 3)
+        XCTAssertEqual(MacListCount.count(tasks, list: bugs), 3)
+    }
+
     /// The point of the badge: how much is LEFT, so completed tasks do not count.
     func testCountsOnlyIncompleteTasks() {
         let tasks = [task("a", listIds: ["list-1"]),

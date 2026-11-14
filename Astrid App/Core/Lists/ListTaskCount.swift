@@ -25,9 +25,20 @@ enum ListTaskCount {
     /// tasks that is ~77k inspections on every render. The My Tasks badge was memoized for
     /// exactly this reason (c38b177b); this keeps the sidebar honest to that lesson.
     ///
+    /// `lists` are the lists whose tasks the app SYNCS — everything `/api/v1/lists` returns,
+    /// which is only lists the viewer belongs to — and each counts its own open tasks, PUBLIC or
+    /// not. `browsedPublicLists` are public lists shown without being one of yours; their tasks
+    /// are not local, so their `taskCount` is the only number there is. A synced list wins when
+    /// a list is in both.
+    ///
+    /// AITD-671: `taskCount` is a snapshot from when the list payload arrived, and a delta sync
+    /// resends a list only when the list itself changes — completing a task does not. Trusting it
+    /// for a synced public list froze "Astrid Bugs & Requests" at 18 with 3 open.
+    ///
     /// `virtualCounts` is the core's answer for the saved filters (`virtualCounts(lists:…)`);
     /// a saved filter it has not answered for yet is left out rather than shown as 0.
-    static func counts(_ tasks: [Task], lists: [TaskList], virtualCounts: [String: Int]) -> [String: Int] {
+    static func counts(_ tasks: [Task], lists: [TaskList], browsedPublicLists: [TaskList] = [],
+                       virtualCounts: [String: Int]) -> [String: Int] {
         // One membership pass for the real lists…
         var incompleteByList: [String: Int] = [:]
         for task in tasks where !task.completed {
@@ -36,9 +47,9 @@ enum ListTaskCount {
                 incompleteByList[list.id, default: 0] += 1
             }
         }
-        // …then the exceptions, which cannot be derived from membership alone.
         var result: [String: Int] = [:]
-        for list in lists {
+        // …the browsed public lists from the server's number, unless it has none…
+        for list in browsedPublicLists {
             if list.privacy == .PUBLIC, let apiCount = list.taskCount {
                 result[list.id] = apiCount
             } else if list.isVirtual == true {
@@ -47,12 +58,21 @@ enum ListTaskCount {
                 result[list.id] = incompleteByList[list.id] ?? 0
             }
         }
+        // …then your own, last, so they win.
+        for list in lists {
+            if list.isVirtual == true {
+                result[list.id] = virtualCounts[list.id]
+            } else {
+                result[list.id] = incompleteByList[list.id] ?? 0
+            }
+        }
         return result
     }
 
-    static func count(_ tasks: [Task], list: TaskList, virtualCount: Int? = nil) -> Int {
-        // A public list's membership is not fully local, so trust the server's number.
-        if list.privacy == .PUBLIC, let apiCount = list.taskCount { return apiCount }
+    /// One list's badge. `synced: false` is a public list being browsed — see `counts`.
+    static func count(_ tasks: [Task], list: TaskList, virtualCount: Int? = nil, synced: Bool = true) -> Int {
+        // A browsed public list's tasks are not local, so the server's number is all there is.
+        if !synced, list.privacy == .PUBLIC, let apiCount = list.taskCount { return apiCount }
 
         if list.isVirtual == true {
             // The list's own filters decide what counts — including whether completed tasks do.
@@ -66,7 +86,7 @@ enum ListTaskCount {
     /// than read 0.
     nonisolated static func virtualCounts(lists: [TaskList], currentUserId: String?,
                                           session: CoreSession) async -> [String: Int] {
-        let saved = lists.filter { $0.isVirtual == true && !($0.privacy == .PUBLIC && $0.taskCount != nil) }
+        let saved = lists.filter { $0.isVirtual == true }
         guard !saved.isEmpty else { return [:] }
         var command = CoreCommand(kind: "listCounts")
         command.set("lists", saved)

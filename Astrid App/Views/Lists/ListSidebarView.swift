@@ -554,9 +554,10 @@ struct ListSidebarView: View {
         let userId = key.userId
         return badgesMemo.value(for: BadgesMemoKey(inputs: key, virtualCounts: virtualCounts)) {
             let tasks = key.tasks
-            // Public lists badge too. Your own copy of a list goes last so it wins when a list is
-            // in both — that is the copy its own row used to count.
-            let counts = ListTaskCount.counts(tasks, lists: key.publicLists + key.lists,
+            // Public lists badge too, from the server's number — but only the ones you browse.
+            // Your own lists, public or not, count their synced tasks and win when a list is in
+            // both (AITD-671: a public list's `taskCount` is a stale snapshot).
+            let counts = ListTaskCount.counts(tasks, lists: key.lists, browsedPublicLists: key.publicLists,
                                               virtualCounts: virtualCounts)
             // Count only tasks assigned to current user
             let myTasks = userId.map { id in tasks.filter { !$0.completed && $0.assigneeId == id }.count } ?? 0
