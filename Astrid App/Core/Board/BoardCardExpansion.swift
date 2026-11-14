@@ -1,7 +1,7 @@
 //  BoardCardExpansion.swift
 //  Which board card is open inline (AITD-628). Tapping a card on the iOS board opens its details
-//  in place, under the card face, as web and the Mac board do; it used to leave the board for the
-//  full-screen push (iPhone) or the side panel (iPad).
+//  in place, where the card face was (AITD-661), as web and the Mac board do; it used to leave
+//  the board for the full-screen push (iPhone) or the side panel (iPad).
 //
 //  The rules are here, not in the view, so they can be pinned and so the iOS board and the Mac
 //  board (`MacBoardExpand`) cannot mean different things by the same tap.
@@ -23,8 +23,16 @@ enum BoardCardExpansion {
         return current
     }
 
+    /// Does this card draw its face? Not while it is the open card (AITD-661, "Hide unexpanded
+    /// card on open"): the details open in its place rather than under it, so the open card no
+    /// longer shows its title twice, once on the face and again in the details header. The Mac
+    /// board's card turns into its editor the same way.
+    static func showsCardFace(taskId: String, expandedTaskId: String?) -> Bool {
+        expandedTaskId != taskId
+    }
+
     /// How tall the inline details are. The details scroll on their own, so they get a bounded
-    /// share of the board — enough to read and edit, with the card face and the column's edge
+    /// share of the board — enough to read and edit, with the column's other cards and its edge
     /// still on screen to tap — and never less than a usable minimum.
     static func inlineDetailHeight(boardHeight: CGFloat) -> CGFloat {
         max(minimumInlineDetailHeight, boardHeight * inlineDetailShareOfBoard)

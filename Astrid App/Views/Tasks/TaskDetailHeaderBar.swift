@@ -26,6 +26,8 @@ struct TaskDetailHeaderBar: View {
     let onTaskChanged: (Task) -> Void
     let isFullScreen: Bool
     let onToggleFullScreen: (() -> Void)?
+    /// Opened inline on a board card, so back folds the card up rather than leaving (AITD-661).
+    var collapsesInPlace: Bool = false
     let scrollToTopAction: (() -> Void)?
     let background: Color
     @Binding var showingCopySheet: Bool
@@ -161,7 +163,7 @@ struct TaskDetailHeaderBar: View {
             case .dismissStack: dismiss()
             }
         } label: {
-            Image(systemName: "chevron.left")
+            Image(systemName: TaskDetailHeader.backSymbol(collapsesInPlace: collapsesInPlace))
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundColor(foreground)
                 // The glyph is ~11×17pt, and .buttonStyle(.plain) makes the glyph the whole
@@ -173,7 +175,8 @@ struct TaskDetailHeaderBar: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(TaskDetailHeader.backAccessibilityIdentifier)
-        .accessibilityLabel(Text(NSLocalizedString("actions.back", comment: "")))
+        .accessibilityLabel(Text(NSLocalizedString(TaskDetailHeader.backLabelKey(collapsesInPlace: collapsesInPlace),
+                                                   comment: "")))
     }
 
     private var actionsMenu: some View {

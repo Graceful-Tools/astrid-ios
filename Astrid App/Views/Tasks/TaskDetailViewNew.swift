@@ -21,6 +21,8 @@ struct TaskDetailViewNew: View {
     // INTO — pushed full-screen on iPhone, and in a sheet — so the control simply isn't drawn.
     var isFullScreen: Bool = false
     var onToggleFullScreen: (() -> Void)?
+    /// Opened inline on a board card: back is an up chevron that folds the card (AITD-661).
+    var collapsesInPlace: Bool = false
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
     /// Which layout to draw (task 729a190e). Observed, so changing it in Appearance redraws
@@ -100,8 +102,10 @@ struct TaskDetailViewNew: View {
     @State private var scrollToBottomAction: (() -> Void)?
 
     init(task: Task, isReadOnly: Bool = false, onClose: (() -> Void)? = nil,
-         isFullScreen: Bool = false, onToggleFullScreen: (() -> Void)? = nil) {
+         isFullScreen: Bool = false, onToggleFullScreen: (() -> Void)? = nil,
+         collapsesInPlace: Bool = false) {
         self._task = State(initialValue: task)
+        self.collapsesInPlace = collapsesInPlace
         self.isReadOnly = isReadOnly
         self.onClose = onClose
         self.isFullScreen = isFullScreen
@@ -147,6 +151,7 @@ struct TaskDetailViewNew: View {
                 onClose: onClose, onTaskChanged: { task = $0; isCompleted = $0.completed },
                 isFullScreen: isFullScreen,
                 onToggleFullScreen: onToggleFullScreen,
+                collapsesInPlace: collapsesInPlace,
                 scrollToTopAction: scrollToTopAction,
                 background: toolbarBackgroundColor,
                 showingCopySheet: $showingCopySheet,
