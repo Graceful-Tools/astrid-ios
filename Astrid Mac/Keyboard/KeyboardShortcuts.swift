@@ -83,11 +83,6 @@ public enum KeyboardShortcuts {
         KeyBinding(keys: ["]"],          action: .indentTask,      requiresSelection: true,  webAction: "onIndentTask",           title: "Nest task under the task above"),
         KeyBinding(keys: ["?"],          action: .showShortcuts,   requiresSelection: false, webAction: "onShowHotkeyMenu",       title: "Show hotkey listing"),
     ]
-
-    /// Lookup by pressed key (canonical or alias). Returns nil if the key isn't bound.
-    public static func binding(for key: String) -> KeyBinding? {
-        all.first { $0.keys.contains(key) }
-    }
 }
 
 /// Resolves a pressed bare key to the action to run, mirroring web's guard logic in
