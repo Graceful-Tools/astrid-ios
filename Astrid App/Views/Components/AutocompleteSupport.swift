@@ -1,3 +1,4 @@
+import AstridCore
 import SwiftUI
 
 // MARK: - Shared Types (used by ChatInputView, CommentSection, QuickAddTaskView, InlineTextAreaEditor)
@@ -53,34 +54,21 @@ struct InsertedReference {
 // MARK: - Trigger Detection
 
 /// Detect @, #, or ! triggers in text. Returns (type, position, searchQuery) or nil.
+///
+/// astrid-core's `mentionTrigger` (AITD-657), the rule web and Windows share: the sigil nearest the
+/// end, at the start or after whitespace, with no whitespace after it. Each sigil is judged on its
+/// last occurrence alone, so `"@jo@b"` opens nothing. The core answers a UTF-16 offset; it is
+/// mapped back to a `String.Index` here so callers keep indexing by Character.
 func detectAutocompleteTrigger(in text: String) -> (type: AutocompleteItem.AutocompleteType, position: String.Index, search: String)? {
-    let triggerChars: [(Character, AutocompleteItem.AutocompleteType)] = [
-        ("@", .mention), ("#", .list), ("!", .task),
-    ]
-
-    var bestTrigger: AutocompleteItem.AutocompleteType?
-    var bestPos: String.Index?
-    var bestSearch: String = ""
-
-    for (char, type) in triggerChars {
-        guard let idx = text.lastIndex(of: char) else { continue }
-        if idx != text.startIndex {
-            let charBefore = text[text.index(before: idx)]
-            if !charBefore.isWhitespace && charBefore != "\n" { continue }
-        }
-        let afterTrigger = String(text[text.index(after: idx)...])
-        if afterTrigger.contains(" ") || afterTrigger.contains("\n") { continue }
-        if bestPos == nil || idx > bestPos! {
-            bestTrigger = type
-            bestPos = idx
-            bestSearch = afterTrigger
-        }
+    guard let hit = try? CoreRules.mentionTrigger(text: text),
+          let position = hit.utf16Index(in: text) else { return nil }
+    let type: AutocompleteItem.AutocompleteType
+    switch hit.kind {
+    case .mention: type = .mention
+    case .list: type = .list
+    case .task: type = .task
     }
-
-    if let trigger = bestTrigger, let pos = bestPos {
-        return (trigger, pos, bestSearch)
-    }
-    return nil
+    return (type, position, hit.query)
 }
 
 // MARK: - Filtering

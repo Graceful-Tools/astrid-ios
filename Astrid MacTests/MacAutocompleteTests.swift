@@ -32,6 +32,18 @@ final class MacAutocompleteTests: XCTestCase {
         XCTAssertNil(MacAutocomplete.detectTrigger(in: "issue#42"))
     }
 
+    /// AITD-657: detection is astrid-core's `mentionTrigger`. An invalid last `@` opens nothing
+    /// (the core used to reach back to the `@` at 0), and the offset stays a CHARACTER offset
+    /// even though the core counts UTF-16 — an emoji is one character, two units.
+    func testAITD657_detectionIsTheCoresAndOffsetsAreCharacters() {
+        XCTAssertNil(MacAutocomplete.detectTrigger(in: "@jo@b"))
+        XCTAssertEqual(MacAutocomplete.detectTrigger(in: "🎉 #bu"),
+                       MacAutocompleteHit(kind: .list, triggerOffset: 2, search: "bu"))
+        let hit = MacAutocomplete.detectTrigger(in: "🎉 #bu")!
+        XCTAssertEqual(MacAutocomplete.insert(label: "Work", id: "l", into: "🎉 #bu", hit: hit),
+                       "🎉 #[Work](l) ")
+    }
+
     /// The token becomes the reference iOS sends, not plain "#Work" — a plain label draws no pill
     /// and reaches nobody (CONTRACTS D23; Jon 2026-10-03: on disagreement follow iOS).
     func testInsertReplacesToken() {

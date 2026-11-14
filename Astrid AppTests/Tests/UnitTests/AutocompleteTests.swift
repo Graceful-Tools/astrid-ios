@@ -21,6 +21,9 @@ final class AutocompleteTests: XCTestCase {
             ("email@test", nil, nil),                      // @ must follow whitespace
             ("line one\n@ast", .mention, "ast"),           // a newline counts as whitespace
             ("@jon mentioned #car", .list, "car"),         // the trigger nearest the end wins
+            ("@jo@b", nil, nil),                           // AITD-657: an invalid last @ opens nothing
+            ("hi @jo#x", .mention, "jo#x"),                // AITD-657: an invalid # settles # alone
+            ("🎉 #bu", .list, "bu"),                       // AITD-657: core counts UTF-16; the index maps back
         ]
         for (text, type, search) in cases {
             let result = detectAutocompleteTrigger(in: text)

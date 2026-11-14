@@ -1,10 +1,11 @@
 //  MacAutocomplete.swift
 //  Astrid for Mac — @mention / #list / !task autocomplete for chat & comment inputs (Task cc67a3a5).
-//  Pure trigger-detection + insertion (mirrors the iOS detectAutocompleteTrigger contract), kept
+//  Trigger detection (astrid-core's `mentionTrigger`, AITD-657) + insertion, kept
 //  testable and separate from the view. The iOS AutocompleteSupport is excluded from the Mac
 //  target, so this is the Mac-side implementation of the same behavior.
 
 #if os(macOS)
+import AstridCore
 import Foundation
 
 enum MacAutocompleteKind: Equatable {
@@ -19,25 +20,21 @@ struct MacAutocompleteHit: Equatable {
 }
 
 enum MacAutocomplete {
-    /// Detect an active @/#/! token at the caret tail: the trigger must start the string or follow
-    /// whitespace, and must have no space after it. The right-most valid trigger wins.
+    /// Detect an active @/#/! token at the caret tail — astrid-core's `mentionTrigger` (AITD-657),
+    /// the rule iOS and web share: the sigil must start the string or follow whitespace, have no
+    /// whitespace after it, and the right-most valid one wins. The core counts UTF-16 units; the
+    /// offset here is in Characters, because `insert` and the views index by Character.
     static func detectTrigger(in text: String) -> MacAutocompleteHit? {
-        let triggers: [(Character, MacAutocompleteKind)] = [("@", .mention), ("#", .list), ("!", .task)]
-        var best: MacAutocompleteHit?
-        for (char, kind) in triggers {
-            guard let idx = text.lastIndex(of: char) else { continue }
-            if idx != text.startIndex {
-                let before = text[text.index(before: idx)]
-                if !before.isWhitespace && before != "\n" { continue }
-            }
-            let after = String(text[text.index(after: idx)...])
-            if after.contains(" ") || after.contains("\n") { continue }
-            let offset = text.distance(from: text.startIndex, to: idx)
-            if best == nil || offset > best!.triggerOffset {
-                best = MacAutocompleteHit(kind: kind, triggerOffset: offset, search: after)
-            }
+        guard let hit = try? CoreRules.mentionTrigger(text: text),
+              let index = hit.utf16Index(in: text) else { return nil }
+        let kind: MacAutocompleteKind
+        switch hit.kind {
+        case .mention: kind = .mention
+        case .list: kind = .list
+        case .task: kind = .task
         }
-        return best
+        return MacAutocompleteHit(kind: kind, triggerOffset: text.distance(from: text.startIndex, to: index),
+                                  search: hit.query)
     }
 
     /// Replace the active trigger token with the reference iOS sends — `@[Name](id) ` (the
