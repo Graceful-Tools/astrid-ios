@@ -126,18 +126,24 @@ struct EditProfileView: View {
                 }
             }
         }
-        .sheet(isPresented: $viewModel.showImagePicker) {
-            ImagePicker(
-                image: $viewModel.selectedImage,
-                onImageSelected: handleImageSelection
-            )
-        }
+        // The system Photos picker runs out of process and opens at once. A
+        // `UIImagePickerController(.photoLibrary)` in a sheet loaded the library in process
+        // and showed a blank screen for seconds first (AITD-675).
+        .photosPicker(isPresented: $viewModel.showImagePicker, selection: Binding(
+            get: { nil },
+            set: { item in
+                if let item { handleImageSelection(item) }
+            }
+        ), matching: .images)
     }
 
     // MARK: - Helper Methods
 
-    private func handleImageSelection() {
+    private func handleImageSelection(_ item: PhotosPickerItem) {
         _Concurrency.Task {
+            guard let data = try? await item.loadTransferable(type: Data.self),
+                  let image = UIImage(data: data) else { return }
+            viewModel.selectedImage = image
             await viewModel.uploadImage()
         }
     }
@@ -233,51 +239,6 @@ struct EditProfileView: View {
             }
         )
         .disabled(!viewModel.hasChanges || viewModel.isSaving || viewModel.isUploading)
-    }
-}
-
-// MARK: - Image Picker
-
-struct ImagePicker: UIViewControllerRepresentable {
-    @Environment(\.dismiss) var dismiss
-    @Binding var image: UIImage?
-    var onImageSelected: () -> Void
-
-    func makeUIViewController(context: Context) -> UIImagePickerController {
-        let picker = UIImagePickerController()
-        picker.delegate = context.coordinator
-        picker.allowsEditing = true
-        picker.sourceType = .photoLibrary
-        return picker
-    }
-
-    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-
-    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-        let parent: ImagePicker
-
-        init(_ parent: ImagePicker) {
-            self.parent = parent
-        }
-
-        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-            if let editedImage = info[.editedImage] as? UIImage {
-                parent.image = editedImage
-            } else if let originalImage = info[.originalImage] as? UIImage {
-                parent.image = originalImage
-            }
-
-            parent.dismiss()
-            parent.onImageSelected()
-        }
-
-        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-            parent.dismiss()
-        }
     }
 }
 

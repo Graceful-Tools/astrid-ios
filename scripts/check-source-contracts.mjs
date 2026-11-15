@@ -487,6 +487,16 @@ export const rules = [
     },
   },
   {
+    id: 'photo-library-uses-system-picker',
+    why: 'Choosing a photo goes through the system Photos picker (`.photosPicker` / `PHPickerViewController`), which runs out of process and opens at once. `UIImagePickerController` with `.photoLibrary` loads the library in process inside a sheet, so tapping the profile-photo button showed a blank screen for seconds (AITD-675). The camera (`CameraCapturePicker`) is the one legitimate `UIImagePickerController`.',
+    pattern: /sourceType\s*=\s*\.photoLibrary\b|sourceType\s*=\s*\.savedPhotosAlbum\b/,
+    run(ctx) {
+      const dirs = ['Astrid App']
+      return [...missingDirs(ctx, dirs), ...eachCodeLine(ctx, ctx.files(dirs), (line) => this.pattern.test(line)
+        && 'opens the photo library through UIImagePickerController — use .photosPicker (PHPicker) instead')]
+    },
+  },
+  {
     id: 'mac-role-labels',
     why: 'A role renders through MacMemberRoleLabel.title(for:), which is localized; an English role word or a capitalized wire value is not (AITD-323).',
     run(ctx) {

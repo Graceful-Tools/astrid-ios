@@ -141,6 +141,10 @@ const trips = {
   }),
   'mac-hardcoded-strings': () => fixture({ 'Astrid Mac/V.swift': view('Text("Save changes")') }),
   'springs-honour-reduce-motion': () => fixture({ 'Astrid App/Views/Drawer.swift': 'withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) { open = true }\n', 'Astrid Mac/Views/x.swift': '', 'Shared/x.swift': '' }),
+  'photo-library-uses-system-picker': () => fixture({
+    'Astrid App/Views/Profile.swift': 'picker.sourceType = .photoLibrary\n',
+    'Astrid App/Views/Components/CameraCapturePicker.swift': 'picker.sourceType = available ? .camera : .photoLibrary\n',
+  }),
   'mac-role-labels': () => fixture({ 'Astrid Mac/Views/Members.swift': 'Text(isOwner ? "Owner" : member.role.capitalized)\n' }),
   'api-v1-is-complete': () => fixture({ 'Astrid App/Old.swift': 'let x = 1 // not here: TODO add to API v1 when it exists\nlet y = 2 /* TODO: API v1 lacks this */\n' }),
   'search-total': () => fixture({ 'Astrid App/Search.swift': 'let p = "/api/v1/search"\nstruct R: Decodable { let total: Int }\n' }),
@@ -205,6 +209,11 @@ for (const [id, build] of Object.entries(trips)) {
 test('shared-url-session ignores comments and the networking layer itself', () => {
   const found = violations(trips['shared-url-session'](), 'shared-url-session')
   assert.deepEqual(found.map((v) => v.file), ['Astrid App/Core/Services/Thing.swift'])
+})
+
+test('photo-library-uses-system-picker leaves the camera picker\'s simulator fallback alone (AITD-675)', () => {
+  const found = violations(trips['photo-library-uses-system-picker'](), 'photo-library-uses-system-picker')
+  assert.deepEqual(found.map((v) => `${v.file}:${v.line}`), ['Astrid App/Views/Profile.swift:1'])
 })
 
 test('brand-url-scheme trips on scheme literals and leaves comments and other "astrid" strings alone', () => {
