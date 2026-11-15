@@ -1645,3 +1645,14 @@
 "waiting.prompt.keepAssignedTo" = "La laisser assignée à %@";
 "waiting.prompt.theAssignee" = "la personne assignée";
 "waiting.prompt.confirm" = "Déplacer vers En attente";
+
+/* Project Mode: the Projects sidebar section and the project board (AITD-674, web AWTD-1660) */
+"project_mode.projects_heading" = "Projets";
+"project_mode.open_board" = "Ouvrir le tableau %@";
+"project_mode.show_lists" = "Afficher les listes de %@";
+"project_mode.hide_lists" = "Masquer les listes de %@";
+"project_mode.board_add_list" = "Ajouter une liste";
+"project_mode.board_remove_row" = "Retirer %@ de ce tableau";
+"project_mode.board_empty" = "Faites glisser une liste depuis la barre latérale, ou utilisez Ajouter une liste.";
+"project_mode.board_no_candidates" = "Toutes les listes sont déjà sur ce tableau.";
+"project_mode.board_save_failed" = "Impossible d'enregistrer les listes de ce tableau. Veuillez réessayer.";

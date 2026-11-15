@@ -1629,3 +1629,14 @@
 "waiting.prompt.keepAssignedTo" = "Lascia assegnata a %@";
 "waiting.prompt.theAssignee" = "la persona assegnata";
 "waiting.prompt.confirm" = "Sposta in In attesa";
+
+/* Project Mode: the Projects sidebar section and the project board (AITD-674, web AWTD-1660) */
+"project_mode.projects_heading" = "Progetti";
+"project_mode.open_board" = "Apri la bacheca %@";
+"project_mode.show_lists" = "Mostra le liste di %@";
+"project_mode.hide_lists" = "Nascondi le liste di %@";
+"project_mode.board_add_list" = "Aggiungi lista";
+"project_mode.board_remove_row" = "Rimuovi %@ da questa bacheca";
+"project_mode.board_empty" = "Trascina qui una lista dalla barra laterale, oppure usa Aggiungi lista.";
+"project_mode.board_no_candidates" = "Tutte le liste sono già su questa bacheca.";
+"project_mode.board_save_failed" = "Impossibile salvare le liste di questa bacheca. Riprova.";

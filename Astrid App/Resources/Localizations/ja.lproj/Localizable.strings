@@ -1629,3 +1629,14 @@
 "waiting.prompt.keepAssignedTo" = "%@ に割り当てたままにする";
 "waiting.prompt.theAssignee" = "担当者";
 "waiting.prompt.confirm" = "待機中に移動";
+
+/* Project Mode: the Projects sidebar section and the project board (AITD-674, web AWTD-1660) */
+"project_mode.projects_heading" = "プロジェクト";
+"project_mode.open_board" = "%@ のボードを開く";
+"project_mode.show_lists" = "%@ のリストを表示";
+"project_mode.hide_lists" = "%@ のリストを隠す";
+"project_mode.board_add_list" = "リストを追加";
+"project_mode.board_remove_row" = "%@ をこのボードから外す";
+"project_mode.board_empty" = "サイドバーからリストをここへドラッグするか、「リストを追加」を使ってください。";
+"project_mode.board_no_candidates" = "すべてのリストがすでにこのボードにあります。";
+"project_mode.board_save_failed" = "このボードのリストを保存できませんでした。もう一度お試しください。";

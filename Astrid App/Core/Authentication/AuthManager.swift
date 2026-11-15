@@ -743,6 +743,7 @@ class AuthManager: ObservableObject {
         GitHubSyncService.shared.resetForSignOut()
         GoogleTasksSyncService.shared.resetForSignOut()
         FeatureFlagService.shared.clearCache(userId: departingUserId)
+        ProjectBoardRowsService.shared.clear()
 
         // Clear user preferences and settings
         MyTasksPreferencesService.shared.clearData()

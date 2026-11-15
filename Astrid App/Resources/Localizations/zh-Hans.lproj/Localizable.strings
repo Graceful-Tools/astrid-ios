@@ -1629,3 +1629,14 @@
 "waiting.prompt.keepAssignedTo" = "仍分配给 %@";
 "waiting.prompt.theAssignee" = "负责人";
 "waiting.prompt.confirm" = "移至等待";
+
+/* Project Mode: the Projects sidebar section and the project board (AITD-674, web AWTD-1660) */
+"project_mode.projects_heading" = "项目";
+"project_mode.open_board" = "打开 %@ 看板";
+"project_mode.show_lists" = "显示 %@ 中的列表";
+"project_mode.hide_lists" = "隐藏 %@ 中的列表";
+"project_mode.board_add_list" = "添加列表";
+"project_mode.board_remove_row" = "从此看板移除 %@";
+"project_mode.board_empty" = "从侧边栏将列表拖到这里，或使用“添加列表”。";
+"project_mode.board_no_candidates" = "所有列表都已在此看板上。";
+"project_mode.board_save_failed" = "无法保存此看板的列表，请重试。";

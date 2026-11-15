@@ -30,7 +30,7 @@ run's own session, to check what a journey persisted (AITD-527, AITD-528). That 
 not the app, so those paths are named here rather than listed below.
 
 
-## `AstridAPIClient` — the only client (16 paths)
+## `AstridAPIClient` — the only client (17 paths)
 
 
 ### `/api/v1/app-version`
@@ -56,6 +56,13 @@ not the app, so those paths are named here rather than listed below.
 
 ### `/api/v1/lists`
 
+
+### `/api/v1/projects`
+
+- `/api/v1/projects/{id}/board-rows`
+
+The Mac's project board reads and saves its rows here (`ProjectBoardRowsService`, AITD-674);
+astrid-core does not carry this route yet.
 
 ### `/api/v1/public`
 

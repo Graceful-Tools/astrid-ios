@@ -1629,3 +1629,14 @@
 "waiting.prompt.keepAssignedTo" = "%@ zugewiesen lassen";
 "waiting.prompt.theAssignee" = "der zugewiesenen Person";
 "waiting.prompt.confirm" = "Nach „Warten“ verschieben";
+
+/* Project Mode: the Projects sidebar section and the project board (AITD-674, web AWTD-1660) */
+"project_mode.projects_heading" = "Projekte";
+"project_mode.open_board" = "Board %@ öffnen";
+"project_mode.show_lists" = "Listen in %@ anzeigen";
+"project_mode.hide_lists" = "Listen in %@ ausblenden";
+"project_mode.board_add_list" = "Liste hinzufügen";
+"project_mode.board_remove_row" = "%@ von diesem Board entfernen";
+"project_mode.board_empty" = "Ziehe eine Liste aus der Seitenleiste hierher oder nutze „Liste hinzufügen“.";
+"project_mode.board_no_candidates" = "Alle Listen sind bereits auf diesem Board.";
+"project_mode.board_save_failed" = "Die Listen dieses Boards konnten nicht gespeichert werden. Bitte versuche es erneut.";
