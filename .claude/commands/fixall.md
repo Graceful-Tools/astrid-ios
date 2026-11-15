@@ -363,6 +363,55 @@ with when it comes due). It answers `empty: true` when there is nothing to do.
 - **An App Store submission, deleting files, or a significant architecture change still needs
   asking.**
 
+## astrid-core: this loop works it (Jon, 2026-11-15)
+
+> *"Let's have Astrid web and iOS both take over core tasks, so we wait less on Windows. Windows
+> can focus on implementing the windows experience. But it is the least used, least mature, so it
+> should not hold dependencies for the other interfaces."*
+
+The canonical rule is astrid-web `docs/FIXALL_WORKFLOW.md` → *astrid-core is worked by web and
+iOS, never blocked on Windows*. What it means here:
+
+1. **Which board.** A core task whose first consumer is the Apple apps goes on **this** board,
+   and this loop works it. Every other core task goes on the web board. **Never file core work on
+   the Windows board**, and never park an Apple task waiting on a Windows one.
+2. **When an Apple task needs a core change, do the core half here.** Don't file it somewhere else
+   and wait. Work the core PR first, then the Apple half against the new pin.
+3. **How — in astrid-core:**
+   - Make a worktree of `../astrid-core` from fresh `origin/main`
+     (`git -C ../astrid-core fetch origin && git -C ../astrid-core worktree add ../astrid-core-<slug> -b fix/<slug> origin/main`).
+     **Never edit or check out the shared `../astrid-core` checkout.** Other loops read it, and a
+     checkout there detaches its HEAD under their local commits.
+   - Read astrid-core's `CLAUDE.md`. Its rules apply: `astrid-rules` stays pure, contracts are
+     fixtures (web first), and iOS wins a divergence.
+   - Write a RED test that names the task id, then make it green.
+   - Run its local gate, all green: `cargo fmt --all -- --check`,
+     `cargo clippy --all-targets --all-features -- -D warnings`, `cargo test --workspace`, the
+     `cargo xtask check-*` commands, and the wasm build.
+   - A wire type change means `cargo xtask gen-schema`. Read that diff, because it lists what the
+     clients must follow.
+   - Open a PR on `Graceful-Tools/astrid-core` and wait for CI to go green. CI covers the Android
+     NDK and wasm builds, so no special toolchain is needed locally.
+   - Merge with a **merge commit**, then remove the worktree and its branch.
+   - astrid-core has no deploy: merged to `main` is done for the core half. Say so on the task,
+     with the PR and the merge sha.
+4. **Then bump the Apple pin here, as its own change.** Run
+   `scripts/core/release-xcframework.sh <merged core sha>`. It does three things:
+   - pins `core/Cargo.toml`
+   - builds and publishes the `core-<short>` xcframework release
+   - points `Packages/AstridCore/Package.swift` at the release by URL and checksum
+
+   Commit the three files it changes with the Swift side (`docs/CORE_MIGRATION.md`). Run
+   `npm run test:core` and the usual gates. Write the commit subject as
+   `bump core <old> -> <new>`, the way AITD-676 did.
+   - If only `core/Cargo.lock` changes, nothing new is in the binary: close it on the Core supply
+     chain CI and push `main` only.
+   - Otherwise the pin bump rides this run's single push and closes on its TestFlight build like
+     any other task.
+
+Worked example: web did exactly this for AWTD-1673 (core PR #55) and AWTD-1676 (core PR #56).
+AITD-676 then took core `6b660db` here and deleted `ProjectBoardRows.swift`.
+
 ## Pushing, at the end of the run
 
 Work lands on `main` (that is where the per-task branches merge), then both dev branches

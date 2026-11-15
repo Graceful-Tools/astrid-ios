@@ -37,6 +37,10 @@ completion, repeating tasks, the Outbox, sync, chat, list members, or an API cal
    for the permission matrix both platforms must honor and the Web-i18n ⇄
    iOS-`Localizable.strings` key registry. Diverging from it is a bug on whichever
    platform moved.
+9. **astrid-core is worked from here, never waited on Windows for.** Core tasks whose first
+   consumer is the Apple apps go on the iOS board. When an Apple task needs a core change, do the
+   core half yourself: a core worktree, then a PR, then the pin bump here. See
+   `.claude/commands/fixall.md` §astrid-core.
 
 ---
 
