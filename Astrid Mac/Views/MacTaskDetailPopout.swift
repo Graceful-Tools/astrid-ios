@@ -13,6 +13,9 @@ struct MacTaskDetailPopout: View {
     let panelWidth: CGFloat
     /// Beside a board's cards rather than a list's rows.
     let besideBoard: Bool
+    /// Placed by the caller at the core's box beside a card (AITD-679): no margins of its own, and
+    /// exactly the arrow's reach on the card side, so the arrow's tip touches the card.
+    var besideCard = false
     /// The selected list row's middle (global).
     let selectedRowMidY: CGFloat?
     /// The open board card's frame (global).
@@ -76,12 +79,15 @@ struct MacTaskDetailPopout: View {
                 }
             }
             .padding(side == .trailing ? .leading : .trailing,
-                     MacLayout.detailArrowWidth + MacLayout.detailPanelMargin)
+                     besideCard ? BoardCardCallout.arrowRoom(arrowWidth: MacLayout.detailArrowWidth,
+                                                            overlap: MacLayout.arrowOverlap)
+                                : MacLayout.detailArrowWidth + MacLayout.detailPanelMargin)
             // One margin, always: the panel WIDTH grows with the chat column instead (AITD-334), so
             // the card reaches the trailing margin while its leading edge — and the arrow's
             // AITD-302 clearance from the row edge — stays exactly where it was.
-            .padding(side == .trailing ? .trailing : .leading, MacLayout.detailPopoutTrailingPadding)
-        .padding(.vertical, 14)
+            .padding(side == .trailing ? .trailing : .leading,
+                     besideCard ? 0 : MacLayout.detailPopoutTrailingPadding)
+        .padding(.vertical, besideCard ? 0 : 14)
         // FULL height, not centred-and-intrinsic: a shorter card cannot reach rows outside its own
         // vertical extent, so the arrow clamped to the card's edge and pointed at the wrong row.
         .frame(maxHeight: .infinity)

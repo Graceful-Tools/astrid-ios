@@ -46,6 +46,38 @@ final class BoardCardCalloutTests: XCTestCase {
         XCTAssertEqual(BoardCardCallout.side(card: card, viewport: board, panelWidth: 480), .trailing)
     }
 
+    // MARK: - The panel touches the card (the core's rule)
+
+    /// Jon, on the iPad build: "the arrow doesn't touch the task row. It looks like the task
+    /// details is aligned to the left or right of the screen, but doesn't touch the task row."
+    func testThePanelsNearEdgeTouchesTheCardOnTheRight_AITD679() throws {
+        let card = CGRect(x: 16, y: 200, width: 280, height: 72)
+        let placed = try XCTUnwrap(BoardCardCallout.placement(card: card, viewport: board, panelWidth: 480))
+        XCTAssertEqual(placed.side, .trailing)
+        XCTAssertEqual(placed.frame.minX, card.maxX, accuracy: 0.001, "not docked at the screen's edge")
+    }
+
+    func testThePanelsNearEdgeTouchesTheCardOnTheLeft_AITD679() throws {
+        let card = CGRect(x: 884, y: 200, width: 280, height: 72)
+        let placed = try XCTUnwrap(BoardCardCallout.placement(card: card, viewport: board, panelWidth: 480))
+        XCTAssertEqual(placed.side, .leading)
+        XCTAssertEqual(placed.frame.maxX, card.minX, accuracy: 0.001)
+    }
+
+    func testThePanelIsAsTallAsTheBoardAllowsAndKeepsOffItsEdges_AITD679() throws {
+        let card = CGRect(x: 16, y: 200, width: 280, height: 72)
+        let placed = try XCTUnwrap(BoardCardCallout.placement(card: card, viewport: board, panelWidth: 480))
+        XCTAssertEqual(placed.frame.minY, board.minY + BoardCardCallout.gutter, accuracy: 0.001)
+        XCTAssertEqual(placed.frame.maxY, board.maxY - BoardCardCallout.gutter, accuracy: 0.001)
+    }
+
+    /// The arrow's tip lands on the panel's near edge, so on the card.
+    func testTheArrowsTipLandsOnThePanelsEdge_AITD679() {
+        let room = BoardCardCallout.arrowRoom(arrowWidth: 12, overlap: 1)
+        // face starts `room` in; the arrow spans [face - width + overlap, face + overlap].
+        XCTAssertEqual(room - 12 + 1, 0, accuracy: 0.001)
+    }
+
     // MARK: - Where the arrow points (the core's rule)
 
     private let panel = CGRect(x: 600, y: 8, width: 480, height: 800)

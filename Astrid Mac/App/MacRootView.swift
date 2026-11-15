@@ -77,16 +77,20 @@ struct MacRootView: View {
             || (contentMode == .board && selectedListId != Self.myTasksId)
     }
 
-    /// Which edge the pop-out docks on: trailing beside a list; beside a board card, whichever
-    /// side of the card has more room — astrid-core's callout rule (AITD-679).
-    private var popoutSide: BoardCardCallout.Side {
+    /// Where a board card's pop-out goes: beside the card, on whichever side has more room, its
+    /// arrow's tip touching the card — astrid-core's callout rule (AITD-679). nil beside a list,
+    /// where the pop-out docks trailing.
+    private var boardPopoutPlacement: BoardCardCallout.Placement? {
         guard isBoardDetail, let opened = openedBoardCard, selectedTaskIds == [opened.taskId],
-              contentFrame.width > 0 else { return .trailing }
-        return BoardCardCallout.side(
+              contentFrame.width > 0 else { return nil }
+        return BoardCardCallout.placement(
             card: opened.frame, viewport: contentFrame,
             panelWidth: MacLayout.resolvedDetailPanelWidth(chatColumnWidth: resolvedChatColumnWidth)
-                + MacLayout.detailArrowWidth + MacLayout.detailPanelMargin * 2)
+                + BoardCardCallout.arrowRoom(arrowWidth: MacLayout.detailArrowWidth,
+                                             overlap: MacLayout.arrowOverlap))
     }
+
+    private var popoutSide: BoardCardCallout.Side { boardPopoutPlacement?.side ?? .trailing }
 
     /// A board card was clicked: its details open beside it, or close if they are already its.
     private func openBoardCard(_ taskId: String, frame: CGRect?) {
@@ -531,13 +535,25 @@ struct MacRootView: View {
             || listService.lists.first(where: { $0.id == selectedListId })?.isVirtual == true
     }
 
-    /// Floating detail pop-out (2766d9a4) — `MacTaskDetailPopout`, docked on `side`.
-    private func taskDetailPopout(_ task: Task, side: BoardCardCallout.Side) -> some View {
-        MacTaskDetailPopout(task: task, side: side,
-                            panelWidth: MacLayout.resolvedDetailPanelWidth(chatColumnWidth: resolvedChatColumnWidth),
-                            besideBoard: isBoardDetail, selectedRowMidY: selectedRowMidY,
-                            selectedCardFrame: selectedCardFrame,
-                            onClose: { selectedTaskIds.removeAll() })
+    /// Floating detail pop-out (2766d9a4) — `MacTaskDetailPopout`: at the core's box beside a board
+    /// card (AITD-679), docked trailing beside a list.
+    @ViewBuilder
+    private func taskDetailPopout(_ task: Task) -> some View {
+        let placed = boardPopoutPlacement
+        let popout = MacTaskDetailPopout(
+            task: task, side: placed?.side ?? .trailing,
+            panelWidth: MacLayout.resolvedDetailPanelWidth(chatColumnWidth: resolvedChatColumnWidth),
+            besideBoard: isBoardDetail, besideCard: placed != nil, selectedRowMidY: selectedRowMidY,
+            selectedCardFrame: selectedCardFrame,
+            onClose: { selectedTaskIds.removeAll() })
+        if let placed {
+            popout
+                .frame(width: placed.frame.width, height: placed.frame.height)
+                .offset(x: placed.frame.minX - contentFrame.minX, y: placed.frame.minY - contentFrame.minY)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } else {
+            popout
+        }
     }
 
     /// Global search results view (Task 36587d3d) — full-text over all tasks incl. completed.
@@ -1214,7 +1230,7 @@ struct MacRootView: View {
                             .background(MacDetailChrome.background)
                             .transition(.opacity)
                     } else {
-                        taskDetailPopout(task, side: popoutSide)
+                        taskDetailPopout(task)
                             // Unfolds OUT OF the arrow and folds back into it the same way — the
                             // panel grows horizontally from the arrow's position, which sits at the
                             // selected row. A plain slide/fade did not read as coming from the task.
