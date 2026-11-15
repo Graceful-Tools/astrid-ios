@@ -9,6 +9,12 @@ import SwiftUI
 
 struct MacBoardView: View {
     let listId: String
+    /// The task whose details pop-out is open, for the card's selection outline.
+    var selectedTaskId: String?
+    /// A card was clicked: open its details the way a list row does — the pop-out, docked on the
+    /// side of the card with more room (AITD-679). The frame is the card's, in the global space;
+    /// nil when there is no card to stand beside (a card just added).
+    var onOpenCard: (String, CGRect?) -> Void = { _, _ in }
     @AppStorage(MacScrollBars.defaultsKey) private var showScrollBars = false
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
@@ -16,9 +22,6 @@ struct MacBoardView: View {
     @StateObject private var board = BoardModel()
     @StateObject private var appModel = MacAppModel.shared
     @State private var dropTargetColumnId: String?
-    @State private var expandedCardId: String?   // inline expand-to-edit (efaf8120)
-    /// The card whose title field should take the caret when it opens — set by Rename (AITD-471).
-    @State private var renamingCardId: String?
     /// Shared with the detail panel and its header toggle, so "full screen" means one
     /// thing app-wide (7017c3c1).
     @AppStorage("macDetailFullScreen") private var detailFullScreen = false
@@ -128,122 +131,65 @@ struct MacBoardView: View {
     @ViewBuilder private func addCardField(_ col: ProjectBoardColumn) -> some View {
         MacQuickAddBar(selectedListId: listId, selectionIsVirtual: false, list: list,
                        column: col, style: .boardColumn,
-                       // ⊕ adds the card and opens it in place, as the list's ⊕ opens details.
-                       onOpen: { created in
-                           withAnimation(MacMotion.spring) { expandedCardId = created.id }
-                       })
+                       // ⊕ adds the card and opens its details, as the list's ⊕ does.
+                       onOpen: { created in onOpenCard(created.id, nil) })
     }
 
     private func card(_ t: Task) -> some View {
-        let expanded = expandedCardId == t.id
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .top, spacing: 8) {
-                // The SAME control the detail panel uses (task 9be8cb1b). This was a button whose
-                // only action was complete, which made the most prominent thing on a card a
-                // trapdoor: the click that reads as "pick this one" finished the task.
-                //
-                // The control already depicts priority (its colour) and assignee (whose photo),
-                // so those are what it should let you set — the argument `MacLeadingControlButton`
-                // was written for. Adopting it rather than copying it is the point: a second
-                // implementation is exactly how the board and the panel came to disagree.
-                VStack(spacing: 0) {
-                    MacLeadingControlButton(
-                        task: t,
-                        priority: priorityBinding(t),
-                        members: members,
-                        surface: .boardCard,
-                        onPriority: { setPriority(t, $0) },
-                        onAssignee: { setAssignee(t, $0) },
-                        onToggleComplete: { toggleComplete(t) }
-                    )
-                    Spacer(minLength: 0)
-                }
-                .modifier(rail(t))
-                VStack(alignment: .leading, spacing: 2) {
-                    // Open: the title is a field — the card's editor has no title row because
-                    // this is where the title lives (AITD-471).
-                    if MacBoardExpand.titleIsEditable(expanded: expanded) {
-                        MacBoardCardTitleField(task: t, focusRequested: renamingCardId == t.id,
-                                               onFocused: { renamingCardId = nil })
-                    } else {
-                        Text(t.title).foregroundStyle(Theme.textPrimary).strikethrough(t.completed)
-                    }
-                    // The task id, muted, before the date — the iOS card's metadata row (AITD-505).
-                    let identifier = TaskIdentifiers.boardCardLabel(for: t)
-                    if identifier != nil || t.dueDateTime != nil {
-                        HStack(spacing: 6) {
-                            if let identifier {
-                                Text(identifier).lineLimit(1).fixedSize()
-                                    .accessibilityIdentifier("board.card.taskId")
-                            }
-                            // The row's short format, not `style: .date` ("October 3, 2027") (AITD-520).
-                            if let due = MacDueText.text(for: t.dueDateTime, isAllDay: t.isAllDay) {
-                                Text(due).lineLimit(1)
-                            }
+        let selected = selectedTaskId == t.id
+        return HStack(alignment: .top, spacing: 8) {
+            // The SAME control the detail panel uses (task 9be8cb1b). This was a button whose
+            // only action was complete, which made the most prominent thing on a card a
+            // trapdoor: the click that reads as "pick this one" finished the task.
+            //
+            // The control already depicts priority (its colour) and assignee (whose photo),
+            // so those are what it should let you set — the argument `MacLeadingControlButton`
+            // was written for. Adopting it rather than copying it is the point: a second
+            // implementation is exactly how the board and the panel came to disagree.
+            VStack(spacing: 0) {
+                MacLeadingControlButton(
+                    task: t,
+                    priority: priorityBinding(t),
+                    members: members,
+                    surface: .boardCard,
+                    onPriority: { setPriority(t, $0) },
+                    onAssignee: { setAssignee(t, $0) },
+                    onToggleComplete: { toggleComplete(t) }
+                )
+                Spacer(minLength: 0)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(t.title).foregroundStyle(Theme.textPrimary).strikethrough(t.completed)
+                // The task id, muted, before the date — the iOS card's metadata row (AITD-505).
+                let identifier = TaskIdentifiers.boardCardLabel(for: t)
+                if identifier != nil || t.dueDateTime != nil {
+                    HStack(spacing: 6) {
+                        if let identifier {
+                            Text(identifier).lineLimit(1).fixedSize()
+                                .accessibilityIdentifier("board.card.taskId")
                         }
-                        .macFont(.caption2).foregroundStyle(Theme.textMuted)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                // Click the card body → expand INLINE to edit (like Astrid Web), not open the
-                // panel. Springs open/closed instead of jumping (4c7b9f08). The gesture is on the
-                // TITLE area rather than the whole header now, so the expand button beside the
-                // caret is not swallowed by it.
-                .contentShape(Rectangle())
-                // Opens, never collapses: on an open card this click is placing the caret in the
-                // title (AITD-471). The caret is what closes it.
-                .onTapGesture { openCard(t) }
-
-                // The caret, alone (AITD-377, matching web's AWTD-872). Full screen used to sit
-                // directly beneath it whenever the card was open — two controls stacked in a
-                // gutter this narrow, which is the clutter Jon asked about. It moved into the
-                // card's right-click menu, where every other secondary action already lives.
-                //
-                // Collapse stayed a button on purpose: it undoes the click that expanded the
-                // card, so burying it would make expanding feel like a trap. Web kept it for the
-                // same reason.
-                //
-                // The open card also gets web's ⋮ beside it (AITD-470): the same actions as the
-                // right-click menu, but visible — nothing on a card says right-click exists.
-                ForEach(MacBoardExpand.headerControls(expanded: expanded), id: \.self) { control in
-                    switch control {
-                    case .actionsMenu:
-                        MacBoardCardActionsMenu(task: t, lists: listService.lists,
-                                                currentListId: listId, actions: cardActions(t))
-                    case .collapse:
-                        VStack(spacing: 0) {
-                            Image(systemName: expanded ? "chevron.up" : "chevron.down")
-                                .macFont(.caption2).foregroundStyle(Theme.textMuted)
-                                .contentShape(Rectangle())
-                                .onTapGesture { toggleExpanded(t) }
-                            Spacer(minLength: 0)
+                        // The row's short format, not `style: .date` ("October 3, 2027") (AITD-520).
+                        if let due = MacDueText.text(for: t.dueDateTime, isAllDay: t.isAllDay) {
+                            Text(due).lineLimit(1)
                         }
-                        .modifier(rail(t))
                     }
+                    .macFont(.caption2).foregroundStyle(Theme.textMuted)
                 }
             }
-            // Each column as tall as the tallest, so the rails under the control and the caret
-            // run the full height of the header instead of collapsing to nothing (AITD-575).
-            .fixedSize(horizontal: false, vertical: true)
-
-            if expanded {
-                Divider()
-                MacBoardCardEditor(task: t,
-                                   onDone: { withAnimation(MacMotion.spring) { expandedCardId = nil } })
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        // Expanded card is a WHITE details surface (like web); collapsed cards stay on the theme
-        // with a hover wash (77225941).
-        .background(expanded ? MacDetailChrome.background
-                             : MacSelectionStyle.fill(isSelected: false, hovering: hoveredCardId == t.id))
+        .background(MacSelectionStyle.fill(isSelected: false, hovering: hoveredCardId == t.id))
         .clipShape(RoundedRectangle(cornerRadius: 6))
-        // Subtle selection border (b8d1ec16) — thin accent when expanded, hover-hairline otherwise.
+        // The selection outline the pop-out wears too (b8d1ec16, AITD-302), hover-hairline otherwise.
         .overlay(RoundedRectangle(cornerRadius: 6)
-            .stroke(MacSelectionStyle.borderColor(isSelected: expanded, hovering: hoveredCardId == t.id),
-                    lineWidth: MacSelectionStyle.borderWidth(isSelected: expanded)))
+            .stroke(MacSelectionStyle.borderColor(isSelected: selected, hovering: hoveredCardId == t.id),
+                    lineWidth: MacSelectionStyle.borderWidth(isSelected: selected)))
+        // A click anywhere but the leading control opens the details the way a list row does —
+        // the pop-out beside the card — never inline in the column (AITD-679). The control
+        // takes its own clicks first.
+        .modifier(MacBoardCardAnchor(isSelected: selected) { onOpenCard(t.id, $0) })
         .onHover { h in withAnimation(.easeOut(duration: 0.1)) { hoveredCardId = h ? t.id : (hoveredCardId == t.id ? nil : hoveredCardId) } }
         // Right-click gets the SAME actions as a list row (AITD-372). Rendered from the shared
         // model rather than restated here, so the board cannot fall behind the row: a card had no
@@ -280,21 +226,12 @@ struct MacBoardView: View {
         }
     }
 
-    /// Open or close the card. Both the title area and the caret call this, so tapping either does
-    /// the same thing — the caret is the visible affordance, the title is the large target.
-    private func openCard(_ t: Task) {
-        withAnimation(MacMotion.spring) {
-            expandedCardId = MacBoardExpand.titleTap(current: expandedCardId, tapped: t.id)
-        }
-    }
-
     /// One set of card actions for both the right-click menu and the open card's ⋮ (AITD-470).
     private func cardActions(_ t: Task) -> MacTaskRowMenuActions {
         MacTaskRowMenuActions(
             toggleComplete: { toggleComplete(t) },
-            // Opens the card with the caret in its title field (AITD-471) — before, this only
-            // opened the card, into an editor with no title field at all.
-            rename: { renamingCardId = t.id; openCard(t) },
+            // Opens the details, whose title is a field (AITD-471, AITD-679).
+            rename: { if selectedTaskId != t.id { onOpenCard(t.id, nil) } },
             setPriority: { setPriority(t, $0) },
             move: { moveToList(t, $0) },
             copyToList: { copyTask(t, to: $0) },
@@ -307,23 +244,6 @@ struct MacBoardView: View {
             delete: { deleteTask(t) },
             fullScreen: { openFullScreen(t) }
         )
-    }
-
-    /// The strip under the leading control or the caret: the caret's toggle, with a wider target
-    /// (AITD-575). Never a completion. The control's own click wins over the column's, so only
-    /// the empty space beneath it is the rail.
-    private func rail(_ t: Task) -> MacBoardRail {
-        MacBoardRail {
-            withAnimation(MacMotion.spring) {
-                expandedCardId = MacBoardExpand.railTap(current: expandedCardId, tapped: t.id)
-            }
-        }
-    }
-
-    private func toggleExpanded(_ t: Task) {
-        withAnimation(MacMotion.spring) {
-            expandedCardId = MacBoardExpand.toggle(current: expandedCardId, tapped: t.id)
-        }
     }
 
     private func toggleComplete(_ t: Task) {
@@ -375,9 +295,6 @@ struct MacBoardView: View {
     }
 
     private func deleteTask(_ t: Task) {
-        // Collapse first: leaving the editor open over a card that is on its way out renders an
-        // editor for a task that no longer exists.
-        if expandedCardId == t.id { expandedCardId = nil }
         MacUndoCoordinator.shared.record(MacUndo.deleteStep(
             snapshots: MacUndoCoordinator.shared.deletionSnapshots(for: [t],
                                                                    allTasks: taskService.tasks)))
@@ -422,6 +339,34 @@ struct MacBoardView: View {
         AppActions.perform("Set assignee") {
             _ = try await taskService.updateTask(taskId: t.id, assigneeId: assigneeId ?? "", task: t)
         }
+    }
+}
+/// Where a board card is on screen (AITD-679). A click hands its frame to the pop-out, which docks
+/// on the side with more room; while it is the open card it keeps reporting the frame, so the
+/// arrow follows it as the column scrolls. Shared by the list board and the project board.
+struct MacBoardCardAnchor: ViewModifier {
+    let isSelected: Bool
+    let onOpen: (CGRect?) -> Void
+    @State private var frame: CGRect?
+
+    func body(content: Content) -> some View {
+        content
+            .contentShape(Rectangle())
+            .onTapGesture { onOpen(frame) }
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame = $0 }
+            .background(GeometryReader { g in
+                Color.clear.preference(key: MacSelectedCardFrameKey.self,
+                                       value: isSelected ? g.frame(in: .global) : nil)
+            })
+    }
+}
+
+/// The open card reports its frame (global) so the pop-out's arrow points at it (AITD-679), as
+/// the selected row reports its middle. First non-nil wins.
+struct MacSelectedCardFrameKey: PreferenceKey {
+    static let defaultValue: CGRect? = nil
+    static func reduce(value: inout CGRect?, nextValue: () -> CGRect?) {
+        value = value ?? nextValue()
     }
 }
 #endif

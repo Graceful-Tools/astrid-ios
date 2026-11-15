@@ -51,11 +51,29 @@ final class MacDetailPresentationTests: XCTestCase {
                        "Expanding a board card to full screen is the whole point of 9a98f996")
     }
 
-    /// …but the pop-out stays suppressed on a board. The card expands INLINE there, which is the
-    /// board's own affordance and matches web; a floating panel would cover the columns.
-    func testBoardStillSuppressesThePopout() {
+    /// AITD-679: a board card opens the pop-out, as a list row does, instead of expanding inline.
+    /// It docks on the side of the card with more room, so it does not cover the card.
+    func testABoardCardOpensThePopout_AITD679() {
         XCTAssertEqual(MacDetailPresentation.style(mode: .board, selectionCount: 1, fullScreen: false),
-                       .none)
+                       .popout)
+    }
+
+    /// The pop-out hugs the edge it docks on; full screen still centres.
+    func testThePopoutDocksOnTheCalloutsSide_AITD679() {
+        XCTAssertEqual(MacDetailPresentation.alignment(for: .popout, side: .leading), .leading)
+        XCTAssertEqual(MacDetailPresentation.alignment(for: .popout, side: .trailing), .trailing)
+        XCTAssertEqual(MacDetailPresentation.alignment(for: .fullScreen, side: .leading), .center)
+    }
+
+    /// Docked on the leading side the arrow is on the panel's trailing edge, so the reveal grows
+    /// out of that edge rather than sweeping across the card it came from.
+    func testALeadingPopoutRevealsFromItsTrailingEdge_AITD679() {
+        let rect = CGRect(x: 0, y: 0, width: 400, height: 800)
+        let half = MacDetailRevealMask.visibleRect(in: rect, progress: 0.5, anchorY: 0.5, fromTrailing: true)
+        XCTAssertEqual(half.maxX, rect.maxX, accuracy: 0.001)
+        XCTAssertEqual(half.width, 200, accuracy: 0.001)
+        let usual = MacDetailRevealMask.visibleRect(in: rect, progress: 0.5, anchorY: 0.5)
+        XCTAssertEqual(usual.minX, rect.minX, accuracy: 0.001)
     }
 
     // MARK: - Chat
@@ -108,13 +126,6 @@ final class MacDetailPresentationTests: XCTestCase {
         XCTAssertEqual(MacTaskRowMenu.items(for: .boardCard).first, .fullScreen,
                        "and lead the card's menu, the position web gave it")
 
-        let editor = try String(
-            contentsOf: root.appendingPathComponent("Astrid Mac/Views/MacBoardCardEditor.swift"),
-            encoding: .utf8)
-        XCTAssertFalse(editor.contains("MacDetailPresentation.fullScreenSymbol"),
-                       "it must live in ONE place on the card, not at both ends of it")
-        XCTAssertFalse(editor.contains("mac.open_full_detail"),
-                       "the bottom 'Open full detail…' link goes with it")
     }
 
     /// The roomy header keeps its BUTTON — web left its side pane alone for the same reason, and

@@ -34,18 +34,20 @@ enum MacDetailPresentation {
         case .list:
             return fullScreen ? .fullScreen : .popout
         case .board:
-            // The card expands INLINE on a board (web parity) — that is the board's own affordance,
-            // so the pop-out stays suppressed. Full screen is a different question and is allowed.
-            return fullScreen ? .fullScreen : .none
+            // A card opens the pop-out, as a list row does, docked on the side of the card with
+            // more room (AITD-679). It used to expand the card inline and suppress the pop-out.
+            return fullScreen ? .fullScreen : .popout
         case .chat:
             // Chat replaces the content area; there is nothing to overlay onto.
             return .none
         }
     }
 
-    /// Full screen centres in the content area it fills; the pop-out hugs the trailing edge.
-    static func alignment(for style: Style) -> Alignment {
-        style == .fullScreen ? .center : .trailing
+    /// Full screen centres in the content area it fills; the pop-out hugs the edge it docks on —
+    /// trailing beside a list, either edge beside a board card (AITD-679).
+    static func alignment(for style: Style, side: BoardCardCallout.Side = .trailing) -> Alignment {
+        if style == .fullScreen { return .center }
+        return side == .leading ? .leading : .trailing
     }
 
     /// Full screen belongs to the task it was opened for (AITD-464). The flag is persisted, and
