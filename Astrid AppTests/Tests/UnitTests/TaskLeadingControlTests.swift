@@ -264,7 +264,7 @@ final class TaskLeadingControlOthersTaskTests: XCTestCase {
     func testSomeoneElsesTaskGetsTheBoardStateSectionEvenInListMode() {
         XCTAssertTrue(TaskLeadingControl.pickerShowsProjectState(displayMode: .list,
                                                                  surface: .detail,
-                                                                 isSomeoneElses: true),
+                                                                 assigneeId: them, currentUserId: me),
                       "when the popover is the only thing a tap gives you, it carries the full set")
     }
 
@@ -273,16 +273,16 @@ final class TaskLeadingControlOthersTaskTests: XCTestCase {
     func testYourOwnTaskInListModeDetailStillOmitsBoardState() {
         XCTAssertFalse(TaskLeadingControl.pickerShowsProjectState(displayMode: .list,
                                                                   surface: .detail,
-                                                                  isSomeoneElses: false))
+                                                                  assigneeId: me, currentUserId: me))
     }
 
     func testProjectModeAndBoardCardsAreUnchanged() {
         XCTAssertTrue(TaskLeadingControl.pickerShowsProjectState(displayMode: .project,
                                                                  surface: .detail,
-                                                                 isSomeoneElses: false))
+                                                                 assigneeId: me, currentUserId: me))
         XCTAssertTrue(TaskLeadingControl.pickerShowsProjectState(displayMode: .list,
                                                                  surface: .boardCard,
-                                                                 isSomeoneElses: false))
+                                                                 assigneeId: me, currentUserId: me))
     }
 
     // MARK: - The popover IS the confirmation (AITD-381)

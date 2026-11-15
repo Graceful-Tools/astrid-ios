@@ -61,9 +61,13 @@ enum TaskBlockers {
     ///   the controls inside it are what hides for a read-only viewer.
     /// - No blockers → shown only to someone who can edit, because the empty row is the only
     ///   way to add the first one. A reader has nothing to read.
+    ///
+    /// Asked of astrid-core (`detailLayout`, `rows::detail::shows_task_blockers`; AITD-622). If it
+    /// cannot answer, an existing blocker still shows on a board; an empty row does not.
     static func showsRow(isInProject: Bool, isReadOnly: Bool, hasBlockers: Bool) -> Bool {
-        guard isInProject else { return false }
-        return hasBlockers || !isReadOnly
+        CoreRules.detailLayout(displayMode: TaskDisplayMode.list.wireValue, isInProject: isInProject,
+                               isReadOnly: isReadOnly, hasBlockers: hasBlockers)?.showsTaskBlockers
+            ?? (isInProject && hasBlockers)
     }
 
     /// The picker searches the server from two characters, never the loaded tasks: a local

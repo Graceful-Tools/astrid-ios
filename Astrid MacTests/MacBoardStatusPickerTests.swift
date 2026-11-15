@@ -53,7 +53,7 @@ final class MacBoardStatusPickerTests: XCTestCase {
     /// (AITD-375): when the popover is the only thing a click gives you, it carries everything.
     func testSomeoneElsesTaskGetsBoardStateEvenInListMode() {
         XCTAssertEqual(
-            MacLeadingPicker.sections(for: .list, surface: .detail, isSomeoneElses: true),
+            MacLeadingPicker.sections(for: .list, surface: .detail, assigneeId: "them", currentUserId: "me"),
             [.priority, .assignee, .projectState, .complete])
     }
 }

@@ -41,6 +41,31 @@ final class DueDateLabelTests: XCTestCase {
                                                       hour: hour))!
     }
 
+    // MARK: - AITD-622: the day offset is astrid-core's
+
+    /// The core reads both instants at one UTC offset. Across a daylight-saving change that would
+    /// put 23:30 on 1 November (PST) at 00:30 on the 2nd in PDT terms — "in 2 days" instead of
+    /// Tomorrow. The wrapper moves the date by the offset difference first, so the user's own
+    /// calendar still decides the day.
+    func testAITD622_timedDateAcrossDSTChangeKeepsItsLocalDay() {
+        let cal = localCalendar(losAngeles)
+        let now = localTime(2026, 10, 31, 23, zone: losAngeles)        // PDT
+        let due = localTime(2026, 11, 1, 23, zone: losAngeles)
+            .addingTimeInterval(30 * 60)                                // 23:30 PST
+        XCTAssertEqual(DueDateLabel.dayOffset(to: due, isAllDay: false, now: now, localCalendar: cal), 1)
+        XCTAssertEqual(DueDateLabel.relativeDayName(for: due, isAllDay: false, now: now, localCalendar: cal),
+                       NSLocalizedString("time.tomorrow", comment: ""))
+    }
+
+    func testAITD622_allDayDateIsItsUTCCalendarDateWestOfUTC() {
+        let cal = localCalendar(losAngeles)
+        let now = localTime(2026, 8, 8, 17, zone: losAngeles)          // already the 9th in UTC
+        XCTAssertEqual(DueDateLabel.dayOffset(to: utcMidnight(2026, 8, 8), isAllDay: true,
+                                              now: now, localCalendar: cal), 0)
+        XCTAssertEqual(DueDateLabel.dayOffset(to: utcMidnight(2026, 8, 9), isAllDay: true,
+                                              now: now, localCalendar: cal), 1)
+    }
+
     // MARK: - THE ASK: no date must SAY no date
 
     /// The Mac's toggle is replaced by a trigger that reads "No due date" — the
