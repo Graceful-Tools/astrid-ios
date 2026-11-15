@@ -38,6 +38,11 @@ struct ProjectStatusBoardView: View {
     /// needs.
     let projectId: String
 
+    /// The list the board was opened from (ADEV-3). Its cards are the board's, its manual order
+    /// and Done window arrange them, and a column's "+ Add task" files into it. nil only where the
+    /// shell has no list of the project yet.
+    var listId: String?
+
     /// Called when the user swipes left-to-right while on the left-most column —
     /// there's nothing further left to scroll to, so it opens the shell sidebar
     /// (matching a regular list). Provided by the parent (TaskListView.onMenuTap).
@@ -94,12 +99,22 @@ struct ProjectStatusBoardView: View {
         board.columns.map(\.column)
     }
 
-    /// The project's regular (domain) list. Cached lookup so the per-
-    /// column "+ Add task" footer can drop new tasks into the right list.
-    /// Returns nil for projects with no regular list attached yet (very
-    /// rare — should only happen for an unfinished migration).
+    /// The board's list: the one it was opened from (ADEV-3). It used to be the project's FIRST
+    /// domain list, which stopped being the same thing once a project held several lists — the
+    /// order, the Done window and every "+ Add task" went to whichever list came first.
     private var projectDomainList: TaskList? {
-        listService.lists.first { $0.projectId == projectId && $0.isDomainList }
+        Self.boardList(openedListId: listId, projectId: projectId, lists: listService.lists)
+    }
+
+    /// The opened list when it is a domain list of this project; otherwise the project's first
+    /// domain list, for a shell that opened the board without one.
+    static func boardList(openedListId: String?, projectId: String, lists: [TaskList]) -> TaskList? {
+        if let openedListId,
+           let opened = lists.first(where: { $0.id == openedListId }),
+           opened.projectId == projectId, opened.isDomainList {
+            return opened
+        }
+        return lists.first { $0.projectId == projectId && $0.isDomainList }
     }
 
     /// A column's cards: the core's ids, drawn from the service's own tasks. Subtasks are not
