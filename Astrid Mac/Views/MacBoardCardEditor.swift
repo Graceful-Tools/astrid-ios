@@ -16,7 +16,7 @@ import QuickLook
 /// Pure expand/collapse toggle — tapping the open card collapses it; tapping another opens it.
 enum MacBoardExpand {
     static func toggle(current: String?, tapped: String) -> String? {
-        BoardCardExpansion.toggle(current: current, tapped: tapped)   // the iOS board's rule too (AITD-628)
+        BoardCardCallout.toggle(current: current, tapped: tapped)   // the iOS board's rule too (AITD-679)
     }
     enum HeaderControl: Equatable { case actionsMenu, collapse }
 

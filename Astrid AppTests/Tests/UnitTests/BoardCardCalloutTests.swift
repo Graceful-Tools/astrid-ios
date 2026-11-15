@@ -1,93 +1,69 @@
-//  BoardInlineDetailTests.swift
-//  AITD-628 — "[ios board] Enable open task details inline on board, like on web and Mac app".
-//  Tapping a card left the board (iPhone push, iPad panel). It now opens the details inline under
-//  the card; these pin the open/close rules the board view asks.
+//  BoardCardCalloutTests.swift
+//  AITD-679: "Stop opening board task details by expanding the board task. Open, just like task
+//  details from a task row, but pick the left or right side based on the spacing on screen."
+//  A board card on iPad opens the row's details panel, docked on the side with more room, with its
+//  arrow on the card. The side and the arrow are astrid-core's `calloutPlacement` (AITD-678).
 
 import XCTest
 @testable import Astrid_App
 
-final class BoardInlineDetailTests: XCTestCase {
+final class BoardCardCalloutTests: XCTestCase {
 
-    func testTappingAClosedCardOpensIt_AITD628() {
-        XCTAssertEqual(BoardCardExpansion.toggle(current: nil, tapped: "a"), "a")
+    // MARK: - Where a tap goes
+
+    func testOnIPadACardTapOpensThePanelNotTheCardInline_AITD679() {
+        XCTAssertEqual(BoardCardCallout.route(splitLayout: true, forcePush: false), .panel)
     }
 
-    func testTappingTheOpenCardClosesIt_AITD628() {
-        XCTAssertNil(BoardCardExpansion.toggle(current: "a", tapped: "a"))
+    func testOnIPhoneACardTapPushesTheFullDetails_AITD642() {
+        XCTAssertEqual(BoardCardCallout.route(splitLayout: false, forcePush: false), .push)
+        XCTAssertEqual(BoardCardCallout.route(splitLayout: true, forcePush: true), .push)
     }
 
-    func testTappingAnotherCardMovesTheOpenCard_AITD628() {
-        XCTAssertEqual(BoardCardExpansion.toggle(current: "a", tapped: "b"), "b",
-                       "one card open at a time across the board")
+    func testTappingTheOpenCardClosesItAndAnotherCardMovesIt_AITD679() {
+        XCTAssertEqual(BoardCardCallout.toggle(current: nil, tapped: "a"), "a")
+        XCTAssertNil(BoardCardCallout.toggle(current: "a", tapped: "a"))
+        XCTAssertEqual(BoardCardCallout.toggle(current: "a", tapped: "b"), "b")
     }
 
-    func testOpenCardCollapsesWhenItLeavesTheBoard_AITD628() {
-        XCTAssertNil(BoardCardExpansion.retained(current: "gone", visibleTaskIds: ["a", "b"]))
-        XCTAssertEqual(BoardCardExpansion.retained(current: "a", visibleTaskIds: ["a", "b"]), "a")
-        XCTAssertNil(BoardCardExpansion.retained(current: nil, visibleTaskIds: ["a"]))
+    // MARK: - Which side (the core's rule)
+
+    private let board = CGRect(x: 0, y: 0, width: 1180, height: 820)
+
+    func testACardInALeftColumnOpensThePanelOnTheRight_AITD679() {
+        let card = CGRect(x: 16, y: 200, width: 280, height: 72)
+        XCTAssertEqual(BoardCardCallout.side(card: card, viewport: board, panelWidth: 480), .trailing)
     }
 
-    func testInlineDetailsTakeABoundedShareOfTheBoard_AITD628() {
-        XCTAssertEqual(BoardCardExpansion.inlineDetailHeight(boardHeight: 1000), 720, accuracy: 0.5)
-        XCTAssertEqual(BoardCardExpansion.inlineDetailHeight(boardHeight: 200),
-                       BoardCardExpansion.minimumInlineDetailHeight,
-                       "a short board still gets usable details")
+    func testACardInARightColumnOpensThePanelOnTheLeft_AITD679() {
+        let card = CGRect(x: 884, y: 200, width: 280, height: 72)
+        XCTAssertEqual(BoardCardCallout.side(card: card, viewport: board, panelWidth: 480), .leading,
+                       "the right-hand column is as likely to be tapped as the left; it must not end up under the panel")
     }
 
-    // MARK: - The details' full-screen button (AITD-636)
-
-    /// Jon: "full screen doesn't go directly to full screen on iPad. It should." On iPad the button
-    /// opened the side panel, one more tap away from full screen. It opens the task full screen.
-    func testOnIPadTheFullScreenButtonOpensTheTaskFullScreen_AITD636() {
-        XCTAssertEqual(BoardCardExpansion.fullDetailsRoute(splitLayout: true, forcePush: false),
-                       .panel(fullScreen: true))
+    func testEqualRoomOpensOnTheRight_AITD679() {
+        let card = CGRect(x: 450, y: 200, width: 280, height: 72)
+        XCTAssertEqual(BoardCardCallout.side(card: card, viewport: board, panelWidth: 480), .trailing)
     }
 
-    /// iPhone, or an iPad that pushes, has only one way to show a task: the full-screen push.
-    func testWithoutASplitLayoutItPushes_AITD636() {
-        XCTAssertEqual(BoardCardExpansion.fullDetailsRoute(splitLayout: false, forcePush: false), .push)
-        XCTAssertEqual(BoardCardExpansion.fullDetailsRoute(splitLayout: true, forcePush: true), .push)
+    // MARK: - Where the arrow points (the core's rule)
+
+    private let panel = CGRect(x: 600, y: 8, width: 480, height: 800)
+
+    func testTheArrowPointsAtTheCardsMiddle_AITD679() {
+        let card = CGRect(x: 16, y: 300, width: 280, height: 64)   // middle at 332
+        XCTAssertEqual(BoardCardCallout.arrowY(card: card, panel: panel), 332 - 8, accuracy: 0.001)
     }
 
-    // MARK: - Where a card tap goes (AITD-642)
-
-    /// AITD-642 — "On iPhone open task details old way on board". A phone column is too narrow
-    /// for the details to fit under the card, so a tap there opens the full-screen push again.
-    func testOnIPhoneACardTapOpensTheFullDetails_AITD642() {
-        XCTAssertFalse(BoardCardExpansion.cardTapOpensInline(splitLayout: false))
+    func testTheArrowStaysOffTheRoundedCorners_AITD679() {
+        let top = CGRect(x: 16, y: -40, width: 280, height: 40)
+        XCTAssertEqual(BoardCardCallout.arrowY(card: top, panel: panel), 20, accuracy: 0.001,
+                       "core ARROW_MARGIN")
+        let bottom = CGRect(x: 16, y: 900, width: 280, height: 40)
+        XCTAssertEqual(BoardCardCallout.arrowY(card: bottom, panel: panel), 800 - 20, accuracy: 0.001)
     }
 
-    /// iPad keeps the inline details AITD-628 brought.
-    func testOnIPadACardTapStillOpensInline_AITD642() {
-        XCTAssertTrue(BoardCardExpansion.cardTapOpensInline(splitLayout: true))
-    }
-
-    // MARK: - The open card is the details (AITD-661)
-
-    /// AITD-661: "Hide unexpanded card on open". The details opened UNDER the card face, so the
-    /// open card showed its title twice: once on the face, once in the details header. The face
-    /// gives way to the details, the way the Mac board's card turns into its editor.
-    func testTheOpenCardHidesItsFace_AITD661() {
-        XCTAssertFalse(BoardCardExpansion.showsCardFace(taskId: "a", expandedTaskId: "a"))
-    }
-
-    /// Every other card keeps its face, whether or not some card is open.
-    func testClosedCardsKeepTheirFace_AITD661() {
-        XCTAssertTrue(BoardCardExpansion.showsCardFace(taskId: "b", expandedTaskId: "a"))
-        XCTAssertTrue(BoardCardExpansion.showsCardFace(taskId: "b", expandedTaskId: nil))
-    }
-
-    /// AITD-661: "make left arrow an up arrow to close". The inline details fold back UP into the
-    /// card, so their leading control is an up chevron, the Mac board card's collapse caret,
-    /// and reads "Close" rather than "Back": nothing is behind it to go back to.
-    func testInlineDetailsCloseWithAnUpChevron_AITD661() {
-        XCTAssertEqual(TaskDetailHeader.backSymbol(collapsesInPlace: true), "chevron.up")
-        XCTAssertEqual(TaskDetailHeader.backLabelKey(collapsesInPlace: true), "actions.close")
-    }
-
-    /// The panel and the push still go back to the left.
-    func testThePanelAndThePushKeepTheLeftChevron_AITD661() {
-        XCTAssertEqual(TaskDetailHeader.backSymbol(collapsesInPlace: false), "chevron.left")
-        XCTAssertEqual(TaskDetailHeader.backLabelKey(collapsesInPlace: false), "actions.back")
+    func testACardThatScrolledAwayCentresTheArrow_AITD679() {
+        XCTAssertEqual(BoardCardCallout.arrowY(card: nil, panel: panel), 400, accuracy: 0.001)
     }
 }

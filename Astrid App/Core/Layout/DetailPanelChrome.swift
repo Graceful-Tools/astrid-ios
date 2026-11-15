@@ -51,20 +51,12 @@ enum DetailPanelChrome {
         return arrowY(rowMidY: rowMidY - panelOriginY, panelHeight: panelHeight, inset: inset)
     }
 
-    /// Whether the iPad panel opens out of the selected row with an arrow aimed at it (AITD-647).
-    /// Only a list has that row: the row reports its position, a board card does not, so on a
-    /// board the arrow pointed at nothing. A board opens the plain side panel from the trailing
-    /// edge, as before AITD-607.
-    static func pointsAtRow(viewMode: HeaderToggleSegment) -> Bool {
-        viewMode != .board
-    }
-
     // MARK: - The iPad panel's full-screen flag — AITD-648
 
     /// Jon: "iPad full screen task details should reset after each task." Full screen belongs to
     /// the task that was expanded, not to the iPad: closing the panel ends it, so the next task
     /// opens as the side panel. Moving to another task without closing (a subtask or parent link,
-    /// a board card's full-screen button) keeps what was asked for.
+    /// another board card) keeps what was asked for.
     static func fullScreen(_ current: Bool, afterSelectionChangeTo newTaskId: String?) -> Bool {
         newTaskId == nil ? false : current
     }
@@ -77,7 +69,7 @@ enum DetailPanelChrome {
     /// Does a row tap that pushes the details full screen zoom out of the row? No (AITD-664, Jon:
     /// "iPhone open task rows to task details should open same way as board Tasks. See old way of
     /// opened"). AITD-609 zoomed them; a board card on iPhone pushes with the ordinary slide
-    /// (`BoardCardExpansion.cardTapOpensInline`, AITD-642), and every one-pane view now opens its
+    /// (`BoardCardCallout.route`, AITD-642), and every one-pane view now opens its
     /// details that one way. DS7 is not a phone's single pane (astrid-core `design/README.md`).
     /// Kept as the named rule so the list's push and the board's cannot drift apart again.
     static func zoomsFromRow(usesSplitLayout: Bool, forcePushNavigation: Bool) -> Bool {
@@ -102,11 +94,43 @@ enum DetailPanelChrome {
 @MainActor
 final class SelectedRowReporter: ObservableObject {
     @Published private(set) var midY: CGFloat?
+    /// The selected board card's frame in the global space, as it moves (AITD-679). A list row
+    /// reports only its middle; a card reports its whole extent, which the core's callout rule
+    /// takes to aim the arrow.
+    @Published private(set) var cardFrame: CGRect?
+    /// The card a tap opened the panel from, and where it was at that moment. Which side the
+    /// panel docks on is decided from this once, not from the live frame: a panel that changed
+    /// sides as the board scrolled under it would be chasing the card (AITD-679).
+    @Published private(set) var openedCard: OpenedCard?
     private var taskId: String?
+
+    struct OpenedCard: Equatable {
+        let taskId: String
+        let frame: CGRect
+    }
 
     func report(taskId: String, midY: CGFloat) {
         self.taskId = taskId
+        if cardFrame != nil { cardFrame = nil }
         if self.midY != midY { self.midY = midY }
+    }
+
+    /// A board card's frame, while it is the panel's task.
+    func reportCard(taskId: String, frame: CGRect) {
+        self.taskId = taskId
+        if cardFrame != frame { cardFrame = frame }
+        if midY != frame.midY { midY = frame.midY }
+    }
+
+    /// A tap on a board card, just before it opens the panel.
+    func openCard(taskId: String, frame: CGRect) {
+        openedCard = OpenedCard(taskId: taskId, frame: frame)
+        reportCard(taskId: taskId, frame: frame)
+    }
+
+    /// The panel closed: the next task it opens may come from somewhere other than a card.
+    func forgetOpenedCard() {
+        if openedCard != nil { openedCard = nil }
     }
 
     /// Forget the row — only if it is still the one held, so a row disappearing after the next one
@@ -115,6 +139,7 @@ final class SelectedRowReporter: ObservableObject {
         guard self.taskId == taskId else { return }
         self.taskId = nil
         midY = nil
+        cardFrame = nil
     }
 }
 

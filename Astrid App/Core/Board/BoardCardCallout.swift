@@ -1,66 +1,68 @@
-//  BoardCardExpansion.swift
-//  Which board card is open inline (AITD-628). Tapping a card on the iOS board opens its details
-//  in place, where the card face was (AITD-661), as web and the Mac board do; it used to leave
-//  the board for the full-screen push (iPhone) or the side panel (iPad).
+//  BoardCardCallout.swift
+//  How a board card opens its details (AITD-679). Jon: "Stop opening board task details by
+//  expanding the board task. Open, just like task details from a task row, but pick the left or
+//  right side based on the spacing on screen."
 //
-//  The rules are here, not in the view, so they can be pinned and so the iOS board and the Mac
-//  board (`MacBoardExpand`) cannot mean different things by the same tap.
+//  A card used to open its details inline, in place of its face (AITD-628, AITD-661). On a
+//  multi-column board it now opens the SAME details panel a list row opens, docked on whichever
+//  side of the card has more room, with the panel's arrow aimed at the card. Where the panel goes
+//  and where its arrow points are astrid-core's `calloutPlacement` (`rows::callout`, AITD-678): the
+//  arithmetic is not repeated here. iPhone, with one column the width of the screen, keeps the
+//  full-screen push (AITD-642).
+//
+//  The rules are here, not in a view, so the iPad board and the Mac board cannot mean different
+//  things by the same tap.
 
+import AstridCore
 import CoreGraphics
 
-enum BoardCardExpansion {
+enum BoardCardCallout {
 
-    /// Tapping the open card closes it; tapping any other card opens that one instead. One card is
-    /// open at a time across the whole board.
-    static func toggle(current: String?, tapped: String) -> String? {
-        current == tapped ? nil : tapped
-    }
-
-    /// The open card, unless it has left the board — completed out of the Done window, deleted,
-    /// moved to another list. An editor left open on a card that is gone edits nothing.
-    static func retained(current: String?, visibleTaskIds: Set<String>) -> String? {
-        guard let current, visibleTaskIds.contains(current) else { return nil }
-        return current
-    }
-
-    /// Does this card draw its face? Not while it is the open card (AITD-661, "Hide unexpanded
-    /// card on open"): the details open in its place rather than under it, so the open card no
-    /// longer shows its title twice, once on the face and again in the details header. The Mac
-    /// board's card turns into its editor the same way.
-    static func showsCardFace(taskId: String, expandedTaskId: String?) -> Bool {
-        expandedTaskId != taskId
-    }
-
-    /// How tall the inline details are. The details scroll on their own, so they get a bounded
-    /// share of the board — enough to read and edit, with the column's other cards and its edge
-    /// still on screen to tap — and never less than a usable minimum.
-    static func inlineDetailHeight(boardHeight: CGFloat) -> CGFloat {
-        max(minimumInlineDetailHeight, boardHeight * inlineDetailShareOfBoard)
-    }
-
-    /// Does a card tap open the details inline? Only where the board has room for them (AITD-642,
-    /// "On iPhone open task details old way on board"): on iPhone a column is the width of the
-    /// screen, so the inline details are a cramped scroll inside a scroll, and a tap opens the
-    /// full-screen push as it did before AITD-628. iPad keeps them inline.
-    static func cardTapOpensInline(splitLayout: Bool) -> Bool {
-        splitLayout
-    }
-
-    /// Where the inline details' full-screen button takes the task (AITD-636).
-    enum FullDetailsRoute: Equatable {
-        /// iPad's detail panel, already in its full-screen state.
-        case panel(fullScreen: Bool)
+    /// Where a card tap takes the task.
+    enum Route: Equatable {
+        /// The details panel beside the card — iPad's split layout.
+        case panel
         /// The full-screen push — iPhone, or an iPad set to push.
         case push
     }
 
-    /// Jon: "full screen doesn't go directly to full screen on iPad. It should." On iPad the button
-    /// used to open the side panel, which needed a second tap to go full screen. It opens the panel
-    /// full screen now, and always opens it: unlike a card tap, the button never toggles it closed.
-    static func fullDetailsRoute(splitLayout: Bool, forcePush: Bool) -> FullDetailsRoute {
-        splitLayout && !forcePush ? .panel(fullScreen: true) : .push
+    static func route(splitLayout: Bool, forcePush: Bool) -> Route {
+        splitLayout && !forcePush ? .panel : .push
     }
 
-    static let minimumInlineDetailHeight: CGFloat = 320
-    static let inlineDetailShareOfBoard: CGFloat = 0.72
+    /// Tapping the card whose details are open closes them; tapping any other card opens that one.
+    static func toggle(current: String?, tapped: String) -> String? {
+        current == tapped ? nil : tapped
+    }
+
+    /// Which edge of the board the panel docks on.
+    enum Side: Equatable {
+        case leading, trailing
+    }
+
+    /// The side with more room beside `card`, inside `viewport`, for a panel `panelWidth` wide
+    /// (core: ties go right). Everything in one space, y down. Decided once, when the card is
+    /// tapped: a panel that hopped sides as the board scrolled under it would be chasing the card.
+    static func side(card: CGRect, viewport: CGRect, panelWidth: CGFloat) -> Side {
+        guard let placed = try? CoreRules.calloutPlacement(
+            anchor: card, viewport: viewport,
+            size: CGSize(width: panelWidth, height: viewport.height)) else { return .trailing }
+        return placed.side == .left ? .leading : .trailing
+    }
+
+    /// The arrow's centre down the panel's edge, in the panel's own coordinates, for a card at
+    /// `card` (nil: it scrolled away, so the arrow centres). The core places a callout of the
+    /// panel's size in a viewport one gutter wider than the panel, which pins the core's box to
+    /// the panel exactly; its `arrowOffset` is then the panel's own y — aimed at the card's middle
+    /// and kept off the rounded corners.
+    static func arrowY(card: CGRect?, panel: CGRect) -> CGFloat {
+        guard let card, panel.height > 0,
+              let placed = try? CoreRules.calloutPlacement(
+                anchor: card, viewport: panel.insetBy(dx: -gutter, dy: -gutter), size: panel.size)
+        else { return panel.height / 2 }
+        return CGFloat(placed.top + placed.arrowOffset) - panel.minY
+    }
+
+    /// astrid-core's `rows::callout::GUTTER`, published in its fixture.
+    static let gutter: CGFloat = 8
 }
