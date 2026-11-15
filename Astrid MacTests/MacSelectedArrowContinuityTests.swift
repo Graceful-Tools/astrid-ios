@@ -20,22 +20,17 @@ import SwiftUI
 
 final class MacSelectedArrowContinuityTests: XCTestCase {
 
-    private func rootSource() throws -> String {
-        let url = RepositoryLocator.root
-            .appendingPathComponent("Astrid Mac/App/MacRootView.swift")
-        return try String(contentsOf: url, encoding: .utf8)
-    }
-
-    /// The body of `taskDetailPopout(_:)` — the card, its border and its arrow.
+    /// The pop-out — the card, its border and its arrow. It moved out of MacRootView into its own
+    /// view when it learned to dock on either side of a board card (AITD-679).
     private func popoutBody() throws -> String {
-        let source = try rootSource()
-        guard let start = source.range(of: "private func taskDetailPopout(") else {
-            XCTFail("taskDetailPopout() not found — did it move?")
+        let url = RepositoryLocator.root
+            .appendingPathComponent("Astrid Mac/Views/MacTaskDetailPopout.swift")
+        let source = try String(contentsOf: url, encoding: .utf8)
+        guard let start = source.range(of: "var body: some View {") else {
+            XCTFail("MacTaskDetailPopout.body not found — did it move?")
             return ""
         }
-        let rest = source[start.upperBound...]
-        let end = rest.range(of: "\n    /// ")?.lowerBound ?? rest.endIndex
-        return String(rest[..<end])
+        return String(source[start.upperBound...])
     }
 
     // MARK: - Same outline as the row it points at
