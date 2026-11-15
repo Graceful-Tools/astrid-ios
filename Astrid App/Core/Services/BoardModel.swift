@@ -20,15 +20,21 @@ import Foundation
 @MainActor
 final class BoardModel: ObservableObject {
     /// Which board: the list it was opened from (its manual order and Done window arrange the
-    /// cards) or, for a board whose list the shell has not got, the project alone.
+    /// cards) or, for a board whose list the shell has not got, the project alone. With
+    /// `rowOfProjectId`, one row of that project's multi-list board: `listId`'s cards under the
+    /// PROJECT's columns (the core's `projectBoardRow`, AITD-676, CONTRACTS D67).
     nonisolated struct Query: Equatable, Sendable {
         var listId: String?
         var projectId: String?
+        var rowOfProjectId: String?
         /// The Done window reads the clock.
         var minute = Int(Date().timeIntervalSince1970 / 60)
 
         /// The board's identity — what an answer is remembered under.
-        var key: String { listId ?? "project:\(projectId ?? "")" }
+        var key: String {
+            if let rowOfProjectId { return "row:\(rowOfProjectId):\(listId ?? "")" }
+            return listId ?? "project:\(projectId ?? "")"
+        }
     }
 
     /// One column as the core answered it: what it is, and its cards' ids in order.
@@ -134,9 +140,9 @@ final class BoardModel: ObservableObject {
     }
 
     nonisolated static func command(for query: Query) -> CoreCommand {
-        var command = CoreCommand(kind: "board")
+        var command = CoreCommand(kind: query.rowOfProjectId == nil ? "board" : "projectBoardRow")
         command.set("listId", query.listId)
-        command.set("projectId", query.projectId)
+        command.set("projectId", query.rowOfProjectId ?? query.projectId)
         command.set("idsOnly", true)
         return command
     }

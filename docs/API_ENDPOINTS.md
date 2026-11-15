@@ -14,7 +14,7 @@ disagree, which is the only reason to trust a generated list at all.
 Regenerate: see the test — it prints the expected list on failure.
 
 **Most of the app's traffic is not here.** Tasks, lists, comments, chat, members, blockers,
-settings, the live stream, Connections, webhooks, account delete/export, Custom Agents, public-list browse/copy, share links, list insights, the deployment's capabilities, Copilot connect/disconnect/status, agent modes, AI keys, available agents, contact sync, people search, contact autocomplete, recommended collaborators (AITD-620) and list ownership transfer (AITD-658) go through astrid-core, whose paths are in
+settings, the live stream, Connections, webhooks, account delete/export, Custom Agents, public-list browse/copy, share links, list insights, the deployment's capabilities, Copilot connect/disconnect/status, agent modes, AI keys, available agents, contact sync, people search, contact autocomplete, recommended collaborators (AITD-620) and list ownership transfer (AITD-658) and the project board's rows (AITD-676) go through astrid-core, whose paths are in
 `astrid-core/crates/astrid-core/src/api/endpoints.rs` (see `docs/CORE_MIGRATION.md`). This list
 is what the Swift client still calls itself.
 
@@ -59,10 +59,6 @@ not the app, so those paths are named here rather than listed below.
 
 ### `/api/v1/projects`
 
-- `/api/v1/projects/{id}/board-rows`
-
-The Mac's project board reads and saves its rows here (`ProjectBoardRowsService`, AITD-674);
-astrid-core does not carry this route yet.
 
 ### `/api/v1/public`
 

@@ -53,7 +53,8 @@ final class APIEndpointInventoryTests: XCTestCase {
     /// Every file the current client is spread across.
     ///
     /// (The members, blockers and connections extensions went when those calls moved to astrid-core,
-    /// and the list-ownership one in AITD-658, once `ListService` sent the core's commands.) A path that moves
+    /// and the list-ownership one in AITD-658, once `ListService` sent the core's commands; the
+    /// project board rows one in AITD-676.) A path that moves
     /// between these files has not left the app, and the inventory must not read the move as a
     /// deletion.
     ///
@@ -62,7 +63,6 @@ final class APIEndpointInventoryTests: XCTestCase {
         "Astrid App/Core/Networking/AstridAPIClient.swift",
         "Astrid App/Core/Networking/AstridAPIClient+Auth.swift",
         "Astrid App/Core/Networking/AstridAPIClient+Account.swift",
-        "Astrid App/Core/Networking/AstridAPIClient+Projects.swift",
     ]
 
     private static func currentClientPaths(_ test: APIEndpointInventoryTests) throws -> Set<String> {

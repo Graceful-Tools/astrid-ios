@@ -1,11 +1,12 @@
 //  MacProjectBoardView.swift
 //  Astrid for Mac — a project's board with its lists as rows (AITD-674, web AWTD-1660).
 //
-//  The columns are the project's own, answered by astrid-core's `board`. Each row asks the core for
-//  its own list's board (that list's manual order and Done window) and keeps the cards that belong
-//  to that list, so a card sits in the same column here as on its list's board. Which lists are
-//  rows is the person's choice, saved on the server through `ProjectBoardRowsService`. Cards drag
-//  between columns as on a single-list board, through `TaskService.moveToBoardColumn`.
+//  The columns are the project's own, answered by astrid-core's `board`. Each row asks the core's
+//  `projectBoardRow` for that list's cards under the project's columns (AITD-676, CONTRACTS D67):
+//  the list's manual order and Done window arrange them, and a role the project has no column for
+//  waits in the Inbox. Which lists are rows is the person's choice, saved on the server through
+//  the core (`ProjectBoardRowsService`). Cards drag between columns as on a single-list board,
+//  through `TaskService.moveToBoardColumn`.
 
 #if os(macOS)
 import SwiftUI
@@ -29,11 +30,13 @@ struct MacProjectBoardView: View {
         MacLayout.boardColumnWidth(columnCount: columns.count, availableWidth: boardWidth)
     }
 
-    private var rowIds: [String] { rows.rowIds(projectId: projectId, lists: listService.lists) }
+    private var listsById: [String: TaskList] {
+        Dictionary(listService.lists.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    }
 
     private var rowLists: [TaskList] {
-        let byId = Dictionary(listService.lists.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        return rowIds.compactMap { byId[$0] }
+        let byId = listsById
+        return rows.rowIds(projectId: projectId).compactMap { byId[$0] }
     }
 
     var body: some View {
@@ -49,7 +52,7 @@ struct MacProjectBoardView: View {
                             .accessibilityIdentifier("projectBoard.empty")
                     }
                     ForEach(rowLists) { list in
-                        MacProjectBoardRow(list: list, columns: columns, columnWidth: columnWidth,
+                        MacProjectBoardRow(projectId: projectId, list: list, columns: columns, columnWidth: columnWidth,
                                            onRemove: { remove(list) }, onOpenTask: onOpenTask)
                     }
                 }
@@ -88,7 +91,8 @@ struct MacProjectBoardView: View {
     }
 
     private var addListMenu: some View {
-        let candidates = ProjectBoardRows.candidates(lists: listService.lists, rowIds: rowIds)
+        let byId = listsById
+        let candidates = rows.candidateIds(projectId: projectId).compactMap { byId[$0] }
         return Menu {
             if candidates.isEmpty {
                 Text(NSLocalizedString("project_mode.board_no_candidates", comment: ""))
@@ -100,6 +104,7 @@ struct MacProjectBoardView: View {
             Label(NSLocalizedString("project_mode.board_add_list", comment: ""), systemImage: "plus")
         }
         .fixedSize()
+        .disabled(!rows.canAddRow(projectId: projectId))
         .accessibilityIdentifier("projectBoard.addList")
     }
 
@@ -114,18 +119,17 @@ struct MacProjectBoardView: View {
     }
 
     private func add(_ listId: String) {
-        let lists = listService.lists
-        _Concurrency.Task { await rows.addRow(projectId: projectId, listId: listId, lists: lists) }
+        _Concurrency.Task { await rows.addRow(projectId: projectId, listId: listId) }
     }
 
     private func remove(_ list: TaskList) {
-        let lists = listService.lists
-        _Concurrency.Task { await rows.removeRow(projectId: projectId, listId: list.id, lists: lists) }
+        _Concurrency.Task { await rows.removeRow(projectId: projectId, listId: list.id) }
     }
 }
 
 /// One list's row: its header and its cards under the project's columns.
 private struct MacProjectBoardRow: View {
+    let projectId: String
     let list: TaskList
     let columns: [ProjectBoardColumn]
     let columnWidth: CGFloat
@@ -133,15 +137,15 @@ private struct MacProjectBoardRow: View {
     let onOpenTask: (String) -> Void
 
     @StateObject private var taskService = TaskService.shared
-    /// This list's board as the core draws it — the list's order and Done window.
+    /// This row as the core draws it: the list's cards under the project's columns.
     @StateObject private var board = BoardModel()
     @State private var dropTargetColumnId: String?
     @State private var hoveredCardId: String?
 
+    private var query: BoardModel.Query { BoardModel.Query(listId: list.id, rowOfProjectId: projectId) }
+
     private var cells: [String: [String]] {
-        ProjectBoardRows.cells(rowColumns: board.columns.map { (id: $0.id, ids: $0.ids) },
-                               projectColumnIds: columns.map(\.id),
-                               listId: list.id, tasksById: taskService.tasksById)
+        Dictionary(board.columns.map { ($0.id, $0.ids) }, uniquingKeysWith: { first, _ in first })
     }
 
     var body: some View {
@@ -166,7 +170,7 @@ private struct MacProjectBoardRow: View {
                 }
             }
         }
-        .task(id: BoardModel.Query(listId: list.id)) { board.update(BoardModel.Query(listId: list.id)) }
+        .task(id: query) { board.update(query) }
         .accessibilityIdentifier("projectBoard.row.\(list.id)")
     }
 

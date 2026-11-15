@@ -1454,6 +1454,19 @@ public func coreVersion() -> String  {
 })
 }
 /**
+ * Whether this process can verify a TLS certificate yet: always on Apple, and on Android once the
+ * app has called its TLS init, `Java_com_gracefultools_astrid_core_PlatformTls_initialize`
+ * (AWTD-1673). Until then every request fails with the core's offline failure naming the missing
+ * init, rather than reaching a verifier that would panic.
+ */
+public func platformTlsReady() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_astrid_uniffi_fn_func_platform_tls_ready(uniffiCallStatus
+    )
+})
+}
+/**
  * Answer one pure rule — see [`astrid_core::rules`]. Synchronous, and safe to call from any
  * thread, including the main one: no rule touches a cache, a clock or the network.
  */
@@ -1482,6 +1495,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.contractVersionMismatch
     }
     if (uniffi_astrid_uniffi_checksum_func_core_version() != 52825) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_astrid_uniffi_checksum_func_platform_tls_ready() != 54842) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_astrid_uniffi_checksum_func_run_rule() != 40909) {

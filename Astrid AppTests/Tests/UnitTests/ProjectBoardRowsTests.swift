@@ -1,87 +1,61 @@
 //  ProjectBoardRowsTests.swift
-//  The multi-list project board (AITD-674, web AWTD-1660): which lists are rows, how a row's cards
-//  sit under the project's columns, and the saved rows on the server.
+//  The multi-list project board (AITD-674), now answered by astrid-core (AITD-676). The rows
+//  arithmetic (defaults, saved order, dropped ids, candidates, cells) is the core's and its
+//  fixture `contracts/fixtures/board-rows.json` covers it. These pin how the app asks: one row
+//  through `projectBoardRow`, and the saved rows through `projectBoardRows` /
+//  `saveProjectBoardRows`.
 
 import XCTest
+import AstridCore
 @testable import Astrid_App
 
+@MainActor
 final class ProjectBoardRowsTests: XCTestCase {
-    private func list(_ id: String, _ name: String? = nil, project: String? = nil,
-                      type: String? = nil, virtual: Bool? = nil) -> TaskList {
-        TaskList(id: id, name: name ?? id, isVirtual: virtual, projectId: project, listType: type)
+
+    private func task(_ id: String, on listId: String, role: String? = nil) -> Task {
+        var t = Task(id: id, title: id)
+        t.listIds = [listId]
+        t.statusRole = role
+        t.updatedAt = Date().addingTimeInterval(-60)
+        return t
     }
 
-    private var lists: [TaskList] {
-        [
-            list("a", "Alpha", project: "p"),
-            list("status-ready", "Ready", project: "p", type: "status"),
-            list("b", "Beta", project: "p"),
-            list("c", "Charlie", project: "q"),
-            list("tag", "Bug", type: "label"),
-            list("smart", "Smart", virtual: true),
-            list("d", "Delta"),
-        ]
+    /// Project `p1` with its own list `board`, and `home`, a list on no project.
+    private func session(_ tasks: [Task]) throws -> CoreSession {
+        var board = TaskList(id: "board", name: "Board")
+        board.projectId = "p1"
+        let home = TaskList(id: "home", name: "Home")
+        return try CoreBoardFixture.session(tasks: tasks, lists: [board, home],
+                                            projects: [Project(id: "p1", name: "Board")])
     }
 
-    // MARK: Rows
-
-    func testNothingSavedShowsTheProjectsOwnDomainLists_AITD674() {
-        XCTAssertEqual(ProjectBoardRows.defaultListIds(projectId: "p", lists: lists), ["a", "b"])
-        XCTAssertEqual(ProjectBoardRows.resolve(saved: nil, projectId: "p", lists: lists).map(\.id), ["a", "b"])
+    private func ids(_ columns: [BoardModel.Column]?, _ id: String) -> [String] {
+        columns?.first { $0.id == id }?.ids ?? []
     }
 
-    func testSavedRowsDrawInSavedOrderDroppingUnseenRepeatsAndNonLists_AITD674() {
-        let rows = ProjectBoardRows.resolve(saved: ["d", "gone", "b", "d", "tag", "status-ready", "c"],
-                                            projectId: "p", lists: lists)
-        XCTAssertEqual(rows.map(\.id), ["d", "b", "c"])
+    /// AITD-676, CONTRACTS D67: a list with no board of its own drew an EMPTY row on the Mac,
+    /// because its own `board` came back with no columns. Now it draws its cards under the project's.
+    func testAITD676_aListWithNoBoardOfItsOwnDrawsItsCards() async throws {
+        let session = try session([task("h1", on: "home"), task("h2", on: "home", role: "doing"),
+                                   task("b1", on: "board")])
+        let columns = await BoardModel.columns(for: BoardModel.Query(listId: "home", rowOfProjectId: "p1"),
+                                               session: session)
+        XCTAssertEqual(ids(columns, VIRTUAL_INBOX_COLUMN_ID), ["h1"])
+        XCTAssertEqual(ids(columns, "doing"), ["h2"])
     }
 
-    func testAnEmptiedBoardStaysEmpty_AITD674() {
-        XCTAssertTrue(ProjectBoardRows.resolve(saved: [], projectId: "p", lists: lists).isEmpty)
+    /// D67: a role the project has no column for waits in the Inbox, never dropped.
+    func testAITD676_aRoleTheProjectLacksWaitsInTheInbox() async throws {
+        let session = try session([task("q", on: "home", role: "qa")])
+        let columns = await BoardModel.columns(for: BoardModel.Query(listId: "home", rowOfProjectId: "p1"),
+                                               session: session)
+        XCTAssertEqual(ids(columns, VIRTUAL_INBOX_COLUMN_ID), ["q"])
     }
 
-    func testAddAndRemove_AITD674() {
-        XCTAssertEqual(ProjectBoardRows.add("c", to: ["a"]), ["a", "c"])
-        XCTAssertEqual(ProjectBoardRows.add("a", to: ["a"]), ["a"])
-        XCTAssertEqual(ProjectBoardRows.remove("a", from: ["a", "c"]), ["c"])
+    func testAITD676_aRowIsRememberedApartFromItsListsOwnBoard() {
+        XCTAssertNotEqual(BoardModel.Query(listId: "home", rowOfProjectId: "p1").key,
+                          BoardModel.Query(listId: "home").key)
     }
-
-    func testCandidatesAreUnusedRealListsByName_AITD674() {
-        let names = ProjectBoardRows.candidates(lists: lists, rowIds: ["a"]).map(\.name)
-        XCTAssertEqual(names, ["Beta", "Charlie", "Delta"])
-    }
-
-    // MARK: Cells
-
-    private func task(_ id: String, in listIds: [String]) -> Task {
-        Task(id: id, title: id, listIds: listIds)
-    }
-
-    func testARowKeepsOnlyItsOwnListsCardsAndACardShowsInEveryRowItIsOn_AITD674() {
-        let tasks = ["t1": task("t1", in: ["a"]), "t2": task("t2", in: ["b"]), "t3": task("t3", in: ["a", "b"])]
-        let core: [(id: String, ids: [String])] = [("ready", ["t1", "t2", "t3"]), (VIRTUAL_DONE_COLUMN_ID, [])]
-        let columns = [VIRTUAL_INBOX_COLUMN_ID, "ready", VIRTUAL_DONE_COLUMN_ID]
-
-        let rowA = ProjectBoardRows.cells(rowColumns: core, projectColumnIds: columns, listId: "a", tasksById: tasks)
-        let rowB = ProjectBoardRows.cells(rowColumns: core, projectColumnIds: columns, listId: "b", tasksById: tasks)
-
-        XCTAssertEqual(rowA["ready"], ["t1", "t3"])
-        XCTAssertEqual(rowB["ready"], ["t2", "t3"])
-        XCTAssertEqual(rowA[VIRTUAL_INBOX_COLUMN_ID], [])
-    }
-
-    func testAForeignBoardsColumnThisProjectLacksWaitsInTheInbox_AITD674() {
-        let tasks = ["t1": task("t1", in: ["c"]), "t2": task("t2", in: ["c"])]
-        let core: [(id: String, ids: [String])] = [("custom-review", ["t1"]), ("doing", ["t2"])]
-        let columns = [VIRTUAL_INBOX_COLUMN_ID, "doing", VIRTUAL_DONE_COLUMN_ID]
-
-        let row = ProjectBoardRows.cells(rowColumns: core, projectColumnIds: columns, listId: "c", tasksById: tasks)
-
-        XCTAssertEqual(row[VIRTUAL_INBOX_COLUMN_ID], ["t1"])
-        XCTAssertEqual(row["doing"], ["t2"])
-    }
-
-    // MARK: Drag payload
 
     func testAListDragIsToldApartFromATaskCard_AITD674() {
         XCTAssertEqual(ProjectBoardListDrag.listId(from: ProjectBoardListDrag.payload(listId: "a")), "a")
@@ -90,64 +64,80 @@ final class ProjectBoardRowsTests: XCTestCase {
     }
 }
 
-/// The saved rows, through `StubURLProtocol` instead of the server.
+/// The saved rows, through a stand-in for the core.
 @MainActor
 final class ProjectBoardRowsServiceTests: XCTestCase {
-    private var service: ProjectBoardRowsService!
-    private let lists = [
-        TaskList(id: "a", name: "A", projectId: "p"),
-        TaskList(id: "b", name: "B", projectId: "p"),
-        TaskList(id: "c", name: "C"),
-    ]
+    private final class Core: @unchecked Sendable {
+        var commands: [[String: Any]] = []
+        var answer: (([String: Any]) throws -> ProjectBoardRowsService.Answer)!
 
-    override func setUp() {
-        super.setUp()
-        StubURLProtocol.reset()
-        service = ProjectBoardRowsService(client: AstridAPIClient(session: StubURLProtocol.session()))
-    }
-
-    override func tearDown() {
-        StubURLProtocol.reset()
-        super.tearDown()
-    }
-
-    func testNothingSavedReadsAsTheProjectsLists_AITD674() async {
-        StubURLProtocol.respond = { _ in .json(#"{"listIds":null,"meta":{"apiVersion":"v1"}}"#) }
-
-        await service.load(projectId: "p")
-
-        XCTAssertEqual(StubURLProtocol.requests.first?.method, "GET")
-        XCTAssertEqual(StubURLProtocol.requests.first?.path, "/api/v1/projects/p/board-rows")
-        XCTAssertTrue(service.isLoaded("p"))
-        XCTAssertEqual(service.rowIds(projectId: "p", lists: lists), ["a", "b"])
-    }
-
-    func testAddingARowPutsTheWholeOrderedList_AITD674() async throws {
-        StubURLProtocol.respond = { request in
-            request.httpMethod == "PUT" ? .json(#"{"listIds":["a","b","c"]}"#) : .json(#"{"listIds":null}"#)
+        func run(_ command: CoreCommand) throws -> ProjectBoardRowsService.Answer {
+            let data = try JSONEncoder().encode(command)
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            commands.append(json)
+            return try answer(json)
         }
+    }
+
+    private struct Refused: Error {}
+
+    private func answer(_ rows: [String], candidates: [String] = ["c"], canAdd: Bool = true,
+                        saved: [String]? = nil) -> ProjectBoardRowsService.Answer {
+        .init(projectId: "p", savedListIds: saved, rowListIds: rows, candidateListIds: candidates,
+              canAddRow: canAdd, fromCache: false)
+    }
+
+    private func service(_ core: Core) -> ProjectBoardRowsService {
+        ProjectBoardRowsService(run: { command in try core.run(command) })
+    }
+
+    func testLoadAsksTheCoreAndDrawsItsRows_AITD676() async {
+        let core = Core()
+        core.answer = { _ in self.answer(["a", "b"]) }
+        let service = service(core)
+
         await service.load(projectId: "p")
 
-        await service.addRow(projectId: "p", listId: "c", lists: lists)
+        XCTAssertEqual(core.commands.first?["kind"] as? String, "projectBoardRows")
+        XCTAssertEqual(core.commands.first?["projectId"] as? String, "p")
+        XCTAssertTrue(service.isLoaded("p"))
+        XCTAssertEqual(service.rowIds(projectId: "p"), ["a", "b"])
+        XCTAssertEqual(service.candidateIds(projectId: "p"), ["c"])
+        XCTAssertTrue(service.canAddRow(projectId: "p"))
+    }
 
-        let put = try XCTUnwrap(StubURLProtocol.requests.last)
-        XCTAssertEqual(put.method, "PUT")
-        XCTAssertEqual(put.jsonBody?["listIds"] as? [String], ["a", "b", "c"])
-        XCTAssertEqual(service.rowIds(projectId: "p", lists: lists), ["a", "b", "c"])
+    func testAddingARowSendsTheCoreTheListToAdd_AITD676() async throws {
+        let core = Core()
+        core.answer = { json in
+            json["kind"] as? String == "saveProjectBoardRows"
+                ? self.answer(["a", "b", "c"], candidates: [], saved: ["a", "b", "c"]) : self.answer(["a", "b"])
+        }
+        let service = service(core)
+        await service.load(projectId: "p")
+
+        await service.addRow(projectId: "p", listId: "c")
+
+        let save = try XCTUnwrap(core.commands.last)
+        XCTAssertEqual(save["kind"] as? String, "saveProjectBoardRows")
+        XCTAssertEqual(save["addListId"] as? String, "c")
+        XCTAssertNil(save["listIds"])
+        XCTAssertEqual(service.rowIds(projectId: "p"), ["a", "b", "c"])
         XCTAssertNil(service.saveFailed)
     }
 
-    func testARefusedSaveGoesBackAndSaysSo_AITD674() async {
-        StubURLProtocol.respond = { request in
-            request.httpMethod == "PUT"
-                ? .json(#"{"error":"You cannot see one or more of these lists"}"#, status: 403)
-                : .json(#"{"listIds":["b"]}"#)
+    func testARefusedSaveGoesBackAndSaysSo_AITD676() async throws {
+        let core = Core()
+        core.answer = { json in
+            if json["kind"] as? String == "saveProjectBoardRows" { throw Refused() }
+            return self.answer(["b"])
         }
+        let service = service(core)
         await service.load(projectId: "p")
 
-        await service.removeRow(projectId: "p", listId: "b", lists: lists)
+        await service.removeRow(projectId: "p", listId: "b")
 
-        XCTAssertEqual(service.rowIds(projectId: "p", lists: lists), ["b"])
+        XCTAssertEqual(core.commands.last?["removeListId"] as? String, "b")
+        XCTAssertEqual(service.rowIds(projectId: "p"), ["b"])
         XCTAssertEqual(service.saveFailed, "p")
     }
 }
