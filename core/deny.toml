@@ -80,10 +80,14 @@ yanked = "warn"
 # its tree. That is a WARNING in cargo-deny, never a failure, and the alternative — four allow
 # lists diverging by whichever repo noticed a crate first — is what task `32d7c04d` ended.
 #
-# CDLA-Permissive-2.0 is `webpki-roots`, which carries the Mozilla root certificate set rather than
-# code — it arrived with rustls on Android (AATD-4) and is the one entry here that is a DATA
-# licence. It is also why this list is computed and not assumed: nothing about "a TLS stack"
-# suggests a Community Data License Agreement.
+# CDLA-Permissive-2.0 is the Mozilla root certificate set, data rather than code, and the one entry
+# here that is a DATA licence. It arrived as `webpki-roots` with rustls on Android (AATD-4). Android
+# now verifies through the device's trust store (`rustls-platform-verifier`, AWTD-1673) and
+# `webpki-roots` has left the graph — but the term stays, because `rustls-platform-verifier` pulls
+# the same set as `webpki-root-certs` for its wasm32 target, and this graph is every target's (see
+# `[graph]`). No shipped client compiles it: no client builds astrid-core for wasm32. It is also why
+# this list is computed and not assumed: nothing about "a TLS stack" suggests a Community Data
+# License Agreement.
 [licenses]
 version = 2
 allow = [
