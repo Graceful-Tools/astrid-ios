@@ -531,75 +531,13 @@ struct MacRootView: View {
             || listService.lists.first(where: { $0.id == selectedListId })?.isVirtual == true
     }
 
-    /// Floating detail pop-out: a rounded card on the trailing edge with a left-pointing arrow back
-    /// at the task list, plus a close button (2766d9a4). Replaces the permanent empty 3rd column.
+    /// Floating detail pop-out (2766d9a4) — `MacTaskDetailPopout`, docked on `side`.
     private func taskDetailPopout(_ task: Task, side: BoardCardCallout.Side) -> some View {
-        // ✕ / "Task Details" / ⋯ live in the detail's own web-style header (df22157f).
-        MacTaskDetailView(task: task, onClose: { selectedTaskIds.removeAll() })
-            .frame(width: MacLayout.resolvedDetailPanelWidth(chatColumnWidth: resolvedChatColumnWidth),
-                   alignment: .top)
-            .frame(maxHeight: .infinity, alignment: .top)
-            .background(MacDetailChrome.background)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            // The SELECTION outline, not a neutral hairline (AITD-302). The panel unfolds out of
-            // the selected row, so it wears the same border that row wears — the same call, so
-            // the two cannot drift, and every theme follows Theme.accent for free. In the grey
-            // hairline it read as an unrelated card resting against the row.
-            .overlay(RoundedRectangle(cornerRadius: 14)
-                .stroke(MacSelectionStyle.borderColor(isSelected: true),
-                        lineWidth: MacSelectionStyle.selectedWidth))
-            .shadow(color: .black.opacity(0.18), radius: 16, x: side == .trailing ? -2 : 2, y: 4)
-            // The arrow is drawn ON TOP of the card, overlapping its edge by a point, so its base
-            // MERGES into the card surface. Previously it sat in its own column beside the card:
-            // the card's border stroke ran across the arrow's base (it looked cut off) and the
-            // arrow carried its own drop shadow, which tinted it darker than the card.
-            // Same fill as the card + no shadow of its own = it blends.
-            .overlay(alignment: side == .trailing ? .topLeading : .topTrailing) {
-                GeometryReader { g in
-                    // Convert the row's content-space midY through the CARD's measured origin.
-                    // A hardcoded offset was wrong because the panel is centered, so its origin
-                    // moves with the panel's height — the arrow aimed at the wrong task (69fd1f19).
-                    // Global on BOTH sides (row + panel): a named-space mismatch offset the arrow
-                    // by about one row height, so it pointed one row below the tapped one.
-                    let originY = g.frame(in: .global).minY
-                    // Beside a board card the arrow aims at the card's middle and keeps off the
-                    // corners by astrid-core's rule (AITD-679); no card on screen, no arrow.
-                    if !isBoardDetail || selectedCardFrame != nil {
-                    ZStack {
-                        // The fill erases the card's border along the 1pt overlap, which is what
-                        // lets the notch's mouth open into the card face — and is why the outline
-                        // has to be redrawn around the two outer edges, or the selection border
-                        // would simply stop for the arrow's height (AITD-302).
-                        MacPopoverArrow().fill(MacDetailChrome.background)
-                        MacPopoverArrowEdges()
-                            .stroke(MacSelectionStyle.borderColor(isSelected: true),
-                                    lineWidth: MacSelectionStyle.selectedWidth)
-                    }
-                        .frame(width: MacLayout.detailArrowWidth, height: 24)
-                        // The notch points left at a row; mirrored, it points right at a card.
-                        .scaleEffect(x: side == .trailing ? 1 : -1, y: 1)
-                        .position(x: side == .trailing
-                                    ? -MacLayout.detailArrowWidth / 2 + MacLayout.arrowOverlap
-                                    : g.size.width + MacLayout.detailArrowWidth / 2 - MacLayout.arrowOverlap,
-                                  y: isBoardDetail
-                                    ? BoardCardCallout.arrowY(card: selectedCardFrame, panel: g.frame(in: .global))
-                                    : MacSelectionModel.arrowLocalY(rowMidY: selectedRowMidY,
-                                                                    panelOriginY: originY,
-                                                                    panelHeight: g.size.height))
-                        .animation(MacMotion.fast, value: isBoardDetail ? selectedCardFrame?.midY : selectedRowMidY)
-                    }
-                }
-            }
-            .padding(side == .trailing ? .leading : .trailing,
-                     MacLayout.detailArrowWidth + MacLayout.detailPanelMargin)
-            // One margin, always: the panel WIDTH grows with the chat column instead (AITD-334), so
-            // the card reaches the trailing margin while its leading edge — and the arrow's
-            // AITD-302 clearance from the row edge — stays exactly where it was.
-            .padding(side == .trailing ? .trailing : .leading, MacLayout.detailPopoutTrailingPadding)
-        .padding(.vertical, 14)
-        // FULL height, not centred-and-intrinsic: a shorter card cannot reach rows outside its own
-        // vertical extent, so the arrow clamped to the card's edge and pointed at the wrong row.
-        .frame(maxHeight: .infinity)
+        MacTaskDetailPopout(task: task, side: side,
+                            panelWidth: MacLayout.resolvedDetailPanelWidth(chatColumnWidth: resolvedChatColumnWidth),
+                            besideBoard: isBoardDetail, selectedRowMidY: selectedRowMidY,
+                            selectedCardFrame: selectedCardFrame,
+                            onClose: { selectedTaskIds.removeAll() })
     }
 
     /// Global search results view (Task 36587d3d) — full-text over all tasks incl. completed.

@@ -17,8 +17,8 @@
       "why": "Was 1766. Permission rules moved to ListPermissions (2026-09-13); AITD-409 moved the settings diff to ListSettingsPayload; shared search/splice helpers (2026-10-03); AITD-460 moved filtering, sorting and splicing to astrid-core's rowsForList."
     },
     "Astrid Mac/App/MacRootView.swift": {
-      "lines": 1460,
-      "why": "Was 1674. AITD-387 lifted the quick-add options popover into MacDraftDefaultsPicker; AITD-431 moved the quick-add bar to MacQuickAddBar; AITD-460 put rows in astrid-core and MacRowPipeline; AITD-461 took the board column count from BoardModel."
+      "lines": 1439,
+      "why": "Was 1674. AITD-387 lifted the quick-add options popover into MacDraftDefaultsPicker; AITD-431 moved the quick-add bar to MacQuickAddBar; AITD-460 put rows in astrid-core and MacRowPipeline; AITD-461 took the board column count from BoardModel; AITD-679 moved the detail pop-out to MacTaskDetailPopout."
     },
     "Astrid App/Core/Networking/AstridAPIClient.swift": {
       "lines": 532,
