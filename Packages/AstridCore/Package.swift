@@ -14,8 +14,8 @@
 import Foundation
 import PackageDescription
 
-let releasedURL = "https://github.com/Graceful-Tools/astrid-ios/releases/download/core-ed8380c/AstridCoreFFI.xcframework.zip"
-let releasedChecksum = "63abd042ce834aecf5e347da6bb5a03f4c6619b0eabcadc7054df3b8bac25c3b"
+let releasedURL = "https://github.com/Graceful-Tools/astrid-ios/releases/download/core-326a201/AstridCoreFFI.xcframework.zip"
+let releasedChecksum = "e280a5d942e3f7830301b809e42d9b67d107c78c8529bb2b3065ed993d476ba4"
 
 let localFramework = Context.packageDirectory + "/AstridCoreFFI.xcframework"
 let framework: Target = FileManager.default.fileExists(atPath: localFramework)
