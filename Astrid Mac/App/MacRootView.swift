@@ -44,6 +44,11 @@ struct MacRootView: View {
     @State private var myTasksCount = 0            // memoized sidebar badge (was O(n) per body eval)
     @State private var listCounts: [String: Int] = [:]   // memoized per-list badges — see MacListCount
     @State private var selectedRowMidY: CGFloat?   // pop-out arrow tracks the selected row (a1cb6083)
+    /// The open board card's frame (global), so the pop-out's arrow follows it (AITD-679).
+    @State private var selectedCardFrame: CGRect?
+    /// The board card a click opened the pop-out from, and where it was then. The side is decided
+    /// from this once: a pop-out that hopped sides as the board scrolled would chase the card.
+    @State private var openedBoardCard: (taskId: String, frame: CGRect)?
     @State private var scrollAccum: CGFloat = 0    // accumulated scroll while the pop-out is open
     @State private var contentWidth: CGFloat = 0   // responsive 2/3-column (23c98550)
     @State private var windowWidth: CGFloat = 0    // decides the chat column — see chatColumnVisible
@@ -62,8 +67,35 @@ struct MacRootView: View {
     /// Tasks' VIRTUAL channel (the same one iOS and web resolve). nil = this selection has no chat.
     /// Where the pop-out unfolds from: the arrow's height inside the content area.
     private var revealAnchorY: CGFloat {
-        MacDetailReveal.anchor(rowMidY: selectedRowMidY,
+        MacDetailReveal.anchor(rowMidY: isBoardDetail ? selectedCardFrame?.midY : selectedRowMidY,
                                contentMinY: contentFrame.minY, contentHeight: contentFrame.height)
+    }
+
+    /// The detail is beside a board's cards rather than a list's rows.
+    private var isBoardDetail: Bool {
+        MacProjectSelection.projectId(from: selectedListId) != nil
+            || (contentMode == .board && selectedListId != Self.myTasksId)
+    }
+
+    /// Which edge the pop-out docks on: trailing beside a list; beside a board card, whichever
+    /// side of the card has more room — astrid-core's callout rule (AITD-679).
+    private var popoutSide: BoardCardCallout.Side {
+        guard isBoardDetail, let opened = openedBoardCard, selectedTaskIds == [opened.taskId],
+              contentFrame.width > 0 else { return .trailing }
+        return BoardCardCallout.side(
+            card: opened.frame, viewport: contentFrame,
+            panelWidth: MacLayout.resolvedDetailPanelWidth(chatColumnWidth: resolvedChatColumnWidth)
+                + MacLayout.detailArrowWidth + MacLayout.detailPanelMargin * 2)
+    }
+
+    /// A board card was clicked: its details open beside it, or close if they are already its.
+    private func openBoardCard(_ taskId: String, frame: CGRect?) {
+        if selectedTaskIds == [taskId] {
+            selectedTaskIds.removeAll()
+            return
+        }
+        openedBoardCard = frame.map { (taskId, $0) }
+        selectedTaskIds = [taskId]
     }
 
     /// Cached once: `ProcessInfo.arguments` allocates on every read.
@@ -488,7 +520,9 @@ struct MacRootView: View {
     /// disagreed about what a new task would be. Each column now draws the list's own bar
     /// (`MacQuickAddBar`), so the central one is gone (AITD-431).
     @ViewBuilder private func boardColumn(_ listId: String) -> some View {
-        MacBoardView(listId: listId)
+        MacBoardView(listId: listId,
+                     selectedTaskId: selectedTaskIds.count == 1 ? selectedTaskIds.first : nil,
+                     onOpenCard: { openBoardCard($0, frame: $1) })
     }
 
     /// A virtual/saved-filter list can't take a quick-add or a New Task (it owns no real tasks).
@@ -497,64 +531,13 @@ struct MacRootView: View {
             || listService.lists.first(where: { $0.id == selectedListId })?.isVirtual == true
     }
 
-    /// Floating detail pop-out: a rounded card on the trailing edge with a left-pointing arrow back
-    /// at the task list, plus a close button (2766d9a4). Replaces the permanent empty 3rd column.
-    private func taskDetailPopout(_ task: Task) -> some View {
-        // ✕ / "Task Details" / ⋯ live in the detail's own web-style header (df22157f).
-        MacTaskDetailView(task: task, onClose: { selectedTaskIds.removeAll() })
-            .frame(width: MacLayout.resolvedDetailPanelWidth(chatColumnWidth: resolvedChatColumnWidth),
-                   alignment: .top)
-            .frame(maxHeight: .infinity, alignment: .top)
-            .background(MacDetailChrome.background)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            // The SELECTION outline, not a neutral hairline (AITD-302). The panel unfolds out of
-            // the selected row, so it wears the same border that row wears — the same call, so
-            // the two cannot drift, and every theme follows Theme.accent for free. In the grey
-            // hairline it read as an unrelated card resting against the row.
-            .overlay(RoundedRectangle(cornerRadius: 14)
-                .stroke(MacSelectionStyle.borderColor(isSelected: true),
-                        lineWidth: MacSelectionStyle.selectedWidth))
-            .shadow(color: .black.opacity(0.18), radius: 16, x: -2, y: 4)
-            // The arrow is drawn ON TOP of the card, overlapping its edge by a point, so its base
-            // MERGES into the card surface. Previously it sat in its own column beside the card:
-            // the card's border stroke ran across the arrow's base (it looked cut off) and the
-            // arrow carried its own drop shadow, which tinted it darker than the card.
-            // Same fill as the card + no shadow of its own = it blends.
-            .overlay(alignment: .topLeading) {
-                GeometryReader { g in
-                    // Convert the row's content-space midY through the CARD's measured origin.
-                    // A hardcoded offset was wrong because the panel is centered, so its origin
-                    // moves with the panel's height — the arrow aimed at the wrong task (69fd1f19).
-                    // Global on BOTH sides (row + panel): a named-space mismatch offset the arrow
-                    // by about one row height, so it pointed one row below the tapped one.
-                    let originY = g.frame(in: .global).minY
-                    ZStack {
-                        // The fill erases the card's border along the 1pt overlap, which is what
-                        // lets the notch's mouth open into the card face — and is why the outline
-                        // has to be redrawn around the two outer edges, or the selection border
-                        // would simply stop for the arrow's height (AITD-302).
-                        MacPopoverArrow().fill(MacDetailChrome.background)
-                        MacPopoverArrowEdges()
-                            .stroke(MacSelectionStyle.borderColor(isSelected: true),
-                                    lineWidth: MacSelectionStyle.selectedWidth)
-                    }
-                        .frame(width: MacLayout.detailArrowWidth, height: 24)
-                        .position(x: -MacLayout.detailArrowWidth / 2 + MacLayout.arrowOverlap,
-                                  y: MacSelectionModel.arrowLocalY(rowMidY: selectedRowMidY,
-                                                                   panelOriginY: originY,
-                                                                   panelHeight: g.size.height))
-                        .animation(MacMotion.fast, value: selectedRowMidY)
-                }
-            }
-            .padding(.leading, MacLayout.detailArrowWidth + MacLayout.detailPanelMargin)
-            // One margin, always: the panel WIDTH grows with the chat column instead (AITD-334), so
-            // the card reaches the trailing margin while its leading edge — and the arrow's
-            // AITD-302 clearance from the row edge — stays exactly where it was.
-            .padding(.trailing, MacLayout.detailPopoutTrailingPadding)
-        .padding(.vertical, 14)
-        // FULL height, not centred-and-intrinsic: a shorter card cannot reach rows outside its own
-        // vertical extent, so the arrow clamped to the card's edge and pointed at the wrong row.
-        .frame(maxHeight: .infinity)
+    /// Floating detail pop-out (2766d9a4) — `MacTaskDetailPopout`, docked on `side`.
+    private func taskDetailPopout(_ task: Task, side: BoardCardCallout.Side) -> some View {
+        MacTaskDetailPopout(task: task, side: side,
+                            panelWidth: MacLayout.resolvedDetailPanelWidth(chatColumnWidth: resolvedChatColumnWidth),
+                            besideBoard: isBoardDetail, selectedRowMidY: selectedRowMidY,
+                            selectedCardFrame: selectedCardFrame,
+                            onClose: { selectedTaskIds.removeAll() })
     }
 
     /// Global search results view (Task 36587d3d) — full-text over all tasks incl. completed.
@@ -1186,7 +1169,9 @@ struct MacRootView: View {
             Group {
                 if let listId = selectedListId {
                     if let projectId = MacProjectSelection.projectId(from: listId) {
-                        MacProjectBoardView(projectId: projectId, onOpenTask: { selectedTaskIds = [$0] })
+                        MacProjectBoardView(projectId: projectId,
+                                            selectedTaskId: selectedTaskIds.count == 1 ? selectedTaskIds.first : nil,
+                                            onOpenTask: { openBoardCard($0, frame: $1) })
                     } else if listId == Self.searchId {
                         searchView
                     } else if chatColumnVisible, let chatSource {
@@ -1212,11 +1197,10 @@ struct MacRootView: View {
                     MacEmptyState(copy: .noListSelected).background(Theme.bgPrimary)
                 }
             }
-            // WHICH detail shows is the shared rule's call (9a98f996), not a condition here — the
-            // pop-out floats at the trailing edge and stays suppressed on a board, but full screen
-            // fills the content area and is allowed there. The old buried condition suppressed
-            // BOTH, which quietly made the board card's "Open full detail…" link do nothing.
-            .overlay(alignment: MacDetailPresentation.alignment(for: detailStyle)) {
+            // WHICH detail shows is the shared rule's call (9a98f996), not a condition here. The
+            // pop-out docks beside a list's rows, or beside a board card on the side with more
+            // room (AITD-679); full screen fills the content area.
+            .overlay(alignment: MacDetailPresentation.alignment(for: detailStyle, side: popoutSide)) {
                 if detailStyle != .none, let id = selectedTaskIds.first,
                    // O(1) only: `tasksForSelection` here would re-run the entire filter→sort→
                    // splice pipeline on every body evaluation (the cost 4e0ce183 removed).
@@ -1230,18 +1214,24 @@ struct MacRootView: View {
                             .background(MacDetailChrome.background)
                             .transition(.opacity)
                     } else {
-                        taskDetailPopout(task)
+                        taskDetailPopout(task, side: popoutSide)
                             // Unfolds OUT OF the arrow and folds back into it the same way — the
                             // panel grows horizontally from the arrow's position, which sits at the
                             // selected row. A plain slide/fade did not read as coming from the task.
                             .transition(.modifier(
-                                active: MacDetailReveal(progress: 0, anchorY: revealAnchorY),
-                                identity: MacDetailReveal(progress: 1, anchorY: revealAnchorY)))
+                                active: MacDetailReveal(progress: 0, anchorY: revealAnchorY,
+                                                        arrowOnTrailingEdge: popoutSide == .leading),
+                                identity: MacDetailReveal(progress: 1, anchorY: revealAnchorY,
+                                                          arrowOnTrailingEdge: popoutSide == .leading)))
                     }
                 }
             }
             .coordinateSpace(name: "contentArea")              // rows report frames in this space
             .onPreferenceChange(MacSelectedRowMidYKey.self) { selectedRowMidY = $0 }
+            .onPreferenceChange(MacSelectedCardFrameKey.self) { selectedCardFrame = $0 }
+            .onChange(of: selectedTaskIds) { _, ids in
+                if let opened = openedBoardCard, ids != [opened.taskId] { openedBoardCard = nil }
+            }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { contentWidth = $0 }
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { contentFrame = $0 }
             .animation(MacMotion.medium, value: contentMode)   // list/board/chat switch eases (4c7b9f08)

@@ -373,7 +373,7 @@ struct MacTaskDetailView: View {
         AppActions.perform("Delete task") { try await taskService.deleteTask(id: task.id, task: task) }
     }
 
-    /// Labeled field row (web design language, matches MacBoardCardEditor) — Task 913216a9.
+    /// Labeled field row (web design language) — Task 913216a9.
 
     private func editSheet(title: String, text: Binding<String>, onSave: @escaping () -> Void) -> some View {
         MacTextEditSheet(title: title, text: text,

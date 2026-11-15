@@ -18,12 +18,16 @@ struct MacDetailReveal: ViewModifier {
     let progress: CGFloat
     /// Where the arrow sits vertically within the panel, 0...1 — the fold origin.
     let anchorY: CGFloat
+    /// The arrow is on the panel's TRAILING edge — a pop-out docked on the leading side, beside a
+    /// board card in a right-hand column (AITD-679) — so it folds toward that edge instead.
+    var arrowOnTrailingEdge = false
 
     func body(content: Content) -> some View {
         content
             // Keep AppKit-backed controls at their natural scale. Scaling the whole hierarchy
             // makes SwiftUI's PlatformTextFieldAdaptor generate invalid min/max constraints.
-            .clipShape(MacDetailRevealMask(progress: progress, anchorY: anchorY))
+            .clipShape(MacDetailRevealMask(progress: progress, anchorY: anchorY,
+                                           fromTrailing: arrowOnTrailingEdge))
             // Dissolve on the way out instead of shrinking at full strength (65b81ff8).
             .opacity(MacDetailReveal.fade(progress: progress))
     }
@@ -70,6 +74,7 @@ struct MacDetailReveal: ViewModifier {
 struct MacDetailRevealMask: Shape {
     var progress: CGFloat
     var anchorY: CGFloat
+    var fromTrailing = false
 
     var animatableData: AnimatablePair<CGFloat, CGFloat> {
         get { AnimatablePair(progress, anchorY) }
@@ -80,16 +85,17 @@ struct MacDetailRevealMask: Shape {
     }
 
     func path(in rect: CGRect) -> Path {
-        Path(Self.visibleRect(in: rect, progress: progress, anchorY: anchorY))
+        Path(Self.visibleRect(in: rect, progress: progress, anchorY: anchorY, fromTrailing: fromTrailing))
     }
 
-    static func visibleRect(in rect: CGRect, progress: CGFloat, anchorY: CGFloat) -> CGRect {
+    static func visibleRect(in rect: CGRect, progress: CGFloat, anchorY: CGFloat,
+                            fromTrailing: Bool = false) -> CGRect {
         let clampedProgress = min(max(progress, 0), 1)
         let clampedAnchor = min(max(anchorY, 0), 1)
         let width = rect.width * clampedProgress
         let height = rect.height * MacDetailReveal.verticalScale(progress: clampedProgress)
         let fixedY = rect.minY + rect.height * clampedAnchor
-        return CGRect(x: rect.minX,
+        return CGRect(x: fromTrailing ? rect.maxX - width : rect.minX,
                       y: fixedY - height * clampedAnchor,
                       width: width,
                       height: height)

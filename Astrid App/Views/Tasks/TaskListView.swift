@@ -18,9 +18,6 @@ struct ConditionalRefreshable: ViewModifier {
 }
 
 struct TaskListView: View {
-    /// iPad's detail panel full-screen state — the same key `iPadTaskManagerView` draws from, so
-    /// the board's full-screen button can open a task straight there (AITD-636).
-    @AppStorage("iPadDetailFullScreen") private var iPadDetailFullScreen: Bool = false
     @Environment(\.colorScheme) var colorScheme
     @ThemedPalette private var palette
     @Environment(\.usesSplitLayout) private var usesSplitLayout
@@ -593,21 +590,19 @@ struct TaskListView: View {
                                     projectId: projectId,
                                     onOpenSidebar: onMenuTap,
                                     onTaskTap: { task in
-                                        // The inline details' full-screen button (AITD-628):
-                                        // on iPad straight to the panel's full-screen state
-                                        // (AITD-636), elsewhere the full-screen push.
-                                        switch BoardCardExpansion.fullDetailsRoute(splitLayout: usesSplitLayout,
-                                                                                   forcePush: forcePushNavigation) {
-                                        case .panel(let fullScreen):
-                                            iPadDetailFullScreen = fullScreen
-                                            selectedTaskForPanel = task
+                                        // A card opens its details as a row does (AITD-679): on
+                                        // iPad the panel beside the card — tapping the open card
+                                        // closes it — elsewhere the full-screen push (AITD-642).
+                                        switch BoardCardCallout.route(splitLayout: usesSplitLayout,
+                                                                      forcePush: forcePushNavigation) {
+                                        case .panel:
+                                            let next = BoardCardCallout.toggle(current: selectedTaskForPanel?.id,
+                                                                               tapped: task.id)
+                                            selectedTaskForPanel = next == nil ? nil : task
                                         case .push:
                                             TaskPresenter.shared.showTask(task)
                                         }
                                     },
-                                    // iPhone: a card tap opens the full-screen push, as before
-                                    // inline details (AITD-642); iPad opens the card in place.
-                                    opensCardsInline: BoardCardExpansion.cardTapOpensInline(splitLayout: usesSplitLayout),
                                     selectedTaskId: selectedTaskForPanel?.id,
                                     onRefresh: pullToRefreshHost.columnsAreRefreshable
                                         ? { await refreshFromPull() } : nil

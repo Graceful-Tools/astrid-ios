@@ -123,19 +123,11 @@ struct BoardColumnView: View {
     /// Parent callback: persist the drop. `index` is the desired slot
     /// in the column AFTER the drop (0 = top; tasks.count = end).
     let onDropAt: (BoardCardPayload, Int) -> Void
-    /// Open a task in the FULL details — the iPad side panel or the iPhone push. A tap on a
-    /// card no longer does this (it opens the card inline, AITD-628); the inline details'
-    /// full-screen button does.
-    var onOpenFullDetails: ((Task) -> Void)?
+    /// A card was tapped: open its details — on iPad the panel beside the card, on iPhone the
+    /// push (`BoardCardCallout.route`). The card never opens inline any more (AITD-679).
+    var onOpenCard: ((Task) -> Void)?
     /// The task currently open in the detail panel (for the selected highlight).
     var selectedTaskId: String?
-    /// Whether a tap opens the card inline or goes straight to the full details
-    /// (`BoardCardExpansion.cardTapOpensInline` — iPhone goes straight there, AITD-642).
-    var opensCardsInline: Bool = true
-    /// The card open inline, shared across the board's columns so only one is open.
-    @Binding var expandedTaskId: String?
-    /// How tall an open card's details are (`BoardCardExpansion.inlineDetailHeight`).
-    var inlineDetailHeight: CGFloat = BoardCardExpansion.minimumInlineDetailHeight
     /// Live drag point in global coordinates while a card hovers this column
     /// (nil when it leaves or lands). The board uses it to auto-advance columns
     /// when the drag reaches its edges — task 233ec244.
@@ -361,92 +353,42 @@ struct BoardColumnView: View {
     /// where a release lands. The card reports its own extent so it can.
     @ViewBuilder
     private func cardSlot(for task: Task, at index: Int) -> some View {
-        let expanded = expandedTaskId == task.id
-        VStack(spacing: 0) {
-            // The open card IS its details (AITD-661): the face gives way to them rather than
-            // sitting above them repeating the title, and the details' up chevron folds it back.
-            if BoardCardExpansion.showsCardFace(taskId: task.id, expandedTaskId: expandedTaskId) {
-                BoardTaskCardView(task: task, hiddenListIds: rowHiddenListIds,
-                                  isSelected: task.id == selectedTaskId)
-                    // Tap opens the card INLINE (AITD-628), as web and the Mac board do —
-                    // it used to leave the board for the push / side panel. The open card
-                    // has no face to tap; its details' up chevron closes it (AITD-661). The
-                    // leading control inside the card
-                    // intercepts its own taps first, so picking a status doesn't also
-                    // open the card.
-                    .onTapGesture {
-                        // iPhone: the full details, as before AITD-628 (AITD-642).
-                        if !opensCardsInline, let onOpenFullDetails {
-                            onOpenFullDetails(task)
-                            return
-                        }
-                        withAnimation(ReducedMotion.spring(response: AstridTokens.Motion.panelSpringDuration,
-                                                   dampingFraction: AstridTokens.Motion.panelSpringDamping)) {
-                            expandedTaskId = BoardCardExpansion.toggle(current: expandedTaskId,
-                                                                       tapped: task.id)
-                        }
-                    }
-                    .draggable(BoardCardPayload(taskId: task.id)) {
-                        Text(task.title)
-                            .font(.body)
-                            .padding(12)
-                            .frame(maxWidth: 260, alignment: .leading)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color(.systemBackground))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color(.separator), lineWidth: 0.5)
-                            )
-                            .opacity(0.92)
-                    }
+        BoardTaskCardView(task: task, hiddenListIds: rowHiddenListIds,
+                          isSelected: task.id == selectedTaskId)
+            // A tap opens the details the way a list row does — the panel beside the card on
+            // iPad, the push on iPhone — never inline in the column (AITD-679). The leading control
+            // inside the card intercepts its own taps first, so picking a status doesn't also open
+            // the card.
+            .modifier(BoardCardCalloutAnchor(taskId: task.id,
+                                             isSelected: task.id == selectedTaskId) {
+                if let onOpenCard { onOpenCard(task) } else { TaskPresenter.shared.showTask(task) }
+            })
+            .draggable(BoardCardPayload(taskId: task.id)) {
+                Text(task.title)
+                    .font(.body)
+                    .padding(12)
+                    .frame(maxWidth: 260, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(.systemBackground))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color(.separator), lineWidth: 0.5)
+                    )
+                    .opacity(0.92)
             }
-            if expanded {
-                inlineDetails(for: task)
-            }
-        }
-        .background(
-            GeometryReader { proxy in
-                let frame = proxy.frame(in: .named(columnSpaceName))
-                Color.clear.preference(
-                    key: BoardCardSlotsKey.self,
-                    value: [BoardCardSlot(taskId: task.id,
-                                          minY: frame.minY,
-                                          maxY: frame.maxY)]
-                )
-            }
-        )
-    }
-
-    /// The open card's details, drawn in place of its face (AITD-661): the SAME view the side panel and the push draw, so the board
-    /// has every field, the comments and the composer without a second editor to drift from
-    /// them (the Mac card editor's history, AITD-432). A sibling of the card rather than inside
-    /// it, so a long press in the details never starts a card drag. Bounded in height — the
-    /// details scroll on their own, inside the column that scrolls around them.
-    @ViewBuilder
-    private func inlineDetails(for task: Task) -> some View {
-        TaskDetailViewNew(
-            task: task,
-            onClose: {
-                withAnimation(ReducedMotion.spring(response: AstridTokens.Motion.panelSpringDuration,
-                                               dampingFraction: AstridTokens.Motion.panelSpringDamping)) {
-                    if expandedTaskId == task.id { expandedTaskId = nil }
+            .background(
+                GeometryReader { proxy in
+                    let frame = proxy.frame(in: .named(columnSpaceName))
+                    Color.clear.preference(
+                        key: BoardCardSlotsKey.self,
+                        value: [BoardCardSlot(taskId: task.id,
+                                              minY: frame.minY,
+                                              maxY: frame.maxY)]
+                    )
                 }
-            },
-            isFullScreen: false,
-            onToggleFullScreen: onOpenFullDetails.map { open in { open(task) } },
-            collapsesInPlace: true
-        )
-        .id(task.id)
-        .frame(height: inlineDetailHeight)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.radiusMedium)
-                .stroke(Color.accentColor, lineWidth: AstridTokens.Size.Comfortable.selectionOutline)
-        )
-        .accessibilityIdentifier("board.card.inlineDetails")
-        .transition(.opacity.combined(with: .move(edge: .top)))
+            )
     }
 
     /// Empty-column placeholder message. Reuses the same Astrid
@@ -537,5 +479,33 @@ struct BoardColumnView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         // No own background — the header sits directly on the column
         // frame, so it's the same surface as the side borders/footer.
+    }
+}
+
+/// Where a board card is on screen, for the details panel that opens beside it (AITD-679). A tap
+/// tells the split layout's reporter where the card was, which decides the panel's side; while
+/// the card is the panel's task it keeps reporting its frame, so the arrow follows it as the
+/// column scrolls. No reporter (iPhone) and only the tap matters.
+private struct BoardCardCalloutAnchor: ViewModifier {
+    let taskId: String
+    let isSelected: Bool
+    let onTap: () -> Void
+    @Environment(\.selectedRowReporter) private var reporter
+    @State private var frame: CGRect = .zero
+
+    func body(content: Content) -> some View {
+        content
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { newFrame in
+                frame = newFrame
+                if isSelected { reporter?.reportCard(taskId: taskId, frame: newFrame) }
+            }
+            .onChange(of: isSelected) { _, selected in
+                if selected { reporter?.reportCard(taskId: taskId, frame: frame) }
+            }
+            .onDisappear { reporter?.clear(taskId: taskId) }
+            .onTapGesture {
+                reporter?.openCard(taskId: taskId, frame: frame)
+                onTap()
+            }
     }
 }

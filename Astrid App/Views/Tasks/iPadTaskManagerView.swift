@@ -98,16 +98,37 @@ struct iPadTaskManagerView: View {
     /// close button, list switch) feels identical: `motion.panel`, as on the Mac and web (AITD-607).
     private static var panelAnimation: Animation { DetailPanelChrome.panelAnimation }
 
-    /// The panel opens OUT OF the selected row — from the list side, fading in — and closes back
-    /// into it, like web's `slideInFromLeft`. It used to slide in from the screen's trailing edge,
-    /// which read as a sheet arriving rather than the row unfolding (AITD-607).
-    ///
-    /// Only beside a LIST: a board has no row for the arrow to aim at, so there the panel is the
-    /// old side panel again, sliding in from the trailing edge with no arrow (AITD-647).
-    private var panelTransition: AnyTransition {
-        DetailPanelChrome.pointsAtRow(viewMode: listViewMode)
-            ? .offset(x: -DetailPanelChrome.arrowWidth * 2).combined(with: .opacity)
-            : .move(edge: .trailing).combined(with: .opacity)
+    /// The panel opens OUT OF the selected row or card — from its side, fading in — and closes
+    /// back into it, like web's `slideInFromLeft` (AITD-607). A panel docked on the leading edge,
+    /// beside a card in a right-hand column, unfolds the other way (AITD-679).
+    private func panelTransition(side: BoardCardCallout.Side) -> AnyTransition {
+        .offset(x: (side == .trailing ? -1 : 1) * DetailPanelChrome.arrowWidth * 2)
+            .combined(with: .opacity)
+    }
+
+    /// The content area's frame in the global space: the viewport the panel docks inside.
+    @State private var contentFrame: CGRect = .zero
+
+    /// Which edge the panel docks on. A list's panel stays trailing, beside the list. A board card
+    /// opens it on whichever side of the card has more room — astrid-core's callout rule — so a card
+    /// in a right-hand column is not covered by its own details (AITD-679).
+    private func panelSide(for task: Task, detailWidth: CGFloat) -> BoardCardCallout.Side {
+        guard listViewMode == .board, !detailFullScreen,
+              let opened = selectedRowReporter.openedCard, opened.taskId == task.id,
+              contentFrame.width > 0 else { return .trailing }
+        return BoardCardCallout.side(card: opened.frame, viewport: contentFrame, panelWidth: detailWidth)
+    }
+
+    /// The panel, docked on its side of a container `width` wide.
+    @ViewBuilder
+    private func placedDetailPanel(width: CGFloat, detailWidth: CGFloat) -> some View {
+        if let task = selectedTask {
+            let side = panelSide(for: task, detailWidth: detailWidth)
+            taskDetailPanel(for: task, side: side)
+                .frame(width: detailWidth)
+                .frame(width: width, alignment: side == .trailing ? .trailing : .leading)
+                .transition(panelTransition(side: side))
+        }
     }
 
     /// Where the selected row is, so the panel's arrow can point at it (AITD-607).
@@ -192,6 +213,7 @@ struct iPadTaskManagerView: View {
         .onChange(of: selectedTask?.id) { _, newId in
             detailFullScreen = DetailPanelChrome.fullScreen(detailFullScreen,
                                                             afterSelectionChangeTo: newId)
+            if newId == nil { selectedRowReporter.forgetOpenedCard() }
         }
         .onDisappear {
             TaskPresenter.shared.panelHandler = nil
@@ -291,13 +313,10 @@ struct iPadTaskManagerView: View {
                     }
                     .frame(width: width - panes.sidebar)
 
-                    if let task = selectedTask {
-                        taskDetailPanel(for: task)
-                            .frame(width: detailWidth)
-                            .transition(panelTransition)
-                    }
+                    placedDetailPanel(width: width - panes.sidebar, detailWidth: detailWidth)
                 }
                 .frame(width: width - panes.sidebar)
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { contentFrame = $0 }
                 // Slide the detail overlay + board scroll room in/out on selection.
                 .animation(Self.panelAnimation, value: selectedTask?.id)
             }
@@ -454,13 +473,10 @@ struct iPadTaskManagerView: View {
                 // messages and the task list stays visible. With no messages pane it keeps
                 // the half-width it has always had. The panel self-styles (rounded card,
                 // shadow, clear corners).
-                if let task = selectedTask {
-                    taskDetailPanel(for: task)
-                        .frame(width: detailWidth)
-                        .transition(panelTransition)
-                }
+                placedDetailPanel(width: width, detailWidth: detailWidth)
             }
             .frame(width: width)
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { contentFrame = $0 }
             // Slide the detail overlay (and the board's scroll room) in/out when
             // the selected task changes. The flat list opts out so its selected
             // row highlights instantly.
@@ -614,7 +630,7 @@ struct iPadTaskManagerView: View {
     // panel closes, SwiftUI keeps rendering this content through the slide-out
     // transition instead of it vanishing the instant selectedTask goes nil.
     @ViewBuilder
-    private func taskDetailPanel(for task: Task) -> some View {
+    private func taskDetailPanel(for task: Task, side: BoardCardCallout.Side) -> some View {
             // Wrap with theme background and padding to align with task list
             NavigationStack {
                 TaskDetailViewNew(
@@ -641,33 +657,42 @@ struct iPadTaskManagerView: View {
             .compositingGroup()
             // Shadow on the rounded card; the area outside it (padding + corners)
             // stays clear so the list/board shows through.
-            .shadow(color: .black.opacity(0.18), radius: 10, x: -4, y: 0)
-            // The arrow on the panel's leading edge points at the selected row and follows it.
-            // Drawn over the card, overlapping its edge, so its base merges into the card face
+            .shadow(color: .black.opacity(0.18), radius: 10, x: side == .trailing ? -4 : 4, y: 0)
+            // The arrow on the panel's edge facing the selected row or card points at it and follows
+            // it. Drawn over the card, overlapping its edge, so its base merges into the card face
             // and the outline runs on around the notch's two outer edges (the Mac's AITD-302).
-            .overlay(alignment: .topLeading) {
-                if DetailPanelChrome.pointsAtRow(viewMode: listViewMode) {
+            // On a board the card's middle and the corner clearance are the core's (AITD-679).
+            .overlay(alignment: side == .trailing ? .topLeading : .topTrailing) {
                 GeometryReader { g in
-                    ZStack {
-                        DetailPanelChrome.arrowFill(theme: effectiveTheme).clipShape(DetailPanelArrow())
-                        DetailPanelArrowEdges()
-                            .stroke(Color.accentColor, lineWidth: DetailPanelChrome.selectionOutlineWidth)
+                    let panelFrame = g.frame(in: .global)
+                    let onBoard = listViewMode == .board
+                    if !onBoard || selectedRowReporter.cardFrame != nil {
+                        ZStack {
+                            DetailPanelChrome.arrowFill(theme: effectiveTheme).clipShape(DetailPanelArrow())
+                            DetailPanelArrowEdges()
+                                .stroke(Color.accentColor, lineWidth: DetailPanelChrome.selectionOutlineWidth)
+                        }
+                        .frame(width: DetailPanelChrome.arrowWidth, height: DetailPanelChrome.arrowHeight)
+                        // The notch points left at a row; mirrored, it points right at a card.
+                        .scaleEffect(x: side == .trailing ? 1 : -1, y: 1)
+                        .position(x: side == .trailing
+                                    ? -DetailPanelChrome.arrowWidth / 2 + DetailPanelChrome.arrowOverlap
+                                    : g.size.width + DetailPanelChrome.arrowWidth / 2 - DetailPanelChrome.arrowOverlap,
+                                  y: onBoard
+                                    ? BoardCardCallout.arrowY(card: selectedRowReporter.cardFrame, panel: panelFrame)
+                                    : DetailPanelChrome.arrowLocalY(rowMidY: selectedRowReporter.midY,
+                                                                    panelOriginY: panelFrame.minY,
+                                                                    panelHeight: g.size.height))
+                        .animation(DetailPanelChrome.arrowFollowAnimation, value: selectedRowReporter.midY)
                     }
-                    .frame(width: DetailPanelChrome.arrowWidth, height: DetailPanelChrome.arrowHeight)
-                    .position(x: -DetailPanelChrome.arrowWidth / 2 + DetailPanelChrome.arrowOverlap,
-                              y: DetailPanelChrome.arrowLocalY(rowMidY: selectedRowReporter.midY,
-                                                               panelOriginY: g.frame(in: .global).minY,
-                                                               panelHeight: g.size.height))
-                    .animation(DetailPanelChrome.arrowFollowAnimation, value: selectedRowReporter.midY)
                 }
                 .accessibilityHidden(true)
-                }
             }
-            // Room for the arrow between the list and the card — none on a board, as before AITD-607.
-            .padding(.leading, DetailPanelChrome.pointsAtRow(viewMode: listViewMode) ? DetailPanelChrome.arrowWidth : 0)
+            // Room for the arrow between the row or card and the panel.
+            .padding(side == .trailing ? .leading : .trailing, DetailPanelChrome.arrowWidth)
             .padding(.top, 8)      // Top margin (aligns with floating header)
             .padding(.bottom, 4)   // Bottom margin (aligns with quick add input)
-            .padding(.trailing, 8) // Right margin (matches left side of screen)
+            .padding(side == .trailing ? .trailing : .leading, 8) // Screen-edge margin
             // Swipe left-to-right on the open task closes it (matches iPhone
             // swipe-back). The detail panel is a side panel on iPad, not a pushed
             // view, so this gesture is what dismisses it. Not from a decision

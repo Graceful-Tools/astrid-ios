@@ -13,8 +13,10 @@ import SwiftUI
 
 struct MacProjectBoardView: View {
     let projectId: String
-    /// Open a card's task in the detail panel.
-    let onOpenTask: (String) -> Void
+    /// The task whose details pop-out is open, for the card's selection outline.
+    var selectedTaskId: String?
+    /// Open a card's task in the detail pop-out, beside the card (its global frame, AITD-679).
+    let onOpenTask: (String, CGRect?) -> Void
 
     @AppStorage(MacScrollBars.defaultsKey) private var showScrollBars = false
     @StateObject private var listService = ListService.shared
@@ -53,6 +55,7 @@ struct MacProjectBoardView: View {
                     }
                     ForEach(rowLists) { list in
                         MacProjectBoardRow(projectId: projectId, list: list, columns: columns, columnWidth: columnWidth,
+                                           selectedTaskId: selectedTaskId,
                                            onRemove: { remove(list) }, onOpenTask: onOpenTask)
                     }
                 }
@@ -133,8 +136,9 @@ private struct MacProjectBoardRow: View {
     let list: TaskList
     let columns: [ProjectBoardColumn]
     let columnWidth: CGFloat
+    let selectedTaskId: String?
     let onRemove: () -> Void
-    let onOpenTask: (String) -> Void
+    let onOpenTask: (String, CGRect?) -> Void
 
     @StateObject private var taskService = TaskService.shared
     /// This row as the core draws it: the list's cards under the project's columns.
@@ -210,13 +214,14 @@ private struct MacProjectBoardRow: View {
         .background(MacSelectionStyle.fill(isSelected: false, hovering: hoveredCardId == task.id))
         .clipShape(RoundedRectangle(cornerRadius: AstridTokens.Radius.sm))
         .overlay(RoundedRectangle(cornerRadius: AstridTokens.Radius.sm)
-            .stroke(MacSelectionStyle.borderColor(isSelected: false, hovering: hoveredCardId == task.id),
-                    lineWidth: MacSelectionStyle.borderWidth(isSelected: false)))
-        .contentShape(Rectangle())
+            .stroke(MacSelectionStyle.borderColor(isSelected: selectedTaskId == task.id,
+                                                  hovering: hoveredCardId == task.id),
+                    lineWidth: MacSelectionStyle.borderWidth(isSelected: selectedTaskId == task.id)))
         .onHover { hovering in
             hoveredCardId = hovering ? task.id : (hoveredCardId == task.id ? nil : hoveredCardId)
         }
-        .onTapGesture { onOpenTask(task.id) }
+        // Opens the pop-out beside the card, as a list row opens it (AITD-679).
+        .modifier(MacBoardCardAnchor(isSelected: selectedTaskId == task.id) { onOpenTask(task.id, $0) })
         .draggable(task.id)
         .accessibilityIdentifier("projectBoard.card")
     }

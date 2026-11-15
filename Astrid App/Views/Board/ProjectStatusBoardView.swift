@@ -43,13 +43,9 @@ struct ProjectStatusBoardView: View {
     /// (matching a regular list). Provided by the parent (TaskListView.onMenuTap).
     var onOpenSidebar: (() -> Void)?
 
-    /// How to open a tapped task. iPad supplies this to use its side panel so the
-    /// board stays visible in the left column; nil falls back to the full-screen
-    /// presenter (iPhone).
+    /// How to open a tapped card: the details panel beside it on iPad, the push on iPhone
+    /// (`BoardCardCallout.route`, AITD-679). nil falls back to the full-screen presenter.
     var onTaskTap: ((Task) -> Void)?
-
-    /// Whether a card tap opens the card inline (iPad) or the full details (iPhone, AITD-642).
-    var opensCardsInline: Bool = true
 
     /// The task currently shown in the side panel, if any. When set, the board
     /// snaps to the column that contains it so the user sees where it lives
@@ -65,8 +61,9 @@ struct ProjectStatusBoardView: View {
     /// thread, re-asked when tasks, lists or projects change, the last answer kept on screen.
     @StateObject private var board = BoardModel()
     @State private var dropError: String? = nil
-    /// The card open inline, if any (AITD-628). One across the whole board, as on web and Mac.
-    @State private var expandedTaskId: String?
+    /// Which card a tap opened the panel from — that card is already beside its panel, so the
+    /// board does not scroll it anywhere (AITD-679).
+    @Environment(\.selectedRowReporter) private var selectedRowReporter
     /// Tracks the currently-snapped column for haptic feedback on change.
     @State private var visibleColumnId: String?
 
@@ -137,16 +134,12 @@ struct ProjectStatusBoardView: View {
                             onDropAt: { payload, index in
                                 handleDrop(payload: payload, into: column, at: index)
                             },
-                            // A tap opens the card in place (AITD-628); the details'
-                            // full-screen button is what takes the task to the panel / push.
-                            onOpenFullDetails: { task in
-                                expandedTaskId = nil
+                            // A tap opens the details the way a row does: the panel beside
+                            // the card on iPad, the push on iPhone (AITD-679).
+                            onOpenCard: { task in
                                 if let onTaskTap { onTaskTap(task) } else { TaskPresenter.shared.showTask(task) }
                             },
                             selectedTaskId: selectedTaskId,
-                            opensCardsInline: opensCardsInline,
-                            expandedTaskId: $expandedTaskId,
-                            inlineDetailHeight: BoardCardExpansion.inlineDetailHeight(boardHeight: geo.size.height),
                             onDragMoved: { globalPoint in
                                 handleDragMoved(globalPoint,
                                                 from: column.id,
@@ -191,13 +184,6 @@ struct ProjectStatusBoardView: View {
                 }
             }
             .task(id: boardQuery) { board.update(boardQuery) }
-            // The open card left the board (deleted, moved, aged out of Done): close it rather
-            // than keep an editor for a task that is not there.
-            .onChange(of: board.columns.flatMap { tasksFor($0.column).map(\.id) }) { _, ids in
-                let kept = BoardCardExpansion.retained(current: expandedTaskId,
-                                                       visibleTaskIds: Set(ids))
-                if kept != expandedTaskId { expandedTaskId = kept }
-            }
             .onDisappear {
                 // A drag can be interrupted by navigation; don't leave a pending
                 // advance to scroll a board nobody is looking at.
@@ -213,6 +199,9 @@ struct ProjectStatusBoardView: View {
             // that holds it so the user sees its context.
             .onChange(of: selectedTaskId) { _, newId in
                 guard let newId, let columnId = board.columnId(of: newId) else { return }
+                // A tapped card is already on screen, and the panel opened on the side away from
+                // it; scrolling its column to the leading edge could put it under that panel.
+                if selectedRowReporter?.openedCard?.taskId == newId { return }
                 // Scroll imperatively every time. The scrollPosition binding no-ops
                 // when the target column is unchanged (e.g. tapping a second task in
                 // the same Done column), which left that column stuck under the
