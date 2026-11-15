@@ -166,7 +166,6 @@ struct MacRootView: View {
     @State private var showPublicLists = false
     /// Projects whose lists are shown under them in the sidebar (AITD-674).
     @State private var expandedProjectIds: Set<String> = []
-    @StateObject private var projectService = ProjectService.shared
     @StateObject private var featureFlags = FeatureFlagService.shared
     @StateObject private var capabilities = ServerCapabilityService.shared
     /// Public lists shown in the sidebar below your own (dfb037c7). Fetched once on appear —
@@ -246,41 +245,6 @@ struct MacRootView: View {
     private var projectsOffered: Bool {
         MacProjectSelection.isOffered(deploymentShips: capabilities.capabilities.product.projectMode,
                                       flagEnabled: featureFlags.isEnabled(.projectMode))
-    }
-
-    /// A Projects section like Favorites: each project opens its board, and its chevron expands it
-    /// to its lists.
-    @ViewBuilder private var projectsSection: some View {
-        if projectsOffered, !projectService.projects.isEmpty {
-            Section(NSLocalizedString("project_mode.projects_heading", comment: "")) {
-                ForEach(MacProjectSelection.sorted(projectService.projects)) { project in
-                    projectRow(project)
-                    if expandedProjectIds.contains(project.id) {
-                        ForEach(MacProjectSelection.lists(of: project.id, in: listService.lists)) { list in
-                            listRow(list).padding(.leading, AstridTokens.Space.s16)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private func projectRow(_ project: Project) -> some View {
-        let expanded = expandedProjectIds.contains(project.id)
-        let toggleKey = expanded ? "project_mode.hide_lists" : "project_mode.show_lists"
-        return HStack(spacing: AstridTokens.Space.s4) {
-            Button {
-                if expanded { expandedProjectIds.remove(project.id) } else { expandedProjectIds.insert(project.id) }
-            } label: {
-                Image(systemName: expanded ? "chevron.down" : "chevron.right").macFont(.caption2)
-            }
-            .buttonStyle(.borderless)
-            .accessibilityLabel(String(format: NSLocalizedString(toggleKey, comment: ""), project.name))
-            Label(project.name, systemImage: "rectangle.split.3x1")
-                .help(String(format: NSLocalizedString("project_mode.open_board", comment: ""), project.name))
-        }
-        .tag(Optional(MacProjectSelection.tag(projectId: project.id)))
-        .accessibilityIdentifier("sidebar.project.\(project.id)")
     }
 
     /// What the list menu's items DO here — the sheets and confirmations this view owns. Which
@@ -1162,7 +1126,8 @@ struct MacRootView: View {
                 if !favoriteLists.isEmpty {
                     Section(NSLocalizedString("navigation.favorites", comment: "")) { ForEach(favoriteLists) { listRow($0) } }
                 }
-                projectsSection
+                MacProjectsSidebarSection(offered: projectsOffered, expanded: $expandedProjectIds,
+                                          lists: listService.lists) { listRow($0) }
                 Section(NSLocalizedString("navigation.lists", comment: "")) {
                     // Add List lives HERE, above the lists, the way iOS
                     // (ListSidebarView.addListButton) and web do — not as an unlabelled toolbar
@@ -1282,7 +1247,7 @@ struct MacRootView: View {
             .animation(MacMotion.medium, value: contentMode)   // list/board/chat switch eases (4c7b9f08)
             .navigationTitle(selectedListId == Self.searchId ? NSLocalizedString("navigation.search", comment: "")
                              : selectedListId == Self.myTasksId ? NSLocalizedString("navigation.my_tasks", comment: "")
-                             : MacProjectSelection.projectId(from: selectedListId).flatMap { projectService.project(id: $0)?.name }
+                             : MacProjectSelection.projectId(from: selectedListId).flatMap { ProjectService.shared.project(id: $0)?.name }
                                 ?? (listService.lists.first { $0.id == selectedListId }?.name ?? NSLocalizedString("tasks.tasks", comment: "")))
             .toolbar {
                 // Two groups, drawn apart: the list/board picker, then sort / filter / settings

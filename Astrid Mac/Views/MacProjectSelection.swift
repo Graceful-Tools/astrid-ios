@@ -55,3 +55,48 @@ struct MacListRowDrag: ViewModifier {
     }
 }
 #endif
+
+#if os(macOS)
+/// The sidebar's Projects section, like Favorites (AITD-674): each project opens its board, and its
+/// chevron expands it to its lists, drawn with the sidebar's own list row.
+struct MacProjectsSidebarSection<ListRow: View>: View {
+    let offered: Bool
+    @Binding var expanded: Set<String>
+    let lists: [TaskList]
+    @ViewBuilder let listRow: (TaskList) -> ListRow
+    @StateObject private var projectService = ProjectService.shared
+
+    var body: some View {
+        if offered, !projectService.projects.isEmpty {
+            Section(NSLocalizedString("project_mode.projects_heading", comment: "")) {
+                ForEach(MacProjectSelection.sorted(projectService.projects)) { project in
+                    projectRow(project)
+                    if expanded.contains(project.id) {
+                        ForEach(MacProjectSelection.lists(of: project.id, in: lists)) { list in
+                            listRow(list).padding(.leading, AstridTokens.Space.s16)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func projectRow(_ project: Project) -> some View {
+        let isExpanded = expanded.contains(project.id)
+        let toggleKey = isExpanded ? "project_mode.hide_lists" : "project_mode.show_lists"
+        return HStack(spacing: AstridTokens.Space.s4) {
+            Button {
+                if isExpanded { expanded.remove(project.id) } else { expanded.insert(project.id) }
+            } label: {
+                Image(systemName: isExpanded ? "chevron.down" : "chevron.right").macFont(.caption2)
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel(String(format: NSLocalizedString(toggleKey, comment: ""), project.name))
+            Label(project.name, systemImage: "rectangle.split.3x1")
+                .help(String(format: NSLocalizedString("project_mode.open_board", comment: ""), project.name))
+        }
+        .tag(Optional(MacProjectSelection.tag(projectId: project.id)))
+        .accessibilityIdentifier("sidebar.project.\(project.id)")
+    }
+}
+#endif

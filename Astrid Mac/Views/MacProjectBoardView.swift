@@ -150,7 +150,7 @@ private struct MacProjectBoardRow: View {
             HStack(spacing: AstridTokens.Space.s8) {
                 MacListIcon(list: list, size: 14)
                 Text(list.name).macFont(.headline).foregroundStyle(Theme.textPrimary)
-                Text("\(cells.values.reduce(0) { $0 + $1.count })")
+                Text(verbatim: "\(cells.values.reduce(0) { $0 + $1.count })")
                     .macFont(.caption).foregroundStyle(Theme.textMuted)
                 Button(action: onRemove) {
                     Image(systemName: "xmark").macFont(.caption)
