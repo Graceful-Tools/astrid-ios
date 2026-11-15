@@ -588,6 +588,7 @@ struct TaskListView: View {
                                 // are looked up by projectId).
                                 ProjectStatusBoardView(
                                     projectId: projectId,
+                                    listId: selectedList?.id,
                                     onOpenSidebar: onMenuTap,
                                     onTaskTap: { task in
                                         // A card opens its details as a row does (AITD-679): on
