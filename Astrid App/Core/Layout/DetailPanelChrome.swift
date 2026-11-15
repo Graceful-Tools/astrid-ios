@@ -27,16 +27,6 @@ enum DetailPanelChrome {
     static let arrowHeight: CGFloat = 24
     /// How far the arrow overlaps the card, so its base merges into the card face.
     static let arrowOverlap: CGFloat = 1
-    /// How far from the panel's top and bottom the arrow stays, so it always touches the card.
-    static let arrowInset: CGFloat = 28
-
-    /// Arrow centre, clamped inside a panel of `panelHeight`, for a row at `rowMidY` in the panel's
-    /// own coordinates.
-    static func arrowY(rowMidY: CGFloat, panelHeight: CGFloat, inset: CGFloat = arrowInset) -> CGFloat {
-        guard panelHeight > inset * 2 else { return panelHeight / 2 }
-        return min(max(rowMidY, inset), panelHeight - inset)
-    }
-
     /// What the arrow is filled with: the details face itself, so its base merges into the card
     /// in every theme (AITD-627). Not the panel's base colour, which Ocean washes over.
     static func arrowFill(theme: ThemeMode) -> TaskDetailsSurface {
@@ -45,10 +35,14 @@ enum DetailPanelChrome {
 
     /// Arrow centre in the panel's own coordinates, given the row's midY and the panel's origin in
     /// one shared (global) space. No measured row — it scrolled away — centres the arrow.
-    static func arrowLocalY(rowMidY: CGFloat?, panelOriginY: CGFloat, panelHeight: CGFloat,
-                            inset: CGFloat = arrowInset) -> CGFloat {
+    ///
+    /// The clamp off the corners is astrid-core's callout placement (`rows::callout`, AITD-678),
+    /// the same call a board card's arrow makes: a list row reports only its middle, so it is
+    /// asked as a zero-height anchor there. The app keeps no margin of its own.
+    static func arrowLocalY(rowMidY: CGFloat?, panelOriginY: CGFloat, panelHeight: CGFloat) -> CGFloat {
         guard let rowMidY else { return panelHeight / 2 }
-        return arrowY(rowMidY: rowMidY - panelOriginY, panelHeight: panelHeight, inset: inset)
+        return BoardCardCallout.arrowY(card: CGRect(x: 0, y: rowMidY, width: 0, height: 0),
+                                       panel: CGRect(x: 0, y: panelOriginY, width: 0, height: panelHeight))
     }
 
     // MARK: - The iPad panel's full-screen flag — AITD-648
