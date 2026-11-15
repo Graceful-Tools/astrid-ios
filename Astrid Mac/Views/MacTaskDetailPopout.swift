@@ -8,21 +8,45 @@ import SwiftUI
 
 struct MacTaskDetailPopout: View {
     let task: Task
-    /// The edge the pop-out docks on (`BoardCardCallout.side`): trailing beside a list.
-    let side: BoardCardCallout.Side
+    /// Beside a board card: the core's box, the arrow's tip touching the card (AITD-679). nil
+    /// beside a list, where the pop-out docks trailing with margins of its own.
+    let placed: BoardCardCallout.Placement?
+    /// The content area the pop-out lies in (global), which `placed` is measured against.
+    let viewport: CGRect
     let panelWidth: CGFloat
     /// Beside a board's cards rather than a list's rows.
     let besideBoard: Bool
-    /// Placed by the caller at the core's box beside a card (AITD-679): no margins of its own, and
-    /// exactly the arrow's reach on the card side, so the arrow's tip touches the card.
-    var besideCard = false
     /// The selected list row's middle (global).
     let selectedRowMidY: CGFloat?
     /// The open board card's frame (global).
     let selectedCardFrame: CGRect?
     let onClose: () -> Void
 
+    private var side: BoardCardCallout.Side { placed?.side ?? .trailing }
+    /// No margins of its own beside a card, and exactly the arrow's reach on the card side.
+    private var besideCard: Bool { placed != nil }
+    private static var arrowRoom: CGFloat {
+        BoardCardCallout.arrowRoom(arrowWidth: MacLayout.detailArrowWidth, overlap: MacLayout.arrowOverlap)
+    }
+
+    /// The pop-out's box beside `card`: a panel `panelWidth` wide plus the arrow's reach.
+    static func placement(card: CGRect, viewport: CGRect, panelWidth: CGFloat) -> BoardCardCallout.Placement? {
+        guard viewport.width > 0 else { return nil }
+        return BoardCardCallout.placement(card: card, viewport: viewport, panelWidth: panelWidth + arrowRoom)
+    }
+
     var body: some View {
+        if let placed {
+            popout
+                .frame(width: placed.frame.width, height: placed.frame.height)
+                .offset(x: placed.frame.minX - viewport.minX, y: placed.frame.minY - viewport.minY)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } else {
+            popout
+        }
+    }
+
+    private var popout: some View {
         // ✕ / "Task Details" / ⋯ live in the detail's own web-style header (df22157f).
         MacTaskDetailView(task: task, onClose: onClose)
             .frame(width: panelWidth, alignment: .top)
@@ -79,9 +103,7 @@ struct MacTaskDetailPopout: View {
                 }
             }
             .padding(side == .trailing ? .leading : .trailing,
-                     besideCard ? BoardCardCallout.arrowRoom(arrowWidth: MacLayout.detailArrowWidth,
-                                                            overlap: MacLayout.arrowOverlap)
-                                : MacLayout.detailArrowWidth + MacLayout.detailPanelMargin)
+                     besideCard ? Self.arrowRoom : MacLayout.detailArrowWidth + MacLayout.detailPanelMargin)
             // One margin, always: the panel WIDTH grows with the chat column instead (AITD-334), so
             // the card reaches the trailing margin while its leading edge — and the arrow's
             // AITD-302 clearance from the row edge — stays exactly where it was.

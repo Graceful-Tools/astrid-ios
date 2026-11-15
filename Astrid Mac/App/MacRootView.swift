@@ -77,17 +77,12 @@ struct MacRootView: View {
             || (contentMode == .board && selectedListId != Self.myTasksId)
     }
 
-    /// Where a board card's pop-out goes: beside the card, on whichever side has more room, its
-    /// arrow's tip touching the card — astrid-core's callout rule (AITD-679). nil beside a list,
-    /// where the pop-out docks trailing.
+    /// A board card's pop-out: beside the card on the side with more room, its arrow's tip on the
+    /// card — astrid-core's callout rule (AITD-679). nil beside a list (docked trailing).
     private var boardPopoutPlacement: BoardCardCallout.Placement? {
-        guard isBoardDetail, let opened = openedBoardCard, selectedTaskIds == [opened.taskId],
-              contentFrame.width > 0 else { return nil }
-        return BoardCardCallout.placement(
-            card: opened.frame, viewport: contentFrame,
-            panelWidth: MacLayout.resolvedDetailPanelWidth(chatColumnWidth: resolvedChatColumnWidth)
-                + BoardCardCallout.arrowRoom(arrowWidth: MacLayout.detailArrowWidth,
-                                             overlap: MacLayout.arrowOverlap))
+        guard isBoardDetail, let opened = openedBoardCard, selectedTaskIds == [opened.taskId] else { return nil }
+        return MacTaskDetailPopout.placement(card: opened.frame, viewport: contentFrame, panelWidth:
+            MacLayout.resolvedDetailPanelWidth(chatColumnWidth: resolvedChatColumnWidth))
     }
 
     private var popoutSide: BoardCardCallout.Side { boardPopoutPlacement?.side ?? .trailing }
@@ -537,23 +532,12 @@ struct MacRootView: View {
 
     /// Floating detail pop-out (2766d9a4) — `MacTaskDetailPopout`: at the core's box beside a board
     /// card (AITD-679), docked trailing beside a list.
-    @ViewBuilder
     private func taskDetailPopout(_ task: Task) -> some View {
-        let placed = boardPopoutPlacement
-        let popout = MacTaskDetailPopout(
-            task: task, side: placed?.side ?? .trailing,
+        MacTaskDetailPopout(
+            task: task, placed: boardPopoutPlacement, viewport: contentFrame,
             panelWidth: MacLayout.resolvedDetailPanelWidth(chatColumnWidth: resolvedChatColumnWidth),
-            besideBoard: isBoardDetail, besideCard: placed != nil, selectedRowMidY: selectedRowMidY,
-            selectedCardFrame: selectedCardFrame,
-            onClose: { selectedTaskIds.removeAll() })
-        if let placed {
-            popout
-                .frame(width: placed.frame.width, height: placed.frame.height)
-                .offset(x: placed.frame.minX - contentFrame.minX, y: placed.frame.minY - contentFrame.minY)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        } else {
-            popout
-        }
+            besideBoard: isBoardDetail, selectedRowMidY: selectedRowMidY,
+            selectedCardFrame: selectedCardFrame, onClose: { selectedTaskIds.removeAll() })
     }
 
     /// Global search results view (Task 36587d3d) — full-text over all tasks incl. completed.
