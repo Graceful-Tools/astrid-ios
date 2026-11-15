@@ -13,6 +13,7 @@
 //  user's own calendar. Use the wrong one and a task due today reads as
 //  "Yesterday" for every user west of UTC.
 
+import AstridCore
 import Foundation
 
 enum DueDateLabel {
@@ -47,9 +48,9 @@ enum DueDateLabel {
                                 now: Date = Date(),
                                 localCalendar: Calendar = .current) -> String? {
         switch dayOffset(to: date, isAllDay: isAllDay, now: now, localCalendar: localCalendar) {
-        case 0:  return NSLocalizedString("time.today", comment: "Today")
-        case 1:  return NSLocalizedString("time.tomorrow", comment: "Tomorrow")
-        case -1: return NSLocalizedString("time.yesterday", comment: "Yesterday")
+        case .some(0):  return NSLocalizedString("time.today", comment: "Today")
+        case .some(1):  return NSLocalizedString("time.tomorrow", comment: "Tomorrow")
+        case .some(-1): return NSLocalizedString("time.yesterday", comment: "Yesterday")
         default: return nil
         }
     }
@@ -131,39 +132,28 @@ enum DueDateLabel {
     }
 
     /// Whole days from today to `date`, counted in whichever calendar the date
-    /// is stored in.
+    /// is stored in. Nil when the core could not answer — every caller then
+    /// falls back to a written-out date, never a guessed "Today".
     ///
     /// Not private: a quick-pick row needs it to decide which option carries the
     /// checkmark, and comparing dates by hand there is how the tick lands on the
     /// wrong row for anyone west of UTC.
+    ///
+    /// Asked of astrid-core (`dayOffset`, `rows::day_offset`; AWTD2-216, AITD-622) — the same
+    /// arithmetic every core-drawn due label uses. The core reads both instants at ONE offset
+    /// from UTC, so a timed date on the far side of a daylight-saving change is moved by the
+    /// difference first: its day is then the one the user's own calendar gives it.
     static func dayOffset(to date: Date,
                           isAllDay: Bool,
                           now: Date = Date(),
-                          localCalendar: Calendar = .current) -> Int {
-        guard isAllDay else {
-            // A real instant: compare in the user's calendar.
-            let today = localCalendar.startOfDay(for: now)
-            let target = localCalendar.startOfDay(for: date)
-            return localCalendar.dateComponents([.day], from: today, to: target).day ?? 0
-        }
-
-        // Stored at UTC midnight. Take TODAY as the user sees it, re-express that
-        // calendar day as UTC midnight, and compare like with like.
-        let utc = DateFormatterCache.utcCalendar
-
-        let todayLocal = localCalendar.dateComponents([.year, .month, .day], from: now)
-        var todayComponents = DateComponents()
-        todayComponents.year = todayLocal.year
-        todayComponents.month = todayLocal.month
-        todayComponents.day = todayLocal.day
-        todayComponents.hour = 0
-        todayComponents.minute = 0
-        todayComponents.second = 0
-
-        guard let todayUTC = utc.date(from: todayComponents) else { return 0 }
-        let stored = utc.dateComponents([.year, .month, .day], from: date)
-        let storedUTC = utc.date(from: stored) ?? date
-        return utc.dateComponents([.day], from: todayUTC, to: storedUTC).day ?? 0
+                          localCalendar: Calendar = .current) -> Int? {
+        let zone = localCalendar.timeZone
+        let nowOffset = zone.secondsFromGMT(for: now)
+        let asked = isAllDay
+            ? date
+            : date.addingTimeInterval(TimeInterval(zone.secondsFromGMT(for: date) - nowOffset))
+        return CoreRules.dayOffset(to: asked, isAllDay: isAllDay, now: now,
+                                   utcOffsetMinutes: nowOffset / 60)
     }
 
     /// A date far enough out to need its own name.

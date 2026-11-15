@@ -52,13 +52,6 @@ struct MacLeadingControlButton: View {
                                   currentUserId: AuthManager.shared.userId)
     }
 
-    /// Is this somebody else's task? Decides what the popover carries (AITD-375) — the same
-    /// rule the phone uses, from the same place.
-    private var isSomeoneElsesTask: Bool {
-        TaskLeadingControl.isSomeoneElsesTask(assigneeId: task.assigneeId,
-                                              currentUserId: AuthManager.shared.userId)
-    }
-
     /// What the task's lists refuse — a GitHub board with no Priority field (AITD-491). Asked
     /// here rather than at each call site, so the board card and the panel cannot disagree.
     private var refusedControls: Set<TaskCapabilities.Control> {
@@ -127,7 +120,8 @@ struct MacLeadingControlButton: View {
     @ViewBuilder private var picker: some View {
         VStack(alignment: .leading, spacing: 12) {
             ForEach(Array(MacLeadingPicker.sections(for: displayMode, surface: surface,
-                                                    isSomeoneElses: isSomeoneElsesTask,
+                                                    assigneeId: task.assigneeId,
+                                                    currentUserId: AuthManager.shared.userId,
                                                     refused: refusedControls)
                             .enumerated()), id: \.offset) { _, section in
                 switch section {

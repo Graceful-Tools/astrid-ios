@@ -175,7 +175,8 @@ struct TaskDetailLeadingControl: View {
             // rebuild the hybrid layout this setting exists to end.
             if TaskLeadingControl.pickerShowsProjectState(displayMode: displayMode,
                                                           surface: .detail,
-                                                          isSomeoneElses: isSomeoneElsesTask) {
+                                                          assigneeId: assigneeId,
+                                                          currentUserId: AuthManager.shared.currentUser?.id) {
                 Divider()
                 VStack(alignment: .leading, spacing: Theme.spacing8) {
                     Text(NSLocalizedString("board.project_state", comment: ""))
@@ -235,14 +236,6 @@ struct TaskDetailLeadingControl: View {
                                   kind: leadingKind,
                                   displayMode: displayMode,
                                   currentUserId: AuthManager.shared.currentUser?.id)
-    }
-
-    /// Whether this task belongs to someone else, which is what turns the popover into the full
-    /// project-mode set of choices (AITD-375).
-    private var isSomeoneElsesTask: Bool {
-        TaskLeadingControl.isSomeoneElsesTask(
-            assigneeId: assigneeId,
-            currentUserId: AuthManager.shared.currentUser?.id)
     }
 
     /// Whether the leading control is a face rather than a checkbox or the unassigned mark.

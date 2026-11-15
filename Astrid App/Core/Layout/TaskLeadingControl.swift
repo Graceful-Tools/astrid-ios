@@ -168,8 +168,8 @@ extension TaskLeadingControl {
     /// An unknown current user counts as someone else's: we cannot show it is yours, and the
     /// safe answer is the one that asks first.
     func isSomeoneElses(currentUserId: String?) -> Bool {
-        guard case .avatar(let assigneeId) = self else { return false }
-        return assigneeId != currentUserId
+        Self.isSomeoneElsesTask(assigneeId: assigneeId(currentUserId: currentUserId),
+                                currentUserId: currentUserId)
     }
 
     /// Does this task belong to somebody else, asked of the raw ids?
@@ -185,8 +185,14 @@ extension TaskLeadingControl {
     /// and has no mark to ask about — and because in project mode your own task IS an avatar, so
     /// a kind-shaped question would answer "someone else's" about your own work.
     static func isSomeoneElsesTask(assigneeId: String?, currentUserId: String?) -> Bool {
-        guard let assigneeId, !assigneeId.isEmpty else { return false }  // nobody's
-        return assigneeId != currentUserId
+        // Asked of astrid-core (`leadingPicker`, AWTD2-216; AITD-622). Nobody's task is nobody
+        // else's. If the core cannot answer, an assigned task counts as someone else's: we cannot
+        // show it is yours, and the safe answer is the one that asks first.
+        guard let assigneeId, !assigneeId.isEmpty else { return false }
+        return CoreRules.leadingPicker(displayMode: TaskDisplayMode.list.wireValue,
+                                       surface: TaskLeadingControlSurface.listRow.wireValue,
+                                       assigneeId: assigneeId,
+                                       currentUserId: currentUserId)?.isSomeoneElsesTask ?? true
     }
 
     /// Does the options popover carry the board-state section?
@@ -198,9 +204,16 @@ extension TaskLeadingControl {
     ///
     /// Shared so the Mac's `MacLeadingPicker` and the phone's popovers cannot offer different
     /// choices for the same task.
+    ///
+    /// Asked of astrid-core (`leadingPicker`, AWTD2-216; AITD-622) with the raw ids, so "is it
+    /// someone else's" is decided by the same rule as `isSomeoneElsesTask`. A failed answer offers
+    /// the full set: an extra section is harmless, a missing one hides the board state.
     static func pickerShowsProjectState(displayMode: TaskDisplayMode,
                                         surface: TaskLeadingControlSurface,
-                                        isSomeoneElses: Bool) -> Bool {
-        displayMode.usesCompactTaskDetail || surface == .boardCard || isSomeoneElses
+                                        assigneeId: String?,
+                                        currentUserId: String?) -> Bool {
+        CoreRules.leadingPicker(displayMode: displayMode.wireValue, surface: surface.wireValue,
+                                assigneeId: assigneeId,
+                                currentUserId: currentUserId)?.pickerShowsProjectState ?? true
     }
 }

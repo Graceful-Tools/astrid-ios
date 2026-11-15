@@ -250,13 +250,15 @@ enum MacLeadingPicker {
     /// (`TaskCapabilities.refused`) leaves the section out — the same answer the list-mode row gets.
     static func sections(for displayMode: TaskDisplayMode,
                          surface: TaskLeadingControlSurface = .detail,
-                         isSomeoneElses: Bool = false,
+                         assigneeId: String? = nil,
+                         currentUserId: String? = nil,
                          refused: Set<TaskCapabilities.Control> = []) -> [MacLeadingPickerSection] {
         // The SHARED rule, so the Mac and the phone cannot offer different choices for one task.
         let sections: [MacLeadingPickerSection] =
             TaskLeadingControl.pickerShowsProjectState(displayMode: displayMode,
                                                        surface: surface,
-                                                       isSomeoneElses: isSomeoneElses)
+                                                       assigneeId: assigneeId,
+                                                       currentUserId: currentUserId)
             ? [.priority, .assignee, .projectState, .complete]
             : [.priority, .assignee, .complete]
         return refused.contains(.priority) ? sections.filter { $0 != .priority } : sections
