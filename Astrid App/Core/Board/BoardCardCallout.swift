@@ -40,14 +40,35 @@ enum BoardCardCallout {
         case leading, trailing
     }
 
-    /// The side with more room beside `card`, inside `viewport`, for a panel `panelWidth` wide
-    /// (core: ties go right). Everything in one space, y down. Decided once, when the card is
-    /// tapped: a panel that hopped sides as the board scrolled under it would be chasing the card.
-    static func side(card: CGRect, viewport: CGRect, panelWidth: CGFloat) -> Side {
+    /// Where the panel goes beside a card: its side and its box, in the same space as `card`.
+    struct Placement: Equatable {
+        let side: Side
+        let frame: CGRect
+    }
+
+    /// The panel beside `card`, inside `viewport`, `panelWidth` wide — its arrow included — and as
+    /// tall as the viewport allows. The side has more room (core: ties go right) and the panel's
+    /// near edge, where the arrow's tip is, TOUCHES the card (AITD-679, Jon: "the arrow doesn't
+    /// touch the task row... It should"); it used to dock at the screen's edge instead. Decided
+    /// once, when the card is tapped: a panel that moved as the board scrolled would chase it.
+    static func placement(card: CGRect, viewport: CGRect, panelWidth: CGFloat) -> Placement? {
         guard let placed = try? CoreRules.calloutPlacement(
             anchor: card, viewport: viewport,
-            size: CGSize(width: panelWidth, height: viewport.height)) else { return .trailing }
-        return placed.side == .left ? .leading : .trailing
+            size: CGSize(width: panelWidth, height: max(0, viewport.height - gutter * 2)))
+        else { return nil }
+        return Placement(side: placed.side == .left ? .leading : .trailing, frame: placed.frame)
+    }
+
+    /// The side alone (`placement`'s), trailing when the core could not answer.
+    static func side(card: CGRect, viewport: CGRect, panelWidth: CGFloat) -> Side {
+        placement(card: card, viewport: viewport, panelWidth: panelWidth)?.side ?? .trailing
+    }
+
+    /// How much of the panel's width, on its card side, the arrow takes: its width less the point
+    /// it overlaps the face by. With exactly this much room the arrow's tip lands on the panel's
+    /// near edge — on the card, since the core puts that edge there.
+    static func arrowRoom(arrowWidth: CGFloat, overlap: CGFloat) -> CGFloat {
+        arrowWidth - overlap
     }
 
     /// The arrow's centre down the panel's edge, in the panel's own coordinates, for a card at

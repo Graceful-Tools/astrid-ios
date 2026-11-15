@@ -109,25 +109,31 @@ struct iPadTaskManagerView: View {
     /// The content area's frame in the global space: the viewport the panel docks inside.
     @State private var contentFrame: CGRect = .zero
 
-    /// Which edge the panel docks on. A list's panel stays trailing, beside the list. A board card
-    /// opens it on whichever side of the card has more room — astrid-core's callout rule — so a card
-    /// in a right-hand column is not covered by its own details (AITD-679).
-    private func panelSide(for task: Task, detailWidth: CGFloat) -> BoardCardCallout.Side {
+    /// Where a board card's panel goes: beside the card, on whichever side has more room, its
+    /// arrow's tip touching the card — astrid-core's callout rule (AITD-679). nil for a list's
+    /// panel, which stays docked trailing beside the list, and for full screen.
+    private func boardPlacement(for task: Task, detailWidth: CGFloat) -> BoardCardCallout.Placement? {
         guard listViewMode == .board, !detailFullScreen,
               let opened = selectedRowReporter.openedCard, opened.taskId == task.id,
-              contentFrame.width > 0 else { return .trailing }
-        return BoardCardCallout.side(card: opened.frame, viewport: contentFrame, panelWidth: detailWidth)
+              contentFrame.width > 0 else { return nil }
+        return BoardCardCallout.placement(card: opened.frame, viewport: contentFrame, panelWidth: detailWidth)
     }
 
-    /// The panel, docked on its side of a container `width` wide.
+    /// The panel: beside the card it came from on a board, docked trailing beside a list.
     @ViewBuilder
     private func placedDetailPanel(width: CGFloat, detailWidth: CGFloat) -> some View {
         if let task = selectedTask {
-            let side = panelSide(for: task, detailWidth: detailWidth)
-            taskDetailPanel(for: task, side: side)
-                .frame(width: detailWidth)
-                .frame(width: width, alignment: side == .trailing ? .trailing : .leading)
-                .transition(panelTransition(side: side))
+            if let placed = boardPlacement(for: task, detailWidth: detailWidth) {
+                taskDetailPanel(for: task, side: placed.side, besideCard: true)
+                    .frame(width: placed.frame.width, height: placed.frame.height)
+                    .offset(x: placed.frame.minX - contentFrame.minX, y: placed.frame.minY - contentFrame.minY)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .transition(panelTransition(side: placed.side))
+            } else {
+                taskDetailPanel(for: task, side: .trailing, besideCard: false)
+                    .frame(width: detailWidth)
+                    .transition(panelTransition(side: .trailing))
+            }
         }
     }
 
@@ -630,7 +636,7 @@ struct iPadTaskManagerView: View {
     // panel closes, SwiftUI keeps rendering this content through the slide-out
     // transition instead of it vanishing the instant selectedTask goes nil.
     @ViewBuilder
-    private func taskDetailPanel(for task: Task, side: BoardCardCallout.Side) -> some View {
+    private func taskDetailPanel(for task: Task, side: BoardCardCallout.Side, besideCard: Bool) -> some View {
             // Wrap with theme background and padding to align with task list
             NavigationStack {
                 TaskDetailViewNew(
@@ -688,11 +694,16 @@ struct iPadTaskManagerView: View {
                 }
                 .accessibilityHidden(true)
             }
-            // Room for the arrow between the row or card and the panel.
-            .padding(side == .trailing ? .leading : .trailing, DetailPanelChrome.arrowWidth)
-            .padding(.top, 8)      // Top margin (aligns with floating header)
-            .padding(.bottom, 4)   // Bottom margin (aligns with quick add input)
-            .padding(side == .trailing ? .trailing : .leading, 8) // Screen-edge margin
+            // Room for the arrow between the row or card and the panel. Beside a card exactly the
+            // arrow's reach, so its tip lands on the card; the core already keeps the panel off
+            // the screen's edges (AITD-679).
+            .padding(side == .trailing ? .leading : .trailing,
+                     besideCard ? BoardCardCallout.arrowRoom(arrowWidth: DetailPanelChrome.arrowWidth,
+                                                            overlap: DetailPanelChrome.arrowOverlap)
+                                : DetailPanelChrome.arrowWidth)
+            .padding(.top, besideCard ? 0 : 8)      // Top margin (aligns with floating header)
+            .padding(.bottom, besideCard ? 0 : 4)   // Bottom margin (aligns with quick add input)
+            .padding(.trailing, besideCard ? 0 : 8) // Screen-edge margin
             // Swipe left-to-right on the open task closes it (matches iPhone
             // swipe-back). The detail panel is a side panel on iPad, not a pushed
             // view, so this gesture is what dismisses it. Not from a decision

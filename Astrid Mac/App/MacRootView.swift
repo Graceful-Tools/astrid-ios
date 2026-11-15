@@ -77,16 +77,15 @@ struct MacRootView: View {
             || (contentMode == .board && selectedListId != Self.myTasksId)
     }
 
-    /// Which edge the pop-out docks on: trailing beside a list; beside a board card, whichever
-    /// side of the card has more room — astrid-core's callout rule (AITD-679).
-    private var popoutSide: BoardCardCallout.Side {
-        guard isBoardDetail, let opened = openedBoardCard, selectedTaskIds == [opened.taskId],
-              contentFrame.width > 0 else { return .trailing }
-        return BoardCardCallout.side(
-            card: opened.frame, viewport: contentFrame,
-            panelWidth: MacLayout.resolvedDetailPanelWidth(chatColumnWidth: resolvedChatColumnWidth)
-                + MacLayout.detailArrowWidth + MacLayout.detailPanelMargin * 2)
+    /// A board card's pop-out: beside the card on the side with more room, its arrow's tip on the
+    /// card — astrid-core's callout rule (AITD-679). nil beside a list (docked trailing).
+    private var boardPopoutPlacement: BoardCardCallout.Placement? {
+        guard isBoardDetail, let opened = openedBoardCard, selectedTaskIds == [opened.taskId] else { return nil }
+        return MacTaskDetailPopout.placement(card: opened.frame, viewport: contentFrame, panelWidth:
+            MacLayout.resolvedDetailPanelWidth(chatColumnWidth: resolvedChatColumnWidth))
     }
+
+    private var popoutSide: BoardCardCallout.Side { boardPopoutPlacement?.side ?? .trailing }
 
     /// A board card was clicked: its details open beside it, or close if they are already its.
     private func openBoardCard(_ taskId: String, frame: CGRect?) {
@@ -531,13 +530,14 @@ struct MacRootView: View {
             || listService.lists.first(where: { $0.id == selectedListId })?.isVirtual == true
     }
 
-    /// Floating detail pop-out (2766d9a4) — `MacTaskDetailPopout`, docked on `side`.
-    private func taskDetailPopout(_ task: Task, side: BoardCardCallout.Side) -> some View {
-        MacTaskDetailPopout(task: task, side: side,
-                            panelWidth: MacLayout.resolvedDetailPanelWidth(chatColumnWidth: resolvedChatColumnWidth),
-                            besideBoard: isBoardDetail, selectedRowMidY: selectedRowMidY,
-                            selectedCardFrame: selectedCardFrame,
-                            onClose: { selectedTaskIds.removeAll() })
+    /// Floating detail pop-out (2766d9a4) — `MacTaskDetailPopout`: at the core's box beside a board
+    /// card (AITD-679), docked trailing beside a list.
+    private func taskDetailPopout(_ task: Task) -> some View {
+        MacTaskDetailPopout(
+            task: task, placed: boardPopoutPlacement, viewport: contentFrame,
+            panelWidth: MacLayout.resolvedDetailPanelWidth(chatColumnWidth: resolvedChatColumnWidth),
+            besideBoard: isBoardDetail, selectedRowMidY: selectedRowMidY,
+            selectedCardFrame: selectedCardFrame, onClose: { selectedTaskIds.removeAll() })
     }
 
     /// Global search results view (Task 36587d3d) — full-text over all tasks incl. completed.
@@ -1214,7 +1214,7 @@ struct MacRootView: View {
                             .background(MacDetailChrome.background)
                             .transition(.opacity)
                     } else {
-                        taskDetailPopout(task, side: popoutSide)
+                        taskDetailPopout(task)
                             // Unfolds OUT OF the arrow and folds back into it the same way — the
                             // panel grows horizontally from the arrow's position, which sits at the
                             // selected row. A plain slide/fade did not read as coming from the task.
