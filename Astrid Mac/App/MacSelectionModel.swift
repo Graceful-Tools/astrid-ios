@@ -21,12 +21,6 @@ enum MacSelectionModel {
         return current == [tapped] ? [] : [tapped]
     }
 
-    /// Arrow vertical center for the pop-out, clamped inside the panel so it always touches it.
-    /// One rule with the iPad panel's arrow (AITD-607): `DetailPanelChrome` owns it.
-    static func arrowY(rowMidY: CGFloat, panelHeight: CGFloat, inset: CGFloat = 28) -> CGFloat {
-        DetailPanelChrome.arrowY(rowMidY: rowMidY, panelHeight: panelHeight, inset: inset)
-    }
-
     /// Arrow center in the ARROW COLUMN'S OWN coordinates, given the row's midY measured in the
     /// content coordinate space.
     ///
@@ -34,10 +28,11 @@ enum MacSelectionModel {
     /// with the panel's height — it is NOT a fixed inset. Subtracting a hardcoded constant aimed
     /// the arrow at whatever row happened to sit at that offset (task 69fd1f19). Converting through
     /// the panel's measured origin is self-correcting for any padding, centering or panel size.
-    static func arrowLocalY(rowMidY: CGFloat?, panelOriginY: CGFloat, panelHeight: CGFloat,
-                            inset: CGFloat = 28) -> CGFloat {
+    /// Clamped off the corners by astrid-core's callout rule — one rule with the iPad panel's
+    /// arrow and every board card's (AITD-607, AITD-678): `DetailPanelChrome` owns the call.
+    static func arrowLocalY(rowMidY: CGFloat?, panelOriginY: CGFloat, panelHeight: CGFloat) -> CGFloat {
         DetailPanelChrome.arrowLocalY(rowMidY: rowMidY, panelOriginY: panelOriginY,
-                                      panelHeight: panelHeight, inset: inset)
+                                      panelHeight: panelHeight)
     }
 
     /// An intentional scroll (offset moved beyond the threshold) closes the detail pop-out.

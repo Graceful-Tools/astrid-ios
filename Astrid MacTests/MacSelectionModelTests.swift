@@ -31,11 +31,15 @@ final class MacSelectionModelTests: XCTestCase {
 
     // MARK: arrow clamping
 
-    func testArrowClampsInsidePanel() {
-        XCTAssertEqual(MacSelectionModel.arrowY(rowMidY: 300, panelHeight: 600), 300, "Points at the row")
-        XCTAssertEqual(MacSelectionModel.arrowY(rowMidY: -50, panelHeight: 600), 28, "Clamped to top inset")
-        XCTAssertEqual(MacSelectionModel.arrowY(rowMidY: 5000, panelHeight: 600), 572, "Clamped to bottom inset")
-        XCTAssertEqual(MacSelectionModel.arrowY(rowMidY: 10, panelHeight: 40), 20, "Tiny panel → centered")
+    /// AITD-678: the clamp is astrid-core's callout ARROW_MARGIN (20), not a Mac inset.
+    func testArrowClampsInsidePanel_AITD678() {
+        func y(_ mid: CGFloat, _ h: CGFloat) -> CGFloat {
+            MacSelectionModel.arrowLocalY(rowMidY: mid, panelOriginY: 0, panelHeight: h)
+        }
+        XCTAssertEqual(y(300, 600), 300, "Points at the row")
+        XCTAssertEqual(y(-50, 600), 20, "Clamped to the core's arrow margin")
+        XCTAssertEqual(y(5000, 600), 580, "Clamped to height - the core's arrow margin")
+        XCTAssertEqual(y(10, 40), 20, "Tiny panel → centered")
     }
 
     // MARK: scroll dismissal
@@ -75,10 +79,10 @@ extension MacSelectionModelTests {
     func testArrowStaysInsideThePanelForRowsNearTheEdges() {
         // Row above the panel's top → clamped to the inset, still touching the panel.
         XCTAssertEqual(MacSelectionModel.arrowLocalY(rowMidY: 10, panelOriginY: 100, panelHeight: 600),
-                       28, accuracy: 0.001)
+                       20, accuracy: 0.001)
         // Row below the bottom → clamped to height - inset.
         XCTAssertEqual(MacSelectionModel.arrowLocalY(rowMidY: 5000, panelOriginY: 100, panelHeight: 600),
-                       572, accuracy: 0.001)
+                       580, accuracy: 0.001)
     }
 
     func testArrowCentresWhenTheSelectedRowIsNotMeasured() {
@@ -119,6 +123,6 @@ extension MacSelectionModelTests {
         // Panel occupying 300...500 of an 800pt content area; a row at 100 cannot be reached.
         let y = MacSelectionModel.arrowLocalY(rowMidY: 100, panelOriginY: 300, panelHeight: 200)
         XCTAssertNotEqual(y, 100 - 300, accuracy: 0.001)
-        XCTAssertEqual(y, 28, accuracy: 0.001, "Clamped to the inset — the wrong-row symptom")
+        XCTAssertEqual(y, 20, accuracy: 0.001, "Clamped to the core's arrow margin — the wrong-row symptom")
     }
 }

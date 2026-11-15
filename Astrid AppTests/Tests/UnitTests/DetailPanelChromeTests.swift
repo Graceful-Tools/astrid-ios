@@ -32,9 +32,25 @@ final class DetailPanelChromeTests: XCTestCase {
     }
 
     /// A row above or below the panel clamps the arrow inside it, so it still touches the card.
-    func testArrowClampsInsideThePanel() {
-        XCTAssertEqual(DetailPanelChrome.arrowLocalY(rowMidY: 0, panelOriginY: 100, panelHeight: 800), 28)
-        XCTAssertEqual(DetailPanelChrome.arrowLocalY(rowMidY: 5000, panelOriginY: 100, panelHeight: 800), 772)
+    /// AITD-678: the clamp is astrid-core's `rows::callout` ARROW_MARGIN (20, published in
+    /// `contracts/fixtures/callout-placement.json`), not a margin of the app's own — a list row's
+    /// arrow and a board card's arrow keep clear of the corners by the same rule.
+    func testArrowClampsInsideThePanel_AITD678_coreArrowMargin() {
+        XCTAssertEqual(DetailPanelChrome.arrowLocalY(rowMidY: 0, panelOriginY: 100, panelHeight: 800), 20)
+        XCTAssertEqual(DetailPanelChrome.arrowLocalY(rowMidY: 5000, panelOriginY: 100, panelHeight: 800), 780)
+    }
+
+    /// AITD-678: a list row and a board card at the same height aim the arrow at the same point —
+    /// both are the core's callout placement, the row as a zero-height anchor at its middle.
+    func testListRowArrowMatchesTheBoardCardArrow_AITD678() {
+        let panel = CGRect(x: 400, y: 100, width: 420, height: 800)
+        for mid in [CGFloat(0), 110, 130, 500, 880, 905, 5000] {
+            let card = CGRect(x: 40, y: mid - 32, width: 320, height: 64)
+            XCTAssertEqual(DetailPanelChrome.arrowLocalY(rowMidY: mid, panelOriginY: panel.minY,
+                                                         panelHeight: panel.height),
+                           BoardCardCallout.arrowY(card: card, panel: panel), accuracy: 0.001,
+                           "row at \(mid)")
+        }
     }
 
     /// No measured row (scrolled out of the list): centre it rather than point at nothing.
