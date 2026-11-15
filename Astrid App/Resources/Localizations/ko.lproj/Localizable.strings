@@ -1642,3 +1642,17 @@
 "project_mode.board_empty" = "사이드바에서 목록을 여기로 끌어오거나 목록 추가를 사용하세요.";
 "project_mode.board_no_candidates" = "모든 목록이 이미 이 보드에 있습니다.";
 "project_mode.board_save_failed" = "이 보드의 목록을 저장하지 못했습니다. 다시 시도해 주세요.";
+
+/* Moving lists into and out of projects (AITD-681) */
+"projects.project" = "프로젝트";
+"projects.none" = "없음";
+"projects.new_project" = "새 프로젝트…";
+"projects.move_to" = "프로젝트로 이동";
+"projects.remove_from" = "프로젝트에서 제거";
+"projects.new_list" = "새 목록…";
+"projects.new_list_in" = "프로젝트에 새 목록…";
+"projects.new_list_in_title" = "%@에 새 목록";
+"projects.leave_confirm" = "%@을(를) %@에서 제거할까요?";
+"projects.leave_confirm_detail" = "할 일도 함께 이동합니다. 이 프로젝트 고유 열에 있는 할 일은 목록이 그 열이 있는 프로젝트에 다시 들어갈 때까지 받은편지함에 표시됩니다.";
+"projects.move_forbidden" = "프로젝트 간에 목록을 옮기려면 목록과 각 프로젝트의 관리자여야 합니다.";
+"projects.create_forbidden" = "프로젝트의 소유자, 관리자, 멤버만 목록을 추가할 수 있습니다.";

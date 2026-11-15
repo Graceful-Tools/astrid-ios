@@ -1640,3 +1640,17 @@
 "project_mode.board_empty" = "Перетащите сюда список с боковой панели или нажмите «Добавить список».";
 "project_mode.board_no_candidates" = "Все списки уже на этой доске.";
 "project_mode.board_save_failed" = "Не удалось сохранить списки этой доски. Попробуйте ещё раз.";
+
+/* Moving lists into and out of projects (AITD-681) */
+"projects.project" = "Проект";
+"projects.none" = "Нет";
+"projects.new_project" = "Новый проект…";
+"projects.move_to" = "Переместить в проект";
+"projects.remove_from" = "Убрать из проекта";
+"projects.new_list" = "Новый список…";
+"projects.new_list_in" = "Новый список в проекте…";
+"projects.new_list_in_title" = "Новый список в %@";
+"projects.leave_confirm" = "Убрать %@ из %@?";
+"projects.leave_confirm_detail" = "Задачи переместятся вместе со списком. Задача в собственной колонке этого проекта будет во «Входящих», пока список снова не окажется в проекте с такой колонкой.";
+"projects.move_forbidden" = "Чтобы перемещать список между проектами, нужно быть администратором списка и каждого проекта.";
+"projects.create_forbidden" = "Добавлять списки в проект могут только его владельцы, администраторы и участники.";

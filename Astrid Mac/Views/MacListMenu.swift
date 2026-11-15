@@ -118,6 +118,8 @@ struct MacListMenuContent: View {
         ForEach(MacListMenu.items(for: list, userId: userId), id: \.self) { item in
             entry(item)
         }
+        // Move to Project ▸ / Remove from Project (AITD-681): the core's moves, when any.
+        MacListProjectMenu(list: list)
     }
 
     @ViewBuilder

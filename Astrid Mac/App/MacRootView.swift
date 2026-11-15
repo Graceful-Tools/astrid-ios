@@ -1110,7 +1110,7 @@ struct MacRootView: View {
                     Section(NSLocalizedString("navigation.favorites", comment: "")) { ForEach(favoriteLists) { listRow($0) } }
                 }
                 MacProjectsSidebarSection(offered: projectsOffered, expanded: $expandedProjectIds,
-                                          lists: listService.lists) { listRow($0) }
+                                          selection: $selectedListId, lists: listService.lists) { listRow($0) }
                 Section(NSLocalizedString("navigation.lists", comment: "")) {
                     // Add List lives HERE, above the lists, the way iOS
                     // (ListSidebarView.addListButton) and web do — not as an unlabelled toolbar

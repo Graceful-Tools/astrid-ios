@@ -36,6 +36,7 @@ class ListService: ObservableObject {
         }
         hasCompletedInitialLoad = true
         isReady = true
+        refreshProjectMoves()
     }
 
     // MARK: - Reading back what the core says moved
@@ -66,7 +67,10 @@ class ListService: ObservableObject {
         cachedLists = Dictionary(sorted.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
         // A task's list chips are joined from these lists: a rename or a new colour has to reach
         // the rows too.
-        if isReady { TaskService.shared.rejoinLists() }
+        if isReady {
+            TaskService.shared.rejoinLists()
+            refreshProjectMoves()
+        }
     }
 
     /// Redraw with the signed-in user's just-saved name and photo over their embedded copies
@@ -110,19 +114,92 @@ class ListService: ObservableObject {
 
     // MARK: - Writes
 
+    /// Create a list — inside `projectId` when one is named, in the same request (AITD-680/681:
+    /// never create-then-move, so there is no window where it exists outside the project).
     func createList(
         name: String,
         description: String? = nil,
         privacy: String = "PRIVATE",
-        color: String? = nil
+        color: String? = nil,
+        projectId: String? = nil
     ) async throws -> TaskList {
-        var command = CoreCommand(kind: "createList", ["name": .value(name), "privacy": .value(privacy)])
-        command.set("color", color ?? "#3b82f6")
-        command.set("description", description)
+        let command = Self.createListCommand(name: name, description: description, privacy: privacy,
+                                             color: color, projectId: projectId)
         let list = try await core.run(command, as: TaskList.self)
         show(list)
         LocalMutation.note()
         return list
+    }
+
+    nonisolated static func createListCommand(name: String, description: String? = nil, privacy: String = "PRIVATE",
+                                  color: String? = nil, projectId: String? = nil) -> CoreCommand {
+        var command = CoreCommand(kind: "createList", ["name": .value(name), "privacy": .value(privacy)])
+        command.set("color", color ?? "#3b82f6")
+        command.set("description", description)
+        command.set("projectId", projectId)
+        return command
+    }
+
+    // MARK: - Projects (AITD-680 core, AITD-681 Mac)
+
+    /// Each list's `listProjectMoves` answer, and where a new list may be created — kept here
+    /// because a context menu is built in one synchronous pass and the core refuses that command
+    /// on `runBlocking` ("may reach the network"). Refreshed whenever the lists or the projects
+    /// change; empty when there are no projects, so an account without them asks nothing.
+    @Published private(set) var projectMovesByList: [String: ListProjectMoves] = [:]
+    @Published private(set) var creatableProjectIds: [String] = []
+    private var projectMovesRefresh: _Concurrency.Task<Void, Never>?
+
+    /// What this list's Project control may offer — the core's `listProjectMoves` over the cached
+    /// projects (D68). Without a list, only where a new list may be created.
+    func projectMoves(listId: String?) -> ListProjectMoves {
+        guard let listId else { return ListProjectMoves(canLeave: false, destinations: [], creatableIn: creatableProjectIds) }
+        return projectMovesByList[listId] ?? .none
+    }
+
+    /// Ask the core again, once, for every real list. Coalesced: a burst of changes asks once.
+    func refreshProjectMoves() {
+        projectMovesRefresh?.cancel()
+        projectMovesRefresh = _Concurrency.Task { [weak self] in
+            guard let self else { return }
+            let ids = ProjectService.shared.projects.isEmpty ? [] :
+                lists.filter { $0.isDomainList && $0.isVirtual != true }.map(\.id)
+            var next: [String: ListProjectMoves] = [:]
+            for id in ids {
+                if _Concurrency.Task.isCancelled { return }
+                next[id] = try? await core.run(Self.projectMovesCommand(listId: id), as: ListProjectMoves.self)
+            }
+            let creatable = ProjectService.shared.projects.isEmpty ? [] :
+                ((try? await core.run(Self.projectMovesCommand(listId: nil), as: ListProjectMoves.self))?.creatableIn ?? [])
+            if _Concurrency.Task.isCancelled { return }
+            if next != projectMovesByList { projectMovesByList = next }
+            if creatable != creatableProjectIds { creatableProjectIds = creatable }
+        }
+    }
+
+    nonisolated static func projectMovesCommand(listId: String?) -> CoreCommand {
+        var command = CoreCommand(kind: "listProjectMoves")
+        command.set("listId", listId)
+        return command
+    }
+
+    /// Move a list into a project, or out of its project with `nil`. The core checks D68, applies
+    /// it at once and sends it through the Outbox; a server refusal puts the list back.
+    @discardableResult
+    func setListProject(listId: String, projectId: String?) async throws -> TaskList {
+        let list = try await core.run(Self.setListProjectCommand(listId: listId, projectId: projectId),
+                                      as: TaskList.self)
+        show(list)
+        LocalMutation.note()
+        await ProjectService.shared.reload()
+        return list
+    }
+
+    /// `projectId: null` is sent, never omitted, when leaving: absent would mean "no change".
+    nonisolated static func setListProjectCommand(listId: String, projectId: String?) -> CoreCommand {
+        var command = CoreCommand(kind: "setListProject", ["listId": .value(listId)])
+        if let projectId { command.set("projectId", projectId) } else { command.clear("projectId") }
+        return command
     }
 
     /// Apply an optimistic membership edit to the cached list so the change survives a view

@@ -1642,3 +1642,17 @@
 "project_mode.board_empty" = "從側邊欄將清單拖到這裡，或使用「新增清單」。";
 "project_mode.board_no_candidates" = "所有清單都已在此看板上。";
 "project_mode.board_save_failed" = "無法儲存此看板的清單，請再試一次。";
+
+/* Moving lists into and out of projects (AITD-681) */
+"projects.project" = "專案";
+"projects.none" = "無";
+"projects.new_project" = "新增專案…";
+"projects.move_to" = "移至專案";
+"projects.remove_from" = "從專案中移除";
+"projects.new_list" = "新增列表…";
+"projects.new_list_in" = "在專案中新增列表…";
+"projects.new_list_in_title" = "在 %@ 中新增列表";
+"projects.leave_confirm" = "要將 %@ 從 %@ 中移除嗎？";
+"projects.leave_confirm_detail" = "任務會隨列表一起移動。位於此專案專屬欄中的任務會顯示在收件匣中，直到列表重新加入擁有該欄的專案。";
+"projects.move_forbidden" = "要在專案之間移動列表，你需要是該列表和每個專案的管理員。";
+"projects.create_forbidden" = "只有專案的擁有者、管理員和成員可以向其中新增列表。";

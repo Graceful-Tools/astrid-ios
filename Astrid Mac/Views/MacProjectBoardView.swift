@@ -25,6 +25,8 @@ struct MacProjectBoardView: View {
     @StateObject private var board = BoardModel()
     @State private var boardWidth: CGFloat = 0
     @State private var isDropTarget = false
+    /// New List… from Add list (AITD-681): a list born in this project, then a row here.
+    @State private var creatingList = false
 
     private var columns: [ProjectBoardColumn] { board.columns.map(\.column) }
 
@@ -103,12 +105,27 @@ struct MacProjectBoardView: View {
             ForEach(candidates) { list in
                 Button(list.name) { add(list.id) }
             }
+            if MacListProjectControl.offersNewList(in: projectId, moves: listService.projectMoves(listId: nil)) {
+                Divider()
+                Button(NSLocalizedString("projects.new_list", comment: "")) { creatingList = true }
+                    .accessibilityIdentifier("projectBoard.newList")
+            }
         } label: {
             Label(NSLocalizedString("project_mode.board_add_list", comment: ""), systemImage: "plus")
         }
         .fixedSize()
         .disabled(!rows.canAddRow(projectId: projectId))
         .accessibilityIdentifier("projectBoard.addList")
+        .sheet(isPresented: $creatingList) {
+            if let project = ProjectService.shared.project(id: projectId) {
+                MacNewListInProjectSheet(project: project) { list in
+                    _Concurrency.Task {
+                        await rows.load(projectId: projectId)
+                        await rows.addRow(projectId: projectId, listId: list.id)
+                    }
+                }
+            }
+        }
     }
 
     private var columnHeaders: some View {

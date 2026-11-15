@@ -1640,3 +1640,17 @@
 "project_mode.board_empty" = "Arraste uma lista da barra lateral para cá ou use Adicionar lista.";
 "project_mode.board_no_candidates" = "Todas as listas já estão neste quadro.";
 "project_mode.board_save_failed" = "Não foi possível salvar as listas deste quadro. Tente novamente.";
+
+/* Moving lists into and out of projects (AITD-681) */
+"projects.project" = "Projeto";
+"projects.none" = "Nenhum";
+"projects.new_project" = "Novo projeto…";
+"projects.move_to" = "Mover para projeto";
+"projects.remove_from" = "Remover do projeto";
+"projects.new_list" = "Nova lista…";
+"projects.new_list_in" = "Nova lista no projeto…";
+"projects.new_list_in_title" = "Nova lista em %@";
+"projects.leave_confirm" = "Remover %@ de %@?";
+"projects.leave_confirm_detail" = "As tarefas vão junto. Uma tarefa numa coluna própria deste projeto aparece na Caixa de entrada até a lista voltar a um projeto com essa coluna.";
+"projects.move_forbidden" = "Para mover uma lista entre projetos você precisa ser administrador da lista e de cada projeto.";
+"projects.create_forbidden" = "Somente proprietários, administradores e membros do projeto podem adicionar uma lista a ele.";
