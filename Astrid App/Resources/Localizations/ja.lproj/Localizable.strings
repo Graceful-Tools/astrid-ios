@@ -1640,3 +1640,17 @@
 "project_mode.board_empty" = "サイドバーからリストをここへドラッグするか、「リストを追加」を使ってください。";
 "project_mode.board_no_candidates" = "すべてのリストがすでにこのボードにあります。";
 "project_mode.board_save_failed" = "このボードのリストを保存できませんでした。もう一度お試しください。";
+
+/* Moving lists into and out of projects (AITD-681) */
+"projects.project" = "プロジェクト";
+"projects.none" = "なし";
+"projects.new_project" = "新規プロジェクト…";
+"projects.move_to" = "プロジェクトへ移動";
+"projects.remove_from" = "プロジェクトから外す";
+"projects.new_list" = "新規リスト…";
+"projects.new_list_in" = "プロジェクトに新規リスト…";
+"projects.new_list_in_title" = "%@ に新規リスト";
+"projects.leave_confirm" = "%@ を %@ から外しますか？";
+"projects.leave_confirm_detail" = "タスクも一緒に移動します。このプロジェクト独自の列にあるタスクは、その列を持つプロジェクトにリストが戻るまで受信箱に表示されます。";
+"projects.move_forbidden" = "プロジェクト間でリストを移動するには、リストと各プロジェクトの管理者である必要があります。";
+"projects.create_forbidden" = "プロジェクトにリストを追加できるのは、そのオーナー、管理者、メンバーだけです。";

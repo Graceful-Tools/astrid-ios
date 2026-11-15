@@ -1648,3 +1648,17 @@
 "project_mode.board_empty" = "Drag a list here from the sidebar, or use Add list.";
 "project_mode.board_no_candidates" = "Every list is already on this board.";
 "project_mode.board_save_failed" = "Couldn't save this board's lists. Please try again.";
+
+/* Moving lists into and out of projects (AITD-681) */
+"projects.project" = "Project";
+"projects.none" = "None";
+"projects.new_project" = "New Project…";
+"projects.move_to" = "Move to Project";
+"projects.remove_from" = "Remove from Project";
+"projects.new_list" = "New List…";
+"projects.new_list_in" = "New List in Project…";
+"projects.new_list_in_title" = "New list in %@";
+"projects.leave_confirm" = "Remove %@ from %@?";
+"projects.leave_confirm_detail" = "Its tasks go with it. A task in one of this project's own columns shows in Inbox until the list joins a project with that column again.";
+"projects.move_forbidden" = "To move a list between projects you need to be an admin of the list and of each project.";
+"projects.create_forbidden" = "Only the project's owners, admins and members can add a list to it.";

@@ -191,6 +191,9 @@ struct MacListAdminTab: View {
         // window, and a plain stack pushed the window's title and Done out of it (AITD-483).
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                // Which project the list is in, and moving it (AITD-681). Draws nothing when
+                // Project Mode is off or the core offers no move.
+                MacListProjectRow(list: list)
                 if Self.offersBoardSwitch(for: list, userId: AuthManager.shared.userId) {
                     boardSwitch
                 }

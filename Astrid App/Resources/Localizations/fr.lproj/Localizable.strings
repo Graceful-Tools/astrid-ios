@@ -1656,3 +1656,17 @@
 "project_mode.board_empty" = "Faites glisser une liste depuis la barre latérale, ou utilisez Ajouter une liste.";
 "project_mode.board_no_candidates" = "Toutes les listes sont déjà sur ce tableau.";
 "project_mode.board_save_failed" = "Impossible d'enregistrer les listes de ce tableau. Veuillez réessayer.";
+
+/* Moving lists into and out of projects (AITD-681) */
+"projects.project" = "Projet";
+"projects.none" = "Aucun";
+"projects.new_project" = "Nouveau projet…";
+"projects.move_to" = "Déplacer vers un projet";
+"projects.remove_from" = "Retirer du projet";
+"projects.new_list" = "Nouvelle liste…";
+"projects.new_list_in" = "Nouvelle liste dans le projet…";
+"projects.new_list_in_title" = "Nouvelle liste dans %@";
+"projects.leave_confirm" = "Retirer %@ de %@ ?";
+"projects.leave_confirm_detail" = "Ses tâches la suivent. Une tâche dans une colonne propre à ce projet apparaît dans la Boîte de réception jusqu'à ce que la liste rejoigne un projet ayant cette colonne.";
+"projects.move_forbidden" = "Pour déplacer une liste entre projets, vous devez être administrateur de la liste et de chaque projet.";
+"projects.create_forbidden" = "Seuls les propriétaires, administrateurs et membres du projet peuvent y ajouter une liste.";

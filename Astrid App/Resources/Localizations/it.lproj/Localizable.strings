@@ -1640,3 +1640,17 @@
 "project_mode.board_empty" = "Trascina qui una lista dalla barra laterale, oppure usa Aggiungi lista.";
 "project_mode.board_no_candidates" = "Tutte le liste sono già su questa bacheca.";
 "project_mode.board_save_failed" = "Impossibile salvare le liste di questa bacheca. Riprova.";
+
+/* Moving lists into and out of projects (AITD-681) */
+"projects.project" = "Progetto";
+"projects.none" = "Nessuno";
+"projects.new_project" = "Nuovo progetto…";
+"projects.move_to" = "Sposta nel progetto";
+"projects.remove_from" = "Rimuovi dal progetto";
+"projects.new_list" = "Nuova lista…";
+"projects.new_list_in" = "Nuova lista nel progetto…";
+"projects.new_list_in_title" = "Nuova lista in %@";
+"projects.leave_confirm" = "Rimuovere %@ da %@?";
+"projects.leave_confirm_detail" = "Le sue attività la seguono. Un'attività in una colonna propria di questo progetto appare in Posta in arrivo finché la lista non torna in un progetto con quella colonna.";
+"projects.move_forbidden" = "Per spostare una lista tra progetti devi essere amministratore della lista e di ogni progetto.";
+"projects.create_forbidden" = "Solo proprietari, amministratori e membri del progetto possono aggiungervi una lista.";

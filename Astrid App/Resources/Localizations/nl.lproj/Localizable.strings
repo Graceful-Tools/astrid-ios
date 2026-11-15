@@ -1640,3 +1640,17 @@
 "project_mode.board_empty" = "Sleep een lijst hierheen vanuit de zijbalk, of gebruik Lijst toevoegen.";
 "project_mode.board_no_candidates" = "Alle lijsten staan al op dit bord.";
 "project_mode.board_save_failed" = "De lijsten van dit bord konden niet worden opgeslagen. Probeer het opnieuw.";
+
+/* Moving lists into and out of projects (AITD-681) */
+"projects.project" = "Project";
+"projects.none" = "Geen";
+"projects.new_project" = "Nieuw project…";
+"projects.move_to" = "Naar project verplaatsen";
+"projects.remove_from" = "Uit project halen";
+"projects.new_list" = "Nieuwe lijst…";
+"projects.new_list_in" = "Nieuwe lijst in project…";
+"projects.new_list_in_title" = "Nieuwe lijst in %@";
+"projects.leave_confirm" = "%@ uit %@ halen?";
+"projects.leave_confirm_detail" = "De taken gaan mee. Een taak in een eigen kolom van dit project staat in Inbox tot de lijst weer bij een project met die kolom hoort.";
+"projects.move_forbidden" = "Om een lijst tussen projecten te verplaatsen moet je beheerder zijn van de lijst en van elk project.";
+"projects.create_forbidden" = "Alleen eigenaars, beheerders en leden van het project kunnen er een lijst aan toevoegen.";

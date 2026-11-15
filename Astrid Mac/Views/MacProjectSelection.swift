@@ -62,9 +62,12 @@ struct MacListRowDrag: ViewModifier {
 struct MacProjectsSidebarSection<ListRow: View>: View {
     let offered: Bool
     @Binding var expanded: Set<String>
+    /// The sidebar's selection, so a list made in a project opens at once (AITD-681).
+    @Binding var selection: String?
     let lists: [TaskList]
     @ViewBuilder let listRow: (TaskList) -> ListRow
     @StateObject private var projectService = ProjectService.shared
+    @State private var newListProject: Project?
 
     var body: some View {
         if offered, !projectService.projects.isEmpty {
@@ -97,6 +100,33 @@ struct MacProjectsSidebarSection<ListRow: View>: View {
         }
         .tag(Optional(MacProjectSelection.tag(projectId: project.id)))
         .accessibilityIdentifier("sidebar.project.\(project.id)")
+        // One sheet per row, bound to that row: a Section's modifiers fan out to every row, so a
+        // single `sheet(item:)` there would be presented by each of them.
+        .sheet(isPresented: Binding(get: { newListProject?.id == project.id },
+                                    set: { if !$0 { newListProject = nil } })) {
+            MacNewListInProjectSheet(project: project) { list in
+                expanded.insert(project.id)
+                selection = list.id
+            }
+        }
+        .contextMenu {
+            if MacListProjectControl.offersNewList(in: project.id,
+                                                   moves: ListService.shared.projectMoves(listId: nil)) {
+                Button(NSLocalizedString("projects.new_list_in", comment: "")) { newListProject = project }
+                    .accessibilityIdentifier("sidebar.project.newList")
+            }
+        }
+        // Drop a sidebar list here to move it into this project (AITD-681) — only where the
+        // core allows; anything else is refused and the list stays where it was.
+        .dropDestination(for: String.self) { payloads, _ in
+            let moved = payloads.compactMap(ProjectBoardListDrag.listId(from:)).filter { id in
+                guard let list = lists.first(where: { $0.id == id }) else { return false }
+                return MacListProjectControl.acceptsDrop(
+                    of: list, onto: project.id, moves: ListService.shared.projectMoves(listId: id))
+            }
+            moved.forEach { MacListProjectControl.move(listId: $0, to: project.id) }
+            return !moved.isEmpty
+        }
     }
 }
 #endif

@@ -40,6 +40,8 @@ class ProjectService: ObservableObject {
         guard let cached = try? await core.run(CoreCommand(kind: "projects"), as: [Project].self),
               cached != projects else { return }
         projects = cached
+        // Who may move which list where depends on the projects too (AITD-681).
+        ListService.shared.refreshProjectMoves()
     }
 
     // MARK: - Server operations

@@ -1640,3 +1640,17 @@
 "project_mode.board_empty" = "从侧边栏将列表拖到这里，或使用“添加列表”。";
 "project_mode.board_no_candidates" = "所有列表都已在此看板上。";
 "project_mode.board_save_failed" = "无法保存此看板的列表，请重试。";
+
+/* Moving lists into and out of projects (AITD-681) */
+"projects.project" = "项目";
+"projects.none" = "无";
+"projects.new_project" = "新建项目…";
+"projects.move_to" = "移至项目";
+"projects.remove_from" = "从项目中移除";
+"projects.new_list" = "新建列表…";
+"projects.new_list_in" = "在项目中新建列表…";
+"projects.new_list_in_title" = "在 %@ 中新建列表";
+"projects.leave_confirm" = "要将 %@ 从 %@ 中移除吗？";
+"projects.leave_confirm_detail" = "任务会随列表一起移动。位于此项目专属列中的任务会显示在收件箱中，直到列表重新加入拥有该列的项目。";
+"projects.move_forbidden" = "要在项目之间移动列表，你需要是该列表和每个项目的管理员。";
+"projects.create_forbidden" = "只有项目的所有者、管理员和成员可以向其中添加列表。";
