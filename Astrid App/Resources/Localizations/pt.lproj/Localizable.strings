@@ -1629,3 +1629,14 @@
 "waiting.prompt.keepAssignedTo" = "Manter atribuída a %@";
 "waiting.prompt.theAssignee" = "a pessoa responsável";
 "waiting.prompt.confirm" = "Mover para Em espera";
+
+/* Project Mode: the Projects sidebar section and the project board (AITD-674, web AWTD-1660) */
+"project_mode.projects_heading" = "Projetos";
+"project_mode.open_board" = "Abrir o quadro %@";
+"project_mode.show_lists" = "Mostrar listas de %@";
+"project_mode.hide_lists" = "Ocultar listas de %@";
+"project_mode.board_add_list" = "Adicionar lista";
+"project_mode.board_remove_row" = "Remover %@ deste quadro";
+"project_mode.board_empty" = "Arraste uma lista da barra lateral para cá ou use Adicionar lista.";
+"project_mode.board_no_candidates" = "Todas as listas já estão neste quadro.";
+"project_mode.board_save_failed" = "Não foi possível salvar as listas deste quadro. Tente novamente.";

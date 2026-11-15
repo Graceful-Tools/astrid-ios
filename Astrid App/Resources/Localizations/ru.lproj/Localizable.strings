@@ -1629,3 +1629,14 @@
 "waiting.prompt.keepAssignedTo" = "Оставить назначенной: %@";
 "waiting.prompt.theAssignee" = "исполнитель";
 "waiting.prompt.confirm" = "Переместить в ожидание";
+
+/* Project Mode: the Projects sidebar section and the project board (AITD-674, web AWTD-1660) */
+"project_mode.projects_heading" = "Проекты";
+"project_mode.open_board" = "Открыть доску %@";
+"project_mode.show_lists" = "Показать списки в %@";
+"project_mode.hide_lists" = "Скрыть списки в %@";
+"project_mode.board_add_list" = "Добавить список";
+"project_mode.board_remove_row" = "Убрать %@ с этой доски";
+"project_mode.board_empty" = "Перетащите сюда список с боковой панели или нажмите «Добавить список».";
+"project_mode.board_no_candidates" = "Все списки уже на этой доске.";
+"project_mode.board_save_failed" = "Не удалось сохранить списки этой доски. Попробуйте ещё раз.";

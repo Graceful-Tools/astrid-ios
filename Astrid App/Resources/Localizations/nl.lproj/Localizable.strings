@@ -1629,3 +1629,14 @@
 "waiting.prompt.keepAssignedTo" = "Aan %@ toegewezen laten";
 "waiting.prompt.theAssignee" = "de toegewezen persoon";
 "waiting.prompt.confirm" = "Naar Wachten verplaatsen";
+
+/* Project Mode: the Projects sidebar section and the project board (AITD-674, web AWTD-1660) */
+"project_mode.projects_heading" = "Projecten";
+"project_mode.open_board" = "Bord %@ openen";
+"project_mode.show_lists" = "Lijsten in %@ tonen";
+"project_mode.hide_lists" = "Lijsten in %@ verbergen";
+"project_mode.board_add_list" = "Lijst toevoegen";
+"project_mode.board_remove_row" = "%@ van dit bord verwijderen";
+"project_mode.board_empty" = "Sleep een lijst hierheen vanuit de zijbalk, of gebruik Lijst toevoegen.";
+"project_mode.board_no_candidates" = "Alle lijsten staan al op dit bord.";
+"project_mode.board_save_failed" = "De lijsten van dit bord konden niet worden opgeslagen. Probeer het opnieuw.";
