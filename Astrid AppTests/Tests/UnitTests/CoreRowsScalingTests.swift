@@ -4,8 +4,14 @@
 //
 //  Since AITD-460 a list's rows are astrid-core's `rowsForList` on BOTH platforms, so these budgets
 //  belong to the shared code and run once, here. They compare the pipeline against itself — 2x the
-//  tasks must cost about 2x, not 4x — so they hold on any machine, and they time the fastest of
-//  nine runs because load only ever adds time (AITD-534).
+//  tasks must cost about 2x, not 4x — so they hold on any machine.
+//
+//  How they are timed (ADEV-5): the PROCESS's CPU time, not wall time, over interleaved runs of the
+//  two sizes, the fastest of each. Wall time failed three predeploys in a row on 2026-11-15 (9.3x,
+//  3.9x, 3.7x against 3.2x) and passed every time alone: xcodebuild's parallel clones are separate
+//  processes competing for the same cores, so they stretched wall time, and timing all of one size
+//  before the other let a busy stretch land on one size only. CPU time leaves out what other
+//  processes take; interleaving gives what is left to both sizes alike.
 
 import AstridCore
 import XCTest
@@ -40,20 +46,27 @@ final class CoreRowsScalingTests: XCTestCase {
     }
 
 
-    /// Median wall time of `block`, to damp scheduler noise.
-    /// The FASTEST of several runs, not the median (AITD-534). Load on a shared runner only ever
-    /// adds time, so the fastest run is the one closest to what the code costs; a median still
-    /// moved with whatever else the machine was doing, and the 2x-vs-4x ratios below flaked on it.
-    private func fastestSeconds(iterations: Int = 9, _ block: () -> Void) -> Double {
-        var fastest = Double.infinity
-        for _ in 0..<iterations {
-            let start = DispatchTime.now().uptimeNanoseconds
-            block()
-            fastest = min(fastest, Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000_000)
-        }
-        return fastest
+    /// This process's CPU time so far, user + system. Other processes, the parallel test clones
+    /// among them, cannot add to it, which is what wall time got wrong (ADEV-5). The core works on
+    /// its own threads, so the calling thread's CPU time would miss the work: it is the process's.
+    static func processCPUSeconds() -> Double {
+        var usage = rusage()
+        getrusage(RUSAGE_SELF, &usage)
+        func seconds(_ t: timeval) -> Double { Double(t.tv_sec) + Double(t.tv_usec) / 1_000_000 }
+        return seconds(usage.ru_utime) + seconds(usage.ru_stime)
     }
 
+    /// The fastest CPU cost of `a` and of `b`, measured in turns — a, b, a, b… — so any stretch of
+    /// noise reaches both, and fastest because noise only ever adds (AITD-534, ADEV-5).
+    static func fastestInterleaved(iterations: Int = 9, cost: () -> Double = processCPUSeconds,
+                                   _ a: () -> Void, _ b: () -> Void) -> (a: Double, b: Double) {
+        var fastestA = Double.infinity, fastestB = Double.infinity
+        for _ in 0..<iterations {
+            let startA = cost(); a(); fastestA = min(fastestA, cost() - startA)
+            let startB = cost(); b(); fastestB = min(fastestB, cost() - startB)
+        }
+        return (fastestA, fastestB)
+    }
 
     private func withSubtasks(_ n: Int, every k: Int = 2) -> [Task] {
         var tasks = makeTasks(n)
@@ -69,8 +82,7 @@ final class CoreRowsScalingTests: XCTestCase {
         let small = try CoreSearchFixture.session(seeding: withSubtasks(5_000))
         let large = try CoreSearchFixture.session(seeding: withSubtasks(10_000))
         rows(small); rows(large)                              // warm caches, ignore first runs
-        let t1 = fastestSeconds { self.rows(small) }
-        let t2 = fastestSeconds { self.rows(large) }
+        let (t1, t2) = Self.fastestInterleaved({ self.rows(small) }, { self.rows(large) })
         XCTAssertLessThan(t2, t1 * 3.2,
                           "Doubling to 10k cost \(t2 / max(t1, .leastNonzeroMagnitude))x — quadratic behaviour in the pipeline")
     }
@@ -82,9 +94,39 @@ final class CoreRowsScalingTests: XCTestCase {
         let flat = try CoreSearchFixture.session(seeding: makeTasks(10_000))
         let nested = try CoreSearchFixture.session(seeding: withSubtasks(10_000, every: 1))
         rows(flat); rows(nested)
-        let tFlat = fastestSeconds { self.rows(flat) }
-        let tNested = fastestSeconds { self.rows(nested) }
+        let (tFlat, tNested) = Self.fastestInterleaved({ self.rows(flat) }, { self.rows(nested) })
         XCTAssertLessThan(tNested, tFlat * 6.0,
                           "Subtask-heavy shape cost \(tNested / max(tFlat, .leastNonzeroMagnitude))x the flat shape — splice is not scaling")
+    }
+
+    // MARK: - The measurement itself (ADEV-5)
+
+    /// Interleaved: a stretch of noise during one size's turn cannot settle on that size alone. A
+    /// clock that adds a burst of 1.0 to whichever run is in progress on turns 2–4 (the old shape,
+    /// "all the small runs, then all the large ones", gave the large size every burst) still yields
+    /// each block's true cost as its fastest.
+    func testInterleavedRunsLetNoiseReachBothSizes_ADEV5() {
+        var clock = 0.0, turn = 0
+        let measured = Self.fastestInterleaved(iterations: 6, cost: { clock },
+            { turn += 1; clock += 0.010 + ((2...4).contains(turn) ? 1.0 : 0) },
+            { turn += 1; clock += 0.020 + ((2...4).contains(turn) ? 1.0 : 0) })
+        XCTAssertEqual(measured.a, 0.010, accuracy: 1e-9)
+        XCTAssertEqual(measured.b, 0.020, accuracy: 1e-9)
+    }
+
+    /// The process clock counts work done on other threads too (the core's), and never runs
+    /// backwards.
+    func testTheProcessCPUClockCountsWorkOnOtherThreads_ADEV5() {
+        let start = Self.processCPUSeconds()
+        let done = DispatchSemaphore(value: 0)
+        DispatchQueue.global().async {
+            var x = 0.0
+            for i in 0..<5_000_000 { x += Double(i).squareRoot() }
+            if x < 0 { print(x) }
+            done.signal()
+        }
+        done.wait()
+        XCTAssertGreaterThan(Self.processCPUSeconds() - start, 0.001,
+                             "busy work on another thread shows up in the process's CPU time")
     }
 }
