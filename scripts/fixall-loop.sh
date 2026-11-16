@@ -22,7 +22,7 @@
 #
 # Environment:
 #   FIXALL_MODEL        model for the unattended run (default: opus)
-#   FIXALL_MAX_MINUTES  watchdog, kills a wedged run (default: 75)
+#   FIXALL_MAX_MINUTES  watchdog, kills a wedged run (default: 120)
 #   FIXALL_MAX_USD      hard spend cap for one run (default: 10; empty = no cap)
 #   CLAUDE_BIN          path to the claude CLI (default: ~/.local/bin/claude)
 #   FIXALL_FORCE=1      skip the dirty-tree/branch guard (testing only)
@@ -54,7 +54,10 @@ MODEL="${FIXALL_MODEL:-opus}"
 # 75, not 50: on 2026-09-27 astrid-web's loop, capped at ONE task, still hit a 50m
 # watchdog. A killed run is now saved and harmless, but a task that never fits
 # would be killed on every attempt.
-MAX_MINUTES="${FIXALL_MAX_MINUTES:-75}"
+# 120, not 75: on 2026-11-16 a one-task iOS run was killed twice inside predeploy
+# (build, partner-brand audit, ~2,400 unit tests), which alone can take over an hour,
+# and the second kill handed the finished task back to the Inbox.
+MAX_MINUTES="${FIXALL_MAX_MINUTES:-120}"
 MAX_USD="${FIXALL_MAX_USD-10}"
 IOS_LIST_ID="aa41c1a3-bd63-4c6d-9b87-42c6e0aafa36"
 STALL_STATE="${FIXALL_STALL_STATE:-$HOME/Library/Logs/astrid-fixall-stall.state}"
