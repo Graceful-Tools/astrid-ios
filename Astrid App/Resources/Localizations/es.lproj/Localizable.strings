@@ -1670,3 +1670,9 @@
 "projects.leave_confirm_detail" = "Sus tareas la acompañan. Una tarea en una columna propia de este proyecto aparece en la Bandeja de entrada hasta que la lista vuelva a un proyecto con esa columna.";
 "projects.move_forbidden" = "Para mover una lista entre proyectos debes ser administrador de la lista y de cada proyecto.";
 "projects.create_forbidden" = "Solo los propietarios, administradores y miembros del proyecto pueden añadirle una lista.";
+"projects.delete_project" = "Eliminar proyecto…";
+"projects.delete_confirm" = "¿Eliminar %@?";
+"projects.delete_confirm_detail" = "Sus listas se conservan, fuera de cualquier proyecto. Las columnas propias del tablero se eliminan con él.";
+"projects.delete_forbidden" = "Solo el propietario del proyecto puede eliminarlo.";
+"projects.new_project_title" = "Nuevo proyecto";
+"projects.project_name" = "Nombre del proyecto";

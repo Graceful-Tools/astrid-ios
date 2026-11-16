@@ -1656,3 +1656,9 @@
 "projects.leave_confirm_detail" = "할 일도 함께 이동합니다. 이 프로젝트 고유 열에 있는 할 일은 목록이 그 열이 있는 프로젝트에 다시 들어갈 때까지 받은편지함에 표시됩니다.";
 "projects.move_forbidden" = "프로젝트 간에 목록을 옮기려면 목록과 각 프로젝트의 관리자여야 합니다.";
 "projects.create_forbidden" = "프로젝트의 소유자, 관리자, 멤버만 목록을 추가할 수 있습니다.";
+"projects.delete_project" = "프로젝트 삭제…";
+"projects.delete_confirm" = "%@을(를) 삭제할까요?";
+"projects.delete_confirm_detail" = "목록은 프로젝트 밖에 그대로 남습니다. 보드 고유의 열은 함께 삭제됩니다.";
+"projects.delete_forbidden" = "프로젝트 소유자만 삭제할 수 있습니다.";
+"projects.new_project_title" = "새 프로젝트";
+"projects.project_name" = "프로젝트 이름";

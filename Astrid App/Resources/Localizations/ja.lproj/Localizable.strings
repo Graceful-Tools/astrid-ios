@@ -1654,3 +1654,9 @@
 "projects.leave_confirm_detail" = "タスクも一緒に移動します。このプロジェクト独自の列にあるタスクは、その列を持つプロジェクトにリストが戻るまで受信箱に表示されます。";
 "projects.move_forbidden" = "プロジェクト間でリストを移動するには、リストと各プロジェクトの管理者である必要があります。";
 "projects.create_forbidden" = "プロジェクトにリストを追加できるのは、そのオーナー、管理者、メンバーだけです。";
+"projects.delete_project" = "プロジェクトを削除…";
+"projects.delete_confirm" = "%@を削除しますか？";
+"projects.delete_confirm_detail" = "リストはプロジェクト外にそのまま残ります。ボード独自の列は一緒に削除されます。";
+"projects.delete_forbidden" = "プロジェクトを削除できるのはオーナーだけです。";
+"projects.new_project_title" = "新規プロジェクト";
+"projects.project_name" = "プロジェクト名";

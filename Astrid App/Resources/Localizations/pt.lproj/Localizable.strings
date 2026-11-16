@@ -1654,3 +1654,9 @@
 "projects.leave_confirm_detail" = "As tarefas vão junto. Uma tarefa numa coluna própria deste projeto aparece na Caixa de entrada até a lista voltar a um projeto com essa coluna.";
 "projects.move_forbidden" = "Para mover uma lista entre projetos você precisa ser administrador da lista e de cada projeto.";
 "projects.create_forbidden" = "Somente proprietários, administradores e membros do projeto podem adicionar uma lista a ele.";
+"projects.delete_project" = "Excluir projeto…";
+"projects.delete_confirm" = "Excluir %@?";
+"projects.delete_confirm_detail" = "Suas listas permanecem, fora de qualquer projeto. As colunas próprias do quadro são excluídas com ele.";
+"projects.delete_forbidden" = "Somente o proprietário do projeto pode excluí-lo.";
+"projects.new_project_title" = "Novo projeto";
+"projects.project_name" = "Nome do projeto";

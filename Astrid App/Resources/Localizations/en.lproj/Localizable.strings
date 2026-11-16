@@ -1662,3 +1662,9 @@
 "projects.leave_confirm_detail" = "Its tasks go with it. A task in one of this project's own columns shows in Inbox until the list joins a project with that column again.";
 "projects.move_forbidden" = "To move a list between projects you need to be an admin of the list and of each project.";
 "projects.create_forbidden" = "Only the project's owners, admins and members can add a list to it.";
+"projects.delete_project" = "Delete Project…";
+"projects.delete_confirm" = "Delete %@?";
+"projects.delete_confirm_detail" = "Its lists stay, outside any project. The board's own columns go with it.";
+"projects.delete_forbidden" = "Only the project's owner can delete it.";
+"projects.new_project_title" = "New project";
+"projects.project_name" = "Project name";

@@ -59,12 +59,17 @@ struct MacProjectsSidebarSection<ListRow: View>: View {
     @ViewBuilder let listRow: (TaskList) -> ListRow
     @StateObject private var projectService = ProjectService.shared
     @State private var newListProject: Project?
+    /// New Project… (ADEV-27): the section is where a project is made, even the first one.
+    @State private var creatingProject = false
+    /// Delete Project…, confirmed first (ADEV-27).
+    @State private var deletingProject: Project?
 
     var body: some View {
         // Which projects, in what order, with which lists: the core's sidebar rule (ADEV-16).
         let entries = SidebarProjects.entries(offered: offered, projects: projectService.projects, lists: lists)
-        if !entries.isEmpty {
+        if MacProjectActions.showsSection(offered: offered) {
             Section(NSLocalizedString("project_mode.projects_heading", comment: "")) {
+                newProjectRow
                 ForEach(entries) { entry in
                     projectRow(entry.project, name: entry.name)
                     if expanded.contains(entry.id) {
@@ -74,6 +79,18 @@ struct MacProjectsSidebarSection<ListRow: View>: View {
                     }
                 }
             }
+        }
+    }
+
+    private var newProjectRow: some View {
+        Button { creatingProject = true } label: {
+            Label(NSLocalizedString("projects.new_project", comment: ""), systemImage: "plus")
+                .foregroundStyle(Theme.textSecondary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("sidebar.newProject")
+        .sheet(isPresented: $creatingProject) {
+            MacNewProjectSheet { project in selection = MacProjectSelection.tag(projectId: project.id) }
         }
     }
 
@@ -108,6 +125,25 @@ struct MacProjectsSidebarSection<ListRow: View>: View {
                 Button(NSLocalizedString("projects.new_list_in", comment: "")) { newListProject = project }
                     .accessibilityIdentifier("sidebar.project.newList")
             }
+            Divider()
+            Button(NSLocalizedString("projects.delete_project", comment: ""), role: .destructive) {
+                deletingProject = project
+            }
+            .accessibilityIdentifier("sidebar.project.delete")
+        }
+        .confirmationDialog(
+            String(format: NSLocalizedString("projects.delete_confirm", comment: ""), name),
+            isPresented: Binding(get: { deletingProject?.id == project.id },
+                                 set: { if !$0 { deletingProject = nil } })) {
+            Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) {
+                MacProjectActions.delete(projectId: project.id) {
+                    selection = MacProjectActions.selection(afterDeleting: project.id, current: selection)
+                    expanded.remove(project.id)
+                }
+            }
+            Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) {}
+        } message: {
+            Text(NSLocalizedString("projects.delete_confirm_detail", comment: ""))
         }
         // Drop a sidebar list here to move it into this project (AITD-681) — only where the
         // core allows; anything else is refused and the list stays where it was.

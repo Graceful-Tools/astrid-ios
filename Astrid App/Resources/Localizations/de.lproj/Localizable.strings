@@ -1654,3 +1654,9 @@
 "projects.leave_confirm_detail" = "Die Aufgaben wandern mit. Eine Aufgabe in einer eigenen Spalte dieses Projekts erscheint im Eingang, bis die Liste wieder einem Projekt mit dieser Spalte angehört.";
 "projects.move_forbidden" = "Um eine Liste zwischen Projekten zu verschieben, musst du Admin der Liste und jedes Projekts sein.";
 "projects.create_forbidden" = "Nur Eigentümer, Admins und Mitglieder des Projekts können ihm eine Liste hinzufügen.";
+"projects.delete_project" = "Projekt löschen…";
+"projects.delete_confirm" = "%@ löschen?";
+"projects.delete_confirm_detail" = "Die Listen bleiben erhalten, außerhalb jedes Projekts. Die eigenen Spalten des Boards werden mit gelöscht.";
+"projects.delete_forbidden" = "Nur der Eigentümer des Projekts kann es löschen.";
+"projects.new_project_title" = "Neues Projekt";
+"projects.project_name" = "Projektname";

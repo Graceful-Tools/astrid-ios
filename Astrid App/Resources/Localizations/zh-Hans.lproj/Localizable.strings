@@ -1654,3 +1654,9 @@
 "projects.leave_confirm_detail" = "任务会随列表一起移动。位于此项目专属列中的任务会显示在收件箱中，直到列表重新加入拥有该列的项目。";
 "projects.move_forbidden" = "要在项目之间移动列表，你需要是该列表和每个项目的管理员。";
 "projects.create_forbidden" = "只有项目的所有者、管理员和成员可以向其中添加列表。";
+"projects.delete_project" = "删除项目…";
+"projects.delete_confirm" = "删除“%@”？";
+"projects.delete_confirm_detail" = "其列表会保留，不属于任何项目。看板自有的列会一并删除。";
+"projects.delete_forbidden" = "只有项目所有者可以删除它。";
+"projects.new_project_title" = "新建项目";
+"projects.project_name" = "项目名称";
