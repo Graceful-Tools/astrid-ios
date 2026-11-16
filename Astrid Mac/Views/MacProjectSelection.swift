@@ -1,6 +1,6 @@
 //  MacProjectSelection.swift
-//  Astrid for Mac — the Projects sidebar section's selection and gate (AITD-674, web AWTD-1660).
-//  Its rows and their lists are the core's sidebar rule, through `SidebarProjects` (ADEV-16).
+//  Astrid for Mac — the project sidebar sections' selection and gate (AITD-674, web AWTD-1660).
+//  Its sections and their lists are the core's sidebar rule, through `SidebarProjects` (ADEV-16).
 //
 //  A project shares the sidebar's one selection with the lists, tagged `project:<id>` so it can
 //  never collide with a list id. The shell asks this before anything list-shaped.
@@ -48,35 +48,37 @@ struct MacListRowDrag: ViewModifier {
 #endif
 
 #if os(macOS)
-/// The sidebar's Projects section, like Favorites (AITD-674): each project opens its board, and its
-/// chevron expands it to its lists, drawn with the sidebar's own list row.
+/// Each project is its own sidebar section, headed by its name the way Favorites and Lists are, its
+/// lists the section's ordinary rows — a project is a custom favorites, not another level (ADEV-51,
+/// following iOS ADEV-47). Which projects, in what order, with which lists: the core's sidebar rule
+/// (`SidebarProjects`, ADEV-16). The header carries what the project row did (AITD-674): a click
+/// opens the board, right-click offers New List in Project… and, for the owner, Delete Project…,
+/// and a sidebar list dropped on it moves into the project — each only where core or server allows.
 struct MacProjectsSidebarSection<ListRow: View>: View {
     let offered: Bool
-    @Binding var expanded: Set<String>
-    /// The sidebar's selection, so a list made in a project opens at once (AITD-681).
+    /// The sidebar's selection: the header opens its board there, and a list made in a project
+    /// opens at once (AITD-681).
     @Binding var selection: String?
     let lists: [TaskList]
     @ViewBuilder let listRow: (TaskList) -> ListRow
     @StateObject private var projectService = ProjectService.shared
     @State private var newListProject: Project?
-    /// New Project… (ADEV-27): the section is where a project is made, even the first one.
+    /// New Project… (ADEV-27): the sidebar is where a project is made, even the first one.
     @State private var creatingProject = false
     /// Delete Project…, confirmed first (ADEV-27).
     @State private var deletingProject: Project?
 
     var body: some View {
-        // Which projects, in what order, with which lists: the core's sidebar rule (ADEV-16).
         let entries = SidebarProjects.entries(offered: offered, projects: projectService.projects, lists: lists)
         if MacProjectActions.showsSection(offered: offered) {
-            Section(NSLocalizedString("project_mode.projects_heading", comment: "")) {
-                newProjectRow
-                ForEach(entries) { entry in
-                    projectRow(entry.project, name: entry.name)
-                    if expanded.contains(entry.id) {
-                        ForEach(entry.lists) { list in
-                            listRow(list).padding(.leading, AstridTokens.Space.s16)
-                        }
+            Section { newProjectRow }
+            ForEach(entries) { entry in
+                Section {
+                    ForEach(entry.lists) { list in
+                        listRow(list)
                     }
+                } header: {
+                    projectHeader(entry.project, name: entry.name)
                 }
             }
         }
@@ -94,30 +96,26 @@ struct MacProjectsSidebarSection<ListRow: View>: View {
         }
     }
 
-    private func projectRow(_ project: Project, name: String) -> some View {
-        let isExpanded = expanded.contains(project.id)
-        let toggleKey = isExpanded ? "project_mode.hide_lists" : "project_mode.show_lists"
-        return HStack(spacing: AstridTokens.Space.s4) {
-            Button {
-                if isExpanded { expanded.remove(project.id) } else { expanded.insert(project.id) }
-            } label: {
-                Image(systemName: isExpanded ? "chevron.down" : "chevron.right").macFont(.caption2)
+    private func projectHeader(_ project: Project, name: String) -> some View {
+        let tag = MacProjectSelection.tag(projectId: project.id)
+        let isOpen = selection == tag
+        return Button { selection = tag } label: {
+            HStack {
+                Text(name).lineLimit(1)
+                Spacer(minLength: 0)
             }
-            .buttonStyle(.borderless)
-            .accessibilityLabel(String(format: NSLocalizedString(toggleKey, comment: ""), name))
-            Label(name, systemImage: "rectangle.split.3x1")
-                .help(String(format: NSLocalizedString("project_mode.open_board", comment: ""), name))
+            .foregroundStyle(isOpen ? Theme.accent : Theme.textSecondary)
+            .contentShape(Rectangle())
         }
-        .tag(Optional(MacProjectSelection.tag(projectId: project.id)))
+        .buttonStyle(.plain)
+        .help(String(format: NSLocalizedString("project_mode.open_board", comment: ""), name))
+        .accessibilityAddTraits(isOpen ? [.isHeader, .isSelected] : .isHeader)
         .accessibilityIdentifier("sidebar.project.\(project.id)")
-        // One sheet per row, bound to that row: a Section's modifiers fan out to every row, so a
-        // single `sheet(item:)` there would be presented by each of them.
+        // One sheet and one dialog per header, bound to that project: a modifier on the ForEach
+        // would fan out to every section.
         .sheet(isPresented: Binding(get: { newListProject?.id == project.id },
                                     set: { if !$0 { newListProject = nil } })) {
-            MacNewListInProjectSheet(project: project) { list in
-                expanded.insert(project.id)
-                selection = list.id
-            }
+            MacNewListInProjectSheet(project: project) { list in selection = list.id }
         }
         .contextMenu {
             if MacListProjectControl.offersNewList(in: project.id,
@@ -142,7 +140,6 @@ struct MacProjectsSidebarSection<ListRow: View>: View {
             Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) {
                 MacProjectActions.delete(projectId: project.id) {
                     selection = MacProjectActions.selection(afterDeleting: project.id, current: selection)
-                    expanded.remove(project.id)
                 }
             }
             Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) {}

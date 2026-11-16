@@ -1,6 +1,6 @@
 //  MacProjectSelectionTests.swift
 //  The Projects sidebar section (AITD-674, web AWTD-1660): its selection tag, its gate, and which
-//  lists a project expands to.
+//  lists each project section holds.
 
 import XCTest
 @testable import Astrid_Mac
@@ -41,5 +41,46 @@ final class MacProjectSelectionTests: XCTestCase {
         let lists = [TaskList(id: "a", name: "A", projectId: "p")]
         XCTAssertTrue(SidebarProjects.entries(offered: false, projects: [Project(id: "p", name: "P")],
                                               lists: lists).isEmpty)
+    }
+}
+
+// MARK: - ADEV-51: on the Mac too, a project is a sidebar section, not a level
+
+final class MacProjectSidebarSectionsTests: XCTestCase {
+    /// `MacProjectsSidebarSection`'s source, pinned as the iOS ADEV-47 tests pin theirs: a render
+    /// needs the services and the session.
+    private func sectionSource() throws -> String {
+        let source = try RepositoryLocator.source(at: "Astrid Mac/Views/MacProjectSelection.swift")
+        let open = try XCTUnwrap(source.range(of: "struct MacProjectsSidebarSection"))
+        return String(source[open.lowerBound...])
+    }
+
+    /// Jon: *"Project should be the same format as Projects or Lists — it should not create
+    /// another level of hierarchy. Project is like a custom favorites."* Divergences follow iOS.
+    func testEachProjectIsItsOwnSectionHeadedByItsName_ADEV51() throws {
+        let source = try sectionSource()
+        XCTAssertTrue(source.contains("ForEach(entry.lists)"), "its lists are the section's own rows")
+        XCTAssertTrue(source.contains("header:"), "the project's name is the section header")
+        XCTAssertFalse(source.contains("project_mode.projects_heading"),
+                       "no umbrella Projects heading over the projects")
+    }
+
+    func testAProjectNoLongerExpandsOrIndentsItsLists_ADEV51() throws {
+        let source = try sectionSource()
+        XCTAssertFalse(source.contains("expanded"), "nothing to expand: the lists are always there")
+        XCTAssertFalse(source.contains("chevron"), "no disclosure chevron")
+        XCTAssertFalse(source.contains(".padding(.leading"), "lists are not indented under a row")
+    }
+
+    /// What the row carried moves onto the header: New Project stays (ADEV-27), and the header
+    /// still opens the board, offers New List / Delete, and takes a dropped list.
+    func testTheHeaderKeepsTheRowsActions_ADEV51() throws {
+        let source = try sectionSource()
+        for marker in ["sidebar.newProject", "sidebar.project.newList", "sidebar.project.delete",
+                       "MacProjectSelection.tag(projectId:", ".dropDestination"] {
+            XCTAssertTrue(source.contains(marker), "kept: \(marker)")
+        }
+        let root = try RepositoryLocator.source(at: "Astrid Mac/App/MacRootView.swift")
+        XCTAssertFalse(root.contains("expandedProjectIds"), "the shell no longer tracks expansion")
     }
 }

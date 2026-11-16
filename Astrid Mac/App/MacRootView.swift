@@ -195,8 +195,6 @@ struct MacRootView: View {
     /// (AITD-388). A popover on the toolbar gear since AITD-553, so a click outside closes it.
     @State private var settingsOpen = false
     @State private var showPublicLists = false
-    /// Projects whose lists are shown under them in the sidebar (AITD-674).
-    @State private var expandedProjectIds: Set<String> = []
     @StateObject private var featureFlags = FeatureFlagService.shared
     @StateObject private var capabilities = ServerCapabilityService.shared
     /// Public lists shown in the sidebar below your own (dfb037c7). Fetched once on appear —
@@ -1109,7 +1107,7 @@ struct MacRootView: View {
                 if !favoriteLists.isEmpty {
                     Section(NSLocalizedString("navigation.favorites", comment: "")) { ForEach(favoriteLists) { listRow($0) } }
                 }
-                MacProjectsSidebarSection(offered: projectsOffered, expanded: $expandedProjectIds,
+                MacProjectsSidebarSection(offered: projectsOffered,
                                           selection: $selectedListId, lists: listService.lists) { listRow($0) }
                 Section(NSLocalizedString("navigation.lists", comment: "")) {
                     // Add List lives HERE, above the lists, the way iOS
