@@ -394,6 +394,8 @@ struct ListAdminTab: View {
 
             // Project status board
             Section {
+                // Which project the list is in, and where it may move (AITD-682).
+                ListProjectSettingsRow(list: list)
                 if list.projectId != nil {
                     Button(action: { showingDisableBoardConfirmation = true }) {
                         HStack {
