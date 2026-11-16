@@ -1,5 +1,6 @@
 //  MacProjectSelection.swift
 //  Astrid for Mac — the Projects sidebar section's selection and gate (AITD-674, web AWTD-1660).
+//  Its rows and their lists are the core's sidebar rule, through `SidebarProjects` (ADEV-16).
 //
 //  A project shares the sidebar's one selection with the lists, tagged `project:<id>` so it can
 //  never collide with a list id. The shell asks this before anything list-shaped.
@@ -23,16 +24,6 @@ enum MacProjectSelection {
     /// `project_mode` flag (PRODUCT_CONTRACT.md §9).
     static func isOffered(deploymentShips: Bool, flagEnabled: Bool) -> Bool {
         deploymentShips && flagEnabled
-    }
-
-    /// The lists under a project in the sidebar: its own domain lists, in the order they arrive.
-    static func lists(of projectId: String, in lists: [TaskList]) -> [TaskList] {
-        lists.filter { $0.projectId == projectId && $0.isDomainList && $0.isVirtual != true }
-    }
-
-    /// Projects in the sidebar, sorted by name.
-    static func sorted(_ projects: [Project]) -> [Project] {
-        projects.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
     }
 }
 #endif
@@ -70,12 +61,14 @@ struct MacProjectsSidebarSection<ListRow: View>: View {
     @State private var newListProject: Project?
 
     var body: some View {
-        if offered, !projectService.projects.isEmpty {
+        // Which projects, in what order, with which lists: the core's sidebar rule (ADEV-16).
+        let entries = SidebarProjects.entries(offered: offered, projects: projectService.projects, lists: lists)
+        if !entries.isEmpty {
             Section(NSLocalizedString("project_mode.projects_heading", comment: "")) {
-                ForEach(MacProjectSelection.sorted(projectService.projects)) { project in
-                    projectRow(project)
-                    if expanded.contains(project.id) {
-                        ForEach(MacProjectSelection.lists(of: project.id, in: lists)) { list in
+                ForEach(entries) { entry in
+                    projectRow(entry.project, name: entry.name)
+                    if expanded.contains(entry.id) {
+                        ForEach(entry.lists) { list in
                             listRow(list).padding(.leading, AstridTokens.Space.s16)
                         }
                     }
@@ -84,7 +77,7 @@ struct MacProjectsSidebarSection<ListRow: View>: View {
         }
     }
 
-    private func projectRow(_ project: Project) -> some View {
+    private func projectRow(_ project: Project, name: String) -> some View {
         let isExpanded = expanded.contains(project.id)
         let toggleKey = isExpanded ? "project_mode.hide_lists" : "project_mode.show_lists"
         return HStack(spacing: AstridTokens.Space.s4) {
@@ -94,9 +87,9 @@ struct MacProjectsSidebarSection<ListRow: View>: View {
                 Image(systemName: isExpanded ? "chevron.down" : "chevron.right").macFont(.caption2)
             }
             .buttonStyle(.borderless)
-            .accessibilityLabel(String(format: NSLocalizedString(toggleKey, comment: ""), project.name))
-            Label(project.name, systemImage: "rectangle.split.3x1")
-                .help(String(format: NSLocalizedString("project_mode.open_board", comment: ""), project.name))
+            .accessibilityLabel(String(format: NSLocalizedString(toggleKey, comment: ""), name))
+            Label(name, systemImage: "rectangle.split.3x1")
+                .help(String(format: NSLocalizedString("project_mode.open_board", comment: ""), name))
         }
         .tag(Optional(MacProjectSelection.tag(projectId: project.id)))
         .accessibilityIdentifier("sidebar.project.\(project.id)")

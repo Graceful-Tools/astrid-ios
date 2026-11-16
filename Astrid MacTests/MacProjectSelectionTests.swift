@@ -20,13 +20,26 @@ final class MacProjectSelectionTests: XCTestCase {
         XCTAssertFalse(MacProjectSelection.isOffered(deploymentShips: false, flagEnabled: true))
     }
 
-    func testAProjectExpandsToItsOwnRealLists_AITD674() {
+    func testAProjectExpandsToItsOwnRealListsByName_AITD674_ADEV16() {
         let lists = [
-            TaskList(id: "a", name: "A", projectId: "p"),
+            TaskList(id: "b", name: "Beta", projectId: "p"),
+            TaskList(id: "a", name: "alpha", projectId: "p"),
             TaskList(id: "s", name: "Ready", projectId: "p", listType: "status"),
             TaskList(id: "v", name: "Smart", isVirtual: true, projectId: "p"),
             TaskList(id: "o", name: "Other", projectId: "q"),
         ]
-        XCTAssertEqual(MacProjectSelection.lists(of: "p", in: lists).map(\.id), ["a"])
+        let projects = [Project(id: "q", name: "Zed"), Project(id: "p", name: "Alpha"), Project(id: "e", name: "Empty")]
+        let entries = SidebarProjects.entries(offered: true, projects: projects, lists: lists)
+        // The core's order (by name) and grouping, not the order the projects arrive in.
+        XCTAssertEqual(entries.map(\.id), ["p", "e", "q"])
+        XCTAssertEqual(entries[0].lists.map(\.id), ["a", "b"])
+        XCTAssertEqual(entries[1].lists.map(\.id), [])
+        XCTAssertEqual(entries[2].lists.map(\.id), ["o"])
+    }
+
+    func testNoProjectsSectionWhenProjectModeIsNotOffered_ADEV16() {
+        let lists = [TaskList(id: "a", name: "A", projectId: "p")]
+        XCTAssertTrue(SidebarProjects.entries(offered: false, projects: [Project(id: "p", name: "P")],
+                                              lists: lists).isEmpty)
     }
 }
