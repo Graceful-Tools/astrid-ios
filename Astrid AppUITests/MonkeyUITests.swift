@@ -155,6 +155,7 @@ final class MonkeyUITests: XCTestCase {
             // no field, and `typeText` threw "Neither element nor any descendant has keyboard
             // focus" on most CI runs from 2026-10-15 (AITD-524).
             if hasKeyboardFocus(app) {
+                started = Date()   // the focus query walks the whole tree; that cost is ours (ADEV-40)
                 app.typeText(text)
             }
 
@@ -162,7 +163,11 @@ final class MonkeyUITests: XCTestCase {
             UITestLaunch.swipeBackFromLeftEdge(app)
 
         case .dismissKeyboard:
+            // Same as `type`: time the keystroke, not the focus query before it. The query
+            // walks every element on screen, and on the 2026-11-16 weekly run, sharing the Mac
+            // with a build, it alone made a dismissal "take" 12.6s (ADEV-40).
             if hasKeyboardFocus(app) {
+                started = Date()
                 app.typeText("\n")
             }
         }
