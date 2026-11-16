@@ -84,4 +84,34 @@ final class PublicListsCoreTests: XCTestCase {
         XCTAssertEqual(list.id, "list-1")
         XCTAssertNil(list.owner)
     }
+
+    // MARK: A featured list's tasks (AITD-634)
+
+    /// A featured list's tasks come from the core's `featuredRows`, not `getAllTasks(listId:)`;
+    /// the list goes along, since this account usually does not hold it.
+    func testAFeaturedListIsTheCoresFeaturedRowsCommand_AITD634() throws {
+        let sent = try json(PublicListCommands.featuredRows(listId: "pub", list: TaskList(id: "pub", name: "Garden")))
+        XCTAssertEqual(sent["kind"] as? String, "featuredRows")
+        XCTAssertEqual(sent["listId"] as? String, "pub")
+        XCTAssertEqual((sent["list"] as? [String: Any])?["id"] as? String, "pub")
+    }
+
+    func testAFeaturedListNotHeldSendsNoList_AITD634() throws {
+        XCTAssertNil(try json(PublicListCommands.featuredRows(listId: "pub", list: nil))["list"])
+    }
+
+    /// The core answers the rows and, beside them, the tasks behind them whole — what the views
+    /// draw and the detail view opens.
+    func testTheFeaturedAnswerCarriesTheTasksWhole_AITD634() throws {
+        let answer = """
+        { "total": 1, "offset": 0, "matched": 1, "sortBy": "auto", "canAddTasks": false,
+          "rows": [ { "id": "theirs", "title": "Plant tulips" } ],
+          "tasks": [ { "id": "theirs", "title": "Plant tulips", "description": "In October",
+                       "listIds": ["pub"], "creatorId": "them", "completed": false,
+                       "priority": 0, "repeating": "never", "isAllDay": false, "isPrivate": false } ] }
+        """
+        let decoded = try CoreJSON.decoder.decode(PublicListCommands.FeaturedRowsAnswer.self, from: Data(answer.utf8))
+        XCTAssertEqual(decoded.tasks.map(\.id), ["theirs"])
+        XCTAssertEqual(decoded.tasks.first?.description, "In October")
+    }
 }

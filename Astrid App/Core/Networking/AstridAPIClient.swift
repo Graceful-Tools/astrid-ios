@@ -259,60 +259,8 @@ class AstridAPIClient {
 
     // MARK: - Task Operations
 
-    /// Get tasks with pagination support
-    /// - Parameters:
-    ///   - listId: Optional list ID to filter by
-    ///   - completed: Optional completion status filter
-    ///   - limit: Max results per page (default: 1000, API max is 1000)
-    ///   - offset: Pagination offset (default: 0)
-    /// - Returns: Tuple of (tasks, total count)
-    func getTasks(listId: String? = nil, completed: Bool? = nil, limit: Int = 1000, offset: Int = 0, leanListMembers: Bool = true) async throws -> (tasks: [Task], total: Int) {
-        var queryItems: [URLQueryItem] = []
-        if let listId = listId {
-            queryItems.append(URLQueryItem(name: "listId", value: listId))
-        }
-        // Opt out of the per-task embedded listMembers (permission checks resolve membership from
-        // ListService). Never `omit=description`: these rows are what the detail view opens (AITD-498).
-        if leanListMembers {
-            queryItems.append(URLQueryItem(name: "leanListMembers", value: "1"))
-        }
-        if let completed = completed {
-            queryItems.append(URLQueryItem(name: "completed", value: String(completed)))
-        }
-        queryItems.append(URLQueryItem(name: "limit", value: String(limit)))
-        queryItems.append(URLQueryItem(name: "offset", value: String(offset)))
-
-        let response: TasksResponse = try await request(
-            method: "GET",
-            path: "/api/v1/tasks",
-            queryItems: queryItems
-        )
-        try response.requireOnlyOmitted(leanListMembers ? ["listMembers"] : [])
-        return (response.tasks, response.meta?.total ?? response.tasks.count)
-    }
-
-    /// Get all tasks with automatic pagination (for full sync).
-    ///
-    /// Stops on a SHORT page (`items.count < limit`) or an empty page —
-    /// NOT on `meta.total`. The server's count can disagree with its
-    /// actual result set under complex `OR` where-clauses, which would
-    /// silently drop tasks for users with large libraries. See
-    /// `paginatedFetchAllItems` and `PaginatedFetchTests`.
-    func getAllTasks(listId: String? = nil, completed: Bool? = nil) async throws -> [Task] {
-        let limit = 1000
-        let allTasks = try await paginatedFetchAllItems(limit: limit) { pageLimit, pageOffset in
-            let (tasks, total) = try await self.getTasks(
-                listId: listId,
-                completed: completed,
-                limit: pageLimit,
-                offset: pageOffset
-            )
-            AppLog.debug("📥 [AstridAPI] Fetched \(tasks.count) tasks (offset: \(pageOffset), serverTotal: \(total))")
-            return PaginatedPage(items: tasks, total: total)
-        }
-        AppLog.debug("📥 [AstridAPI] Total tasks fetched: \(allTasks.count)")
-        return allTasks
-    }
+    // A public list's tasks were the last read of `/api/v1/tasks`; they come from the core's
+    // `featuredRows` now (AITD-634), so `getTasks`/`getAllTasks` went with them.
 
     // MARK: - GitHub Integration
 

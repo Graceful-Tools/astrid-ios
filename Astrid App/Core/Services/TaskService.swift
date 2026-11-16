@@ -454,9 +454,12 @@ class TaskService: ObservableObject {
     }
 
     /// A public or featured list's tasks, as the server has them right now — for browsing a list
-    /// that is not the reader's, which the cache does not hold.
-    func fetchTasksForListFromServer(_ listId: String) async throws -> [Task] {
-        try await AstridAPIClient.shared.getAllTasks(listId: listId)
+    /// that is not the reader's, which the cache does not hold. Through the core's `featuredRows`
+    /// (AITD-634), which also keeps this account's unsent tasks for the list on screen. Pass the
+    /// list when this account does not hold it.
+    func fetchFeaturedListTasks(_ listId: String, list: TaskList?) async throws -> [Task] {
+        try await core.run(PublicListCommands.featuredRows(listId: listId, list: list),
+                           as: PublicListCommands.FeaturedRowsAnswer.self).tasks
     }
 
     /// Complete (or un-complete) a task — the only correct way to do either.
