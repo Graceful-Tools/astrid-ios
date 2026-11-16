@@ -1036,8 +1036,8 @@ struct MacRootView: View {
     /// A public list's tasks are not in the local store, so fetch them when one is opened. Cached
     /// per list for the session — browsing back and forth should not re-hit the network.
     private func loadPublicListTasksIfNeeded(_ id: String) async {
-        guard publicLists.contains(where: { $0.id == id }), publicListTasks[id] == nil else { return }
-        guard let tasks = try? await taskService.fetchTasksForListFromServer(id) else { return }
+        guard let list = publicLists.first(where: { $0.id == id }), publicListTasks[id] == nil else { return }
+        guard let tasks = try? await taskService.fetchFeaturedListTasks(id, list: list) else { return }
         publicListTasks[id] = tasks
     }
 

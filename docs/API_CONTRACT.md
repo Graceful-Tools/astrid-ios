@@ -175,8 +175,9 @@ is 80% of a 1,000-task page). **Neither app sends `omit=description`**, because 
 a list view:
 
 - the sync (astrid-core `fetch_all_tasks`) fills the replica the detail view renders offline;
-- public / featured list browsing (`TaskService.fetchTasksForListFromServer`) hands the fetched
-  rows straight to the detail view — those tasks are not in the store.
+- public / featured list browsing (astrid-core `featuredRows`, through
+  `TaskService.fetchFeaturedListTasks`, AITD-634) hands the fetched tasks straight to the detail
+  view — those tasks are not in the store.
 
 A read that only ever shows titles may take it, provided its detail path reads
 `GET /api/v1/tasks/{id}` or the task event, both full shape.

@@ -1115,7 +1115,7 @@ struct TaskListView: View {
         defer { isLoadingFeaturedTasks = false }
 
         do {
-            let tasks = try await taskService.fetchTasksForListFromServer(listId)
+            let tasks = try await taskService.fetchFeaturedListTasks(listId, list: selectedList)
 
             // Merge optimistic tasks from taskService that belong to this list
             // This ensures newly added tasks don't disappear during the reload
