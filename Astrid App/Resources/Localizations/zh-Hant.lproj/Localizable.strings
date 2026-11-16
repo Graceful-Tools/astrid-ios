@@ -1656,3 +1656,9 @@
 "projects.leave_confirm_detail" = "任務會隨列表一起移動。位於此專案專屬欄中的任務會顯示在收件匣中，直到列表重新加入擁有該欄的專案。";
 "projects.move_forbidden" = "要在專案之間移動列表，你需要是該列表和每個專案的管理員。";
 "projects.create_forbidden" = "只有專案的擁有者、管理員和成員可以向其中新增列表。";
+"projects.delete_project" = "刪除專案…";
+"projects.delete_confirm" = "刪除「%@」？";
+"projects.delete_confirm_detail" = "其列表會保留，不屬於任何專案。看板自有的欄會一併刪除。";
+"projects.delete_forbidden" = "只有專案擁有者可以刪除它。";
+"projects.new_project_title" = "新增專案";
+"projects.project_name" = "專案名稱";

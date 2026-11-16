@@ -1654,3 +1654,9 @@
 "projects.leave_confirm_detail" = "De taken gaan mee. Een taak in een eigen kolom van dit project staat in Inbox tot de lijst weer bij een project met die kolom hoort.";
 "projects.move_forbidden" = "Om een lijst tussen projecten te verplaatsen moet je beheerder zijn van de lijst en van elk project.";
 "projects.create_forbidden" = "Alleen eigenaars, beheerders en leden van het project kunnen er een lijst aan toevoegen.";
+"projects.delete_project" = "Project verwijderen…";
+"projects.delete_confirm" = "%@ verwijderen?";
+"projects.delete_confirm_detail" = "De lijsten blijven bestaan, buiten elk project. De eigen kolommen van het bord worden mee verwijderd.";
+"projects.delete_forbidden" = "Alleen de eigenaar van het project kan het verwijderen.";
+"projects.new_project_title" = "Nieuw project";
+"projects.project_name" = "Projectnaam";
