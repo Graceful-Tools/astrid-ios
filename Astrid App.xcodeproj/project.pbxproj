@@ -150,6 +150,7 @@
 				Views/Lists/ListDefaultsView.swift,
 				Views/Lists/ListEditView.swift,
 				Views/Lists/ListMembershipTab.swift,
+				Views/Lists/ListProjectViews.swift,
 				Views/Lists/ListRowView.swift,
 				Views/Lists/ListSettingsModal.swift,
 				Views/Lists/ListSidebarView.swift,

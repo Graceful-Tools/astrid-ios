@@ -75,6 +75,7 @@ struct ListSidebarView: View {
                     .id("top")
                 myTasksSection
                 favoritesSection
+                projectsSection
                 yourListsSection
                 featuredCollaborativeSection
                 featuredSuggestedSection
@@ -322,6 +323,26 @@ struct ListSidebarView: View {
                 }
             }
         }
+    }
+
+    /// Projects and the lists in each, from the core's sidebar rule (AITD-682, as on Mac).
+    private var projectsSection: some View {
+        SidebarProjectsSection(lists: listService.lists, open: openList) { list in
+            ListRowView(
+                list: list,
+                taskCount: badges.lists[list.id] ?? 0,
+                isSelected: selectedListId == list.id,
+                onTap: { openList(list) }
+            )
+        }
+    }
+
+    private func openList(_ list: TaskList) {
+        selectedListId = list.id
+        isViewingFromFeatured = false
+        featuredList = nil
+        searchText = ""
+        onListTap?()
     }
 
     private var yourListsSection: some View {

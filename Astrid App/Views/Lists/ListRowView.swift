@@ -44,6 +44,34 @@ struct ListRowView: View {
     static func accessibilityIdentifier(for listId: String) -> String { "sidebar.list.\(listId)" }
 
     var body: some View {
+        // With somewhere to move this list (AITD-682), long-press opens a menu — Favorite plus
+        // the core's project moves; without, long-press toggles Favorite as it always has.
+        let choices = ListProjectControl.menuChoices(
+            offered: ListProjectControl.isOffered,
+            moves: listService.projectMoves(listId: list.id),
+            projects: ProjectService.shared.projects)
+        if choices.isEmpty {
+            row.onLongPressGesture(minimumDuration: 0.5) {
+                toggleFavorite()
+            }
+        } else {
+            row
+                .contextMenu {
+                    Button(action: toggleFavorite) {
+                        Label(NSLocalizedString(list.isFavorite == true ? "mac.remove_favorite" : "lists.favorite",
+                                                comment: ""),
+                              systemImage: list.isFavorite == true ? "star.slash" : "star")
+                    }
+                    ListProjectMenu(list: list)
+                }
+                // iPad: drag the row onto a sidebar project to move it there.
+                .modifier(ListRowProjectDrag(listId: list.id,
+                                             enabled: UIDevice.current.userInterfaceIdiom == .pad
+                                                && list.isVirtual != true))
+        }
+    }
+
+    private var row: some View {
         Button(action: {
             // Haptic feedback on tap
             let impact = UIImpactFeedbackGenerator(style: .light)
@@ -90,9 +118,6 @@ struct ListRowView: View {
         }
         .buttonStyle(ListRowButtonStyle(isSelected: isSelected, palette: palette))
         .accessibilityIdentifier(Self.accessibilityIdentifier(for: list.id))
-        .onLongPressGesture(minimumDuration: 0.5) {
-            toggleFavorite()
-        }
     }
 
     @ViewBuilder
@@ -127,6 +152,20 @@ struct ListRowView: View {
             } catch {
                 AppLog.debug("❌ [ListRowView] Failed to toggle favorite: \(error)")
             }
+        }
+    }
+}
+
+/// A sidebar list row as a drag source for a project row (AITD-682); off, the row is unchanged.
+private struct ListRowProjectDrag: ViewModifier {
+    let listId: String
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content.draggable(ProjectBoardListDrag.payload(listId: listId))
+        } else {
+            content
         }
     }
 }
