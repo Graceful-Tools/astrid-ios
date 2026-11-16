@@ -30,7 +30,7 @@ enum MacProjectActions {
 
     /// The localized reason a delete was refused, or nil for any other failure.
     static func deleteRefusalKey(for error: Error) -> String? {
-        (error as? CoreFailure)?.status == 403 ? "projects.delete_forbidden" : nil
+        ListProjectControl.deleteRefusalKey(for: error)
     }
 
     // MARK: - Doing it
@@ -52,18 +52,7 @@ enum MacProjectActions {
 
     @MainActor
     static func delete(projectId: String, then done: @escaping () -> Void) {
-        _Concurrency.Task {
-            do {
-                _ = try await ProjectService.shared.deleteProject(id: projectId)
-                done()
-            } catch {
-                if let key = deleteRefusalKey(for: error) {
-                    AppErrorCenter.shared.show(NSLocalizedString(key, comment: ""))
-                } else {
-                    AppErrorCenter.shared.report("Delete project", error)
-                }
-            }
-        }
+        ListProjectControl.deleteProject(id: projectId, then: done)
     }
 }
 

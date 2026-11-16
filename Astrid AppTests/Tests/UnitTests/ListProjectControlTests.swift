@@ -104,4 +104,29 @@ final class ListProjectControlTests: XCTestCase {
             XCTAssertEqual(ListProjectControl.refusalKey(for: error), "projects.move_forbidden")
         }
     }
+
+    // MARK: - ADEV-46: delete a project from its sidebar row (iPhone/iPad, and the Mac menu)
+
+    func testDeleteIsOfferedOnlyToTheProjectsOwner_ADEV46() {
+        let mine = Project(id: "p1", name: "Launch", ownerId: "me")
+        XCTAssertTrue(ListProjectControl.offersDelete(of: mine, userId: "me", offered: true))
+        // The server lets only the owner delete (DELETE /api/v1/projects/:id → 403 otherwise).
+        XCTAssertFalse(ListProjectControl.offersDelete(of: mine, userId: "someone-else", offered: true))
+        XCTAssertFalse(ListProjectControl.offersDelete(of: mine, userId: nil, offered: true))
+        // Project Mode off draws no project menu at all.
+        XCTAssertFalse(ListProjectControl.offersDelete(of: mine, userId: "me", offered: false))
+    }
+
+    func testAProjectWithNoKnownOwnerStillOffersDeleteAndTheServerDecides_ADEV46() {
+        // A cached board without its owner must not lose the action; a refusal is then named.
+        let unknown = Project(id: "p1", name: "Launch")
+        XCTAssertTrue(ListProjectControl.offersDelete(of: unknown, userId: "me", offered: true))
+    }
+
+    func testTheServersOwnerOnlyDeleteRefusalIsNamed_ADEV46() {
+        let forbidden = CoreFailure(kind: .refused, message: "Only the owner can delete", status: 403, id: nil)
+        XCTAssertEqual(ListProjectControl.deleteRefusalKey(for: forbidden), "projects.delete_forbidden")
+        let offline = CoreFailure(kind: .offline, message: "offline", status: nil, id: nil)
+        XCTAssertNil(ListProjectControl.deleteRefusalKey(for: offline))
+    }
 }

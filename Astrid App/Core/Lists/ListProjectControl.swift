@@ -93,6 +93,21 @@ enum ListProjectControl {
         list.projectId != projectId && moves.destinations.contains(projectId)
     }
 
+    /// Whether a project's sidebar row offers Delete Project… (ADEV-46). Deleting is the
+    /// server's owner-only rule (`DELETE /api/v1/projects/:id`, 403 for anyone else), so the
+    /// action is drawn for the owner. A cached board whose owner is unknown keeps it and lets the
+    /// server decide — its refusal is named by `deleteRefusalKey`.
+    static func offersDelete(of project: Project, userId: String?, offered: Bool) -> Bool {
+        guard offered, let userId else { return false }
+        guard let ownerId = project.ownerId else { return true }
+        return ownerId == userId
+    }
+
+    /// The localized reason a project delete was refused, or nil for any other failure.
+    static func deleteRefusalKey(for error: Error) -> String? {
+        (error as? CoreFailure)?.status == 403 ? "projects.delete_forbidden" : nil
+    }
+
     /// The localized reason for a refusal the core or server names, or nil for any other failure.
     static func refusalKey(for error: Error) -> String? {
         guard let code = (error as? CoreFailure)?.code else { return nil }
@@ -122,6 +137,23 @@ enum ListProjectControl {
         run("Create list in project") {
             let list = try await ListService.shared.createList(name: name, projectId: projectId)
             done(list)
+        }
+    }
+
+    /// Delete a project: its lists stay, outside any project (ADEV-46; Mac ADEV-27).
+    @MainActor
+    static func deleteProject(id projectId: String, then done: @escaping () -> Void) {
+        _Concurrency.Task {
+            do {
+                _ = try await ProjectService.shared.deleteProject(id: projectId)
+                done()
+            } catch {
+                if let key = deleteRefusalKey(for: error) {
+                    AppErrorCenter.shared.show(NSLocalizedString(key, comment: ""))
+                } else {
+                    AppErrorCenter.shared.report("Delete project", error)
+                }
+            }
         }
     }
 
