@@ -122,72 +122,47 @@ struct NewListInProjectSheet: View {
     }
 }
 
-// MARK: - The sidebar's Projects section
+// MARK: - The sidebar's project sections
 
-/// Projects, like Favorites: each project row expands to its lists (the core's sidebar rule,
-/// `SidebarProjects`). Long-press a project for New List in Project… and, for its owner, Delete
-/// Project… (ADEV-46); on iPad, drop a sidebar list on a project row to move it there — each only
-/// where the core or server allows.
+/// Each project is its own sidebar section, headed by its name the way Favorites and Lists are,
+/// its lists the section's rows — a project is a custom favorites, not another level (ADEV-47).
+/// The projects, their order and their lists are the core's sidebar rule (`SidebarProjects`).
+/// Long-press a project's header for New List in Project… and, for its owner, Delete Project…
+/// (ADEV-46); on iPad, drop a sidebar list on the header to move it there — each only where the
+/// core or server allows.
 struct SidebarProjectsSection<ListRow: View>: View {
     let lists: [TaskList]
     /// Opens a list (the sidebar's own tap), so a list made in a project opens at once.
     let open: (TaskList) -> Void
     @ViewBuilder let listRow: (TaskList) -> ListRow
-    @ThemedPalette private var palette
     @StateObject private var projectService = ProjectService.shared
     @StateObject private var listService = ListService.shared
-    @State private var expanded: Set<String> = []
     @State private var newListProject: Project?
     @State private var deletingProject: Project?
 
     var body: some View {
         let entries = SidebarProjects.entries(offered: ListProjectControl.isOffered,
                                               projects: projectService.projects, lists: lists)
-        if !entries.isEmpty {
-            Section(NSLocalizedString("project_mode.projects_heading", comment: "")) {
-                ForEach(entries) { entry in
-                    projectRow(entry.project, name: entry.name)
-                    if expanded.contains(entry.id) {
-                        ForEach(entry.lists) { list in
-                            listRow(list).padding(.leading, AstridTokens.Space.s16)
-                        }
-                    }
+        ForEach(entries) { entry in
+            Section {
+                ForEach(entry.lists) { list in
+                    listRow(list)
                 }
-            }
-            .sheet(item: $newListProject) { project in
-                NewListInProjectSheet(project: project) { list in
-                    expanded.insert(project.id)
-                    open(list)
-                }
+            } header: {
+                projectHeader(entry.project, name: entry.name)
             }
         }
     }
 
-    private func projectRow(_ project: Project, name: String) -> some View {
-        let isExpanded = expanded.contains(project.id)
-        let toggleKey = isExpanded ? "project_mode.hide_lists" : "project_mode.show_lists"
-        return Button {
-            if isExpanded { expanded.remove(project.id) } else { expanded.insert(project.id) }
-        } label: {
-            HStack(spacing: SidebarBrandHeader.spacing) {
-                Image(systemName: "rectangle.split.3x1")
-                    .foregroundColor(Theme.accent)
-                    .frame(width: SidebarBrandHeader.logoSize)
-                Text(name)
-                    .font(Theme.Typography.body())
-                    .foregroundColor(palette.textPrimary)
-                    .lineLimit(1)
-                Spacer()
-                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                    .font(Theme.Typography.caption1())
-                    .foregroundColor(palette.textMuted)
-            }
-            .padding(.vertical, Theme.spacing8)
-            .contentShape(Rectangle())
+    private func projectHeader(_ project: Project, name: String) -> some View {
+        HStack {
+            Text(name)
+                .lineLimit(1)
+            Spacer(minLength: 0)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(name)
-        .accessibilityHint(String(format: NSLocalizedString(toggleKey, comment: ""), name))
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
         .accessibilityIdentifier("sidebar.project.\(project.id)")
         .contextMenu {
             if ListProjectControl.offersNewList(in: project.id, moves: listService.projectMoves(listId: nil)) {
@@ -208,16 +183,19 @@ struct SidebarProjectsSection<ListRow: View>: View {
                 .accessibilityIdentifier("sidebar.project.delete")
             }
         }
-        // One dialog per row, bound to that row (a Section's modifiers fan out to every row).
+        // One sheet and one dialog per header, bound to that project: a modifier on the
+        // ForEach would fan out to every section.
+        .sheet(isPresented: Binding(get: { newListProject?.id == project.id },
+                                    set: { if !$0 { newListProject = nil } })) {
+            NewListInProjectSheet(project: project) { list in open(list) }
+        }
         .confirmationDialog(
             String(format: NSLocalizedString("projects.delete_confirm", comment: ""), name),
             isPresented: Binding(get: { deletingProject?.id == project.id },
                                  set: { if !$0 { deletingProject = nil } }),
             titleVisibility: .visible) {
             Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) {
-                ListProjectControl.deleteProject(id: project.id) {
-                    expanded.remove(project.id)
-                }
+                ListProjectControl.deleteProject(id: project.id) {}
             }
             .accessibilityIdentifier("sidebar.project.deleteConfirm")
             Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) {}

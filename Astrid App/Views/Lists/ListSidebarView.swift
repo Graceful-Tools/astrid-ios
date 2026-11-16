@@ -325,7 +325,7 @@ struct ListSidebarView: View {
         }
     }
 
-    /// Projects and the lists in each, from the core's sidebar rule (AITD-682, as on Mac).
+    /// One section per project, its lists beneath its name, from the core's sidebar rule (AITD-682, ADEV-47).
     private var projectsSection: some View {
         SidebarProjectsSection(lists: listService.lists, open: openList) { list in
             ListRowView(

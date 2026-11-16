@@ -129,4 +129,32 @@ final class ListProjectControlTests: XCTestCase {
         let offline = CoreFailure(kind: .offline, message: "offline", status: nil, id: nil)
         XCTAssertNil(ListProjectControl.deleteRefusalKey(for: offline))
     }
+
+    // MARK: - ADEV-47: a project is a sidebar section, not a level
+
+    /// `SidebarProjectsSection`'s source, pinned as `SidebarPolishTests` pins the sidebar: a render
+    /// needs the services and the session.
+    private func sidebarSectionSource() throws -> String {
+        let source = try RepositoryLocator.source(at: "Astrid App/Views/Lists/ListProjectViews.swift")
+        let open = try XCTUnwrap(source.range(of: "struct SidebarProjectsSection"))
+        return String(source[open.lowerBound...])
+    }
+
+    /// Jon: *"Project should be the same format as the current word 'Projects' or 'Lists' — it
+    /// should not create another level of hierarchy. Project is like a custom favorites."* Each
+    /// project is its own Section headed by its name, its lists the section's rows.
+    func testEachProjectIsItsOwnSectionHeadedByItsName_ADEV47() throws {
+        let source = try sidebarSectionSource()
+        XCTAssertTrue(source.contains("Section {"), "one Section per project")
+        XCTAssertTrue(source.contains("ForEach(entry.lists)"), "its lists are the section's own rows")
+        XCTAssertFalse(source.contains("project_mode.projects_heading"),
+                       "no umbrella Projects heading over the projects")
+    }
+
+    func testAProjectNoLongerExpandsOrIndentsItsLists_ADEV47() throws {
+        let source = try sidebarSectionSource()
+        XCTAssertFalse(source.contains("expanded"), "nothing to expand: the lists are always there")
+        XCTAssertFalse(source.contains("chevron"), "no disclosure chevron")
+        XCTAssertFalse(source.contains(".padding(.leading"), "lists are not indented under a row")
+    }
 }
