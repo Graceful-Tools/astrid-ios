@@ -125,11 +125,15 @@ struct MacProjectsSidebarSection<ListRow: View>: View {
                 Button(NSLocalizedString("projects.new_list_in", comment: "")) { newListProject = project }
                     .accessibilityIdentifier("sidebar.project.newList")
             }
-            Divider()
-            Button(NSLocalizedString("projects.delete_project", comment: ""), role: .destructive) {
-                deletingProject = project
+            // Owner only, the server's rule (ADEV-46).
+            if MacListProjectControl.offersDelete(of: project, userId: AuthManager.shared.userId,
+                                                  offered: MacListProjectControl.isOffered) {
+                Divider()
+                Button(NSLocalizedString("projects.delete_project", comment: ""), role: .destructive) {
+                    deletingProject = project
+                }
+                .accessibilityIdentifier("sidebar.project.delete")
             }
-            .accessibilityIdentifier("sidebar.project.delete")
         }
         .confirmationDialog(
             String(format: NSLocalizedString("projects.delete_confirm", comment: ""), name),

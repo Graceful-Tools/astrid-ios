@@ -125,8 +125,9 @@ struct NewListInProjectSheet: View {
 // MARK: - The sidebar's Projects section
 
 /// Projects, like Favorites: each project row expands to its lists (the core's sidebar rule,
-/// `SidebarProjects`). Long-press a project for New List in Project…; on iPad, drop a sidebar
-/// list on a project row to move it there — both only where the core allows.
+/// `SidebarProjects`). Long-press a project for New List in Project… and, for its owner, Delete
+/// Project… (ADEV-46); on iPad, drop a sidebar list on a project row to move it there — each only
+/// where the core or server allows.
 struct SidebarProjectsSection<ListRow: View>: View {
     let lists: [TaskList]
     /// Opens a list (the sidebar's own tap), so a list made in a project opens at once.
@@ -137,6 +138,7 @@ struct SidebarProjectsSection<ListRow: View>: View {
     @StateObject private var listService = ListService.shared
     @State private var expanded: Set<String> = []
     @State private var newListProject: Project?
+    @State private var deletingProject: Project?
 
     var body: some View {
         let entries = SidebarProjects.entries(offered: ListProjectControl.isOffered,
@@ -196,6 +198,31 @@ struct SidebarProjectsSection<ListRow: View>: View {
                 }
                 .accessibilityIdentifier("sidebar.project.newList")
             }
+            if ListProjectControl.offersDelete(of: project, userId: AuthManager.shared.userId,
+                                               offered: ListProjectControl.isOffered) {
+                Button(role: .destructive) {
+                    deletingProject = project
+                } label: {
+                    Label(NSLocalizedString("projects.delete_project", comment: ""), systemImage: "trash")
+                }
+                .accessibilityIdentifier("sidebar.project.delete")
+            }
+        }
+        // One dialog per row, bound to that row (a Section's modifiers fan out to every row).
+        .confirmationDialog(
+            String(format: NSLocalizedString("projects.delete_confirm", comment: ""), name),
+            isPresented: Binding(get: { deletingProject?.id == project.id },
+                                 set: { if !$0 { deletingProject = nil } }),
+            titleVisibility: .visible) {
+            Button(NSLocalizedString("actions.delete", comment: ""), role: .destructive) {
+                ListProjectControl.deleteProject(id: project.id) {
+                    expanded.remove(project.id)
+                }
+            }
+            .accessibilityIdentifier("sidebar.project.deleteConfirm")
+            Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) {}
+        } message: {
+            Text(NSLocalizedString("projects.delete_confirm_detail", comment: ""))
         }
         // iPad: drop a sidebar list here to move it into this project (AITD-682).
         .dropDestination(for: String.self) { payloads, _ in
