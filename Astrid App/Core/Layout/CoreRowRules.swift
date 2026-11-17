@@ -35,8 +35,7 @@ enum TaskDetailFieldOrder {
 
     /// List mode, top to bottom, under the title.
     static var listMode: [TaskDetailField] {
-        let order = CoreRules.detailLayout(displayMode: CoreTaskLayout.wireValue,
-                                           isInProject: false, isReadOnly: false)?
+        let order = CoreRules.detailLayout(isInProject: false, isReadOnly: false)?
             .fieldOrder.compactMap(TaskDetailField.init(coreName:))
         // A detail with no fields cannot be edited at all; if the core could not answer, every
         // field still appears, in the contract's order.
@@ -61,7 +60,7 @@ enum TaskDetailProjectStateRow {
     static func isVisible(isInProject: Bool,
                           isReadOnly: Bool) -> Bool {
         // A failed answer hides the row: a mover drawn where it must not be can write.
-        CoreRules.detailLayout(displayMode: CoreTaskLayout.wireValue, isInProject: isInProject,
+        CoreRules.detailLayout(isInProject: isInProject,
                                isReadOnly: isReadOnly)?.showsBoardState ?? false
     }
 }

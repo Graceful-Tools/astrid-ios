@@ -6,42 +6,39 @@ import XCTest
 final class RowRulesTests: XCTestCase {
 
     func testAITD622_c8a1ff51_listModeOrderIsWhoDatePriorityLists() {
-        let layout = CoreRules.detailLayout(displayMode: "list", isInProject: false, isReadOnly: false)
+        let layout = CoreRules.detailLayout(isInProject: false, isReadOnly: false)
         XCTAssertEqual(layout?.fieldOrder, ["assignee", "when", "priority", "lists"])
     }
 
     func testAITD622_AITD332_boardStateRowOnlyOnABoardAndNeverReadOnly() {
-        for mode in ["list", "project"] {
-            XCTAssertEqual(CoreRules.detailLayout(displayMode: mode, isInProject: true,
-                                                  isReadOnly: false)?.showsBoardState, true, mode)
-            XCTAssertEqual(CoreRules.detailLayout(displayMode: mode, isInProject: false,
-                                                  isReadOnly: false)?.showsBoardState, false, mode)
-            XCTAssertEqual(CoreRules.detailLayout(displayMode: mode, isInProject: true,
-                                                  isReadOnly: true)?.showsBoardState, false, mode)
-        }
+        XCTAssertEqual(CoreRules.detailLayout(isInProject: true, isReadOnly: false)?.showsBoardState, true)
+        XCTAssertEqual(CoreRules.detailLayout(isInProject: false, isReadOnly: false)?.showsBoardState, false)
+        XCTAssertEqual(CoreRules.detailLayout(isInProject: true, isReadOnly: true)?.showsBoardState, false)
     }
 
     func testAITD622_AITD375_pickerAndOwnership() {
-        let theirs = CoreRules.leadingPicker(displayMode: "list", surface: "listRow",
+        let theirs = CoreRules.leadingPicker(surface: "listRow",
                                              assigneeId: "them", currentUserId: "me")
         XCTAssertEqual(theirs?.isSomeoneElsesTask, true)
         XCTAssertEqual(theirs?.pickerShowsProjectState, true)
 
-        let mine = CoreRules.leadingPicker(displayMode: "list", surface: "listRow",
+        let mine = CoreRules.leadingPicker(surface: "listRow",
                                            assigneeId: "me", currentUserId: "me")
         XCTAssertEqual(mine?.isSomeoneElsesTask, false)
         XCTAssertEqual(mine?.pickerShowsProjectState, false)
 
         // Empty is nobody, not someone else.
-        XCTAssertEqual(CoreRules.leadingPicker(displayMode: "list", surface: "listRow",
+        XCTAssertEqual(CoreRules.leadingPicker(surface: "listRow",
                                                assigneeId: "", currentUserId: "me")?.isSomeoneElsesTask,
                        false)
-        XCTAssertEqual(CoreRules.leadingPicker(displayMode: "list", surface: "boardCard",
+        XCTAssertEqual(CoreRules.leadingPicker(surface: "boardCard",
                                                assigneeId: "me", currentUserId: "me")?.pickerShowsProjectState,
                        true)
-        XCTAssertEqual(CoreRules.leadingPicker(displayMode: "project", surface: "detail",
+        // One layout since ADEV-72: your own task's detail picker is the list layout's, without
+        // the board state.
+        XCTAssertEqual(CoreRules.leadingPicker(surface: "detail",
                                                assigneeId: "me", currentUserId: "me")?.pickerShowsProjectState,
-                       true)
+                       false)
     }
 
     func testAITD622_chipsSkipColumnsAndHiddenListsInOrder() {

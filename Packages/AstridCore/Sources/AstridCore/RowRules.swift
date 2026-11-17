@@ -36,16 +36,16 @@ public struct ChipListInput: Encodable, Equatable, Sendable {
 }
 
 extension CoreRules {
-    public static func detailLayout(displayMode: String, isInProject: Bool, isReadOnly: Bool,
+    public static func detailLayout(isInProject: Bool, isReadOnly: Bool,
                                     hasBlockers: Bool = false) -> DetailLayoutAnswer? {
-        try? ask(DetailLayoutRequest(displayMode: displayMode, isInProject: isInProject,
+        try? ask(DetailLayoutRequest(isInProject: isInProject,
                                      isReadOnly: isReadOnly, hasBlockers: hasBlockers),
                  as: DetailLayoutAnswer.self)
     }
 
-    public static func leadingPicker(displayMode: String, surface: String, assigneeId: String?,
+    public static func leadingPicker(surface: String, assigneeId: String?,
                                      currentUserId: String?) -> LeadingPickerAnswer? {
-        try? ask(LeadingPickerRequest(displayMode: displayMode, surface: surface,
+        try? ask(LeadingPickerRequest(surface: surface,
                                       assigneeId: assigneeId?.isEmpty == false ? assigneeId : nil,
                                       currentUserId: currentUserId),
                  as: LeadingPickerAnswer.self)
@@ -71,7 +71,6 @@ extension CoreRules {
 
 private struct DetailLayoutRequest: Encodable {
     let kind = "detailLayout"
-    let displayMode: String
     let isInProject: Bool
     let isReadOnly: Bool
     let hasBlockers: Bool
@@ -79,7 +78,6 @@ private struct DetailLayoutRequest: Encodable {
 
 private struct LeadingPickerRequest: Encodable {
     let kind = "leadingPicker"
-    let displayMode: String
     let surface: String
     let assigneeId: String?
     let currentUserId: String?

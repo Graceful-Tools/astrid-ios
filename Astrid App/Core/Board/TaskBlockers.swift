@@ -65,7 +65,7 @@ enum TaskBlockers {
     /// Asked of astrid-core (`detailLayout`, `rows::detail::shows_task_blockers`; AITD-622). If it
     /// cannot answer, an existing blocker still shows on a board; an empty row does not.
     static func showsRow(isInProject: Bool, isReadOnly: Bool, hasBlockers: Bool) -> Bool {
-        CoreRules.detailLayout(displayMode: CoreTaskLayout.wireValue, isInProject: isInProject,
+        CoreRules.detailLayout(isInProject: isInProject,
                                isReadOnly: isReadOnly, hasBlockers: hasBlockers)?.showsTaskBlockers
             ?? (isInProject && hasBlockers)
     }

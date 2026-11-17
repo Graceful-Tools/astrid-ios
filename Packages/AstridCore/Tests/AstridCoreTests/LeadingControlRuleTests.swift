@@ -5,19 +5,14 @@ import XCTest
 /// follows iOS since core e0d8ce7 (AWTD2-214).
 final class LeadingControlRuleTests: XCTestCase {
 
-    private func answer(_ assignee: String?, me: String? = "me", mode: String = "list",
+    private func answer(_ assignee: String?, me: String? = "me",
                         on surface: String = "listRow") -> LeadingControlAnswer? {
-        CoreRules.leadingControl(assigneeId: assignee, currentUserId: me,
-                                 displayMode: mode, surface: surface)
+        CoreRules.leadingControl(assigneeId: assignee, currentUserId: me, surface: surface)
     }
 
-    func testAITD622_yourTaskInListModeIsACheckboxThatCompletes() {
+    func testAITD622_ADEV72_yourTaskIsACheckboxThatCompletes() {
         XCTAssertEqual(answer("me"), .init(kind: .checkbox, action: .complete))
         XCTAssertEqual(answer("me", on: "detail"), .init(kind: .checkbox, action: .complete))
-    }
-
-    func testAITD622_yourTaskInProjectModeIsYourFaceAndOpensThePicker() {
-        XCTAssertEqual(answer("me", mode: "project"), .init(kind: .avatar("me"), action: .openPicker))
     }
 
     func testAITD375_someoneElsesTaskOpensThePickerOnEverySurface() {
