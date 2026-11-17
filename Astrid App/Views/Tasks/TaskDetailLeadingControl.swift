@@ -30,9 +30,6 @@ struct TaskDetailLeadingControl: View {
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
     @State private var showingPicker = false
-    /// The Complete button has been tapped on a task that is not yours and is asking first
-    /// (ADEV-70).
-    @State private var confirmingCompletion = false
 
     var body: some View {
         Button {
@@ -186,26 +183,22 @@ struct TaskDetailLeadingControl: View {
 
             Divider()
 
-            if confirmingCompletion {
+            // A task that is not yours — someone else's or nobody's — opens on the question
+            // itself: the checkbox, then Complete (ADEV-79; ADEV-70, web ADEV-56). Reopening and
+            // your own tasks never ask.
+            if TaskLeadingControl.completionNeedsConfirmation(
+                assigneeId: assigneeId,
+                currentUserId: AuthManager.shared.currentUser?.id,
+                completed: isCompleted) {
                 CompletionConfirmationPrompt(
                     assigneeLabel: CompletionConfirmation.assigneeLabel(for: task, assigneeId: assigneeId),
-                    onCancel: { confirmingCompletion = false },
+                    onCancel: { showingPicker = false },
                     onConfirm: {
-                        confirmingCompletion = false
                         showingPicker = false
                         onToggleCompletion()
                     })
             } else {
             Button {
-                // A task that is not yours — someone else's or nobody's — asks first (ADEV-70,
-                // web ADEV-56). Reopening never asks.
-                if TaskLeadingControl.completionNeedsConfirmation(
-                    assigneeId: assigneeId,
-                    currentUserId: AuthManager.shared.currentUser?.id,
-                    completed: isCompleted) {
-                    confirmingCompletion = true
-                    return
-                }
                 showingPicker = false
                 onToggleCompletion()
             } label: {
@@ -224,7 +217,6 @@ struct TaskDetailLeadingControl: View {
         }
         .padding(Theme.spacing16)
         .frame(width: 320)
-        .onDisappear { confirmingCompletion = false }
     }
 
     // MARK: - The shared rules, asked rather than spelled

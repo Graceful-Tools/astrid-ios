@@ -26,8 +26,6 @@ struct MacLeadingControlButton: View {
     let onToggleComplete: () -> Void
 
     @State private var isPresented = false
-    /// The Complete button is asking first, for a task that is not yours (ADEV-70).
-    @State private var confirmingCompletion = false
 
     private var kind: TaskLeadingControl {
         TaskLeadingControl.kind(assigneeId: task.assigneeId,
@@ -154,26 +152,22 @@ struct MacLeadingControlButton: View {
                     }
                 case .complete:
                     Divider()
-                    if confirmingCompletion {
+                    // A task that is not yours — someone else's or nobody's — opens on the question
+                    // itself: the checkbox, then Complete (ADEV-79; ADEV-70, web ADEV-56). Reopening and
+                    // your own tasks never ask.
+                    if TaskLeadingControl.completionNeedsConfirmation(
+                        assigneeId: task.assigneeId,
+                        currentUserId: AuthManager.shared.userId,
+                        completed: task.completed) {
                         CompletionConfirmationPrompt(
                             assigneeLabel: CompletionConfirmation.assigneeLabel(for: task),
-                            onCancel: { confirmingCompletion = false },
+                            onCancel: { isPresented = false },
                             onConfirm: {
-                                confirmingCompletion = false
                                 isPresented = false
                                 onToggleComplete()
                             })
                     } else {
                     Button {
-                        // A task that is not yours — someone else's or nobody's — asks first
-                        // (ADEV-70, web ADEV-56). Reopening never asks.
-                        if TaskLeadingControl.completionNeedsConfirmation(
-                            assigneeId: task.assigneeId,
-                            currentUserId: AuthManager.shared.userId,
-                            completed: task.completed) {
-                            confirmingCompletion = true
-                            return
-                        }
                         isPresented = false
                         onToggleComplete()
                     } label: {
@@ -191,7 +185,6 @@ struct MacLeadingControlButton: View {
         }
         .padding(12)
         .frame(width: 240)
-        .onDisappear { confirmingCompletion = false }
     }
 }
 

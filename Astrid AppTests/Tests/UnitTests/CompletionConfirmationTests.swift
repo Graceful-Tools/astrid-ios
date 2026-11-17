@@ -85,6 +85,27 @@ final class CompletionConfirmationTests: XCTestCase {
     }
 }
 
+/// ADEV-79: Jon — "Now there is 3 steps: tap on checkbox, tap on complete, confirm. One too
+/// many." A popover for a task that is not yours opens on the question itself, so it is the
+/// checkbox, then Complete. No popover keeps a "has Complete been tapped yet" state to reveal it.
+final class CompletionConfirmationStepsTests: XCTestCase {
+    func testThePopoverOpensOnTheQuestion_ADEV79() throws {
+        for path in [
+            "Astrid App/Views/Tasks/TaskDetailLeadingControl.swift",
+            "Astrid App/Views/Components/TaskQuickChanger.swift",
+            "Astrid Mac/Views/MacLeadingControlButton.swift",
+            "Astrid Mac/Views/MacQuickChanger.swift",
+        ] {
+            let source = try String(contentsOf: RepositoryLocator.root.appendingPathComponent(path),
+                                    encoding: .utf8)
+            XCTAssertFalse(source.contains("confirmingCompletion"),
+                           "\(path): no middle step before the question (ADEV-79)")
+            XCTAssertTrue(source.contains("CompletionConfirmationPrompt("), path)
+            XCTAssertTrue(source.contains("completionNeedsConfirmation"), path)
+        }
+    }
+}
+
 /// ADEV-70: the Project task layout is gone, so settings writes stop carrying `taskDisplayMode`.
 /// The server keeps the column for older builds; this build neither reads nor echoes it.
 final class TaskLayoutSettingRemovedTests: XCTestCase {
