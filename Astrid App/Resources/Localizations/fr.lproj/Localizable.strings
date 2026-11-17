@@ -95,6 +95,8 @@
 "tasks.copy_task" = "Copier la Tâche";
 "tasks.share_task" = "Partager la Tâche";
 "tasks.delete_confirm" = "Supprimer cette tâche ?";
+"tasks.confirm_complete_title" = "Terminer cette tâche ?";
+"tasks.confirm_complete_unassigned" = "N'est assignée à personne";
 "tasks.remove_from_board" = "Retirer du tableau";
 "tasks.remove_from_board_confirm" = "Retirer cette tâche du tableau ? Le ticket GitHub est conservé.";
 "tasks.loading" = "Chargement de vos tâches...";
@@ -1260,10 +1262,6 @@
 "subtasks.outdent_drop_target" = "Déposez ici pour la sortir d'un niveau";
 
 /* Task-detail layout preference (task 96727335) — shown only when projects are enabled. */
-"settings.appearance.task_details" = "Détails de la tâche";
-"settings.task_display.list" = "Liste";
-"settings.task_display.project" = "Projet";
-"settings.appearance.task_details_footer" = "Choisissez la présentation des détails de la tâche. Liste donne à la priorité et au responsable leurs propres lignes. Projet est compact, et la case ouvre un sélecteur au lieu de terminer la tâche.";
 
 /* AI agent runtimes (task 920155a6) */
 "settings.agents.title" = "AI Agents";

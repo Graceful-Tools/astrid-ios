@@ -1,8 +1,6 @@
 //  MacQuickChanger.swift
-//  Astrid for Mac — the popover behind a task's leading control, in project mode (task 132d7b3f).
-//
-//  Jon: "task box in rows and boards should also have same behavior as task box in task details
-//  when in project mode."
+//  Astrid for Mac — the popover behind a task's leading control when a click does not complete
+//  (task 132d7b3f): a board card, someone else's task, nobody's task.
 //
 //  The detail panel and the board card both reach this through `MacLeadingControlButton`. A
 //  LIST row cannot: a `Button` inside a macOS `List` row never fires, because the cell's own
@@ -23,6 +21,8 @@ struct MacQuickChanger: View {
 
     @StateObject private var taskService = TaskService.shared
     @State private var priority: Task.Priority
+    /// Asking before completing a task that is not yours (ADEV-70).
+    @State private var confirmingCompletion = false
 
     init(task: Task, onDismiss: @escaping () -> Void) {
         self.task = task
@@ -69,7 +69,27 @@ struct MacQuickChanger: View {
 
             Divider()
 
+            if confirmingCompletion {
+                CompletionConfirmationPrompt(
+                    assigneeLabel: CompletionConfirmation.assigneeLabel(for: task),
+                    onCancel: { confirmingCompletion = false },
+                    onConfirm: {
+                        confirmingCompletion = false
+                        onDismiss()
+                        AppActions.perform("Toggle completion") {
+                            try await MacQuickChangerWrite.toggleCompletion.apply(to: taskService, task: task)
+                        }
+                    })
+            } else {
             Button {
+                // A task that is not yours asks first (ADEV-70, web ADEV-56). Reopening never asks.
+                if TaskLeadingControl.completionNeedsConfirmation(
+                    assigneeId: task.assigneeId,
+                    currentUserId: AuthManager.shared.userId,
+                    completed: task.completed) {
+                    confirmingCompletion = true
+                    return
+                }
                 onDismiss()
                 AppActions.perform("Toggle completion") {
                     try await MacQuickChangerWrite.toggleCompletion.apply(to: taskService, task: task)
@@ -83,6 +103,7 @@ struct MacQuickChanger: View {
             }
             .buttonStyle(.borderedProminent)
             .macPointingHand()
+            }
         }
         .padding(12)
         .frame(width: 240)

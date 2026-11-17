@@ -17,72 +17,43 @@ final class TaskLeadingControlTests: XCTestCase {
 
     /// THE BUG: nobody assigned is its own state and gets its own mark.
     func testUnassignedIsItsOwnControl() {
-        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: nil, currentUserId: me, displayMode: .list), .unassigned)
-        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: "", currentUserId: me, displayMode: .list), .unassigned,
+        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: nil, currentUserId: me), .unassigned)
+        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: "", currentUserId: me), .unassigned,
                        "an empty id is unassigned, not a user whose id is empty")
     }
 
-    // MARK: - Project mode shows YOUR face too (task 132d7b3f)
 
-    /// THE ASK. In project mode a task assigned to you shows your photo, exactly as someone
-    /// else's shows theirs. The mode's own documentation has promised this since it was added.
-    ///
-    /// It costs nothing there: project mode's control opens the quick changer rather than
-    /// completing, so it was never a checkbox in the "click to finish" sense. A board where
-    /// every card you own is a bare checkbox and everyone else's is a face makes your own
-    /// work the only thing you cannot pick out at a glance.
-    func testProjectModeShowsYourOwnFace() {
-        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: me, currentUserId: me, displayMode: .project),
-                       .avatar(me))
-    }
-
-    /// And list mode does not — there the checkbox is how you complete the task, so replacing
-    /// it with a photo would take the completion gesture away.
-    func testListModeKeepsYourOwnTaskAsTheCheckbox() {
-        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: me, currentUserId: me, displayMode: .list),
+    /// Your own task is the checkbox — it is how you complete it (ADEV-70 removed the Project
+    /// layout, where it showed your photo).
+    func testYourOwnTaskIsTheCheckbox() {
+        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: me, currentUserId: me),
                        .checkbox)
     }
 
-    /// The mode changes exactly ONE case. Unassigned and someone-else's must be identical in
-    /// both, or the two layouts start disagreeing about who a task belongs to.
-    func testTheModeChangesOnlyYourOwnTask() {
-        for (assignee, label) in [(nil as String?, "unassigned"), ("u2", "someone else")] {
-            XCTAssertEqual(TaskLeadingControl.kind(assigneeId: assignee, currentUserId: me, displayMode: .list),
-                           TaskLeadingControl.kind(assigneeId: assignee, currentUserId: me, displayMode: .project),
-                           "\(label) must look the same in both modes")
-        }
-    }
 
-    /// Signed out, project mode has no "you" to show a face for — it must not invent one.
-    func testProjectModeWithNoCurrentUserStillShowsTheAssignee() {
-        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: "u2", currentUserId: nil, displayMode: .project),
-                       .avatar("u2"))
-        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: nil, currentUserId: nil, displayMode: .project),
-                       .unassigned)
-    }
 
     /// Mine keeps the checkbox — it is the one case where the leading control is also the thing
     /// you tap to finish the task.
     func testMineIsTheCheckbox() {
-        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: me, currentUserId: me, displayMode: .list), .checkbox)
+        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: me, currentUserId: me), .checkbox)
     }
 
     /// Someone else keeps their photo.
     func testSomeoneElseIsTheirAvatar() {
-        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: "u2", currentUserId: me, displayMode: .list), .avatar("u2"))
+        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: "u2", currentUserId: me), .avatar("u2"))
     }
 
     /// Signed out, an assigned task still shows that person rather than pretending it is yours.
     func testNoCurrentUserStillDistinguishesAssignedFromUnassigned() {
-        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: "u2", currentUserId: nil, displayMode: .list), .avatar("u2"))
-        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: nil, currentUserId: nil, displayMode: .list), .unassigned)
+        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: "u2", currentUserId: nil), .avatar("u2"))
+        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: nil, currentUserId: nil), .unassigned)
     }
 
     /// The three states are mutually exclusive — the whole point is that they stop looking alike.
     func testTheThreeStatesAreDistinct() {
-        let mine = TaskLeadingControl.kind(assigneeId: me, currentUserId: me, displayMode: .list)
-        let theirs = TaskLeadingControl.kind(assigneeId: "u2", currentUserId: me, displayMode: .list)
-        let nobody = TaskLeadingControl.kind(assigneeId: nil, currentUserId: me, displayMode: .list)
+        let mine = TaskLeadingControl.kind(assigneeId: me, currentUserId: me)
+        let theirs = TaskLeadingControl.kind(assigneeId: "u2", currentUserId: me)
+        let nobody = TaskLeadingControl.kind(assigneeId: nil, currentUserId: me)
         XCTAssertNotEqual(mine, theirs)
         XCTAssertNotEqual(mine, nobody)
         XCTAssertNotEqual(theirs, nobody)
@@ -112,7 +83,7 @@ final class TaskLeadingControlSurfaceTests: XCTestCase {
 
     func testBoardCardOpensThePickerInListMode() {
         XCTAssertEqual(
-            TaskLeadingControl.action(surface: .boardCard, kind: .checkbox, displayMode: .list, currentUserId: "me"),
+            TaskLeadingControl.action(surface: .boardCard, kind: .checkbox, currentUserId: "me"),
             .openPicker,
             "A board card's checkbox must open the picker, not complete the task outright")
     }
@@ -120,11 +91,11 @@ final class TaskLeadingControlSurfaceTests: XCTestCase {
     /// Every face is the same control. A card is a card whichever one it wears, in either mode.
     func testEveryFaceOnACardOpensThePicker() {
         for kind: TaskLeadingControl in [.checkbox, .unassigned, .avatar("someone-else")] {
-            for mode in TaskDisplayMode.allCases {
+            do {
                 XCTAssertEqual(
-                    TaskLeadingControl.action(surface: .boardCard, kind: kind, displayMode: mode, currentUserId: "me"),
+                    TaskLeadingControl.action(surface: .boardCard, kind: kind, currentUserId: "me"),
                     .openPicker,
-                    "\(kind) in \(mode) must open the picker on a board card")
+                    "\(kind) must open the picker on a board card")
             }
         }
     }
@@ -133,36 +104,26 @@ final class TaskLeadingControlSurfaceTests: XCTestCase {
 
     func testListRowCheckboxCompletesInListMode() {
         XCTAssertEqual(
-            TaskLeadingControl.action(surface: .listRow, kind: .checkbox, displayMode: .list, currentUserId: "me"),
+            TaskLeadingControl.action(surface: .listRow, kind: .checkbox, currentUserId: "me"),
             .complete,
             "In list mode a row's checkbox completes the task — that is what a checkbox means")
     }
 
-    /// Project mode still turns the row's control into the quick changer, which is what task
-    /// 132d7b3f asked for. This change narrows the board, not the row.
-    func testListRowOpensTheQuickChangerInProjectMode() {
-        XCTAssertEqual(
-            TaskLeadingControl.action(surface: .listRow, kind: .checkbox, displayMode: .project, currentUserId: "me"),
-            .openPicker)
-    }
 
     // MARK: - The detail screen is untouched (task 729a190e)
 
     func testDetailCompletesOnlyWhenTheFaceIsACheckbox() {
         XCTAssertEqual(
-            TaskLeadingControl.action(surface: .detail, kind: .checkbox, displayMode: .list, currentUserId: "me"),
+            TaskLeadingControl.action(surface: .detail, kind: .checkbox, currentUserId: "me"),
             .complete)
         // Someone else's photo is not a checkbox and must never finish their task on a tap.
         // AITD-363 read that as "confirm on the tap"; AITD-375 settled it as the options
         // popover on every surface, with the confirmation on its Complete button — so the
         // detail screen stopped being the one place with a bespoke gesture.
         XCTAssertEqual(
-            TaskLeadingControl.action(surface: .detail, kind: .avatar("someone-else"), displayMode: .list, currentUserId: "me"),
+            TaskLeadingControl.action(surface: .detail, kind: .avatar("someone-else"), currentUserId: "me"),
             .openPicker,
             "Someone else's photo offers the choices; completing from there asks first")
-        XCTAssertEqual(
-            TaskLeadingControl.action(surface: .detail, kind: .checkbox, displayMode: .project, currentUserId: "me"),
-            .openPicker)
     }
 
 }
@@ -188,12 +149,11 @@ final class TaskLeadingControlOthersTaskTests: XCTestCase {
 
     func testSomeoneElsesTaskOpensThePopoverOnEverySurface() {
         for surface in [TaskLeadingControlSurface.listRow, .detail, .boardCard] {
-            for mode in TaskDisplayMode.allCases {
+            do {
                 XCTAssertEqual(
-                    TaskLeadingControl.action(surface: surface, kind: theirs(),
-                                              displayMode: mode, currentUserId: me),
+                    TaskLeadingControl.action(surface: surface, kind: theirs(), currentUserId: me),
                     .openPicker,
-                    "\(surface) in \(mode) must offer the choices, never finish someone else's task on a tap")
+                    "\(surface) must offer the choices, never finish someone else's task on a tap")
             }
         }
     }
@@ -201,8 +161,7 @@ final class TaskLeadingControlOthersTaskTests: XCTestCase {
     /// The row is the case AITD-375 was filed for: it used to complete outright in list mode.
     func testAListRowNoLongerCompletesSomeoneElsesTaskOutright() {
         XCTAssertNotEqual(
-            TaskLeadingControl.action(surface: .listRow, kind: theirs(),
-                                      displayMode: .list, currentUserId: me),
+            TaskLeadingControl.action(surface: .listRow, kind: theirs(), currentUserId: me),
             .complete,
             "a stray tap on a small photo in a dense list must not finish that person's work")
     }
@@ -211,19 +170,16 @@ final class TaskLeadingControlOthersTaskTests: XCTestCase {
 
     func testYourOwnCheckboxStillCompletesOnTap() {
         XCTAssertEqual(
-            TaskLeadingControl.action(surface: .listRow, kind: .checkbox,
-                                      displayMode: .list, currentUserId: me),
+            TaskLeadingControl.action(surface: .listRow, kind: .checkbox, currentUserId: me),
             .complete)
         XCTAssertEqual(
-            TaskLeadingControl.action(surface: .detail, kind: .checkbox,
-                                      displayMode: .list, currentUserId: me),
+            TaskLeadingControl.action(surface: .detail, kind: .checkbox, currentUserId: me),
             .complete)
     }
 
-    /// In PROJECT mode your own task wears your photo too (task 132d7b3f). "Is it an avatar" and
-    /// "is it theirs" are different questions, and conflating them would make you confirm your
-    /// own completions.
-    func testYourOwnAvatarInProjectModeIsNotSomeoneElses() {
+    /// "Is it an avatar" and "is it theirs" are different questions; the kind carries whose face
+    /// it is.
+    func testAnAvatarIsSomeoneElsesOnlyWhenTheIdIsNotYours() {
         XCTAssertFalse(TaskLeadingControl.avatar(me).isSomeoneElses(currentUserId: me))
         XCTAssertTrue(TaskLeadingControl.avatar(them).isSomeoneElses(currentUserId: me))
         XCTAssertFalse(TaskLeadingControl.checkbox.isSomeoneElses(currentUserId: me))
@@ -234,8 +190,7 @@ final class TaskLeadingControlOthersTaskTests: XCTestCase {
     func testAnUnknownViewerIsTreatedAsNotTheOwner() {
         XCTAssertTrue(TaskLeadingControl.avatar(them).isSomeoneElses(currentUserId: nil))
         XCTAssertEqual(
-            TaskLeadingControl.action(surface: .listRow, kind: theirs(),
-                                      displayMode: .list, currentUserId: nil),
+            TaskLeadingControl.action(surface: .listRow, kind: theirs(), currentUserId: nil),
             .openPicker)
     }
 
@@ -262,8 +217,7 @@ final class TaskLeadingControlOthersTaskTests: XCTestCase {
     // MARK: - "...priority and status options just like in project mode"
 
     func testSomeoneElsesTaskGetsTheBoardStateSectionEvenInListMode() {
-        XCTAssertTrue(TaskLeadingControl.pickerShowsProjectState(displayMode: .list,
-                                                                 surface: .detail,
+        XCTAssertTrue(TaskLeadingControl.pickerShowsProjectState(surface: .detail,
                                                                  assigneeId: them, currentUserId: me),
                       "when the popover is the only thing a tap gives you, it carries the full set")
     }
@@ -271,83 +225,31 @@ final class TaskLeadingControlOthersTaskTests: XCTestCase {
     /// List mode's omission still stands for your OWN task in the detail panel — there, priority
     /// and assignee are rows of their own and a board column is a project idea.
     func testYourOwnTaskInListModeDetailStillOmitsBoardState() {
-        XCTAssertFalse(TaskLeadingControl.pickerShowsProjectState(displayMode: .list,
-                                                                  surface: .detail,
+        XCTAssertFalse(TaskLeadingControl.pickerShowsProjectState(surface: .detail,
                                                                   assigneeId: me, currentUserId: me))
     }
 
-    func testProjectModeAndBoardCardsAreUnchanged() {
-        XCTAssertTrue(TaskLeadingControl.pickerShowsProjectState(displayMode: .project,
-                                                                 surface: .detail,
-                                                                 assigneeId: me, currentUserId: me))
-        XCTAssertTrue(TaskLeadingControl.pickerShowsProjectState(displayMode: .list,
-                                                                 surface: .boardCard,
+    func testBoardCardsAreUnchanged() {
+        XCTAssertTrue(TaskLeadingControl.pickerShowsProjectState(surface: .boardCard,
                                                                  assigneeId: me, currentUserId: me))
     }
 
-    // MARK: - The popover IS the confirmation (AITD-381)
-
-    /// Jon, AITD-381: "Remove second confirm bubble when completing other users tasks."
-    ///
-    /// Someone else's task opens the popover on every surface — `action()` above returns
-    /// `.openPicker` for it — so its Complete button can only ever be reached deliberately:
-    /// open the popover, then press the one blue button in it. AITD-375 kept the AITD-363
-    /// confirmation anyway and moved it onto that button, which put a second sheet asking the
-    /// same question on top of an answer already given twice. The popover is the protection;
-    /// the bubble behind it was spending a tap to repeat it.
-    ///
-    /// A source guard, because this is a fact about three view files and nothing a pure
-    /// function can hold: the previous guard here asserted the OPPOSITE, and a guard is exactly
-    /// what would put the bubble back on whichever platform was edited last.
-    func testNoSurfacePresentsASecondConfirmationOverThePopover() throws {
-        for path in Self.surfacesThatCompleteFromTheLeadingControl {
-            let source = try Self.source(of: path)
-            XCTAssertFalse(source.contains("tasks.confirm_complete_title"),
-                           "\(path): the popover's Complete button completes (AITD-381) — "
-                           + "a confirmation sheet on top of it is the second bubble")
-            XCTAssertFalse(source.contains("confirmationDialog"),
-                           "\(path): no confirmation sheet between the Complete button and "
-                           + "completing the task (AITD-381)")
-        }
-    }
+    // MARK: - The popover, then the confirmation (AITD-381, ADEV-70)
 
     /// The protection that REPLACED the bubble, asserted where the bubble's guard used to be:
     /// a tap on someone else's control opens the popover rather than completing outright, on
-    /// every surface and in both modes. Removing the sheet is only safe while this holds.
+    /// every surface.
     func testSomeoneElsesTaskStillNeverCompletesOnASingleTap() {
         for surface in [TaskLeadingControlSurface.listRow, .boardCard, .detail] {
-            for mode in [TaskDisplayMode.list, .project] {
+            do {
                 XCTAssertEqual(
-                    TaskLeadingControl.action(surface: surface, kind: theirs(),
-                                              displayMode: mode, currentUserId: me),
+                    TaskLeadingControl.action(surface: surface, kind: theirs(), currentUserId: me),
                     .openPicker,
-                    "\(surface)/\(mode): one tap must not finish another person's task")
+                    "\(surface): one tap must not finish another person's task")
             }
         }
     }
 
-    /// The predicate outlived the confirmation it was named for: it now only decides whether the
-    /// popover carries the board-state section. No screen may still read it as "ask first".
-    ///
-    /// The rule's own file is exempt — the old name belongs in its history, which is where a
-    /// reader goes to find out why the sheet is gone.
-    func testNoScreenStillReadsThePredicateAsAskFirst() throws {
-        for path in Self.surfacesThatCompleteFromTheLeadingControl {
-            XCTAssertFalse(try Self.source(of: path).contains("NeedsConfirmation"),
-                           "\(path): renamed to isSomeoneElsesTask (AITD-381)")
-        }
-    }
-
-    private static let surfacesThatCompleteFromTheLeadingControl = [
-        "Astrid App/Views/Tasks/TaskDetailLeadingControl.swift",
-        "Astrid App/Views/Components/TaskQuickChanger.swift",
-        "Astrid Mac/Views/MacLeadingControlButton.swift",
-    ]
-
-    private static func source(of path: String) throws -> String {
-        let root = RepositoryLocator.root
-        return try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
-    }
 }
 
 /// Regression tests for AITD-382 — "tapping on unassigned checkbox, agents, and tasks assigned
@@ -377,8 +279,7 @@ final class TaskLeadingControlUnassignedTapTests: XCTestCase {
 
     func testUnassignedListRowOpensThePickerInListMode() {
         XCTAssertEqual(
-            TaskLeadingControl.action(surface: .listRow, kind: .unassigned,
-                                      displayMode: .list, currentUserId: me),
+            TaskLeadingControl.action(surface: .listRow, kind: .unassigned, currentUserId: me),
             .openPicker,
             "AITD-382: nobody's task must offer the choices, not complete on one tap")
     }
@@ -397,13 +298,12 @@ final class TaskLeadingControlUnassignedTapTests: XCTestCase {
             (.avatar("someone-else"), "another person's"),
         ]
 
-        for mode in TaskDisplayMode.allCases {
+        do {
             for (kind, label) in notYours {
                 XCTAssertEqual(
-                    TaskLeadingControl.action(surface: .listRow, kind: kind,
-                                              displayMode: mode, currentUserId: me),
+                    TaskLeadingControl.action(surface: .listRow, kind: kind, currentUserId: me),
                     .openPicker,
-                    "AITD-382: \(label) task in \(mode) must open the picker from a list row")
+                    "AITD-382: \(label) task must open the picker from a list row")
             }
         }
     }
@@ -413,10 +313,8 @@ final class TaskLeadingControlUnassignedTapTests: XCTestCase {
     func testTheDetailScreenGivesTheSameAnswerForAllThree() {
         for kind: TaskLeadingControl in [.unassigned, .avatar("ai-agent-claude"), .avatar("someone-else")] {
             XCTAssertEqual(
-                TaskLeadingControl.action(surface: .detail, kind: kind,
-                                          displayMode: .list, currentUserId: me),
-                TaskLeadingControl.action(surface: .listRow, kind: kind,
-                                          displayMode: .list, currentUserId: me),
+                TaskLeadingControl.action(surface: .detail, kind: kind, currentUserId: me),
+                TaskLeadingControl.action(surface: .listRow, kind: kind, currentUserId: me),
                 "AITD-382: \(kind) must mean the same thing on a row as in task details")
         }
     }
@@ -428,8 +326,7 @@ final class TaskLeadingControlUnassignedTapTests: XCTestCase {
     /// list's whole point with it.
     func testYourOwnCheckboxStillCompletesOnAListRow() {
         XCTAssertEqual(
-            TaskLeadingControl.action(surface: .listRow, kind: .checkbox,
-                                      displayMode: .list, currentUserId: me),
+            TaskLeadingControl.action(surface: .listRow, kind: .checkbox, currentUserId: me),
             .complete,
             "AITD-382 must not disturb the one tap that is supposed to finish a task")
     }

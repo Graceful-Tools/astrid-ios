@@ -59,19 +59,14 @@ enum MacTaskFields {
     /// The rows, in order. `showsTitle` is false for the board's inline card
     /// editor, which already draws the title on the card face.
     ///
-    /// `displayMode` decides whether priority and assignee are rows here or stay behind the
-    /// leading control (task 729a190e). It is required rather than defaulted: the whole bug
-    /// was that this choice had one hardcoded answer, and a default would let a new call site
-    /// re-hardcode it without anyone noticing.
-    ///
-    /// In LIST mode the order comes from `TaskDetailFieldOrder.listMode` — Who, Date, Priority,
+    /// The order comes from `TaskDetailFieldOrder.listMode` — Who, Date, Priority,
     /// Lists — because the ask was CONTINUITY across the phone, the Mac and web (task c8a1ff51).
     /// This used to be `[.priority, .assignee] + [.when, .lists]`, and iOS independently used
     /// the same wrong order: the same mistake twice, which is what two views deciding for
     /// themselves produces. Derived rather than restated, so a change to the shared list
     /// reaches the Mac without anyone remembering to come here.
-    /// - Parameter isInProject: whether this task has a board column at all (AITD-327). List mode
-    ///   shows a state row only when it does — see the note on `.projectState` below.
+    /// - Parameter isInProject: whether this task has a board column at all (AITD-327). The
+    ///   detail shows a state row only when it does — see the note on `.projectState` below.
     /// - Parameter hasOccurrenceLinks: whether `TaskOccurrences.links` found a previous or next
     ///   occurrence (AITD-491). The row is a pair of links, so with neither there is no row.
     /// - Parameter refused: the controls the task's lists refuse (`TaskCapabilities.refused`).
@@ -79,7 +74,6 @@ enum MacTaskFields {
     /// No task id row: the id is in the header's title, "<id> Details", as on iOS (AITD-647,
     /// ADEV-60).
     static func rows(showsTitle: Bool,
-                     displayMode: TaskDisplayMode,
                      isInProject: Bool = false,
                      hasOccurrenceLinks: Bool = false,
                      refused: Set<TaskCapabilities.Control> = []) -> [MacTaskFieldRow] {
@@ -94,30 +88,19 @@ enum MacTaskFields {
             case .privateTasks: return nil   // no row of its own in this editor
             }
         })
-        return rowsOffered(showsTitle: showsTitle, displayMode: displayMode, isInProject: isInProject,
+        return rowsOffered(showsTitle: showsTitle, isInProject: isInProject,
                            hasOccurrenceLinks: hasOccurrenceLinks).filter { !hidden.contains($0) }
     }
 
-    private static func rowsOffered(showsTitle: Bool, displayMode: TaskDisplayMode, isInProject: Bool,
+    private static func rowsOffered(showsTitle: Bool, isInProject: Bool,
                                     hasOccurrenceLinks: Bool) -> [MacTaskFieldRow] {
         let leading: [MacTaskFieldRow] = showsTitle ? [.title] : []
-        // Both modes, unlike board state: blocking is said nowhere else in the compact layout.
         // The rule is iOS's and web's (`TaskBlockers.showsRow`); this editor has no read-only
         // mode, so an empty row is always the way to add the first blocker.
         let blockers: [MacTaskFieldRow] = TaskBlockers.showsRow(
             isInProject: isInProject, isReadOnly: false, hasBlockers: false) ? [.blockers] : []
         let occurrences: [MacTaskFieldRow] = hasOccurrenceLinks ? [.occurrences] : []
-        guard displayMode.showsSeparateAssigneeAndPriorityRows else {
-            // Project mode: priority and assignee are not rows at all — the leading control
-            // depicts both (task 42013da7). Board state is in that popover too, but the control
-            // never DEPICTS it, so the detail gets the row as well (AITD-555). Not the board's
-            // inline card editor (`showsTitle == false`): that is drawn inside the column.
-            let state: [MacTaskFieldRow] = showsTitle && TaskDetailProjectStateRow.isVisible(
-                displayMode: displayMode, isInProject: isInProject, isReadOnly: false)
-                ? [.projectState] : []
-            return leading + [.when, .lists] + state + blockers + occurrences + [.description]
-        }
-        // Board state gets a row in LIST mode when the task is in a project (AITD-327), and the
+        // Board state gets a row when the task is in a project (AITD-327), and the
         // reasoning behind that lives with the rule in `TaskDetailProjectStateRow`. It was
         // spelled here until iOS needed the same row (AITD-332): the phone would have spelled it
         // a second time, and a layout question each platform answers for itself is exactly what
@@ -127,7 +110,7 @@ enum MacTaskFields {
         // one the user can change (see `isEditable`). iOS's public-list detail does, and hides
         // the row there rather than offering chips that cannot write.
         let state: [MacTaskFieldRow] = TaskDetailProjectStateRow.isVisible(
-            displayMode: displayMode, isInProject: isInProject, isReadOnly: false)
+            isInProject: isInProject, isReadOnly: false)
             ? [.projectState] : []
         return leading + TaskDetailFieldOrder.listMode.map(MacTaskFieldRow.init) + state + blockers
             + occurrences + [.description]
@@ -218,34 +201,20 @@ enum MacLeadingPicker {
 
     /// What the popover behind the leading control offers.
     ///
-    /// Project mode gets board state as well (task 729a190e): in that mode the control is the
-    /// quick changer, and moving a task between columns is the thing you do most. List mode
-    /// does not — priority and assignee are rows of their own there, and a board column is a
-    /// project idea. Offering both everywhere would rebuild the hybrid layout this setting
-    /// exists to end.
-    ///
-    /// A BOARD CARD gets it in both modes (task f9d7ed42). List mode's omission is an argument
-    /// about the DETAIL panel's layout — a board column is a project idea, and a row for it in
-    /// the list layout rebuilds the hybrid. On a board that argument does not apply: the card is
-    /// already in a board, its column is the one thing on screen that is about to change, and
-    /// without this section the control offers no way to change it.
-    ///
-    /// SOMEONE ELSE'S TASK gets the full set too (AITD-375) — "just like in project mode". When
-    /// the popover is the only thing a tap gives you, list mode's omission stops applying: that
-    /// omission is an argument about the detail panel's own layout, not about what to offer when
-    /// the panel is not what you are looking at.
+    /// Board state is offered on a BOARD CARD (task f9d7ed42) — the card's column is the one
+    /// thing on screen about to change — and for SOMEONE ELSE'S TASK (AITD-375), where the popover
+    /// is the only thing a tap gives you. Your own task's detail panel leaves it out: priority
+    /// and assignee are rows of their own there, and so is board state when it is on a board.
     ///
     /// A GITHUB BOARD with no Priority field refuses the write (AITD-491), so `refused`
-    /// (`TaskCapabilities.refused`) leaves the section out — the same answer the list-mode row gets.
-    static func sections(for displayMode: TaskDisplayMode,
-                         surface: TaskLeadingControlSurface = .detail,
+    /// (`TaskCapabilities.refused`) leaves the section out — the same answer the detail row gets.
+    static func sections(surface: TaskLeadingControlSurface = .detail,
                          assigneeId: String? = nil,
                          currentUserId: String? = nil,
                          refused: Set<TaskCapabilities.Control> = []) -> [MacLeadingPickerSection] {
         // The SHARED rule, so the Mac and the phone cannot offer different choices for one task.
         let sections: [MacLeadingPickerSection] =
-            TaskLeadingControl.pickerShowsProjectState(displayMode: displayMode,
-                                                       surface: surface,
+            TaskLeadingControl.pickerShowsProjectState(surface: surface,
                                                        assigneeId: assigneeId,
                                                        currentUserId: currentUserId)
             ? [.priority, .assignee, .projectState, .complete]

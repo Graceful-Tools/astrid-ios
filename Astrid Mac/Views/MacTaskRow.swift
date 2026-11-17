@@ -17,7 +17,6 @@ struct MacTaskRow: View {
     @Binding var editingTitle: String
     var indent: Int = 0                  // subtask nesting depth (0 = top level)
     var isSelected: Bool = false
-    @StateObject private var userSettings = UserSettingsService.shared
     @State private var showingQuickChanger = false
     @State private var hovering = false  // Mac hover affordance (77225941)
     @State private var checkPop = false   // tap feedback on the checkbox (see below)
@@ -41,11 +40,6 @@ struct MacTaskRow: View {
 
     /// The assignee to surface as an avatar (task.assignee, or a minimal User from the id so the
     /// shared UserImageCache can still resolve a picture) — nil for own/unassigned tasks.
-    /// The row follows the display mode too (task 132d7b3f).
-    private var displayMode: TaskDisplayMode {
-        TaskDisplayMode(stored: userSettings.settings.taskDisplayMode)
-    }
-
     /// A small outlined label beside the title: won't-do (AITD-496), sync state (AITD-491).
     private func titleChip(_ labelKey: String, identifier: String) -> some View {
         titleChip(verbatim: NSLocalizedString(labelKey, comment: ""), identifier: identifier)
@@ -62,9 +56,8 @@ struct MacTaskRow: View {
             .accessibilityIdentifier(identifier)
     }
 
-    /// In project mode the task box opens the quick changer instead of completing — the same
-    /// thing it does in task details (task 132d7b3f). In list mode it completes, which is what
-    /// a checkbox means when the task is not on a board.
+    /// Your own task's box completes, which is what a checkbox means when the task is not on a
+    /// board; someone else's or nobody's opens the quick changer (AITD-375/382).
     ///
     /// Asked of the SHARED rule, not spelled here: the board card answers this differently
     /// (it always picks a status), and a row that writes its own copy of the question is how
@@ -72,9 +65,7 @@ struct MacTaskRow: View {
     private var opensQuickChanger: Bool {
         TaskLeadingControl.action(surface: .listRow,
                                  kind: TaskLeadingControl.kind(assigneeId: task.assigneeId,
-                                                               currentUserId: auth.userId,
-                                                               displayMode: displayMode),
-                                 displayMode: displayMode,
+                                                               currentUserId: auth.userId),
                                  currentUserId: auth.userId) == .openPicker
     }
 
@@ -86,8 +77,7 @@ struct MacTaskRow: View {
     }
 
     private var avatarAssignee: User? {
-        guard MacAssignee.showsAvatar(assigneeId: task.assigneeId, currentUserId: auth.userId,
-                                      displayMode: displayMode),
+        guard MacAssignee.showsAvatar(assigneeId: task.assigneeId, currentUserId: auth.userId),
               task.assigneeId != nil else { return nil }
         // Not `task.assignee ?? …`: a reassignment leaves that stale, which drew the previous
         // person on the row (AITD-442).
@@ -128,14 +118,11 @@ struct MacTaskRow: View {
                 MacAssigneeAvatar(user: assignee, priority: task.priority, size: MacTaskVisuals.rowCheckboxSize,
                                   repeating: MacCheckboxAsset.isRepeating(task.repeating))
                     .assigneeOverflowBadge(for: task, avatarSize: MacTaskVisuals.rowCheckboxSize)
-                    // No gesture here before: harmless while a face only meant someone ELSE's
-                    // task, but in project mode your own task is a face too, so the control
-                    // you are told to click did nothing (task 132d7b3f).
+                    // Someone else's face opens the quick changer (AITD-375).
                     .contentShape(Rectangle())
                     .onTapGesture { handleLeadingTap() }
             } else if TaskLeadingControl.kind(assigneeId: task.assigneeId,
-                                              currentUserId: AuthManager.shared.userId,
-                                              displayMode: displayMode) == .unassigned {
+                                              currentUserId: AuthManager.shared.userId) == .unassigned {
                 // Nobody assigned → "U", not the checkbox (42013da7). Same three-state rule as
                 // iOS, from the same shared helper, so a task cannot look different per platform.
                 // Clicking still completes: the mark changes, the action does not. A tap gesture

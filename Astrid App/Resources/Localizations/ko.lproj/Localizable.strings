@@ -99,6 +99,8 @@
 "tasks.copy_task" = "작업 복사";
 "tasks.share_task" = "작업 공유";
 "tasks.delete_confirm" = "이 작업을 삭제하시겠습니까?";
+"tasks.confirm_complete_title" = "이 작업을 완료할까요?";
+"tasks.confirm_complete_unassigned" = "담당: 없음";
 "tasks.remove_from_board" = "보드에서 제거";
 "tasks.remove_from_board_confirm" = "이 작업을 보드에서 제거할까요? GitHub 이슈는 그대로 남습니다.";
 "tasks.loading" = "작업을 불러오는 중...";
@@ -1246,10 +1248,6 @@
 "subtasks.outdent_drop_target" = "여기에 놓아 한 단계 밖으로 이동";
 
 /* Task-detail layout preference (task 96727335) — shown only when projects are enabled. */
-"settings.appearance.task_details" = "작업 세부 정보";
-"settings.task_display.list" = "목록";
-"settings.task_display.project" = "프로젝트";
-"settings.appearance.task_details_footer" = "작업 세부 정보의 배치를 선택하세요. 목록은 우선순위와 담당자에게 각각의 행을 제공합니다. 프로젝트는 간결하며, 체크박스는 작업을 완료하는 대신 선택기를 엽니다.";
 
 /* AI agent runtimes (task 920155a6) */
 "settings.agents.title" = "AI Agents";

@@ -31,14 +31,11 @@ enum TaskDetailField: Equatable {
 /// interfaces for list mode (iOS, Mac, web — board details, mobile etc)." The ask is CONTINUITY,
 /// so the order is astrid-core's (`detailLayout`, `rows::detail::field_order`; AWTD2-216,
 /// AITD-622) — the same answer web and Windows read — rather than a Swift copy of it.
-///
-/// PROJECT mode is not asked here. There, priority and assignee live behind the leading control
-/// and are not rows at all (task 729a190e).
 enum TaskDetailFieldOrder {
 
     /// List mode, top to bottom, under the title.
     static var listMode: [TaskDetailField] {
-        let order = CoreRules.detailLayout(displayMode: TaskDisplayMode.list.wireValue,
+        let order = CoreRules.detailLayout(displayMode: CoreTaskLayout.wireValue,
                                            isInProject: false, isReadOnly: false)?
             .fieldOrder.compactMap(TaskDetailField.init(coreName:))
         // A detail with no fields cannot be edited at all; if the core could not answer, every
@@ -49,7 +46,7 @@ enum TaskDetailFieldOrder {
 }
 
 /// Whether task details show a BOARD STATE row (AITD-327 on the Mac, AITD-332 on iOS, both
-/// display modes since AITD-555).
+/// layouts since AITD-555).
 ///
 /// The row is for a task that is ON a board — there the column is real information the list
 /// layout was hiding — and never for a read-only viewer, because the row is a mover whose chips
@@ -61,11 +58,10 @@ enum TaskDetailProjectStateRow {
     ///   - isInProject: whether the task has a board column at all — ask `isTaskInProject`, never
     ///     a condition written at the call site.
     ///   - isReadOnly: the public-list viewer.
-    static func isVisible(displayMode: TaskDisplayMode,
-                          isInProject: Bool,
+    static func isVisible(isInProject: Bool,
                           isReadOnly: Bool) -> Bool {
         // A failed answer hides the row: a mover drawn where it must not be can write.
-        CoreRules.detailLayout(displayMode: displayMode.wireValue, isInProject: isInProject,
+        CoreRules.detailLayout(displayMode: CoreTaskLayout.wireValue, isInProject: isInProject,
                                isReadOnly: isReadOnly)?.showsBoardState ?? false
     }
 }

@@ -99,6 +99,8 @@
 "tasks.copy_task" = "タスクをコピー";
 "tasks.share_task" = "タスクを共有";
 "tasks.delete_confirm" = "このタスクを削除しますか？";
+"tasks.confirm_complete_title" = "このタスクを完了しますか？";
+"tasks.confirm_complete_unassigned" = "担当: なし";
 "tasks.remove_from_board" = "ボードから外す";
 "tasks.remove_from_board_confirm" = "このタスクをボードから外しますか？GitHub の Issue は残ります。";
 "tasks.loading" = "タスクを読み込み中...";
@@ -1244,10 +1246,6 @@
 "subtasks.outdent_drop_target" = "ここにドロップして1階層上に移動";
 
 /* Task-detail layout preference (task 96727335) — shown only when projects are enabled. */
-"settings.appearance.task_details" = "タスクの詳細";
-"settings.task_display.list" = "リスト";
-"settings.task_display.project" = "プロジェクト";
-"settings.appearance.task_details_footer" = "タスク詳細のレイアウトを選びます。リストでは優先度と担当者がそれぞれの行に表示されます。プロジェクトはコンパクトで、チェックボックスはタスクを完了せずに選択メニューを開きます。";
 
 /* AI agent runtimes (task 920155a6) */
 "settings.agents.title" = "AI Agents";

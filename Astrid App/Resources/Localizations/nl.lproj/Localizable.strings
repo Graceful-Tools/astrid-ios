@@ -99,6 +99,8 @@
 "tasks.copy_task" = "Taak kopiëren";
 "tasks.share_task" = "Taak delen";
 "tasks.delete_confirm" = "Deze taak verwijderen?";
+"tasks.confirm_complete_title" = "Deze taak voltooien?";
+"tasks.confirm_complete_unassigned" = "Aan niemand toegewezen";
 "tasks.remove_from_board" = "Van bord verwijderen";
 "tasks.remove_from_board_confirm" = "Deze taak van het bord verwijderen? Het GitHub-issue blijft bestaan.";
 "tasks.loading" = "Taken laden...";
@@ -1244,10 +1246,6 @@
 "subtasks.outdent_drop_target" = "Sleep hierheen om één niveau omhoog te verplaatsen";
 
 /* Task-detail layout preference (task 96727335) — shown only when projects are enabled. */
-"settings.appearance.task_details" = "Taakdetails";
-"settings.task_display.list" = "Lijst";
-"settings.task_display.project" = "Project";
-"settings.appearance.task_details_footer" = "Kies hoe taakdetails worden weergegeven. Lijst geeft prioriteit en toegewezene een eigen rij. Project is compact en het vakje opent een keuzemenu in plaats van de taak te voltooien.";
 
 /* AI agent runtimes (task 920155a6) */
 "settings.agents.title" = "AI Agents";

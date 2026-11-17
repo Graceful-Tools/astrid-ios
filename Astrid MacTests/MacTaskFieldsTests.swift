@@ -19,62 +19,39 @@ import XCTest
 
 final class MacTaskFieldsTests: XCTestCase {
 
-    // MARK: - Priority and assignee: behind the control, or their own rows (task 729a190e)
+    // MARK: - Priority and assignee are their own rows (task 729a190e)
 
-    /// PROJECT mode keeps them behind the leading control. This was the whole of task
-    /// 42013da7: the control already shows priority (its colour) and assignee (its photo),
-    /// and a row repeating both spent panel width saying it twice.
-    ///
-    /// It was unconditional, which is the bug — it made project mode's layout the only
-    /// layout, so choosing "list" in Appearance changed nothing.
-    func testPriorityIsNotAFieldRowInProjectMode() {
-        XCTAssertFalse(MacTaskFields.rows(showsTitle: true, displayMode: .project).contains(.priority))
-        XCTAssertFalse(MacTaskFields.rows(showsTitle: false, displayMode: .project).contains(.priority))
-    }
-
-    func testAssigneeIsNotAFieldRowInProjectMode() {
-        XCTAssertFalse(MacTaskFields.rows(showsTitle: true, displayMode: .project).contains(.assignee))
-    }
-
-    /// LIST mode gives each its own row — the ask on task 729a190e, and what the mode has
-    /// promised in its own documentation since it was added.
-    func testPriorityAndAssigneeAreTheirOwnRowsInListMode() {
-        let rows = MacTaskFields.rows(showsTitle: true, displayMode: .list)
+    /// Each gets its own row — the ask on task 729a190e. The Project layout that kept them behind
+    /// the leading control is gone (ADEV-70).
+    func testPriorityAndAssigneeAreTheirOwnRows() {
+        let rows = MacTaskFields.rows(showsTitle: true)
         XCTAssertTrue(rows.contains(.priority), "list mode shows priority as its own row")
         XCTAssertTrue(rows.contains(.assignee), "list mode shows assignee as its own row")
     }
 
-    /// A board card has no title row but is still a task editor, so the mode applies there too.
-    func testTheBoardCardAlsoGetsTheRowsInListMode() {
-        let rows = MacTaskFields.rows(showsTitle: false, displayMode: .list)
+    /// A board card has no title row but is still a task editor, so it gets the rows too.
+    func testTheBoardCardAlsoGetsTheRows() {
+        let rows = MacTaskFields.rows(showsTitle: false)
         XCTAssertTrue(rows.contains(.priority))
         XCTAssertTrue(rows.contains(.assignee))
         XCTAssertFalse(rows.contains(.title))
     }
 
-    /// PROJECT mode's popover carries board state as well — the third thing task 729a190e
-    /// asks the quick changer to hold, alongside priority and assignee.
-    func testTheProjectQuickChangerOffersPriorityAssigneeProjectStateAndCompletion() {
-        XCTAssertEqual(MacLeadingPicker.sections(for: .project),
-                       [.priority, .assignee, .projectState, .complete])
-    }
-
-    /// LIST mode does not: priority and assignee are rows of their own there, and a task's
-    /// board state is a project idea. Offering it in both would rebuild the hybrid layout
-    /// this setting exists to end.
-    func testTheListModePickerDoesNotOfferProjectState() {
-        XCTAssertEqual(MacLeadingPicker.sections(for: .list),
+    /// Your own task's detail popover does not offer board state: priority and assignee are rows
+    /// of their own there, and so is board state when the task is on a board.
+    func testTheDetailPickerDoesNotOfferProjectState() {
+        XCTAssertEqual(MacLeadingPicker.sections(),
                        [.priority, .assignee, .complete])
     }
 
     /// A GitHub board with no Priority field refuses the write, so the popover does not offer
     /// it (AITD-491). Everything else it holds stays.
     func testThePickerLeavesOutPriorityWhenTheListsRefuseIt_AITD491() throws {
-        XCTAssertEqual(MacLeadingPicker.sections(for: .project, refused: [.priority]),
+        XCTAssertEqual(MacLeadingPicker.sections(surface: .boardCard, refused: [.priority]),
                        [.assignee, .projectState, .complete])
-        XCTAssertEqual(MacLeadingPicker.sections(for: .list, refused: [.priority]),
+        XCTAssertEqual(MacLeadingPicker.sections(refused: [.priority]),
                        [.assignee, .complete])
-        XCTAssertEqual(MacLeadingPicker.sections(for: .list, refused: [.dueDate]),
+        XCTAssertEqual(MacLeadingPicker.sections(refused: [.dueDate]),
                        [.priority, .assignee, .complete])
         let source = try RepositoryLocator.source(at: "Astrid Mac/Views/MacLeadingControlButton.swift")
         XCTAssertTrue(source.contains("TaskCapabilities.refused("),
@@ -85,21 +62,21 @@ final class MacTaskFieldsTests: XCTestCase {
 
     /// The detail owns the title; a board card already shows it on the card
     /// face, so it asks for the fields without one.
-    func testDetailShowsTitleThenWhenThenListsThenDescription() {
-        XCTAssertEqual(MacTaskFields.rows(showsTitle: true, displayMode: .project),
-                       [.title, .when, .lists, .description])
+    func testDetailShowsTitleThenTheSharedOrderThenDescription() {
+        XCTAssertEqual(MacTaskFields.rows(showsTitle: true),
+                       [.title] + TaskDetailFieldOrder.listMode.map(MacTaskFieldRow.init) + [.description])
     }
 
     func testBoardCardOmitsTheTitleRow() {
-        XCTAssertEqual(MacTaskFields.rows(showsTitle: false, displayMode: .project),
-                       [.when, .lists, .description])
+        XCTAssertEqual(MacTaskFields.rows(showsTitle: false),
+                       TaskDetailFieldOrder.listMode.map(MacTaskFieldRow.init) + [.description])
     }
 
     /// And it is DERIVED from the shared list, not a second copy of it — otherwise the two
     /// drift the moment one of them is edited.
     func testTheMacOrderFollowsTheSharedDeclaration() {
         let shared = TaskDetailFieldOrder.listMode.map(MacTaskFieldRow.init)
-        XCTAssertEqual(MacTaskFields.rows(showsTitle: false, displayMode: .list),
+        XCTAssertEqual(MacTaskFields.rows(showsTitle: false),
                        shared + [.description])
     }
 
@@ -111,11 +88,11 @@ final class MacTaskFieldsTests: XCTestCase {
 
     /// In BOTH modes. A row that is shown and cannot be changed is the exact failure the
     /// Lists row had, and list mode adds two rows that would be easy to ship read-only.
-    func testEveryFieldRowIsEditableInEveryMode() {
-        for mode in TaskDisplayMode.allCases {
-            for row in MacTaskFields.rows(showsTitle: true, displayMode: mode) {
+    func testEveryFieldRowIsEditable() {
+        do {
+            for row in MacTaskFields.rows(showsTitle: true) {
                 XCTAssertTrue(MacTaskFields.isEditable(row),
-                              "\(row) is shown in \(mode) and must be changeable there")
+                              "\(row) is shown and must be changeable there")
             }
         }
     }
@@ -124,7 +101,7 @@ final class MacTaskFieldsTests: XCTestCase {
 
     /// iOS moved the id into the header ("<id> Details") and dropped its row; the Mac kept both
     /// "Task Details" and a Task ID row until the design review found it (ADEV-60).
-    func testNoTaskIdRowInAnyMode_ADEV60() throws {
+    func testNoTaskIdRow_ADEV60() throws {
         let source = try RepositoryLocator.source(at: "Astrid Mac/Views/MacTaskFields.swift")
         XCTAssertFalse(source.contains("case taskId"), "the id is the header's, not a field row")
     }
@@ -216,12 +193,12 @@ final class MacTaskFieldsTests: XCTestCase {
     /// In EVERY mode — list mode adds two rows, and adding them to only one of the two
     /// surfaces is exactly the drift this test exists to catch.
     func testBoardAndDetailShareOneFieldSet() {
-        for mode in TaskDisplayMode.allCases {
-            let board = Set(MacTaskFields.rows(showsTitle: false, displayMode: mode))
-            let detail = Set(MacTaskFields.rows(showsTitle: true, displayMode: mode))
+        do {
+            let board = Set(MacTaskFields.rows(showsTitle: false))
+            let detail = Set(MacTaskFields.rows(showsTitle: true))
             XCTAssertTrue(board.isSubset(of: detail),
                           "the board must render a subset of the detail's fields, not its own set")
-            XCTAssertEqual(detail.subtracting(board), [.title], "\(mode)")
+            XCTAssertEqual(detail.subtracting(board), [.title])
         }
     }
 
@@ -234,31 +211,32 @@ final class MacTaskFieldsTests: XCTestCase {
 }
 
 /// A GitHub board with no Priority or date field mapped refuses those writes (AITD-491), so the
-/// editor does not offer them — in either display mode.
+/// editor does not offer them.
 final class MacTaskFieldsCapabilitiesTests: XCTestCase {
     func testARefusedFieldIsNotARow_AITD491() {
-        let list = MacTaskFields.rows(showsTitle: true, displayMode: .list, refused: [.priority, .dueDate])
+        let list = MacTaskFields.rows(showsTitle: true, refused: [.priority, .dueDate])
         XCTAssertFalse(list.contains(.priority))
         XCTAssertFalse(list.contains(.when))
         XCTAssertTrue(list.contains(.lists))
-        let project = MacTaskFields.rows(showsTitle: true, displayMode: .project, refused: [.dueDate])
-        XCTAssertFalse(project.contains(.when))
-        XCTAssertEqual(MacTaskFields.rows(showsTitle: true, displayMode: .list, refused: []),
-                       MacTaskFields.rows(showsTitle: true, displayMode: .list))
+        let dateOnly = MacTaskFields.rows(showsTitle: true, refused: [.dueDate])
+        XCTAssertFalse(dateOnly.contains(.when))
+        XCTAssertTrue(dateOnly.contains(.priority))
+        XCTAssertEqual(MacTaskFields.rows(showsTitle: true, refused: []),
+                       MacTaskFields.rows(showsTitle: true))
     }
 
     /// `refused` also carries controls this editor has no row for. Folding one of those into
     /// `.when` — which "priority, else .when" did — hid the date row on a board that takes dates.
     func testAControlWithNoRowHidesNothing_AITD491() {
-        let all = MacTaskFields.rows(showsTitle: true, displayMode: .list)
-        XCTAssertEqual(MacTaskFields.rows(showsTitle: true, displayMode: .list, refused: [.privateTasks]), all)
-        let priorityOnly = MacTaskFields.rows(showsTitle: true, displayMode: .list,
+        let all = MacTaskFields.rows(showsTitle: true)
+        XCTAssertEqual(MacTaskFields.rows(showsTitle: true, refused: [.privateTasks]), all)
+        let priorityOnly = MacTaskFields.rows(showsTitle: true,
                                               refused: [.priority, .privateTasks])
         XCTAssertFalse(priorityOnly.contains(.priority))
         XCTAssertTrue(priorityOnly.contains(.when), "a refused private task hid the date row")
         // The popover is unchanged by a control it does not offer either.
-        XCTAssertEqual(MacLeadingPicker.sections(for: .list, refused: [.privateTasks]),
-                       MacLeadingPicker.sections(for: .list))
+        XCTAssertEqual(MacLeadingPicker.sections(refused: [.privateTasks]),
+                       MacLeadingPicker.sections())
     }
 
     /// The Mac list editor stops offering a default the list refuses (AITD-491).

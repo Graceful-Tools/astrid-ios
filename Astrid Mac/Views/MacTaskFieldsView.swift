@@ -21,9 +21,6 @@ struct MacTaskFieldsView: View {
 
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
-    /// Which layout to draw (task 729a190e). Observed rather than read once, so switching the
-    /// setting in Appearance redraws an open detail instead of waiting for it to be reopened.
-    @StateObject private var userSettings = UserSettingsService.shared
     /// One editor at a time, one save rule (55010e29).
     @StateObject private var editing = EditingSession()
     private static let titleEditor: EditorID = "mac.fields.title"
@@ -52,17 +49,9 @@ struct MacTaskFieldsView: View {
     /// The description reads as text until clicked (iOS/web parity).
     @State private var editingNotes = false
 
-    /// Resolved through `TaskDisplayMode(stored:)` rather than compared as a string, so a
-    /// null (every row written before the column existed) and an unknown value from a newer
-    /// build both land on the usable layout instead of an empty one.
-    private var displayMode: TaskDisplayMode {
-        TaskDisplayMode(stored: userSettings.settings.taskDisplayMode)
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: density.rowSpacing) {
             ForEach(Array(MacTaskFields.rows(showsTitle: showsTitle,
-                                             displayMode: displayMode,
                                              isInProject: isInProject,
                                              hasOccurrenceLinks: !occurrenceLinks.isEmpty,
                                              refused: TaskCapabilities.refused(

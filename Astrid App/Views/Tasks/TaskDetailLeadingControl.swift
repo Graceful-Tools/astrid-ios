@@ -8,7 +8,7 @@
 //  plus completion, which is what the checkbox always meant.
 //
 //  Behaviour is unchanged by the extraction. Which of the three things a tap does is decided by
-//  the SHARED `TaskLeadingControl.action(surface:kind:displayMode:)`, never here, so the row, the
+//  the SHARED `TaskLeadingControl.action(surface:kind:currentUserId:)`, never here, so the row, the
 //  board card, this screen and the Mac panel cannot answer it four different ways.
 
 import SwiftUI
@@ -29,11 +29,10 @@ struct TaskDetailLeadingControl: View {
 
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
-    /// Observed, so changing the mode in Appearance redraws an open detail rather than waiting
-    /// for it to be reopened.
-    @StateObject private var userSettings = UserSettingsService.shared
-
     @State private var showingPicker = false
+    /// The Complete button has been tapped on a task that is not yours and is asking first
+    /// (ADEV-70).
+    @State private var confirmingCompletion = false
 
     var body: some View {
         Button {
@@ -169,12 +168,9 @@ struct TaskDetailLeadingControl: View {
                 showLabel: false
             )
 
-            // Board state, in PROJECT mode only (task 729a190e) — the third thing the quick
-            // changer holds. List mode does not offer it: priority and assignee are rows of
-            // their own there, and a board column is a project idea. Offering it in both would
-            // rebuild the hybrid layout this setting exists to end.
-            if TaskLeadingControl.pickerShowsProjectState(displayMode: displayMode,
-                                                          surface: .detail,
+            // Board state, for someone else's task (AITD-375). Your own task's detail already
+            // has its priority and assignee as rows, and its board state as a row on a board.
+            if TaskLeadingControl.pickerShowsProjectState(surface: .detail,
                                                           assigneeId: assigneeId,
                                                           currentUserId: AuthManager.shared.currentUser?.id) {
                 Divider()
@@ -190,12 +186,27 @@ struct TaskDetailLeadingControl: View {
 
             Divider()
 
+            if confirmingCompletion {
+                CompletionConfirmationPrompt(
+                    assigneeLabel: CompletionConfirmation.assigneeLabel(for: task, assigneeId: assigneeId),
+                    onCancel: { confirmingCompletion = false },
+                    onConfirm: {
+                        confirmingCompletion = false
+                        showingPicker = false
+                        onToggleCompletion()
+                    })
+            } else {
             Button {
+                // A task that is not yours — someone else's or nobody's — asks first (ADEV-70,
+                // web ADEV-56). Reopening never asks.
+                if TaskLeadingControl.completionNeedsConfirmation(
+                    assigneeId: assigneeId,
+                    currentUserId: AuthManager.shared.currentUser?.id,
+                    completed: isCompleted) {
+                    confirmingCompletion = true
+                    return
+                }
                 showingPicker = false
-                // Completes, whoever it belongs to (AITD-381). Someone else's task cannot reach
-                // this button by accident — the tap that opened this popover is the one that used
-                // to complete it — so a sheet repeating the question was a step that only ever
-                // got tapped through.
                 onToggleCompletion()
             } label: {
                 Label(isCompleted ? NSLocalizedString("mac.mark_incomplete", comment: "")
@@ -209,21 +220,18 @@ struct TaskDetailLeadingControl: View {
                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
             }
             .buttonStyle(.plain)
+            }
         }
         .padding(Theme.spacing16)
         .frame(width: 320)
+        .onDisappear { confirmingCompletion = false }
     }
 
     // MARK: - The shared rules, asked rather than spelled
 
-    private var displayMode: TaskDisplayMode {
-        TaskDisplayMode(stored: userSettings.settings.taskDisplayMode)
-    }
-
     private var leadingKind: TaskLeadingControl {
         TaskLeadingControl.kind(assigneeId: assigneeId,
-                                currentUserId: AuthManager.shared.currentUser?.id,
-                                displayMode: displayMode)
+                                currentUserId: AuthManager.shared.currentUser?.id)
     }
 
     /// What tapping does here: complete, open the picker, or ask first.
@@ -234,7 +242,6 @@ struct TaskDetailLeadingControl: View {
     private var leadingControlAction: TaskLeadingControlAction {
         TaskLeadingControl.action(surface: .detail,
                                   kind: leadingKind,
-                                  displayMode: displayMode,
                                   currentUserId: AuthManager.shared.currentUser?.id)
     }
 

@@ -14,10 +14,9 @@ nonisolated struct UserSettings: Codable {
     /// How subtasks display: "indented" (in lists, indented under their parent —
     /// default) | "under_parent" (only inside the parent task's detail).
     var subtaskDisplay: String?
-    /// Which task-detail design to draw: "list" | "project". Nullable, and null is not a third
-    /// mode — resolve it through `TaskDisplayMode(stored:)` rather than comparing the string
-    /// (task 8ef7d89d).
-    var taskDisplayMode: String?
+    // No `taskDisplayMode`: the Project task layout is gone from every client (ADEV-70, web
+    // ADEV-56). The server keeps the column and still accepts the value for older builds;
+    // leaving it out of this struct is what keeps it from being decoded or echoed back on PATCH.
     // No `showListImages`: list images are permanent (AITD-560). The server still serves the
     // field, deprecated, until no client reads or writes it — leaving it out of this struct is
     // what keeps it from being decoded or echoed back on PATCH.
@@ -27,15 +26,13 @@ nonisolated struct UserSettings: Codable {
         emailToTaskEnabled: Bool? = true,
         defaultTaskDueOffset: String? = "1_week",
         defaultDueTime: String? = "17:00",
-        subtaskDisplay: String? = "indented",
-        taskDisplayMode: String? = nil
+        subtaskDisplay: String? = "indented"
     ) {
         self.smartTaskCreationEnabled = smartTaskCreationEnabled
         self.emailToTaskEnabled = emailToTaskEnabled
         self.defaultTaskDueOffset = defaultTaskDueOffset
         self.defaultDueTime = defaultDueTime
         self.subtaskDisplay = subtaskDisplay
-        self.taskDisplayMode = taskDisplayMode
     }
 
     /// Field-by-field merge of an update onto current settings.
@@ -51,7 +48,6 @@ nonisolated struct UserSettings: Codable {
         if let value = updates.defaultTaskDueOffset { merged.defaultTaskDueOffset = value }
         if let value = updates.defaultDueTime { merged.defaultDueTime = value }
         if let value = updates.subtaskDisplay { merged.subtaskDisplay = value }
-        if let value = updates.taskDisplayMode { merged.taskDisplayMode = value }
         return merged
     }
 }

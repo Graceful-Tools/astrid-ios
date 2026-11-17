@@ -14,21 +14,21 @@ import XCTest
 
 final class MacProjectStateRowTests: XCTestCase {
 
-    private func rows(_ mode: TaskDisplayMode, inProject: Bool) -> [MacTaskFieldRow] {
-        MacTaskFields.rows(showsTitle: true, displayMode: mode, isInProject: inProject)
+    private func rows(inProject: Bool) -> [MacTaskFieldRow] {
+        MacTaskFields.rows(showsTitle: true, isInProject: inProject)
     }
 
     // MARK: - When the row appears
 
     func testTheDefaultIsNoStateRow() {
         // A call site that has not been taught about projects must not sprout the row by accident.
-        XCTAssertFalse(MacTaskFields.rows(showsTitle: true, displayMode: .list).contains(.projectState))
+        XCTAssertFalse(MacTaskFields.rows(showsTitle: true).contains(.projectState))
     }
 
     // MARK: - Where it appears
 
     func testTheStateRowSitsAfterListsAndBeforeTheDescription() {
-        let ordered = rows(.list, inProject: true)
+        let ordered = rows(inProject: true)
 
         guard let lists = ordered.firstIndex(of: .lists),
               let state = ordered.firstIndex(of: .projectState),
@@ -39,46 +39,24 @@ final class MacProjectStateRowTests: XCTestCase {
         XCTAssertLessThan(state, description)
     }
 
-    func testTheSharedListModeOrderIsUntouched() {
+    func testTheSharedOrderIsUntouched() {
         // The Who/Date/Priority/Lists order is a cross-platform contract (task c8a1ff51). The new
         // row is appended after it, never interleaved.
-        let ordered = rows(.list, inProject: true)
+        let ordered = rows(inProject: true)
             .filter { ![.title, .projectState, .blockers, .description].contains($0) }
 
         XCTAssertEqual(ordered, TaskDetailFieldOrder.listMode.map(MacTaskFieldRow.init))
     }
 
-    func testAddingTheRowChangesNothingElseAboutListMode() {
+    func testAddingTheRowChangesNothingElse() {
         // `.blockers` is the other project-only row (AITD-430), pinned in MacTaskBlockersRowTests.
-        let withState = rows(.list, inProject: true).filter { $0 != .projectState && $0 != .blockers }
+        let withState = rows(inProject: true).filter { $0 != .projectState && $0 != .blockers }
 
-        XCTAssertEqual(withState, rows(.list, inProject: false))
+        XCTAssertEqual(withState, rows(inProject: false))
     }
 
-    func testProjectModeShowsTheStateRowAfterLists_AITD555() {
-        // "[mac] board status is not in task details should be." The project-mode detail left
-        // state to the leading control's popover, so nothing on the pane said which column the
-        // task was in.
-        let ordered = rows(.project, inProject: true)
 
-        guard let lists = ordered.firstIndex(of: .lists),
-              let state = ordered.firstIndex(of: .projectState),
-              let description = ordered.firstIndex(of: .description) else {
-            return XCTFail("Expected lists, state and description rows, got \(ordered)")
-        }
-        XCTAssertLessThan(lists, state)
-        XCTAssertLessThan(state, description)
-    }
 
-    func testProjectModeHasNoStateRowOffABoard_AITD555() {
-        XCTAssertFalse(rows(.project, inProject: false).contains(.projectState))
-    }
-
-    func testTheBoardCardEditorDoesNotRepeatTheColumnItIsDrawnIn_AITD555() {
-        // The inline card editor sits inside the column; a row naming that column says it twice.
-        XCTAssertFalse(MacTaskFields.rows(showsTitle: false, displayMode: .project, isInProject: true)
-            .contains(.projectState))
-    }
 
     func testTheStateRowIsEditableLikeEveryOtherRow() {
         // The Lists row shipped read-only once; a field the user can see and not change is the bug.

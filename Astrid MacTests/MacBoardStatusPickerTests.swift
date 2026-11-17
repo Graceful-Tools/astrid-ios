@@ -23,20 +23,19 @@ final class MacBoardStatusPickerTests: XCTestCase {
     /// A "status picker" that lists no statuses is not one. The board column section is what
     /// makes the popover answer the ask, so it must be there in BOTH modes on a card — list
     /// mode omits it in the detail panel on purpose, and that omission leaked onto the board.
-    func testTheBoardCardPickerOffersStatusesInBothModes() {
-        for mode in TaskDisplayMode.allCases {
+    func testTheBoardCardPickerOffersStatuses() {
+        do {
             XCTAssertTrue(
-                MacLeadingPicker.sections(for: mode, surface: .boardCard).contains(.projectState),
-                "A board card's picker must offer the board's statuses in \(mode)")
+                MacLeadingPicker.sections(surface: .boardCard).contains(.projectState),
+                "A board card's picker must offer the board's statuses")
         }
     }
 
     /// Completing does not disappear when the picker gains statuses — it stays an explicit
     /// action in the popover, which is the whole reason taking it off the click is safe.
     func testTheBoardCardPickerStillOffersCompletion() {
-        for mode in TaskDisplayMode.allCases {
-            XCTAssertTrue(MacLeadingPicker.sections(for: mode, surface: .boardCard).contains(.complete),
-                          "\(mode)")
+        do {
+            XCTAssertTrue(MacLeadingPicker.sections(surface: .boardCard).contains(.complete))
         }
     }
 
@@ -45,15 +44,15 @@ final class MacBoardStatusPickerTests: XCTestCase {
     /// The detail panel's list-mode popover still leaves board state out for YOUR OWN task — a
     /// board column is a project idea, and offering it in the list layout is the hybrid the
     /// setting exists to end.
-    func testTheDetailPickerStillOmitsStatusesInListMode() {
-        XCTAssertFalse(MacLeadingPicker.sections(for: .list, surface: .detail).contains(.projectState))
+    func testTheDetailPickerStillOmitsStatuses() {
+        XCTAssertFalse(MacLeadingPicker.sections(surface: .detail).contains(.projectState))
     }
 
     /// Someone else's task gets the full project-mode set, on the Mac as on the phone
     /// (AITD-375): when the popover is the only thing a click gives you, it carries everything.
-    func testSomeoneElsesTaskGetsBoardStateEvenInListMode() {
+    func testSomeoneElsesTaskGetsBoardStateInTheDetail() {
         XCTAssertEqual(
-            MacLeadingPicker.sections(for: .list, surface: .detail, assigneeId: "them", currentUserId: "me"),
+            MacLeadingPicker.sections(surface: .detail, assigneeId: "them", currentUserId: "me"),
             [.priority, .assignee, .projectState, .complete])
     }
 }
