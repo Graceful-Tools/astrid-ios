@@ -7,12 +7,12 @@ import XCTest
 
 final class MacAssigneeTests: XCTestCase {
 
-    /// PROJECT mode shows YOUR face too (task 132d7b3f). This helper used to spell the rule
-    /// itself — "assigned, and not to me" — so the mode could not reach it; it now delegates
-    /// to the shared `TaskLeadingControl`, and this is the case that proves the delegation is
-    /// real rather than a rename.
-    func testProjectModeShowsYourOwnFace() {
-        XCTAssertTrue(MacAssignee.showsAvatar(assigneeId: "me", currentUserId: "me", displayMode: .project))
+    /// Delegates to the shared `TaskLeadingControl`: your own task is the checkbox, someone
+    /// else's is their face, nobody's is the "U" (ADEV-70 removed the Project layout's own face).
+    func testOnlySomeoneElsesTaskShowsAFace() {
+        XCTAssertFalse(MacAssignee.showsAvatar(assigneeId: "me", currentUserId: "me"))
+        XCTAssertTrue(MacAssignee.showsAvatar(assigneeId: "them", currentUserId: "me"))
+        XCTAssertFalse(MacAssignee.showsAvatar(assigneeId: nil, currentUserId: "me"))
     }
 
 }

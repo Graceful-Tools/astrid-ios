@@ -25,9 +25,6 @@ struct TaskDetailViewNew: View {
     var collapsesInPlace: Bool = false
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
-    /// Which layout to draw (task 729a190e). Observed, so changing it in Appearance redraws
-    /// an open detail rather than waiting for it to be reopened.
-    @StateObject private var userSettings = UserSettingsService.shared
     @StateObject private var notificationPromptManager = NotificationPromptManager.shared
 
     // Editable state
@@ -315,18 +312,13 @@ struct TaskDetailViewNew: View {
                 Divider()
                     .background(palette.border)
 
-                // 1a. WHO, in LIST mode only (task 729a190e).
-                //
-                // Project mode keeps priority and assignee behind the checkbox (42013da7):
-                // that control already depicts both, so a row repeating them spends vertical
-                // space the description wants. List mode is the other bargain — the rows are
-                // the point of it.
+                // 1a. WHO (task 729a190e).
                 //
                 // Who first, then Date, then Priority, then Lists — the order stated once in
                 // `TaskDetailFieldOrder.listMode` and shared with the Mac and web, because the
                 // ask was continuity across them (task c8a1ff51). Priority used to be first
                 // here; it now sits below the When row.
-                if displayMode.showsSeparateAssigneeAndPriorityRows && !isReadOnly {
+                if !isReadOnly {
                     TwoColumnRow(label: NSLocalizedString("tasks.assignee", comment: ""),
                                  icon: "person.crop.circle") {
                         InlineAssigneePicker(
@@ -411,12 +403,12 @@ struct TaskDetailViewNew: View {
 
                 }
 
-                // 6. PRIORITY, in LIST mode only — after the Date row, before Lists
+                // 6. PRIORITY — after the Date row, before Lists
                 // (task c8a1ff51). Marked with "!!!" rather than a flag: the marks are the
                 // vocabulary the app already uses for priority in rows, quick add and the
                 // board, so the row is recognisable without reading its label, and the flag
                 // only ever said "some field about importance".
-                if displayMode.showsSeparateAssigneeAndPriorityRows && !isReadOnly && TaskCapabilities.allows(.priority, listIds: editedListIds, lists: listService.lists) {
+                if !isReadOnly && TaskCapabilities.allows(.priority, listIds: editedListIds, lists: listService.lists) {
                     TwoColumnRow(label: NSLocalizedString("tasks.priority", comment: ""),
                                  glyph: PriorityGlyph.rowIcon) {
                         // The SAME picker the popover uses, so the two layouts cannot drift
@@ -1395,14 +1387,6 @@ struct TaskDetailViewNew: View {
         }
     }
 
-    /// The assignee to depict — the full object when we have it, otherwise a minimal User built
-    /// from the id so UserImageCache can still resolve a photo (same as TaskRowView).
-    /// Resolved rather than string-compared, so null and an unknown value from a newer build
-    /// both land on the usable layout instead of an empty one.
-    private var displayMode: TaskDisplayMode {
-        TaskDisplayMode(stored: userSettings.settings.taskDisplayMode)
-    }
-
     /// Whether task details carry a board-state row (AITD-332).
     ///
     /// Both halves are shared rules rather than conditions written here: `isTaskInProject` is the
@@ -1410,8 +1394,7 @@ struct TaskDetailViewNew: View {
     /// is the Mac's rule for when a detail view shows the row. Neither is restated, so the phone,
     /// the Mac and the board cannot drift into three answers.
     private var showsProjectStateRow: Bool {
-        TaskDetailProjectStateRow.isVisible(displayMode: displayMode,
-                                            isInProject: isTaskInProject(task, lists: listService.lists),
+        TaskDetailProjectStateRow.isVisible(isInProject: isTaskInProject(task, lists: listService.lists),
                                             isReadOnly: isReadOnly)
     }
 

@@ -99,6 +99,8 @@
 "tasks.copy_task" = "Копировать задачу";
 "tasks.share_task" = "Поделиться задачей";
 "tasks.delete_confirm" = "Удалить эту задачу?";
+"tasks.confirm_complete_title" = "Завершить эту задачу?";
+"tasks.confirm_complete_unassigned" = "Никому не назначено";
 "tasks.remove_from_board" = "Убрать с доски";
 "tasks.remove_from_board_confirm" = "Убрать эту задачу с доски? Задача на GitHub останется.";
 "tasks.loading" = "Загрузка задач...";
@@ -1244,10 +1246,6 @@
 "subtasks.outdent_drop_target" = "Отпустите здесь, чтобы переместить на уровень выше";
 
 /* Task-detail layout preference (task 96727335) — shown only when projects are enabled. */
-"settings.appearance.task_details" = "Детали задачи";
-"settings.task_display.list" = "Список";
-"settings.task_display.project" = "Проект";
-"settings.appearance.task_details_footer" = "Выберите оформление деталей задачи. «Список» отводит приоритету и исполнителю отдельные строки. «Проект» компактный, и флажок открывает выбор вместо завершения задачи.";
 
 /* AI agent runtimes (task 920155a6) */
 "settings.agents.title" = "AI Agents";

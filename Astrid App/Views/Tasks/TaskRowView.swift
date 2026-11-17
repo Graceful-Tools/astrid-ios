@@ -6,20 +6,12 @@ struct TaskRowView: View {
     @Environment(\.selectedRowReporter) private var selectedRowReporter
     @AppStorage("themeMode") private var themeMode: String = "ocean"
     @EnvironmentObject var authManager: AuthManager
-    /// The row follows the display mode too (task 132d7b3f) — the task box in rows and boards
-    /// behaves like the one in task details.
-    @StateObject private var userSettings = UserSettingsService.shared
     /// The lists decide whether the task is on a board at all (the status pill, AITD-613).
     @ObservedObject private var listService = ListService.shared
 
-    private var displayMode: TaskDisplayMode {
-        TaskDisplayMode(stored: userSettings.settings.taskDisplayMode)
-    }
-
     private var leadingKind: TaskLeadingControl {
         TaskLeadingControl.kind(assigneeId: task.assigneeId,
-                                currentUserId: authManager.currentUser?.id,
-                                displayMode: displayMode)
+                                currentUserId: authManager.currentUser?.id)
     }
 
     /// Whether the leading control is a face rather than a checkbox or the unassigned mark.
@@ -28,18 +20,15 @@ struct TaskRowView: View {
         return false
     }
 
-    /// In project mode the leading control opens the quick changer instead of completing —
-    /// the same thing it does in task details (task 132d7b3f). Rows and boards were the
-    /// surfaces where the same control still meant something else.
+    /// Whether the leading control opens the quick changer instead of completing.
     ///
     /// Asked of the SHARED rule rather than spelled here, because a board card and a list row
     /// answer it differently: this view draws BOTH (the board's cards are this row inside card
-    /// chrome), so a single `displayMode` question gave list mode's "the checkbox completes"
-    /// to board cards too — the trapdoor task 9be8cb1b removed from the board (task f9d7ed42).
+    /// chrome), and "the checkbox completes" on a board card is the trapdoor task 9be8cb1b
+    /// removed from the board (task f9d7ed42).
     private var opensQuickChanger: Bool {
         TaskLeadingControl.action(surface: surface,
                                   kind: leadingKind,
-                                  displayMode: displayMode,
                                   currentUserId: authManager.currentUser?.id) == .openPicker
     }
 

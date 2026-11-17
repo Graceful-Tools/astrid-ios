@@ -99,6 +99,8 @@
 "tasks.copy_task" = "复制任务";
 "tasks.share_task" = "分享任务";
 "tasks.delete_confirm" = "删除此任务？";
+"tasks.confirm_complete_title" = "完成此任务？";
+"tasks.confirm_complete_unassigned" = "未指派给任何人";
 "tasks.remove_from_board" = "从看板移除";
 "tasks.remove_from_board_confirm" = "要从看板移除此任务吗？GitHub 议题会保留。";
 "tasks.loading" = "正在加载任务...";
@@ -1244,10 +1246,6 @@
 "subtasks.outdent_drop_target" = "拖放到此处以向外移动一级";
 
 /* Task-detail layout preference (task 96727335) — shown only when projects are enabled. */
-"settings.appearance.task_details" = "任务详情";
-"settings.task_display.list" = "列表";
-"settings.task_display.project" = "项目";
-"settings.appearance.task_details_footer" = "选择任务详情的布局。列表为优先级和负责人各设一行。项目更紧凑，勾选框会打开选择器而不是完成任务。";
 
 /* AI agent runtimes (task 920155a6) */
 "settings.agents.title" = "AI Agents";

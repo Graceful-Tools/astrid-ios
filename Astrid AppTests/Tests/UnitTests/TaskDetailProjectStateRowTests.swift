@@ -13,56 +13,36 @@ import XCTest
 
 final class TaskDetailProjectStateRowTests: XCTestCase {
 
-    private func isVisible(_ mode: TaskDisplayMode,
-                           inProject: Bool,
-                           readOnly: Bool = false) -> Bool {
-        TaskDetailProjectStateRow.isVisible(displayMode: mode,
-                                            isInProject: inProject,
-                                            isReadOnly: readOnly)
+    private func isVisible(inProject: Bool, readOnly: Bool = false) -> Bool {
+        TaskDetailProjectStateRow.isVisible(isInProject: inProject, isReadOnly: readOnly)
     }
 
     // MARK: - When the row appears
 
-    func testListModeShowsTheStateRowForATaskInAProject() {
-        XCTAssertTrue(isVisible(.list, inProject: true))
+    func testShowsTheStateRowForATaskInAProject() {
+        XCTAssertTrue(isVisible(inProject: true))
     }
 
-    func testListModeHasNoStateRowForATaskWithNoBoardColumn() {
-        // A row for a state the task cannot have IS the hybrid layout the setting exists to end.
-        XCTAssertFalse(isVisible(.list, inProject: false))
-    }
-
-    func testProjectModeShowsTheStateRowToo_AITD555() {
-        // "[mac] board status is not in task details should be." Project mode used to leave state
-        // to the leading control's quick changer (task 729a190e) — but that popover is a MOVER you
-        // have to open, and the control itself depicts who and priority, never the column. So the
-        // detail never said where the task was, in the mode built for boards.
-        XCTAssertTrue(isVisible(.project, inProject: true))
-    }
-
-    func testProjectModeStillHasNoStateRowOffABoard_AITD555() {
-        XCTAssertFalse(isVisible(.project, inProject: false))
+    func testHasNoStateRowForATaskWithNoBoardColumn() {
+        XCTAssertFalse(isVisible(inProject: false))
     }
 
     func testTheReadOnlyViewHasNoStateRow() {
         // The row is a MOVER, not a label — its chips write. It follows Who and Priority, which
         // are hidden rather than shown as controls a public-list viewer cannot use.
-        XCTAssertFalse(isVisible(.list, inProject: true, readOnly: true))
+        XCTAssertFalse(isVisible(inProject: true, readOnly: true))
     }
 
     // MARK: - The rule is one rule
 
-    func testEveryModeAndStateAgreesWithTheConjunction() {
+    func testEveryStateAgreesWithTheConjunction() {
         // Stated as the conjunction it is, so a later "just one more condition" at a call site
-        // shows up here as a failure rather than as a platform that quietly differs. The display
-        // mode is not part of it since AITD-555: a task on a board shows its column in both.
-        for mode in TaskDisplayMode.allCases {
-            for inProject in [true, false] {
-                for readOnly in [true, false] {
-                    XCTAssertEqual(isVisible(mode, inProject: inProject, readOnly: readOnly),
-                                   inProject && !readOnly,
-                                   "mode: \(mode), inProject: \(inProject), readOnly: \(readOnly)")
-                }
+        // shows up here as a failure rather than as a platform that quietly differs.
+        for inProject in [true, false] {
+            for readOnly in [true, false] {
+                XCTAssertEqual(isVisible(inProject: inProject, readOnly: readOnly),
+                               inProject && !readOnly,
+                               "inProject: \(inProject), readOnly: \(readOnly)")
             }
         }
     }

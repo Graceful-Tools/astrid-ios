@@ -13,16 +13,12 @@ enum MacAssignee {
     /// user OTHER than the current one — matches iOS/web.
     /// Delegates to the SHARED rule rather than restating it.
     ///
-    /// This was its own copy — "assigned, and not to me" — which is why project mode did not
-    /// reach it: there a task assigned to YOU shows your photo too (task 132d7b3f), and a rule
-    /// written out separately here could not know that. Two spellings of "whose face goes on
-    /// this task" is how the Mac and the phone start disagreeing about the same task.
+    /// Two spellings of "whose face goes on this task" is how the Mac and the phone start
+    /// disagreeing about the same task (task 132d7b3f).
     static func showsAvatar(assigneeId: String?,
-                            currentUserId: String?,
-                            displayMode: TaskDisplayMode) -> Bool {
+                            currentUserId: String?) -> Bool {
         if case .avatar = TaskLeadingControl.kind(assigneeId: assigneeId,
-                                                  currentUserId: currentUserId,
-                                                  displayMode: displayMode) { return true }
+                                                  currentUserId: currentUserId) { return true }
         return false
     }
 }

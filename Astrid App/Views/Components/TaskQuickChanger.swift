@@ -1,13 +1,9 @@
 //  TaskQuickChanger.swift
-//  The popover behind a task's leading control, in project mode (task 132d7b3f).
+//  The popover behind a task's leading control on a row or board card when a tap does not
+//  complete — a board card, someone else's task, nobody's task (task 132d7b3f, AITD-375/382).
 //
-//  Jon: "task box in rows and boards should also have same behavior as task box in task details
-//  when in project mode."
-//
-//  The detail screen already had this popover; rows and boards did not, so the same control
-//  meant one thing in one place and another everywhere else. This is that popover as a
-//  component, so "same behavior" is a shared view rather than a promise three call sites have
-//  to keep independently.
+//  The detail screen has the same popover; this is it as a component, so "same behavior" is a
+//  shared view rather than a promise three call sites have to keep independently.
 //
 //  SELF-CONTAINED ON PURPOSE. It takes a task and saves through `TaskService` itself, rather
 //  than taking four bindings and four callbacks. A row has no edit state to bind to — the
@@ -36,6 +32,8 @@ struct TaskQuickChanger: View {
     /// The assignee this popover has picked. Seeded from the task; the picker needs somewhere
     /// real to write, or its selection cannot move (task 1484ea4a).
     @State private var pickedAssigneeId: String?
+    /// Asking before completing a task that is not yours (ADEV-70).
+    @State private var confirmingCompletion = false
 
     init(task: Task, onDismiss: @escaping () -> Void) {
         self.task = task
@@ -85,12 +83,26 @@ struct TaskQuickChanger: View {
 
             Divider()
 
+            if confirmingCompletion {
+                CompletionConfirmationPrompt(
+                    assigneeLabel: CompletionConfirmation.assigneeLabel(for: task),
+                    onCancel: { confirmingCompletion = false },
+                    onConfirm: {
+                        confirmingCompletion = false
+                        onDismiss()
+                        complete()
+                    })
+            } else {
             Button {
-                // Completes, including someone else's task (AITD-381). THIS POPOVER is what a row
-                // offers instead of completing another person's task outright, so reaching this
-                // button already took a deliberate tap and then a second one on the only blue
-                // thing in it. A sheet asking "Complete this task?" on top of that was a third
-                // tap for a question answered twice — the blind confirm it was written to avoid.
+                // A task that is not yours — someone else's or nobody's — asks first (ADEV-70,
+                // web ADEV-56). Reopening never asks.
+                if TaskLeadingControl.completionNeedsConfirmation(
+                    assigneeId: task.assigneeId,
+                    currentUserId: AuthManager.shared.currentUser?.id,
+                    completed: task.completed) {
+                    confirmingCompletion = true
+                    return
+                }
                 onDismiss()
                 complete()
             } label: {
@@ -101,6 +113,7 @@ struct TaskQuickChanger: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
+            }
         }
         .padding(Theme.spacing16)
         .frame(width: 280)

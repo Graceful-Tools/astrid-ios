@@ -17,9 +17,8 @@ struct MacLeadingControlButton: View {
     let task: Task
     @Binding var priority: Task.Priority
     let members: [ListMember]
-    /// WHERE this control is drawn. Required rather than defaulted, for the same reason
-    /// `TaskLeadingControl.kind` requires the mode: the board and the panel disagree about
-    /// exactly one thing, and a default would let a new call site pick the panel's answer
+    /// WHERE this control is drawn. Required rather than defaulted: the board and the panel
+    /// disagree about exactly one thing, and a default would let a new call site pick the panel's answer
     /// silently — which is how the board came to complete tasks again (task f9d7ed42).
     let surface: TaskLeadingControlSurface
     let onPriority: (Task.Priority) -> Void
@@ -27,16 +26,12 @@ struct MacLeadingControlButton: View {
     let onToggleComplete: () -> Void
 
     @State private var isPresented = false
-    @StateObject private var userSettings = UserSettingsService.shared
+    /// The Complete button is asking first, for a task that is not yours (ADEV-70).
+    @State private var confirmingCompletion = false
 
     private var kind: TaskLeadingControl {
         TaskLeadingControl.kind(assigneeId: task.assigneeId,
-                                currentUserId: AuthManager.shared.userId,
-                                displayMode: displayMode)
-    }
-
-    private var displayMode: TaskDisplayMode {
-        TaskDisplayMode(stored: userSettings.settings.taskDisplayMode)
+                                currentUserId: AuthManager.shared.userId)
     }
 
     /// Asked of the SHARED rule rather than spelled here, so the board card, the list row and
@@ -48,7 +43,7 @@ struct MacLeadingControlButton: View {
     /// folded that third one silently back into "open the picker" — the Mac quietly doing
     /// something else than the phone for the same task, which is what sharing the rule prevents.
     private var tapAction: TaskLeadingControlAction {
-        TaskLeadingControl.action(surface: surface, kind: kind, displayMode: displayMode,
+        TaskLeadingControl.action(surface: surface, kind: kind,
                                   currentUserId: AuthManager.shared.userId)
     }
 
@@ -119,7 +114,7 @@ struct MacLeadingControlButton: View {
 
     @ViewBuilder private var picker: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ForEach(Array(MacLeadingPicker.sections(for: displayMode, surface: surface,
+            ForEach(Array(MacLeadingPicker.sections(surface: surface,
                                                     assigneeId: task.assigneeId,
                                                     currentUserId: AuthManager.shared.userId,
                                                     refused: refusedControls)
@@ -159,12 +154,27 @@ struct MacLeadingControlButton: View {
                     }
                 case .complete:
                     Divider()
+                    if confirmingCompletion {
+                        CompletionConfirmationPrompt(
+                            assigneeLabel: CompletionConfirmation.assigneeLabel(for: task),
+                            onCancel: { confirmingCompletion = false },
+                            onConfirm: {
+                                confirmingCompletion = false
+                                isPresented = false
+                                onToggleComplete()
+                            })
+                    } else {
                     Button {
+                        // A task that is not yours — someone else's or nobody's — asks first
+                        // (ADEV-70, web ADEV-56). Reopening never asks.
+                        if TaskLeadingControl.completionNeedsConfirmation(
+                            assigneeId: task.assigneeId,
+                            currentUserId: AuthManager.shared.userId,
+                            completed: task.completed) {
+                            confirmingCompletion = true
+                            return
+                        }
                         isPresented = false
-                        // Completes, whoever it belongs to (AITD-381). The click that opened this
-                        // popover is the one that would otherwise have completed the task, so the
-                        // popover is already the deliberate step and a sheet on top of its one
-                        // button asked a question that had been answered twice.
                         onToggleComplete()
                     } label: {
                         Label(task.completed
@@ -175,11 +185,13 @@ struct MacLeadingControlButton: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .macPointingHand()
+                    }
                 }
             }
         }
         .padding(12)
         .frame(width: 240)
+        .onDisappear { confirmingCompletion = false }
     }
 }
 

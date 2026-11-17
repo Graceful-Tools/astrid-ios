@@ -21,28 +21,18 @@ enum TaskLeadingControl: Equatable {
     /// then SEE on the task.
     static var unassignedGlyph: String { AssigneeResolver.unassignedGlyph }
 
-    /// `displayMode` is required rather than defaulted (task 132d7b3f). The two modes disagree
-    /// about exactly one case — a task assigned to YOU — and a default would let a new call
-    /// site pick the old answer silently, which is the bug this parameter exists to prevent.
+    /// Your own task is the checkbox, because the checkbox is how you complete it. Someone
+    /// else's shows their photo; nobody's shows the "U".
     ///
-    /// LIST mode: your own task is the checkbox, because in list mode the checkbox is how you
-    /// complete it.
-    ///
-    /// PROJECT mode: your own task shows YOUR photo, exactly as someone else's shows theirs.
-    /// The mode's own documentation has promised this since it was added — "tasks assigned to
-    /// you also show your profile photo" — and it costs nothing there, because in project mode
-    /// the control opens the quick changer rather than completing, so it was never a checkbox
-    /// in the sense of "click to finish". A board where every card you own is a bare checkbox
-    /// and everyone else's is a face makes your own work the only thing you cannot see at a
-    /// glance.
+    /// There used to be a second answer for your own task — your photo — in the Project task
+    /// layout (task 132d7b3f). That layout is gone from every client (ADEV-70, web ADEV-56).
     ///
     /// Asked of astrid-core (`rows::LeadingControl::for_task`, AITD-622), which shares the rule
     /// with web and Windows. The surface does not change the mark, only what tapping it does.
     static func kind(assigneeId: String?,
-                     currentUserId: String?,
-                     displayMode: TaskDisplayMode) -> TaskLeadingControl {
+                     currentUserId: String?) -> TaskLeadingControl {
         let answer = CoreRules.leadingControl(assigneeId: assigneeId, currentUserId: currentUserId,
-                                              displayMode: displayMode.wireValue, surface: "listRow")
+                                              displayMode: CoreTaskLayout.wireValue, surface: "listRow")
         switch answer?.kind {
         case .checkbox: return .checkbox
         case .avatar(let id): return .avatar(id)
@@ -66,15 +56,18 @@ enum TaskLeadingControl: Equatable {
     }
 }
 
+/// astrid-core's rules still take a task layout (`list` / `project`) until the core cleanup
+/// ("[core] Drop the project display mode from the shared rules") lands. The apps only ever have
+/// the list layout now (ADEV-70), so this is the one place that names it.
+enum CoreTaskLayout {
+    static let wireValue = "list"
+}
+
 /// WHERE a task's leading control is being drawn.
 ///
-/// The rule below used to ask ONE question — which Appearance mode is this? — and a mode
-/// cannot tell a board card from a list row. So `list` mode, whose whole point is that the
-/// checkbox finishes the task, handed that behaviour to board cards as well, which is exactly
-/// the trapdoor task 9be8cb1b removed from the board: the click that reads as "pick this one"
-/// finished the task, with no way back but hunting it down in the Done column (task f9d7ed42).
-///
-/// A surface is something the call site knows and the mode never can.
+/// The rule below once asked only which Appearance mode was on, and a mode cannot tell a board
+/// card from a list row: the checkbox finished tasks on board cards too, the trapdoor task
+/// 9be8cb1b removed from the board (task f9d7ed42). A surface is something the call site knows.
 enum TaskLeadingControlSurface: Equatable {
     /// A card in a project board column.
     case boardCard
@@ -97,9 +90,9 @@ enum TaskLeadingControlSurface: Equatable {
 ///
 /// Two answers, not three. AITD-363 briefly added a `confirmCompletion` tap for someone else's
 /// task in task details; AITD-375 replaced it with the options popover on every surface, moving
-/// the confirmation onto that popover's Complete button, and AITD-381 dropped the confirmation
-/// entirely — the popover was already the deliberate step it was asking for. A tap either
-/// finishes the task or offers you the choices.
+/// the confirmation onto that popover's Complete button, and AITD-381 dropped it. ADEV-70 put it
+/// back on the Complete button, for any task that is not yours (`completionNeedsConfirmation`).
+/// A tap either finishes the task or offers you the choices.
 enum TaskLeadingControlAction: Equatable {
     case complete
     case openPicker
@@ -109,17 +102,15 @@ extension TaskLeadingControl {
 
     /// Complete the task, or open the picker?
     ///
-    /// A BOARD CARD always opens the picker, in both modes. A board is where a task has a
+    /// A BOARD CARD always opens the picker. A board is where a task has a
     /// status, so the control is how you set it — and completing outright from a card is the
     /// trapdoor described above (tasks 9be8cb1b, f9d7ed42).
     ///
     /// A LIST ROW completes, because that is what a checkbox means when the task is not on a
-    /// board — unless project mode has turned the control into the quick changer everywhere
-    /// (task 132d7b3f).
+    /// board.
     ///
     /// SOMEONE ELSE'S TASK OPENS THE POPOVER, EVERYWHERE (AITD-375). Jon: "when not yours ...
-    /// it should give the popover to show assignment, complete, priority and status options just
-    /// like in project mode."
+    /// it should give the popover to show assignment, complete, priority and status options."
     ///
     /// This is checked before the surface, because it holds on all of them, and it settles two
     /// things that used to disagree. A list ROW completed another person's task outright on a
@@ -147,14 +138,13 @@ extension TaskLeadingControl {
     /// on the phone — the same reason `kind` is shared.
     static func action(surface: TaskLeadingControlSurface,
                        kind: TaskLeadingControl,
-                       displayMode: TaskDisplayMode,
                        currentUserId: String?) -> TaskLeadingControlAction {
         // Asked of astrid-core (`rows::LeadingControl::action`, AITD-622), which has followed
         // exactly this rule since core e0d8ce7 (AWTD2-214, CONTRACTS D62). A failed answer opens
         // the picker: it cannot finish a task by accident, and completion is on the picker.
         let answer = CoreRules.leadingControl(assigneeId: kind.assigneeId(currentUserId: currentUserId),
                                               currentUserId: currentUserId,
-                                              displayMode: displayMode.wireValue,
+                                              displayMode: CoreTaskLayout.wireValue,
                                               surface: surface.wireValue)
         return answer?.action == .complete ? .complete : .openPicker
     }
@@ -162,8 +152,7 @@ extension TaskLeadingControl {
     /// Is this control showing a task that belongs to somebody else?
     ///
     /// Asked of the KIND, so it cannot disagree with the mark on screen — `.avatar` already
-    /// carries whose face it is. Your own task in project mode is an avatar too (task 132d7b3f),
-    /// which is exactly why "is it an avatar" is not the same question as "is it theirs".
+    /// carries whose face it is.
     ///
     /// An unknown current user counts as someone else's: we cannot show it is yours, and the
     /// safe answer is the one that asks first.
@@ -174,33 +163,47 @@ extension TaskLeadingControl {
 
     /// Does this task belong to somebody else, asked of the raw ids?
     ///
-    /// Was `completionNeedsConfirmation` until AITD-381. It once gated a confirmation sheet on
-    /// the popover's Complete button — Jon, AITD-375: "when not yours, always confirm before
-    /// completing" — and that sheet is gone: the popover IS the deliberate step now, because
-    /// `action` above sends someone else's task there on every surface instead of completing on a
-    /// tap. Asking again on the one button inside it was asking a question already answered
-    /// twice. What survives is the question itself, which still decides what the popover carries.
+    /// Decides the MARK and what the options popover carries. It is deliberately not the
+    /// completion-confirmation question: an unassigned task is nobody else's here, but completing
+    /// it still asks first (`completionNeedsConfirmation`, ADEV-70).
     ///
     /// Takes the raw ids rather than a `kind`, because the thing asking is not a leading control
-    /// and has no mark to ask about — and because in project mode your own task IS an avatar, so
-    /// a kind-shaped question would answer "someone else's" about your own work.
+    /// and has no mark to ask about.
     static func isSomeoneElsesTask(assigneeId: String?, currentUserId: String?) -> Bool {
         // Asked of astrid-core (`leadingPicker`, AWTD2-216; AITD-622). Nobody's task is nobody
         // else's. If the core cannot answer, an assigned task counts as someone else's: we cannot
         // show it is yours, and the safe answer is the one that asks first.
         guard let assigneeId, !assigneeId.isEmpty else { return false }
-        return CoreRules.leadingPicker(displayMode: TaskDisplayMode.list.wireValue,
+        return CoreRules.leadingPicker(displayMode: CoreTaskLayout.wireValue,
                                        surface: TaskLeadingControlSurface.listRow.wireValue,
                                        assigneeId: assigneeId,
                                        currentUserId: currentUserId)?.isSomeoneElsesTask ?? true
     }
 
+    /// Does completing this task ask "Complete this task?" first? (ADEV-70, web ADEV-56)
+    ///
+    /// IT IS NOT YOURS — that is the whole rule. Jon: "show confirmation before completing a task
+    /// that isn't [assigned to me] (including unassigned)." Mirrors `completionNeedsConfirmation`
+    /// in astrid-web `lib/task-leading-control.ts`.
+    ///
+    /// - Unassigned (`nil` or `""`) asks. That is the difference from `isSomeoneElsesTask`, which
+    ///   still calls nobody's task nobody else's for the mark and the popover.
+    /// - An unknown viewer asks: we cannot show the task is yours.
+    /// - REOPENING never asks (`completed` is the task's state now). Undoing a completion takes
+    ///   nothing away from anyone.
+    static func completionNeedsConfirmation(assigneeId: String?,
+                                            currentUserId: String?,
+                                            completed: Bool) -> Bool {
+        if completed { return false }
+        guard let currentUserId, !currentUserId.isEmpty else { return true }
+        return assigneeId != currentUserId
+    }
+
     /// Does the options popover carry the board-state section?
     ///
-    /// Someone else's task gets the full set — "just like in project mode" (AITD-375). The list
-    /// mode omission it overrides is an argument about the DETAIL panel's own layout, where
-    /// priority and assignee are already rows of their own; it was never an argument about what
-    /// the popover should offer when the popover is the only thing you get.
+    /// Someone else's task gets the full set (AITD-375). The detail panel otherwise omits it
+    /// because priority and assignee are already rows of their own there; that was never an
+    /// argument about what the popover should offer when the popover is the only thing you get.
     ///
     /// Shared so the Mac's `MacLeadingPicker` and the phone's popovers cannot offer different
     /// choices for the same task.
@@ -208,11 +211,10 @@ extension TaskLeadingControl {
     /// Asked of astrid-core (`leadingPicker`, AWTD2-216; AITD-622) with the raw ids, so "is it
     /// someone else's" is decided by the same rule as `isSomeoneElsesTask`. A failed answer offers
     /// the full set: an extra section is harmless, a missing one hides the board state.
-    static func pickerShowsProjectState(displayMode: TaskDisplayMode,
-                                        surface: TaskLeadingControlSurface,
+    static func pickerShowsProjectState(surface: TaskLeadingControlSurface,
                                         assigneeId: String?,
                                         currentUserId: String?) -> Bool {
-        CoreRules.leadingPicker(displayMode: displayMode.wireValue, surface: surface.wireValue,
+        CoreRules.leadingPicker(displayMode: CoreTaskLayout.wireValue, surface: surface.wireValue,
                                 assigneeId: assigneeId,
                                 currentUserId: currentUserId)?.pickerShowsProjectState ?? true
     }

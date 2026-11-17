@@ -6,6 +6,7 @@
 #if os(macOS)
 import SwiftUI
 import Combine
+import AppKit
 
 final class MacAppModel: ObservableObject {
     static let shared = MacAppModel()
@@ -176,6 +177,22 @@ final class MacAppModel: ObservableObject {
     @MainActor func completeSelectedTasks() {
         let ids = selectedTaskIds
         guard !ids.isEmpty else { return }
+        // A task that is not yours — someone else's or nobody's — asks first (ADEV-70), as web's
+        // complete-task shortcut does. One question for the selection, naming the first such task.
+        let selected = TaskService.shared.tasks.filter { ids.contains($0.id) }
+        if let first = selected.first(where: {
+            TaskLeadingControl.completionNeedsConfirmation(assigneeId: $0.assigneeId,
+                                                           currentUserId: AuthManager.shared.userId,
+                                                           completed: $0.completed)
+        }) {
+            let alert = NSAlert()
+            alert.messageText = CompletionConfirmation.title
+            alert.informativeText = CompletionConfirmation.message(
+                assigneeLabel: CompletionConfirmation.assigneeLabel(for: first))
+            alert.addButton(withTitle: CompletionConfirmation.confirmLabel)
+            alert.addButton(withTitle: CompletionConfirmation.cancelLabel)
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+        }
         let byId = Dictionary(uniqueKeysWithValues: TaskService.shared.tasks
             .filter { ids.contains($0.id) }.map { ($0.id, $0.completed) })
         MacUndoCoordinator.shared.record(MacUndo.completeStep(previous: byId, to: true))

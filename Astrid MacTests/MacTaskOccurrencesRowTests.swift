@@ -8,25 +8,22 @@ import XCTest
 
 final class MacTaskOccurrencesRowTests: XCTestCase {
 
-    private func rows(_ mode: TaskDisplayMode, links: Bool) -> [MacTaskFieldRow] {
-        MacTaskFields.rows(showsTitle: true, displayMode: mode, isInProject: true,
+    private func rows(links: Bool) -> [MacTaskFieldRow] {
+        MacTaskFields.rows(showsTitle: true, isInProject: true,
                            hasOccurrenceLinks: links)
     }
 
-    func testShownInBothDisplayModesWhenTheTaskHasALink() {
-        XCTAssertTrue(rows(.list, links: true).contains(.occurrences))
-        XCTAssertTrue(rows(.project, links: true).contains(.occurrences))
+    func testShownWhenTheTaskHasALink() {
+        XCTAssertTrue(rows(links: true).contains(.occurrences))
     }
 
     func testAbsentForATaskWithNoLinks() {
-        XCTAssertFalse(rows(.list, links: false).contains(.occurrences))
-        XCTAssertFalse(rows(.project, links: false).contains(.occurrences))
-        XCTAssertFalse(MacTaskFields.rows(showsTitle: true, displayMode: .list).contains(.occurrences))
+        XCTAssertFalse(rows(links: false).contains(.occurrences))
+        XCTAssertFalse(MacTaskFields.rows(showsTitle: true).contains(.occurrences))
     }
 
     func testSitsAfterWaitingOnAndBeforeTheDescription() {
-        // Board state sits after Lists in project mode too since AITD-555.
-        XCTAssertEqual(rows(.project, links: true),
-                       [.title, .when, .lists, .projectState, .blockers, .occurrences, .description])
+        let ordered = rows(links: true)
+        XCTAssertEqual(Array(ordered.suffix(3)), [.blockers, .occurrences, .description])
     }
 }

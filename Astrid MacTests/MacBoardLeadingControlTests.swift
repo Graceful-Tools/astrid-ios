@@ -44,12 +44,12 @@ final class MacBoardLeadingControlTests: XCTestCase {
     /// now build different section lists — so check the promise against each of them rather
     /// than against whichever one happens to be the default.
     func testTheLeadingPickerStillOffersCompletion() {
-        for mode in TaskDisplayMode.allCases {
-            let sections = MacLeadingPicker.sections(for: mode)
+        do {
+            let sections = MacLeadingPicker.sections()
             XCTAssertTrue(sections.contains(.complete),
-                          "The popover must keep an explicit Complete action in \(mode)")
-            XCTAssertTrue(sections.contains(.priority), "\(mode)")
-            XCTAssertTrue(sections.contains(.assignee), "\(mode)")
+                          "The popover must keep an explicit Complete action")
+            XCTAssertTrue(sections.contains(.priority))
+            XCTAssertTrue(sections.contains(.assignee))
         }
     }
 
