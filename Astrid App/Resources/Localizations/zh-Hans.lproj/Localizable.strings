@@ -1660,3 +1660,5 @@
 "projects.delete_forbidden" = "只有项目所有者可以删除它。";
 "projects.new_project_title" = "新建项目";
 "projects.project_name" = "项目名称";
+"projects.show_lists" = "显示 %@ 中的列表";
+"projects.hide_lists" = "隐藏 %@ 中的列表";

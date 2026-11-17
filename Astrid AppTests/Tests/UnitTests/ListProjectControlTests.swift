@@ -146,15 +146,18 @@ final class ListProjectControlTests: XCTestCase {
     func testEachProjectIsItsOwnSectionHeadedByItsName_ADEV47() throws {
         let source = try sidebarSectionSource()
         XCTAssertTrue(source.contains("Section {"), "one Section per project")
-        XCTAssertTrue(source.contains("ForEach(entry.lists)"), "its lists are the section's own rows")
+        XCTAssertTrue(source.contains("ForEach(collapse.visibleLists(entry.lists"),
+                      "its lists are the section's own rows (hidden only when folded, ADEV-57)")
         XCTAssertFalse(source.contains("project_mode.projects_heading"),
                        "no umbrella Projects heading over the projects")
     }
 
-    func testAProjectNoLongerExpandsOrIndentsItsLists_ADEV47() throws {
+    /// ADEV-47 said no second level; ADEV-57 (Jon, 2026-11-16: "enable projects to hide/show the
+    /// lists in project") then asked for the header to fold its section. Folding is not a level:
+    /// the lists are still the section's own rows, never indented under a row.
+    func testAProjectsListsAreNotIndentedUnderARow_ADEV47() throws {
         let source = try sidebarSectionSource()
-        XCTAssertFalse(source.contains("expanded"), "nothing to expand: the lists are always there")
-        XCTAssertFalse(source.contains("chevron"), "no disclosure chevron")
         XCTAssertFalse(source.contains(".padding(.leading"), "lists are not indented under a row")
+        XCTAssertFalse(source.contains("DisclosureGroup"), "a section that folds, not a disclosure row")
     }
 }

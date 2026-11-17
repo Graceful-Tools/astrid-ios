@@ -1660,3 +1660,5 @@
 "projects.delete_forbidden" = "プロジェクトを削除できるのはオーナーだけです。";
 "projects.new_project_title" = "新規プロジェクト";
 "projects.project_name" = "プロジェクト名";
+"projects.show_lists" = "%@ のリストを表示";
+"projects.hide_lists" = "%@ のリストを隠す";

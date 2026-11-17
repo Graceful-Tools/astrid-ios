@@ -59,17 +59,19 @@ final class MacProjectSidebarSectionsTests: XCTestCase {
     /// another level of hierarchy. Project is like a custom favorites."* Divergences follow iOS.
     func testEachProjectIsItsOwnSectionHeadedByItsName_ADEV51() throws {
         let source = try sectionSource()
-        XCTAssertTrue(source.contains("ForEach(entry.lists)"), "its lists are the section's own rows")
+        XCTAssertTrue(source.contains("ForEach(collapse.visibleLists(entry.lists"),
+                      "its lists are the section's own rows (hidden only when folded, ADEV-57)")
         XCTAssertTrue(source.contains("header:"), "the project's name is the section header")
         XCTAssertFalse(source.contains("project_mode.projects_heading"),
                        "no umbrella Projects heading over the projects")
     }
 
-    func testAProjectNoLongerExpandsOrIndentsItsLists_ADEV51() throws {
+    /// ADEV-51 said no second level; ADEV-57 then asked for the header to fold its section, which
+    /// is not a level: the lists stay the section's own rows, never indented under a row.
+    func testAProjectsListsAreNotIndentedUnderARow_ADEV51() throws {
         let source = try sectionSource()
-        XCTAssertFalse(source.contains("expanded"), "nothing to expand: the lists are always there")
-        XCTAssertFalse(source.contains("chevron"), "no disclosure chevron")
         XCTAssertFalse(source.contains(".padding(.leading"), "lists are not indented under a row")
+        XCTAssertFalse(source.contains("DisclosureGroup"), "a section that folds, not a disclosure row")
     }
 
     /// What the row carried moves onto the header: New Project stays (ADEV-27), and the header

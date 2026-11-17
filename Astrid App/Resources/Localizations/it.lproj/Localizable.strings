@@ -1660,3 +1660,5 @@
 "projects.delete_forbidden" = "Solo il proprietario del progetto può eliminarlo.";
 "projects.new_project_title" = "Nuovo progetto";
 "projects.project_name" = "Nome del progetto";
+"projects.show_lists" = "Mostra le liste di %@";
+"projects.hide_lists" = "Nascondi le liste di %@";
