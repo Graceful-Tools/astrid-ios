@@ -80,7 +80,7 @@ struct MacQuickAddBar: View {
             }
 
             // Wraps + expands vertically for long titles (a02a6819); Return still commits.
-            TextField(NSLocalizedString("mac.quick_add_placeholder", comment: ""), text: $draftTitle, axis: .vertical)
+            TextField(NSLocalizedString("tasks.add_task_placeholder", comment: ""), text: $draftTitle, axis: .vertical)
                 .lineLimit(1...4)
                 .textFieldStyle(.plain)
                 .macFont(MacTypography.rowTitle)

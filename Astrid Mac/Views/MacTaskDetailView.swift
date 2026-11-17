@@ -63,6 +63,37 @@ struct MacTaskDetailView: View {
     @State private var showSystemComments = false
     @State private var profileTarget: MacProfileTarget?      // author name tapped → profile sheet (0994eabb)
     @ObservedObject private var network = NetworkMonitor.shared
+    /// The header's id reads "Copied" for a moment after a click, as on iOS (AITD-647).
+    @State private var showsCopiedId = false
+
+    /// "Task Details", or "<id> Details" on a board task — iOS's header (AITD-647, ADEV-60). The
+    /// id is the part that copies; the Task ID row it replaces is gone on both.
+    private var headerTitle: some View {
+        let shows = TaskIdentifiers.shows(task, lists: listService.lists, on: .details)
+        let title = TaskDetailHeader.title(identifier: shows ? task.identifier : nil)
+        return HStack(spacing: 0) {
+            if !title.prefix.isEmpty { Text(title.prefix) }
+            if let identifier = title.identifier {
+                Button {
+                    PlatformPasteboard.copy(identifier)
+                    showsCopiedId = true
+                    _Concurrency.Task {
+                        try? await _Concurrency.Task.sleep(for: .seconds(1.5))
+                        showsCopiedId = false
+                    }
+                } label: {
+                    Text(showsCopiedId ? NSLocalizedString("messages.copied", comment: "") : identifier)
+                }
+                .buttonStyle(.plain)
+                .help(NSLocalizedString("tasks.taskId.copy", comment: ""))
+                .accessibilityIdentifier("taskDetail.header.identifier")
+            }
+            if !title.suffix.isEmpty { Text(title.suffix) }
+        }
+        .lineLimit(1)
+        .macFont(.headline)
+        .foregroundStyle(Theme.textPrimary)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -73,7 +104,7 @@ struct MacTaskDetailView: View {
                     .buttonStyle(.borderless).foregroundStyle(Theme.textMuted).help(NSLocalizedString("actions.close", comment: ""))
             }
             Spacer()
-            Text(NSLocalizedString("tasks.task_details", comment: "")).macFont(.headline).foregroundStyle(Theme.textPrimary)
+            headerTitle
             Spacer()
             // Full screen (42013da7) — the point of the redesign is room for the description, and
             // the widest the pop-out can ever be is the detail column. This takes the window.

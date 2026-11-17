@@ -26,7 +26,8 @@ enum MacLayout {
     // if the chat column is permanently at least as wide as the pop-out plus its margins, which is
     // how chatColumnWidth is derived below rather than being a magic number.
     static let detailPanelWidth: CGFloat = AstridTokens.Layout.Compact.detailPanelMinWidth
-    static let detailArrowWidth: CGFloat = 12
+    /// The shared arrow, `DetailPanelChrome` — read, not restated (ADEV-60).
+    static let detailArrowWidth: CGFloat = DetailPanelChrome.arrowWidth
     /// Breathing room on each side of the floating panel: the arrow needs room on the leading
     /// edge, and the panel needs a matching margin on the trailing edge.
     static let detailPanelMargin: CGFloat = 14
@@ -44,7 +45,7 @@ enum MacLayout {
     /// The 1pt divider between the task column and the chat column.
     static let columnDividerWidth: CGFloat = 1
     /// The arrow overlaps the card by 1pt so its base merges into the card surface.
-    static let arrowOverlap: CGFloat = 1
+    static let arrowOverlap: CGFloat = DetailPanelChrome.arrowOverlap
 
     /// Clearance between the selected row's trailing edge and the arrow's TIP (AITD-302).
     ///

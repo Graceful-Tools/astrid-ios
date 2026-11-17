@@ -87,7 +87,7 @@ struct MacTaskDetailPopout: View {
                             .stroke(MacSelectionStyle.borderColor(isSelected: true),
                                     lineWidth: MacSelectionStyle.selectedWidth)
                     }
-                        .frame(width: MacLayout.detailArrowWidth, height: 24)
+                        .frame(width: MacLayout.detailArrowWidth, height: DetailPanelChrome.arrowHeight)
                         // The notch points left at a row; mirrored, it points right at a card.
                         .scaleEffect(x: side == .trailing ? 1 : -1, y: 1)
                         .position(x: side == .trailing

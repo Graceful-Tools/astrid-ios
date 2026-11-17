@@ -119,7 +119,9 @@ struct MacBoardView: View {
             // Takes the room left over between the header and the add field, so those two
             // stay put at the top and bottom of the column instead of scrolling away.
             .frame(maxHeight: .infinity)
-            addCardField(col)          // stays at the bottom of the column (iPad/web placement)
+            // Stays at the bottom of the column (iPad/web placement). Not on Done, as on iOS
+            // (`BoardColumnView.shouldShowFooter`): a card is not born finished (ADEV-60).
+            if col.kind != .done { addCardField(col) }
         }
         .padding(10)
         .frame(width: columnWidth, alignment: .leading)

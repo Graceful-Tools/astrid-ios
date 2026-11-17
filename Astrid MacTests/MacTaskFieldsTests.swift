@@ -113,35 +113,26 @@ final class MacTaskFieldsTests: XCTestCase {
     /// Lists row had, and list mode adds two rows that would be easy to ship read-only.
     func testEveryFieldRowIsEditableInEveryMode() {
         for mode in TaskDisplayMode.allCases {
-            for row in MacTaskFields.rows(showsTitle: true, displayMode: mode) where row != .taskId {
+            for row in MacTaskFields.rows(showsTitle: true, displayMode: mode) {
                 XCTAssertTrue(MacTaskFields.isEditable(row),
                               "\(row) is shown in \(mode) and must be changeable there")
             }
         }
     }
 
-    // MARK: - Task ID, after Lists (AITD-505)
+    // MARK: - Task ID in the header, not a row (AITD-647 on iOS, ADEV-60 on Mac)
 
-    /// The Mac's details had no task id at all — only "Copy task id" in the row menu. iOS shows
-    /// it directly after Lists (AITD-437); the Mac follows, in both display modes.
-    func testTaskIdRowFollowsListsInEveryMode_AITD505() {
-        for mode in TaskDisplayMode.allCases {
-            let rows = MacTaskFields.rows(showsTitle: true, displayMode: mode, showsTaskId: true)
-            guard let lists = rows.firstIndex(of: .lists) else { return XCTFail("no Lists row in \(mode)") }
-            XCTAssertEqual(rows.firstIndex(of: .taskId), lists + 1, "Task ID sits right after Lists in \(mode)")
-        }
+    /// iOS moved the id into the header ("<id> Details") and dropped its row; the Mac kept both
+    /// "Task Details" and a Task ID row until the design review found it (ADEV-60).
+    func testNoTaskIdRowInAnyMode_ADEV60() throws {
+        let source = try RepositoryLocator.source(at: "Astrid Mac/Views/MacTaskFields.swift")
+        XCTAssertFalse(source.contains("case taskId"), "the id is the header's, not a field row")
     }
 
-    /// Only when the shared rule (`TaskIdentifiers.shows(_:lists:on: .details)`) says so.
-    func testNoTaskIdRowUnlessShown_AITD505() {
-        for mode in TaskDisplayMode.allCases {
-            XCTAssertFalse(MacTaskFields.rows(showsTitle: true, displayMode: mode).contains(.taskId))
-        }
-    }
-
-    /// An id is the task's name on the board, not a field: it is read and copied, never edited.
-    func testTaskIdRowIsNotEditable_AITD505() {
-        XCTAssertFalse(MacTaskFields.isEditable(.taskId))
+    func testTheHeaderTitleCarriesTheIdAsOnIOS_ADEV60() throws {
+        let source = try RepositoryLocator.source(at: "Astrid Mac/Views/MacTaskDetailView.swift")
+        XCTAssertTrue(source.contains("TaskDetailHeader.title(identifier:"), "iOS's shared title rule")
+        XCTAssertTrue(source.contains("taskDetail.header.identifier"), "the id copies, as on iOS")
     }
 
     // MARK: - Toggling a list membership

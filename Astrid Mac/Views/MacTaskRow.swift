@@ -95,10 +95,12 @@ struct MacTaskRow: View {
     }
 
     private var chipLists: [TaskList] {
-        // O(1) lookups via listsById (was an O(lists) scan per id, per reference — Task 4e0ce183).
-        (task.listIds ?? [])
-            .filter { !hiddenListIds.contains($0) }
-            .compactMap { listService.listsById[$0] }
+        // Which lists get a chip is astrid-core's `listChips`, the rule iOS's row asks
+        // (`chipListsForTaskRow`, AITD-622): board columns never draw as places. The Mac kept its
+        // own filter until the design review (ADEV-60). The lists come from `listsById` — O(1),
+        // and fresher than the task's embedded copy (Task 4e0ce183).
+        chipListsForTaskRow((task.listIds ?? []).compactMap { listService.listsById[$0] },
+                            hiddenListIds: hiddenListIds)
     }
 
     private var dueText: String? {

@@ -532,9 +532,7 @@ struct ListSidebarView: View {
     // MARK: - Computed Properties
 
     private var favoriteLists: [TaskList] {
-        listService.lists
-            .filter { $0.isDomainList && $0.isFavorite == true }
-            .sorted { ($0.favoriteOrder ?? 999) < ($1.favoriteOrder ?? 999) }
+        SidebarFavorites.ordered(listService.lists)
     }
 
     private var regularLists: [TaskList] {
