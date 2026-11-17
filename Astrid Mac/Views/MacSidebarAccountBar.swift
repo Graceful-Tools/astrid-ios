@@ -1,7 +1,7 @@
 //  MacSidebarAccountBar.swift
 //  Astrid for Mac — account + settings at the bottom-left of the sidebar (Mac UI mapping).
 //  Mirrors the iOS profile row (avatar + name + email) but anchored at the bottom per the
-//  Mac layout: the user card on the left, a settings/profile/sign-out menu on the right.
+//  Mac layout: the user card on the left, the Settings gear on the right (ADEV-78: no menu).
 
 #if os(macOS)
 import SwiftUI
@@ -13,12 +13,11 @@ struct MacSidebarAccountBar: View {
     /// AuthManager, so without this its body never re-runs on a theme change and the footer keeps
     /// whatever colour it painted first — which is what "white in all themes" was.
     @AppStorage("themeMode") private var themeMode: ThemeMode = .ocean
-    @State private var profileTarget: MacProfileTarget?   // the gear menu's Profile → your profile
 
     var body: some View {
         HStack(spacing: 10) {
-            // Your photo and name open Settings, as web's user menu does (AITD-493). The profile
-            // they used to open is in the gear's menu.
+            // Your photo and name open Settings, as web's user menu does (AITD-493), and so does
+            // the gear; your profile is in Settings ▸ Account (ADEV-78).
             SettingsLink {
                 HStack(spacing: 10) {
                     avatar.frame(width: 30, height: 30)
@@ -37,24 +36,17 @@ struct MacSidebarAccountBar: View {
             .help(NSLocalizedString("settings", comment: ""))
             .accessibilityIdentifier("mac.sidebar.userCard")
             Spacer(minLength: 4)
-            Menu {
-                // `SettingsLink` is the supported way to open Settings (macOS 14+). The old
-                // NSApp.sendAction(Selector("showSettingsWindow:")) relied on a private selector
-                // travelling the responder chain, and from a Menu in the sidebar it did nothing —
-                // the gear looked dead (task 32a1a10c).
-                SettingsLink { Text(NSLocalizedString("settings", comment: "")) }
-                if let userId = MacProfileLink.ownUserId(auth.currentUser) {
-                    Button(NSLocalizedString("profile.title", comment: "")) {
-                        profileTarget = MacProfileTarget(id: userId)
-                    }
-                }
-                Divider()
-                Button(NSLocalizedString("sign_out", comment: "")) { _Concurrency.Task { try? await auth.signOut() } }
-                    .accessibilityIdentifier("account.destructive.signOut")
-            } label: {
+            // The gear opens Settings — no menu, no chevron (ADEV-78). Your profile and Sign Out
+            // are in Settings ▸ Account. `SettingsLink` is the supported way to open Settings
+            // (macOS 14+); a private `showSettingsWindow:` selector did nothing from here (32a1a10c).
+            SettingsLink {
                 Image(systemName: "gearshape").foregroundStyle(Theme.textSecondary)
+                    .contentShape(Rectangle())
             }
-            .menuStyle(.borderlessButton).fixedSize()
+            .buttonStyle(.plain)
+            .macPointingHand()
+            .accessibilityLabel(NSLocalizedString("settings", comment: ""))
+            .accessibilityIdentifier("mac.sidebar.settings")
             .help(NSLocalizedString("mac.account_settings", comment: ""))
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
@@ -62,7 +54,6 @@ struct MacSidebarAccountBar: View {
         // this view observes — `Theme.bgPrimary` would resolve through a cache nothing here reads
         // again (AITD-307).
         .background(MacSidebarChrome.background(mode: themeMode.rawValue))
-        .sheet(item: $profileTarget) { target in MacUserProfileView(userId: target.id) }
     }
 
     @ViewBuilder private var avatar: some View {

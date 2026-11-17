@@ -74,6 +74,15 @@ final class MacProjectSidebarSectionsTests: XCTestCase {
         XCTAssertFalse(source.contains("DisclosureGroup"), "a section that folds, not a disclosure row")
     }
 
+    func testTheChevronSitsInTheListCountsColumn_ADEV77() throws {
+        // Measured on Jon's screenshot (2x): the counts end 218.5pt in, the chevron ended 238pt in —
+        // a section header runs 19.5pt closer to the sidebar's edge than a row's badge does.
+        XCTAssertEqual(MacLayout.sidebarHeaderAccessoryTrailingInset, 19.5)
+        let source = try sectionSource()
+        XCTAssertTrue(source.contains(".padding(.trailing, MacLayout.sidebarHeaderAccessoryTrailingInset)"),
+                      "the chevron is pulled in to the counts' column")
+    }
+
     /// What the row carried moves onto the header: New Project stays (ADEV-27), and the header
     /// still opens the board, offers New List / Delete, and takes a dropped list.
     func testTheHeaderKeepsTheRowsActions_ADEV51() throws {
