@@ -123,9 +123,9 @@ final class MacSidebarChromeTests: XCTestCase {
     /// The band is the theme's header tier in every theme — the colour iOS and web use for their
     /// headers — and the sidebar and the window toolbar take it from the same place.
     func testTheHeaderBandIsTheThemesHeaderTier_ADEV66() throws {
-        XCTAssertEqual(MacSidebarChrome.headerBand(mode: "light"), Theme.headerBg)
-        XCTAssertEqual(MacSidebarChrome.headerBand(mode: "dark"), Theme.Dark.headerBg)
-        XCTAssertEqual(MacSidebarChrome.headerBand(mode: "ocean"), Theme.Ocean.headerBg)
+        XCTAssertEqual(MacSidebarChrome.headerBand(mode: "light"), AstridTokens.light.headerBg)
+        XCTAssertEqual(MacSidebarChrome.headerBand(mode: "dark"), AstridTokens.dark.headerBg)
+        XCTAssertEqual(MacSidebarChrome.headerBand(mode: "ocean"), AstridTokens.ocean.headerBg)
         XCTAssertNotEqual(MacSidebarChrome.headerBand(mode: "dark"), MacSidebarChrome.background(mode: "dark"),
                           "dark's band is the slate header, not the sidebar's navy")
         let root = try rootSource()
