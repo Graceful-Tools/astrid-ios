@@ -32,14 +32,14 @@ public struct LeadingControlAnswer: Equatable, Sendable {
 
 extension CoreRules {
     /// The leading control for a task assigned to `assigneeId` (nil or empty: nobody), drawn for
-    /// `currentUserId` in `displayMode` (`list` / `project`) on `surface` (`listRow` /
+    /// `currentUserId` on `surface` (`listRow` /
     /// `boardCard` / `detail`). Nil only when the core could not answer; the caller picks the
     /// safe fallback.
     public static func leadingControl(assigneeId: String?, currentUserId: String?,
-                                      displayMode: String, surface: String) -> LeadingControlAnswer? {
+                                      surface: String) -> LeadingControlAnswer? {
         let request = LeadingRowsRequest(
             tasks: [.init(assigneeId: assigneeId?.isEmpty == false ? assigneeId : nil)],
-            currentUserId: currentUserId, displayMode: displayMode, surface: surface, now: Date())
+            currentUserId: currentUserId, surface: surface, now: Date())
         guard let row = (try? ask(request, as: LeadingRowsAnswer.self))?.rows.first else { return nil }
         return LeadingControlAnswer(kind: row.leading.kind, action: row.action)
     }
@@ -58,7 +58,6 @@ private struct LeadingRowsRequest: Encodable {
     let kind = "rows"
     let tasks: [OneTask]
     let currentUserId: String?
-    let displayMode: String
     let surface: String
     let now: Date
 }

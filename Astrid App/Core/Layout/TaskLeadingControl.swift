@@ -32,7 +32,7 @@ enum TaskLeadingControl: Equatable {
     static func kind(assigneeId: String?,
                      currentUserId: String?) -> TaskLeadingControl {
         let answer = CoreRules.leadingControl(assigneeId: assigneeId, currentUserId: currentUserId,
-                                              displayMode: CoreTaskLayout.wireValue, surface: "listRow")
+                                              surface: "listRow")
         switch answer?.kind {
         case .checkbox: return .checkbox
         case .avatar(let id): return .avatar(id)
@@ -54,13 +54,6 @@ enum TaskLeadingControl: Equatable {
         case .unassigned: return nil
         }
     }
-}
-
-/// astrid-core's rules still take a task layout (`list` / `project`) until the core cleanup
-/// ("[core] Drop the project display mode from the shared rules") lands. The apps only ever have
-/// the list layout now (ADEV-70), so this is the one place that names it.
-enum CoreTaskLayout {
-    static let wireValue = "list"
 }
 
 /// WHERE a task's leading control is being drawn.
@@ -144,7 +137,6 @@ extension TaskLeadingControl {
         // the picker: it cannot finish a task by accident, and completion is on the picker.
         let answer = CoreRules.leadingControl(assigneeId: kind.assigneeId(currentUserId: currentUserId),
                                               currentUserId: currentUserId,
-                                              displayMode: CoreTaskLayout.wireValue,
                                               surface: surface.wireValue)
         return answer?.action == .complete ? .complete : .openPicker
     }
@@ -174,8 +166,7 @@ extension TaskLeadingControl {
         // else's. If the core cannot answer, an assigned task counts as someone else's: we cannot
         // show it is yours, and the safe answer is the one that asks first.
         guard let assigneeId, !assigneeId.isEmpty else { return false }
-        return CoreRules.leadingPicker(displayMode: CoreTaskLayout.wireValue,
-                                       surface: TaskLeadingControlSurface.listRow.wireValue,
+        return CoreRules.leadingPicker(surface: TaskLeadingControlSurface.listRow.wireValue,
                                        assigneeId: assigneeId,
                                        currentUserId: currentUserId)?.isSomeoneElsesTask ?? true
     }
@@ -214,7 +205,7 @@ extension TaskLeadingControl {
     static func pickerShowsProjectState(surface: TaskLeadingControlSurface,
                                         assigneeId: String?,
                                         currentUserId: String?) -> Bool {
-        CoreRules.leadingPicker(displayMode: CoreTaskLayout.wireValue, surface: surface.wireValue,
+        CoreRules.leadingPicker(surface: surface.wireValue,
                                 assigneeId: assigneeId,
                                 currentUserId: currentUserId)?.pickerShowsProjectState ?? true
     }
