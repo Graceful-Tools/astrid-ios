@@ -15,6 +15,12 @@ struct MacBoardView: View {
     /// side of the card with more room (AITD-679). The frame is the card's, in the global space;
     /// nil when there is no card to stand beside (a card just added).
     var onOpenCard: (String, CGRect?) -> Void = { _, _ in }
+    /// Draw this list as its row of a project's board: the project's columns, the list's cards
+    /// (core `projectBoardRow`, D67). Nil is the list's own board (ADEV-59).
+    var rowOfProjectId: String? = nil
+    /// A fixed height for the columns — a project board's row shows three or four cards and
+    /// scrolls inside each column. Nil fills the window, as the list's own board does (ADEV-59).
+    var columnHeight: CGFloat? = nil
     @AppStorage(MacScrollBars.defaultsKey) private var showScrollBars = false
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
@@ -58,6 +64,8 @@ struct MacBoardView: View {
 
     private var columns: [ProjectBoardColumn] { board.columns.map(\.column) }
 
+    private var query: BoardModel.Query { BoardModel.Query(listId: listId, rowOfProjectId: rowOfProjectId) }
+
     /// Each column's cards, from the core's ids: the service's own tasks.
     private func cardsByColumn() -> [String: [Task]] {
         Dictionary(board.columns.map { ($0.id, BoardModel.cards($0, in: taskService.tasksById)) },
@@ -71,6 +79,7 @@ struct MacBoardView: View {
                     let buckets = cardsByColumn()
                     ForEach(columns) { col in columnView(col, items: buckets[col.id] ?? []) }
                 }
+                .frame(height: columnHeight)
                 .padding(MacLayout.boardPadding)
             }
             // The columns share whatever room the board has, down to their minimum — below that
@@ -84,7 +93,7 @@ struct MacBoardView: View {
         // list people it knows about. Fetching here rather than relying on another screen having
         // opened the members sheet first, which is not something the board can assume.
         .task(id: listId) { try? await memberService.fetchMembers(listId: listId) }
-        .task(id: BoardModel.Query(listId: listId)) { board.update(BoardModel.Query(listId: listId)) }
+        .task(id: query) { board.update(query) }
     }
 
     private func columnView(_ col: ProjectBoardColumn, items: [Task]) -> some View {
@@ -119,7 +128,8 @@ struct MacBoardView: View {
             .fill(dropTargetColumnId == col.id ? Theme.accent.opacity(0.15) : Theme.bgTertiary.opacity(0.4)))
         .animation(MacMotion.fast, value: dropTargetColumnId)   // drop-target highlight eases (4c7b9f08)
         .dropDestination(for: String.self) { items, _ in
-            guard let taskId = items.first else { return false }
+            // A list dragged from the sidebar is not a card (web `PROJECT_BOARD_LIST_DRAG_TYPE`).
+            guard let taskId = items.first, ProjectBoardListDrag.listId(from: taskId) == nil else { return false }
             move(taskId: taskId, to: col)
             return true
         } isTargeted: { dropTargetColumnId = $0 ? col.id : nil }

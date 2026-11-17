@@ -148,6 +148,10 @@ enum MacLayout {
     /// spends — a guess here shows up as a column clipped at the trailing edge.
     static let boardColumnSpacing: CGFloat = 12
     static let boardPadding: CGFloat = 16
+    /// A list's row on a project board (ADEV-59): its columns' height — the header, three or four
+    /// cards, and the Add a task bar, the list board's own column made shorter; more cards scroll
+    /// inside the column.
+    static let projectBoardRowHeight: CGFloat = 340
 
     /// Width for each column, given how many there are and how much room they have.
     ///
