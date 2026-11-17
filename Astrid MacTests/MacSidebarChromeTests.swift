@@ -118,6 +118,21 @@ final class MacSidebarChromeTests: XCTestCase {
         XCTAssertEqual(light, .white, "light is the white the bug was stuck on — in light ONLY")
     }
 
+    // MARK: - The header band (ADEV-66)
+
+    /// The band is the theme's header tier in every theme — the colour iOS and web use for their
+    /// headers — and the sidebar and the window toolbar take it from the same place.
+    func testTheHeaderBandIsTheThemesHeaderTier_ADEV66() throws {
+        XCTAssertEqual(MacSidebarChrome.headerBand(mode: "light"), Theme.headerBg)
+        XCTAssertEqual(MacSidebarChrome.headerBand(mode: "dark"), Theme.Dark.headerBg)
+        XCTAssertEqual(MacSidebarChrome.headerBand(mode: "ocean"), Theme.Ocean.headerBg)
+        XCTAssertNotEqual(MacSidebarChrome.headerBand(mode: "dark"), MacSidebarChrome.background(mode: "dark"),
+                          "dark's band is the slate header, not the sidebar's navy")
+        let root = try rootSource()
+        XCTAssertTrue(root.contains("band: MacSidebarChrome.headerBand(mode:"))
+        XCTAssertTrue(root.contains(".macWindowHeaderBand(mode:"))
+    }
+
     // MARK: - Theme, not a fixed colour
 
     /// And the token itself must actually differ between themes, or painting with it changes

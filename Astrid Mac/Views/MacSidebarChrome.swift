@@ -24,5 +24,24 @@ enum MacSidebarChrome {
                      dark: Theme.Dark.bgPrimary,
                      ocean: Theme.Ocean.bgPrimary)
     }
+
+    /// The window's header band — the toolbar behind the list's title AND the sidebar's part of
+    /// the title bar, one colour across the whole window (ADEV-66). The theme's header tier, as on
+    /// iOS and web; it used to be the system's unthemed toolbar material, which stopped at the
+    /// sidebar divider.
+    static func headerBand(mode: String) -> Color {
+        Theme.themed(mode: mode,
+                     light: Theme.headerBg,
+                     dark: Theme.Dark.headerBg,
+                     ocean: Theme.Ocean.headerBg)
+    }
+}
+extension View {
+    /// Paint the window toolbar with the header band, so the band behind the list's title is the
+    /// one the sidebar carries across its part of the title bar (ADEV-66).
+    func macWindowHeaderBand(mode: String) -> some View {
+        toolbarBackground(MacSidebarChrome.headerBand(mode: mode), for: .windowToolbar)
+            .toolbarBackground(.visible, for: .windowToolbar)
+    }
 }
 #endif

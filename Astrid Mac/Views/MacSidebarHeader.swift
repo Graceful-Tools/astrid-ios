@@ -7,8 +7,12 @@ import SwiftUI
 
 struct MacSidebarHeader<Background: View>: View {
     let background: Background
+    /// The window's header band, carried across the sidebar's part of the title bar (ADEV-66).
+    let band: Color
     let isSearchActive: Bool
     let onSearch: () -> Void
+    /// The title bar's height over the sidebar — its top safe-area inset.
+    @State private var titlebarHeight: CGFloat = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,7 +24,14 @@ struct MacSidebarHeader<Background: View>: View {
                                isSearchActive: isSearchActive, onSearch: onSearch)
                 .padding(.horizontal, 12).padding(.bottom, 6)
         }
-        .background(background.ignoresSafeArea(edges: .top))
+        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { titlebarHeight = $0 }
+        .background {
+            VStack(spacing: 0) {
+                band.frame(height: titlebarHeight).accessibilityIdentifier("sidebar.headerBand")
+                background
+            }
+            .ignoresSafeArea(edges: .top)
+        }
         .accessibilityIdentifier("sidebar.headerBackground")
     }
 }

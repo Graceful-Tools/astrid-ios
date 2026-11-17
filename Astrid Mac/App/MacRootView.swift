@@ -1144,6 +1144,7 @@ struct MacRootView: View {
             // window edge; without it the strip stops short and the material shows as a band.
             .safeAreaInset(edge: .top, spacing: 0) {
                 MacSidebarHeader(background: sidebarChromeBackground,
+                                 band: MacSidebarChrome.headerBand(mode: themeMode.rawValue),
                                  isSearchActive: selectedListId == Self.searchId) {
                     selectedListId = Self.searchId   // where the Search row leads too (AITD-494)
                 }
@@ -1237,6 +1238,7 @@ struct MacRootView: View {
                              : selectedListId == Self.myTasksId ? NSLocalizedString("navigation.my_tasks", comment: "")
                              : MacProjectSelection.projectId(from: selectedListId).flatMap { ProjectService.shared.project(id: $0)?.name }
                                 ?? (listService.lists.first { $0.id == selectedListId }?.name ?? NSLocalizedString("tasks.tasks", comment: "")))
+            .macWindowHeaderBand(mode: themeMode.rawValue)   // one band across the window (ADEV-66)
             .toolbar {
                 // Two groups, drawn apart: the list/board picker, then sort / filter / settings
                 // (AITD-553). Fixed slots, so the groups never swap places between selections.
