@@ -1662,3 +1662,12 @@
 "projects.project_name" = "專案名稱";
 "projects.show_lists" = "顯示 %@ 中的清單";
 "projects.hide_lists" = "隱藏 %@ 中的清單";
+"projects.rename_project" = "重新命名專案…";
+"projects.rename_title" = "重新命名「%@」";
+"projects.edit_project" = "編輯專案…";
+"projects.edit_title" = "編輯專案";
+"projects.description" = "描述";
+"projects.color" = "顏色";
+"projects.edit_forbidden" = "只有專案的擁有者和管理員可以更改它。";
+"projects.color_invalid" = "無法使用該顏色。請從色票中選擇。";
+"projects.name_required" = "專案需要一個名稱。";

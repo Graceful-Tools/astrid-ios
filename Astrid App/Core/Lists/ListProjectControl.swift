@@ -103,6 +103,41 @@ enum ListProjectControl {
         return ownerId == userId
     }
 
+    /// Whether a project's sidebar row offers Rename Project… and Edit Project… (ADEV-65). The
+    /// server's bar for `PATCH /api/v1/projects/:id` is the owner or a project admin (ADEV-48/67);
+    /// anyone else gets 403. A cached board whose owner is unknown keeps the actions and lets the
+    /// server decide, as Delete does.
+    static func offersEdit(of project: Project, userId: String?, offered: Bool) -> Bool {
+        guard offered, let userId else { return false }
+        guard let ownerId = project.ownerId else { return true }
+        if ownerId == userId { return true }
+        return project.members?.contains { $0.userId == userId && $0.role == "admin" } ?? false
+    }
+
+    /// What saving the edit sheet sends: only the fields that changed (ADEV-65). Nil when the name
+    /// is blank, which the server refuses (`PROJECT_NAME_REQUIRED`). A blank description clears
+    /// one that was set; a colour the server would refuse is never sent.
+    static func edit(of project: Project, name: String, description: String, color: String) -> ProjectEdit? {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return nil }
+        let description = description.trimmingCharacters(in: .whitespacesAndNewlines)
+        let storedDescription = project.description?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return ProjectEdit(
+            name: name == project.name ? nil : name,
+            description: description == storedDescription ? nil : description,
+            color: ListColors.change(from: project.color ?? "", to: color))
+    }
+
+    /// The localized reason a project edit was refused, or nil for any other failure.
+    static func editRefusalKey(for error: Error) -> String? {
+        guard let failure = error as? CoreFailure else { return nil }
+        switch failure.code {
+        case "PROJECT_COLOR_INVALID": return "projects.color_invalid"
+        case "PROJECT_NAME_REQUIRED": return "projects.name_required"
+        default: return failure.status == 403 ? "projects.edit_forbidden" : nil
+        }
+    }
+
     /// The localized reason a project delete was refused, or nil for any other failure.
     static func deleteRefusalKey(for error: Error) -> String? {
         (error as? CoreFailure)?.status == 403 ? "projects.delete_forbidden" : nil
@@ -152,6 +187,24 @@ enum ListProjectControl {
                     AppErrorCenter.shared.show(NSLocalizedString(key, comment: ""))
                 } else {
                     AppErrorCenter.shared.report("Delete project", error)
+                }
+            }
+        }
+    }
+
+    /// Rename or edit a project (ADEV-65). The core writes the cache first and puts it back if
+    /// the server refuses; a refusal is named.
+    @MainActor
+    static func updateProject(id projectId: String, edit: ProjectEdit) {
+        guard !edit.isEmpty else { return }
+        _Concurrency.Task {
+            do {
+                _ = try await ProjectService.shared.updateProject(id: projectId, edit: edit)
+            } catch {
+                if let key = editRefusalKey(for: error) {
+                    AppErrorCenter.shared.show(NSLocalizedString(key, comment: ""))
+                } else {
+                    AppErrorCenter.shared.report("Edit project", error)
                 }
             }
         }

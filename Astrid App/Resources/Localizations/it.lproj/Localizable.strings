@@ -1660,3 +1660,12 @@
 "projects.project_name" = "Nome del progetto";
 "projects.show_lists" = "Mostra le liste di %@";
 "projects.hide_lists" = "Nascondi le liste di %@";
+"projects.rename_project" = "Rinomina progetto…";
+"projects.rename_title" = "Rinomina %@";
+"projects.edit_project" = "Modifica progetto…";
+"projects.edit_title" = "Modifica progetto";
+"projects.description" = "Descrizione";
+"projects.color" = "Colore";
+"projects.edit_forbidden" = "Solo il proprietario e gli amministratori del progetto possono modificarlo.";
+"projects.color_invalid" = "Questo colore non si può usare. Scegline uno tra i campioni.";
+"projects.name_required" = "Un progetto deve avere un nome.";

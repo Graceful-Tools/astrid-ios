@@ -1660,3 +1660,12 @@
 "projects.project_name" = "Название проекта";
 "projects.show_lists" = "Показать списки в %@";
 "projects.hide_lists" = "Скрыть списки в %@";
+"projects.rename_project" = "Переименовать проект…";
+"projects.rename_title" = "Переименовать «%@»";
+"projects.edit_project" = "Изменить проект…";
+"projects.edit_title" = "Изменить проект";
+"projects.description" = "Описание";
+"projects.color" = "Цвет";
+"projects.edit_forbidden" = "Изменять проект могут только его владелец и администраторы.";
+"projects.color_invalid" = "Этот цвет нельзя использовать. Выберите один из образцов.";
+"projects.name_required" = "У проекта должно быть название.";

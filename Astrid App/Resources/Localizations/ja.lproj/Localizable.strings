@@ -1660,3 +1660,12 @@
 "projects.project_name" = "プロジェクト名";
 "projects.show_lists" = "%@ のリストを表示";
 "projects.hide_lists" = "%@ のリストを隠す";
+"projects.rename_project" = "プロジェクト名を変更…";
+"projects.rename_title" = "%@の名前を変更";
+"projects.edit_project" = "プロジェクトを編集…";
+"projects.edit_title" = "プロジェクトを編集";
+"projects.description" = "説明";
+"projects.color" = "色";
+"projects.edit_forbidden" = "プロジェクトのオーナーと管理者だけが変更できます。";
+"projects.color_invalid" = "この色は使えません。見本から選んでください。";
+"projects.name_required" = "プロジェクトには名前が必要です。";

@@ -90,6 +90,26 @@ class ProjectService: ObservableObject {
         return response
     }
 
+    /// Rename or edit a board (ADEV-65; core `updateProject`, web `PATCH /api/v1/projects/:id`,
+    /// owner or project admin). Only the fields the edit names are sent. The core takes the edit
+    /// into its cache first and puts it back if the server refuses. Online only.
+    @discardableResult
+    func updateProject(id: String, edit: ProjectEdit) async throws -> Project {
+        var command = CoreCommand(kind: "updateProject", ["projectId": .value(id)])
+        command.set("name", edit.name)
+        command.set("description", edit.description)
+        command.set("color", edit.color)
+        do {
+            let project = try await core.run(command, as: Project.self)
+            await reload()
+            return project
+        } catch {
+            // The core rolled its cache back; draw what it holds now.
+            await reload()
+            throw error
+        }
+    }
+
     private func reloadWithLists() async {
         await reload()
         await ListService.shared.reload()
@@ -100,4 +120,14 @@ class ProjectService: ObservableObject {
     func project(id: String) -> Project? {
         projects.first { $0.id == id }
     }
+}
+
+/// The fields a project edit changes — nil leaves a field as it is (ADEV-65). An empty
+/// `description` clears it.
+nonisolated struct ProjectEdit: Equatable {
+    var name: String?
+    var description: String?
+    var color: String?
+
+    var isEmpty: Bool { name == nil && description == nil && color == nil }
 }

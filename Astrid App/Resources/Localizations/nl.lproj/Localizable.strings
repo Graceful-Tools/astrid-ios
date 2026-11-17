@@ -1660,3 +1660,12 @@
 "projects.project_name" = "Projectnaam";
 "projects.show_lists" = "Lijsten in %@ tonen";
 "projects.hide_lists" = "Lijsten in %@ verbergen";
+"projects.rename_project" = "Project hernoemen…";
+"projects.rename_title" = "%@ hernoemen";
+"projects.edit_project" = "Project bewerken…";
+"projects.edit_title" = "Project bewerken";
+"projects.description" = "Beschrijving";
+"projects.color" = "Kleur";
+"projects.edit_forbidden" = "Alleen de eigenaar en beheerders van het project kunnen het wijzigen.";
+"projects.color_invalid" = "Die kleur kan niet. Kies een van de stalen.";
+"projects.name_required" = "Een project heeft een naam nodig.";

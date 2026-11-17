@@ -35,5 +35,19 @@ final class MacProjectActionsTests: XCTestCase {
         let offline = CoreFailure(kind: .offline, message: "offline", status: nil, id: nil)
         XCTAssertNil(MacProjectActions.deleteRefusalKey(for: offline))
     }
+
+    /// ADEV-65: the right-click menu offers Rename and Edit to the owner or a project admin, as
+    /// iPhone and iPad do — the same shared rule, not a Mac copy.
+    func testRenameAndEditFollowTheSharedOwnerOrAdminRule_ADEV65() throws {
+        let admin = ProjectMember(id: "m1", userId: "boss", role: "admin")
+        let project = Project(id: "p1", name: "Launch", ownerId: "me", members: [admin])
+        XCTAssertTrue(MacListProjectControl.offersEdit(of: project, userId: "boss", offered: true))
+        XCTAssertFalse(MacListProjectControl.offersEdit(of: project, userId: "pal", offered: true))
+
+        let source = try RepositoryLocator.source(at: "Astrid Mac/Views/MacProjectSelection.swift")
+        XCTAssertTrue(source.contains("ListProjectControl.offersEdit("))
+        XCTAssertTrue(source.contains("\"projects.rename_project\""))
+        XCTAssertTrue(source.contains("EditProjectSheet(project: project)"))
+    }
 }
 #endif
