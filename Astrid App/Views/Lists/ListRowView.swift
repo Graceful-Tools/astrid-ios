@@ -95,9 +95,7 @@ struct ListRowView: View {
                 Spacer()
 
                 // Privacy indicator
-                if let privacy = list.privacy {
-                    privacyIcon(privacy)
-                }
+                ListPrivacyGlyph(privacy: list.privacy)
 
                 // Task count badge (always show, even when 0)
                 if let count = taskCount {
@@ -118,24 +116,6 @@ struct ListRowView: View {
         }
         .buttonStyle(ListRowButtonStyle(isSelected: isSelected, palette: palette))
         .accessibilityIdentifier(Self.accessibilityIdentifier(for: list.id))
-    }
-
-    @ViewBuilder
-    private func privacyIcon(_ privacy: TaskList.Privacy) -> some View {
-        Group {
-            switch privacy {
-            case .PUBLIC:
-                Image(systemName: "globe")
-                    .font(.caption)
-                    .foregroundColor(Theme.accent)
-            case .SHARED:
-                Image(systemName: "person.2.fill")
-                    .font(.caption)
-                    .foregroundColor(.green)
-            case .PRIVATE:
-                EmptyView()
-            }
-        }
     }
 
     private func toggleFavorite() {

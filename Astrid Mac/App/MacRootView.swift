@@ -234,7 +234,7 @@ struct MacRootView: View {
 
     private func listRow(_ list: TaskList) -> some View {
         Label {
-            Text(list.name)
+            HStack(spacing: AstridTokens.Space.s4) { Text(list.name); ListPrivacyGlyph(privacy: list.privacy) }
         } icon: {
             if list.isVirtual == true {
                 // Saved-filter (Smart) list — a funnel glyph distinguishes it from a real list.
@@ -442,7 +442,7 @@ struct MacRootView: View {
     // Favorites vs the rest is the only split in the sidebar. There is no name filter here
     // (task 1b0f034d) — "Search" under My Tasks searches tasks, not list names.
     private var favoriteLists: [TaskList] {
-        listService.lists.filter { $0.isDomainList && ($0.isFavorite ?? false) }
+        SidebarFavorites.ordered(listService.lists)
     }
     private var regularLists: [TaskList] {
         listService.lists.filter { $0.isDomainList && !($0.isFavorite ?? false) }
