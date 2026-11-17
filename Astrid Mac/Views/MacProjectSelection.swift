@@ -52,7 +52,8 @@ struct MacListRowDrag: ViewModifier {
 /// lists the section's ordinary rows — a project is a custom favorites, not another level (ADEV-51,
 /// following iOS ADEV-47). Which projects, in what order, with which lists: the core's sidebar rule
 /// (`SidebarProjects`, ADEV-16). The header carries what the project row did (AITD-674): a click
-/// opens the board, right-click offers New List in Project… and, for the owner, Delete Project…,
+/// opens the board, right-click offers New List in Project…, Rename and Edit Project… for the owner or an admin
+/// (ADEV-65) and, for the owner, Delete Project…,
 /// and a sidebar list dropped on it moves into the project — each only where core or server allows.
 struct MacProjectsSidebarSection<ListRow: View>: View {
     let offered: Bool
@@ -69,6 +70,9 @@ struct MacProjectsSidebarSection<ListRow: View>: View {
     @State private var creatingProject = false
     /// Delete Project…, confirmed first (ADEV-27).
     @State private var deletingProject: Project?
+    /// Rename Project… and Edit Project… (ADEV-65), shared with iPhone and iPad.
+    @State private var renamingProject: Project?
+    @State private var editingProject: Project?
 
     var body: some View {
         let entries = SidebarProjects.entries(offered: offered, projects: projectService.projects, lists: lists)
@@ -141,11 +145,24 @@ struct MacProjectsSidebarSection<ListRow: View>: View {
                                     set: { if !$0 { newListProject = nil } })) {
             MacNewListInProjectSheet(project: project) { list in selection = list.id }
         }
+        .sheet(isPresented: Binding(get: { editingProject?.id == project.id },
+                                    set: { if !$0 { editingProject = nil } })) {
+            EditProjectSheet(project: project)
+        }
+        .renameProjectAlert($renamingProject, for: project)
         .contextMenu {
             if MacListProjectControl.offersNewList(in: project.id,
                                                    moves: ListService.shared.projectMoves(listId: nil)) {
                 Button(NSLocalizedString("projects.new_list_in", comment: "")) { newListProject = project }
                     .accessibilityIdentifier("sidebar.project.newList")
+            }
+            // The owner or a project admin, the server's bar for an edit (ADEV-65).
+            if ListProjectControl.offersEdit(of: project, userId: AuthManager.shared.userId,
+                                             offered: MacListProjectControl.isOffered) {
+                Button(NSLocalizedString("projects.rename_project", comment: "")) { renamingProject = project }
+                    .accessibilityIdentifier("sidebar.project.rename")
+                Button(NSLocalizedString("projects.edit_project", comment: "")) { editingProject = project }
+                    .accessibilityIdentifier("sidebar.project.edit")
             }
             // Owner only, the server's rule (ADEV-46).
             if MacListProjectControl.offersDelete(of: project, userId: AuthManager.shared.userId,

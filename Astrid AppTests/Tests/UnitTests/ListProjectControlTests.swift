@@ -160,4 +160,68 @@ final class ListProjectControlTests: XCTestCase {
         XCTAssertFalse(source.contains(".padding(.leading"), "lists are not indented under a row")
         XCTAssertFalse(source.contains("DisclosureGroup"), "a section that folds, not a disclosure row")
     }
+
+    // MARK: - ADEV-65: rename or edit a project from its sidebar header
+
+    func testEditIsOfferedToTheOwnerAndProjectAdminsOnly_ADEV65() {
+        let admin = ProjectMember(id: "m1", userId: "boss", role: "admin")
+        let member = ProjectMember(id: "m2", userId: "pal", role: "member")
+        let project = Project(id: "p1", name: "Launch", ownerId: "me", members: [admin, member])
+        // web PATCH /api/v1/projects/:id: the owner or a project admin (ADEV-48/67), else 403.
+        XCTAssertTrue(ListProjectControl.offersEdit(of: project, userId: "me", offered: true))
+        XCTAssertTrue(ListProjectControl.offersEdit(of: project, userId: "boss", offered: true))
+        XCTAssertFalse(ListProjectControl.offersEdit(of: project, userId: "pal", offered: true))
+        XCTAssertFalse(ListProjectControl.offersEdit(of: project, userId: "stranger", offered: true))
+        XCTAssertFalse(ListProjectControl.offersEdit(of: project, userId: nil, offered: true))
+        XCTAssertFalse(ListProjectControl.offersEdit(of: project, userId: "me", offered: false))
+        // A cached board whose owner is unknown keeps the action and lets the server decide.
+        XCTAssertTrue(ListProjectControl.offersEdit(of: Project(id: "p2", name: "X"), userId: "me", offered: true))
+    }
+
+    func testAnEditSendsOnlyWhatChanged_ADEV65() {
+        let project = Project(id: "p1", name: "Launch", description: "Q4", color: "#ef4444")
+        // Nothing changed: nothing to send.
+        XCTAssertEqual(ListProjectControl.edit(of: project, name: " Launch ", description: "Q4",
+                                               color: "#EF4444"), ProjectEdit())
+        // A rename is trimmed.
+        XCTAssertEqual(ListProjectControl.edit(of: project, name: "  Liftoff ", description: "Q4",
+                                               color: "#ef4444"), ProjectEdit(name: "Liftoff"))
+        // A blank description clears it; a new colour is stored lower-case.
+        XCTAssertEqual(ListProjectControl.edit(of: project, name: "Launch", description: "  ",
+                                               color: "#3B82F6"),
+                       ProjectEdit(description: "", color: "#3b82f6"))
+        // A blank name is not an edit at all — the server refuses it (PROJECT_NAME_REQUIRED).
+        XCTAssertNil(ListProjectControl.edit(of: project, name: "   ", description: "Q4", color: "#ef4444"))
+        // A colour the server would refuse is never sent.
+        XCTAssertEqual(ListProjectControl.edit(of: project, name: "Launch", description: "Q4", color: "red"),
+                       ProjectEdit())
+        // A project with no description yet: an empty field is no change.
+        let bare = Project(id: "p2", name: "Bare")
+        XCTAssertEqual(ListProjectControl.edit(of: bare, name: "Bare", description: "", color: ""), ProjectEdit())
+        XCTAssertTrue(ProjectEdit().isEmpty)
+        XCTAssertFalse(ProjectEdit(name: "x").isEmpty)
+    }
+
+    func testTheServersEditRefusalsAreNamed_ADEV65() {
+        func failure(_ status: Int?, _ code: String?) -> CoreFailure {
+            CoreFailure(kind: .refused, message: "x", status: status, id: nil, code: code)
+        }
+        XCTAssertEqual(ListProjectControl.editRefusalKey(for: failure(403, "PROJECT_RENAME_FORBIDDEN")),
+                       "projects.edit_forbidden")
+        XCTAssertEqual(ListProjectControl.editRefusalKey(for: failure(403, nil)), "projects.edit_forbidden")
+        XCTAssertEqual(ListProjectControl.editRefusalKey(for: failure(400, "PROJECT_COLOR_INVALID")),
+                       "projects.color_invalid")
+        XCTAssertEqual(ListProjectControl.editRefusalKey(for: failure(400, "PROJECT_NAME_REQUIRED")),
+                       "projects.name_required")
+        XCTAssertNil(ListProjectControl.editRefusalKey(
+            for: CoreFailure(kind: .offline, message: "offline", status: nil, id: nil)))
+    }
+
+    func testTheSidebarHeaderOffersRenameAndEditBesideDelete_ADEV65() throws {
+        let source = try sidebarSectionSource()
+        XCTAssertTrue(source.contains("ListProjectControl.offersEdit("))
+        XCTAssertTrue(source.contains("\"projects.rename_project\""))
+        XCTAssertTrue(source.contains("\"projects.edit_project\""))
+        XCTAssertTrue(source.contains("EditProjectSheet("))
+    }
 }

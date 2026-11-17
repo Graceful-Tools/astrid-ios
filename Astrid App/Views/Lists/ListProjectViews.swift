@@ -127,8 +127,8 @@ struct NewListInProjectSheet: View {
 /// Each project is its own sidebar section, headed by its name the way Favorites and Lists are,
 /// its lists the section's rows — a project is a custom favorites, not another level (ADEV-47).
 /// The projects, their order and their lists are the core's sidebar rule (`SidebarProjects`).
-/// Long-press a project's header for New List in Project… and, for its owner, Delete Project…
-/// (ADEV-46); on iPad, drop a sidebar list on the header to move it there — each only where the
+/// Long-press a project's header for New List in Project…, for its owner or admins Rename and Edit
+/// Project… (ADEV-65), and for its owner Delete Project… (ADEV-46); on iPad, drop a sidebar list on the header to move it there — each only where the
 /// core or server allows.
 struct SidebarProjectsSection<ListRow: View>: View {
     let lists: [TaskList]
@@ -141,6 +141,9 @@ struct SidebarProjectsSection<ListRow: View>: View {
     @StateObject private var collapse = SidebarProjectCollapse.shared
     @State private var newListProject: Project?
     @State private var deletingProject: Project?
+    /// Rename Project… and Edit Project… (ADEV-65).
+    @State private var renamingProject: Project?
+    @State private var editingProject: Project?
 
     var body: some View {
         let entries = SidebarProjects.entries(offered: ListProjectControl.isOffered,
@@ -189,6 +192,22 @@ struct SidebarProjectsSection<ListRow: View>: View {
                 }
                 .accessibilityIdentifier("sidebar.project.newList")
             }
+            // The owner or a project admin, the server's bar for an edit (ADEV-65).
+            if ListProjectControl.offersEdit(of: project, userId: AuthManager.shared.userId,
+                                             offered: ListProjectControl.isOffered) {
+                Button {
+                    renamingProject = project
+                } label: {
+                    Label(NSLocalizedString("projects.rename_project", comment: ""), systemImage: "pencil")
+                }
+                .accessibilityIdentifier("sidebar.project.rename")
+                Button {
+                    editingProject = project
+                } label: {
+                    Label(NSLocalizedString("projects.edit_project", comment: ""), systemImage: "slider.horizontal.3")
+                }
+                .accessibilityIdentifier("sidebar.project.edit")
+            }
             if ListProjectControl.offersDelete(of: project, userId: AuthManager.shared.userId,
                                                offered: ListProjectControl.isOffered) {
                 Button(role: .destructive) {
@@ -205,6 +224,11 @@ struct SidebarProjectsSection<ListRow: View>: View {
                                     set: { if !$0 { newListProject = nil } })) {
             NewListInProjectSheet(project: project) { list in open(list) }
         }
+        .sheet(isPresented: Binding(get: { editingProject?.id == project.id },
+                                    set: { if !$0 { editingProject = nil } })) {
+            EditProjectSheet(project: project)
+        }
+        .renameProjectAlert($renamingProject, for: project)
         .confirmationDialog(
             String(format: NSLocalizedString("projects.delete_confirm", comment: ""), name),
             isPresented: Binding(get: { deletingProject?.id == project.id },

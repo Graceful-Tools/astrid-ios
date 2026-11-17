@@ -1668,3 +1668,12 @@
 "projects.project_name" = "Project name";
 "projects.show_lists" = "Show lists in %@";
 "projects.hide_lists" = "Hide lists in %@";
+"projects.rename_project" = "Rename Project…";
+"projects.rename_title" = "Rename %@";
+"projects.edit_project" = "Edit Project…";
+"projects.edit_title" = "Edit project";
+"projects.description" = "Description";
+"projects.color" = "Color";
+"projects.edit_forbidden" = "Only the project's owner and admins can change it.";
+"projects.color_invalid" = "That color can't be used. Pick one of the swatches.";
+"projects.name_required" = "A project needs a name.";
