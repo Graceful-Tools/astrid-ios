@@ -1662,3 +1662,5 @@
 "projects.delete_forbidden" = "只有專案擁有者可以刪除它。";
 "projects.new_project_title" = "新增專案";
 "projects.project_name" = "專案名稱";
+"projects.show_lists" = "顯示 %@ 中的清單";
+"projects.hide_lists" = "隱藏 %@ 中的清單";

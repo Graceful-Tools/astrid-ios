@@ -1662,3 +1662,5 @@
 "projects.delete_forbidden" = "프로젝트 소유자만 삭제할 수 있습니다.";
 "projects.new_project_title" = "새 프로젝트";
 "projects.project_name" = "프로젝트 이름";
+"projects.show_lists" = "%@의 목록 표시";
+"projects.hide_lists" = "%@의 목록 숨기기";

@@ -137,6 +137,8 @@ struct SidebarProjectsSection<ListRow: View>: View {
     @ViewBuilder let listRow: (TaskList) -> ListRow
     @StateObject private var projectService = ProjectService.shared
     @StateObject private var listService = ListService.shared
+    /// Which projects have their lists hidden (ADEV-57).
+    @StateObject private var collapse = SidebarProjectCollapse.shared
     @State private var newListProject: Project?
     @State private var deletingProject: Project?
 
@@ -145,7 +147,7 @@ struct SidebarProjectsSection<ListRow: View>: View {
                                               projects: projectService.projects, lists: lists)
         ForEach(entries) { entry in
             Section {
-                ForEach(entry.lists) { list in
+                ForEach(collapse.visibleLists(entry.lists, in: entry.project.id)) { list in
                     listRow(list)
                 }
             } header: {
@@ -155,14 +157,28 @@ struct SidebarProjectsSection<ListRow: View>: View {
     }
 
     private func projectHeader(_ project: Project, name: String) -> some View {
-        HStack {
+        let expanded = !collapse.isCollapsed(project.id)
+        return HStack {
             Text(name)
                 .lineLimit(1)
+                .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 0)
+            // Hide or show this project's lists (ADEV-57); the whole header stays the menu's.
+            Button {
+                withAnimation { collapse.toggle(project.id) }
+            } label: {
+                Image(systemName: "chevron.right")
+                    .imageScale(.small)
+                    .rotationEffect(.degrees(expanded ? 90 : 0))
+                    .foregroundStyle(.secondary)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel(collapse.toggleLabel(for: project.id, name: name))
+            .accessibilityIdentifier("sidebar.project.toggle.\(project.id)")
         }
         .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isHeader)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("sidebar.project.\(project.id)")
         .contextMenu {
             if ListProjectControl.offersNewList(in: project.id, moves: listService.projectMoves(listId: nil)) {

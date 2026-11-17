@@ -1660,3 +1660,5 @@
 "projects.delete_forbidden" = "Удалить проект может только его владелец.";
 "projects.new_project_title" = "Новый проект";
 "projects.project_name" = "Название проекта";
+"projects.show_lists" = "Показать списки в %@";
+"projects.hide_lists" = "Скрыть списки в %@";

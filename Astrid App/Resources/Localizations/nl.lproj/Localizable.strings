@@ -1660,3 +1660,5 @@
 "projects.delete_forbidden" = "Alleen de eigenaar van het project kan het verwijderen.";
 "projects.new_project_title" = "Nieuw project";
 "projects.project_name" = "Projectnaam";
+"projects.show_lists" = "Lijsten in %@ tonen";
+"projects.hide_lists" = "Lijsten in %@ verbergen";

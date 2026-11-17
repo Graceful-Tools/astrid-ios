@@ -62,6 +62,8 @@ struct MacProjectsSidebarSection<ListRow: View>: View {
     let lists: [TaskList]
     @ViewBuilder let listRow: (TaskList) -> ListRow
     @StateObject private var projectService = ProjectService.shared
+    /// Which projects have their lists hidden (ADEV-57), shared with iPhone and iPad.
+    @StateObject private var collapse = SidebarProjectCollapse.shared
     @State private var newListProject: Project?
     /// New Project… (ADEV-27): the sidebar is where a project is made, even the first one.
     @State private var creatingProject = false
@@ -74,11 +76,14 @@ struct MacProjectsSidebarSection<ListRow: View>: View {
             Section { newProjectRow }
             ForEach(entries) { entry in
                 Section {
-                    ForEach(entry.lists) { list in
+                    ForEach(collapse.visibleLists(entry.lists, in: entry.project.id)) { list in
                         listRow(list)
                     }
                 } header: {
-                    projectHeader(entry.project, name: entry.name)
+                    HStack(spacing: 0) {
+                        projectHeader(entry.project, name: entry.name)
+                        collapseToggle(entry.project, name: entry.name)
+                    }
                 }
             }
         }
@@ -94,6 +99,25 @@ struct MacProjectsSidebarSection<ListRow: View>: View {
         .sheet(isPresented: $creatingProject) {
             MacNewProjectSheet { project in selection = MacProjectSelection.tag(projectId: project.id) }
         }
+    }
+
+    /// Hide or show this project's lists (ADEV-57). Beside the header, not in it: a click on the
+    /// name still opens the board.
+    private func collapseToggle(_ project: Project, name: String) -> some View {
+        let expanded = !collapse.isCollapsed(project.id)
+        return Button {
+            withAnimation { collapse.toggle(project.id) }
+        } label: {
+            Image(systemName: "chevron.right")
+                .imageScale(.small)
+                .rotationEffect(.degrees(expanded ? 90 : 0))
+                .foregroundStyle(Theme.textSecondary)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(collapse.toggleLabel(for: project.id, name: name))
+        .accessibilityLabel(collapse.toggleLabel(for: project.id, name: name))
+        .accessibilityIdentifier("sidebar.project.toggle.\(project.id)")
     }
 
     private func projectHeader(_ project: Project, name: String) -> some View {
