@@ -56,6 +56,12 @@ enum MacLayout {
     /// since the card's leading edge is fixed by the panel's width and margin.
     static let detailArrowRowGap: CGFloat = 6
 
+    /// How far a sidebar section header's trailing accessory (a project's open/close chevron) is
+    /// pulled in to sit in the rows' count column (ADEV-77). A header runs nearer the sidebar's
+    /// edge than a row's `.badge`: on Jon's 2x screenshot the counts ended 218.5pt in and the
+    /// chevron 238pt in.
+    static let sidebarHeaderAccessoryTrailingInset: CGFloat = 19.5
+
     /// Height of the opaque strip painted across the top of the sidebar (task 46f66cb8).
     ///
     /// The sidebar sits under a transparent titlebar, so without this the list scrolls up behind

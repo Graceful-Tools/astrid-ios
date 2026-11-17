@@ -119,6 +119,7 @@ struct MacProjectsSidebarSection<ListRow: View>: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .padding(.trailing, MacLayout.sidebarHeaderAccessoryTrailingInset)   // in the counts' column (ADEV-77)
         .help(collapse.toggleLabel(for: project.id, name: name))
         .accessibilityLabel(collapse.toggleLabel(for: project.id, name: name))
         .accessibilityIdentifier("sidebar.project.toggle.\(project.id)")
