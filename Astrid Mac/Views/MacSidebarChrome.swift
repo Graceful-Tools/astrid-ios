@@ -30,10 +30,9 @@ enum MacSidebarChrome {
     /// iOS and web; it used to be the system's unthemed toolbar material, which stopped at the
     /// sidebar divider.
     static func headerBand(mode: String) -> Color {
-        Theme.themed(mode: mode,
-                     light: Theme.headerBg,
-                     dark: Theme.Dark.headerBg,
-                     ocean: Theme.Ocean.headerBg)
+        let system: ColorScheme = NSApp?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? .dark : .light
+        return AstridTokens.palette(for: ThemeMode(rawValue: mode) ?? .ocean, colorScheme: system).headerBg
     }
 }
 extension View {
