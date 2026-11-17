@@ -21,8 +21,6 @@ struct MacQuickChanger: View {
 
     @StateObject private var taskService = TaskService.shared
     @State private var priority: Task.Priority
-    /// Asking before completing a task that is not yours (ADEV-70).
-    @State private var confirmingCompletion = false
 
     init(task: Task, onDismiss: @escaping () -> Void) {
         self.task = task
@@ -69,12 +67,17 @@ struct MacQuickChanger: View {
 
             Divider()
 
-            if confirmingCompletion {
+            // A task that is not yours — someone else's or nobody's — opens on the question
+            // itself: the checkbox, then Complete (ADEV-79; ADEV-70, web ADEV-56). Reopening and
+            // your own tasks never ask.
+            if TaskLeadingControl.completionNeedsConfirmation(
+                assigneeId: task.assigneeId,
+                currentUserId: AuthManager.shared.userId,
+                completed: task.completed) {
                 CompletionConfirmationPrompt(
                     assigneeLabel: CompletionConfirmation.assigneeLabel(for: task),
-                    onCancel: { confirmingCompletion = false },
+                    onCancel: { onDismiss() },
                     onConfirm: {
-                        confirmingCompletion = false
                         onDismiss()
                         AppActions.perform("Toggle completion") {
                             try await MacQuickChangerWrite.toggleCompletion.apply(to: taskService, task: task)
@@ -82,14 +85,6 @@ struct MacQuickChanger: View {
                     })
             } else {
             Button {
-                // A task that is not yours asks first (ADEV-70, web ADEV-56). Reopening never asks.
-                if TaskLeadingControl.completionNeedsConfirmation(
-                    assigneeId: task.assigneeId,
-                    currentUserId: AuthManager.shared.userId,
-                    completed: task.completed) {
-                    confirmingCompletion = true
-                    return
-                }
                 onDismiss()
                 AppActions.perform("Toggle completion") {
                     try await MacQuickChangerWrite.toggleCompletion.apply(to: taskService, task: task)

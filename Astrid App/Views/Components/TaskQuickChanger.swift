@@ -32,8 +32,6 @@ struct TaskQuickChanger: View {
     /// The assignee this popover has picked. Seeded from the task; the picker needs somewhere
     /// real to write, or its selection cannot move (task 1484ea4a).
     @State private var pickedAssigneeId: String?
-    /// Asking before completing a task that is not yours (ADEV-70).
-    @State private var confirmingCompletion = false
 
     init(task: Task, onDismiss: @escaping () -> Void) {
         self.task = task
@@ -83,26 +81,22 @@ struct TaskQuickChanger: View {
 
             Divider()
 
-            if confirmingCompletion {
+            // A task that is not yours — someone else's or nobody's — opens on the question
+            // itself: the checkbox, then Complete (ADEV-79; ADEV-70, web ADEV-56). Reopening and
+            // your own tasks never ask.
+            if TaskLeadingControl.completionNeedsConfirmation(
+                assigneeId: task.assigneeId,
+                currentUserId: AuthManager.shared.currentUser?.id,
+                completed: task.completed) {
                 CompletionConfirmationPrompt(
                     assigneeLabel: CompletionConfirmation.assigneeLabel(for: task),
-                    onCancel: { confirmingCompletion = false },
+                    onCancel: { onDismiss() },
                     onConfirm: {
-                        confirmingCompletion = false
                         onDismiss()
                         complete()
                     })
             } else {
             Button {
-                // A task that is not yours — someone else's or nobody's — asks first (ADEV-70,
-                // web ADEV-56). Reopening never asks.
-                if TaskLeadingControl.completionNeedsConfirmation(
-                    assigneeId: task.assigneeId,
-                    currentUserId: AuthManager.shared.currentUser?.id,
-                    completed: task.completed) {
-                    confirmingCompletion = true
-                    return
-                }
                 onDismiss()
                 complete()
             } label: {
