@@ -391,11 +391,10 @@ struct BoardColumnView: View {
             )
     }
 
-    /// Empty-column placeholder message. Reuses the same Astrid
-    /// empty-state copy the flat list view shows so the board and the
-    /// list feel like the same app.
+    /// Empty-column placeholder message, in Astrid's voice but about THIS
+    /// column's state — Waiting, Doing, Ready… (ADEV-81).
     private var emptyColumnMessage: String {
-        NSLocalizedString("empty_state.default", comment: "")
+        BoardColumnEmptyMessage.decide(column).text
     }
 
     /// Breathing room under the last card. Releases here resolve to "append"

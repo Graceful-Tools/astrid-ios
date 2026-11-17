@@ -155,6 +155,12 @@
 "empty_state.shared_list" = "Commencez à collaborer ! Ajoutez une tâche pour lancer cette liste partagée.";
 "empty_state.list_with_name" = "Remplissons \"%@\" ! Ajoutez votre première tâche pour commencer.";
 "empty_state.default" = "Prêt à capturer vos pensées ? Créez votre première tâche pour commencer !";
+"empty_state.board.inbox" = "Rien de nouveau à trier ! Les tâches sans statut arrivent ici.";
+"empty_state.board.ready" = "Rien en file d'attente ! Déplacez une tâche ici quand elle est prête à démarrer.";
+"empty_state.board.doing" = "Rien en cours. Choisissez quelque chose dans Prêt et lancez-vous !";
+"empty_state.board.waiting" = "Rien en attente ! Les tâches qui attendent une date ou une autre tâche apparaissent ici.";
+"empty_state.board.done" = "Aucune tâche terminée pour l'instant. Terminez-en une et célébrez-la ici !";
+"empty_state.board.custom" = "Rien ici pour l'instant ! Glissez une tâche ici pour la faire avancer.";
 "empty_state.no_lists" = "Pas encore de listes. Créez votre première liste pour commencer !";
 
 /* Contacts */

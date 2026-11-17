@@ -173,6 +173,12 @@
 "empty_state.shared_list" = "Begin met samenwerken! Voeg een taak toe aan deze gedeelde lijst.";
 "empty_state.list_with_name" = "Laten we \"%@\" vullen! Voeg je eerste taak toe om te beginnen.";
 "empty_state.default" = "Klaar om je gedachten vast te leggen? Maak je eerste taak aan!";
+"empty_state.board.inbox" = "Niets nieuws om te sorteren! Taken zonder status komen hier terecht.";
+"empty_state.board.ready" = "Niets in de wachtrij! Zet een taak hier zodra die klaar is om te beginnen.";
+"empty_state.board.doing" = "Niets onderhanden. Kies iets uit Klaar en ga aan de slag!";
+"empty_state.board.waiting" = "Niets in de wacht! Taken die op een datum of een andere taak wachten, verschijnen hier.";
+"empty_state.board.done" = "Nog geen afgeronde taken. Rond er een af en vier het hier!";
+"empty_state.board.custom" = "Nog niets hier! Sleep een taak hierheen om hem verder te helpen.";
 "empty_state.no_lists" = "Nog geen lijsten. Maak je eerste lijst aan!";
 
 /* Contacts */

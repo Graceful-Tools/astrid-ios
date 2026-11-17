@@ -173,6 +173,12 @@
 "empty_state.shared_list" = "開始協作！添加任務以啟動此共享清單。";
 "empty_state.list_with_name" = "讓我們填滿 \"%@\"！添加您的第一個任務開始吧。";
 "empty_state.default" = "準備好記錄您的想法了嗎？創建您的第一個任務開始吧！";
+"empty_state.board.inbox" = "沒有需要整理的新任務！沒有狀態的任務會出現在這裡。";
+"empty_state.board.ready" = "佇列是空的！任務準備好開始時，把它移到這裡。";
+"empty_state.board.doing" = "沒有進行中的任務。從「就緒」中挑一個開始吧！";
+"empty_state.board.waiting" = "沒有擱置的任務！等待日期或其他任務的任務會顯示在這裡。";
+"empty_state.board.done" = "還沒有完成的任務。完成一個，在這裡慶祝吧！";
+"empty_state.board.custom" = "這裡還沒有任務！拖一個任務進來推進它吧。";
 "empty_state.no_lists" = "暫無清單。創建您的第一個清單開始吧！";
 
 /* Contacts */

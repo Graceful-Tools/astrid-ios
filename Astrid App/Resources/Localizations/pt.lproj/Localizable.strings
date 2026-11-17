@@ -173,6 +173,12 @@
 "empty_state.shared_list" = "Comece a colaborar! Adicione uma tarefa para iniciar esta lista compartilhada.";
 "empty_state.list_with_name" = "Vamos preencher \"%@\"! Adicione sua primeira tarefa para começar.";
 "empty_state.default" = "Pronto para capturar seus pensamentos? Crie sua primeira tarefa!";
+"empty_state.board.inbox" = "Nada novo para organizar! Tarefas sem status chegam aqui.";
+"empty_state.board.ready" = "Nada na fila! Mova uma tarefa para cá quando ela estiver pronta para começar.";
+"empty_state.board.doing" = "Nada em andamento. Escolha algo em Pronto e mãos à obra!";
+"empty_state.board.waiting" = "Nada em espera! Tarefas aguardando uma data ou outra tarefa aparecem aqui.";
+"empty_state.board.done" = "Nenhuma tarefa concluída ainda. Conclua uma e comemore aqui!";
+"empty_state.board.custom" = "Nada aqui ainda! Arraste uma tarefa para fazê-la avançar.";
 "empty_state.no_lists" = "Nenhuma lista ainda. Crie sua primeira lista!";
 
 /* Contacts */
