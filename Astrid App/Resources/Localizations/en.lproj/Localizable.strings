@@ -295,6 +295,12 @@
 "empty_state.shared_list" = "Start collaborating! Add a task to get this shared list going.";
 "empty_state.list_with_name" = "Let's fill up \"%@\"! Add your first task to get started.";
 "empty_state.default" = "Ready to capture your thoughts? Create your first task to get started!";
+"empty_state.board.inbox" = "Nothing new to sort! Tasks without a status land here.";
+"empty_state.board.ready" = "Nothing queued up! Move a task here when it's ready to start.";
+"empty_state.board.doing" = "Nothing in progress. Pick something from Ready and get going!";
+"empty_state.board.waiting" = "Nothing on hold! Tasks waiting on a date or another task show up here.";
+"empty_state.board.done" = "No finished tasks yet. Complete one and celebrate it here!";
+"empty_state.board.custom" = "Nothing here yet! Drag a task in to move it along.";
 "empty_state.no_lists" = "No lists yet. Create your first list to get started!";
 
 /* Contacts */

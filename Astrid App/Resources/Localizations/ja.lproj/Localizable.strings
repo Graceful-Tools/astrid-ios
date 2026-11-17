@@ -173,6 +173,12 @@
 "empty_state.shared_list" = "コラボレーションを始めましょう！タスクを追加して共有リストを開始しましょう。";
 "empty_state.list_with_name" = "\"%@\"を埋めましょう！最初のタスクを追加して始めましょう。";
 "empty_state.default" = "考えを記録する準備はできましたか？最初のタスクを作成して始めましょう！";
+"empty_state.board.inbox" = "整理するものはありません！ステータスのないタスクはここに入ります。";
+"empty_state.board.ready" = "待機中のタスクはありません！始められるタスクをここに移動しましょう。";
+"empty_state.board.doing" = "進行中のタスクはありません。「準備完了」から選んで始めましょう！";
+"empty_state.board.waiting" = "保留中のタスクはありません！日付や他のタスクを待っているタスクがここに表示されます。";
+"empty_state.board.done" = "完了したタスクはまだありません。ひとつ完了して、ここでお祝いしましょう！";
+"empty_state.board.custom" = "まだ何もありません！タスクをドラッグして進めましょう。";
 "empty_state.no_lists" = "リストがまだありません。最初のリストを作成して始めましょう！";
 
 /* Contacts */

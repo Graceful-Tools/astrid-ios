@@ -281,6 +281,12 @@
 "empty_state.shared_list" = "Leg los mit der Zusammenarbeit! Füge eine Aufgabe hinzu.";
 "empty_state.list_with_name" = "Füllen wir \"%@\"! Füge deine erste Aufgabe hinzu.";
 "empty_state.default" = "Bereit, deine Gedanken festzuhalten? Erstelle deine erste Aufgabe!";
+"empty_state.board.inbox" = "Nichts zu sortieren! Aufgaben ohne Status landen hier.";
+"empty_state.board.ready" = "Nichts in der Warteschlange! Verschiebe eine Aufgabe hierher, wenn sie startklar ist.";
+"empty_state.board.doing" = "Nichts in Arbeit. Nimm dir etwas aus „Bereit“ vor und leg los!";
+"empty_state.board.waiting" = "Nichts in der Warteschleife! Aufgaben, die auf ein Datum oder eine andere Aufgabe warten, erscheinen hier.";
+"empty_state.board.done" = "Noch nichts erledigt. Schließ eine Aufgabe ab und feiere sie hier!";
+"empty_state.board.custom" = "Noch nichts hier! Zieh eine Aufgabe hierher, um sie voranzubringen.";
 "empty_state.no_lists" = "Noch keine Listen. Erstelle deine erste Liste!";
 
 /* Contacts */

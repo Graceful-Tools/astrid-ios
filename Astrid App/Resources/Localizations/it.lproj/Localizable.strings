@@ -172,6 +172,12 @@
 "empty_state.shared_list" = "Inizia a collaborare! Aggiungi un compito a questa lista condivisa.";
 "empty_state.list_with_name" = "Riempiamo \"%@\"! Aggiungi il tuo primo compito.";
 "empty_state.default" = "Pronto a catturare i tuoi pensieri? Crea il tuo primo compito!";
+"empty_state.board.inbox" = "Niente di nuovo da smistare! Le attività senza stato arrivano qui.";
+"empty_state.board.ready" = "Niente in coda! Sposta qui un'attività quando è pronta per iniziare.";
+"empty_state.board.doing" = "Niente in corso. Scegli qualcosa da Pronto e inizia!";
+"empty_state.board.waiting" = "Niente in sospeso! Le attività in attesa di una data o di un'altra attività compaiono qui.";
+"empty_state.board.done" = "Ancora nessuna attività completata. Completane una e festeggiala qui!";
+"empty_state.board.custom" = "Ancora niente qui! Trascina un'attività per farla avanzare.";
 "empty_state.no_lists" = "Nessuna lista ancora. Crea la tua prima lista!";
 
 /* Contacts */

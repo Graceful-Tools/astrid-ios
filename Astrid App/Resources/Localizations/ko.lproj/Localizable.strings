@@ -173,6 +173,12 @@
 "empty_state.shared_list" = "협업을 시작해 보세요! 작업을 추가하여 공유 목록을 만들어 보세요.";
 "empty_state.list_with_name" = "\"%@\" 목록을 채워보세요! 첫 번째 작업을 추가하여 시작해 보세요.";
 "empty_state.default" = "생각을 기록할 준비가 되셨나요? 첫 번째 작업을 만들어 시작해 보세요!";
+"empty_state.board.inbox" = "정리할 새 작업이 없어요! 상태가 없는 작업이 여기에 들어옵니다.";
+"empty_state.board.ready" = "대기 중인 작업이 없어요! 시작할 준비가 된 작업을 여기로 옮기세요.";
+"empty_state.board.doing" = "진행 중인 작업이 없어요. 준비됨에서 하나 골라 시작해 보세요!";
+"empty_state.board.waiting" = "보류 중인 작업이 없어요! 날짜나 다른 작업을 기다리는 작업이 여기에 표시됩니다.";
+"empty_state.board.done" = "아직 완료한 작업이 없어요. 하나를 완료하고 여기서 축하하세요!";
+"empty_state.board.custom" = "아직 아무것도 없어요! 작업을 끌어와 진행해 보세요.";
 "empty_state.no_lists" = "아직 목록이 없습니다. 첫 번째 목록을 만들어 시작해 보세요!";
 
 /* Contacts */

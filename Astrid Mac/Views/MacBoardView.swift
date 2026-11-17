@@ -113,6 +113,14 @@ struct MacBoardView: View {
                 LazyVStack(alignment: .leading, spacing: 8) {
                     ForEach(items) { t in card(t) }
                 }
+                // An empty column says something about its own state, as on iOS (ADEV-81).
+                if items.isEmpty {
+                    Text(BoardColumnEmptyMessage.decide(col).text)
+                        .macFont(.caption).foregroundStyle(Theme.textMuted)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityIdentifier("board.column.empty.\(col.id)")
+                }
             }
             .macScrollBars(showScrollBars)
             .scrollContentBackground(.hidden)

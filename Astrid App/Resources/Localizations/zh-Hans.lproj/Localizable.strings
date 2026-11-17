@@ -173,6 +173,12 @@
 "empty_state.shared_list" = "开始协作！添加任务以启动此共享清单。";
 "empty_state.list_with_name" = "让我们填满 \"%@\"！添加您的第一个任务开始吧。";
 "empty_state.default" = "准备好记录您的想法了吗？创建您的第一个任务开始吧！";
+"empty_state.board.inbox" = "没有需要整理的新任务！没有状态的任务会出现在这里。";
+"empty_state.board.ready" = "队列是空的！任务准备好开始时，把它移到这里。";
+"empty_state.board.doing" = "没有进行中的任务。从“就绪”中挑一个开始吧！";
+"empty_state.board.waiting" = "没有搁置的任务！等待日期或其他任务的任务会显示在这里。";
+"empty_state.board.done" = "还没有完成的任务。完成一个，在这里庆祝吧！";
+"empty_state.board.custom" = "这里还没有任务！拖一个任务进来推进它吧。";
 "empty_state.no_lists" = "暂无清单。创建您的第一个清单开始吧！";
 
 /* Contacts */
