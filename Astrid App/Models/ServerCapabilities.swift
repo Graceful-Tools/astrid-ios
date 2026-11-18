@@ -142,13 +142,11 @@ struct ServerCapabilities: Codable, Equatable {
     /// `Brand` supplies the defaults — what the app shows before the first fetch, and
     /// what it falls back to for anything the server does not send.
     ///
-    /// TEXT ONLY, and every field is validated — defence in depth, stated accurately
-    /// because an earlier version of this comment overstated it. A release build only
-    /// ever talks to `Brand.productionBaseURL`; the server picker is `#if DEBUG` and
-    /// offers three fixed options, so this is not attacker-chosen input. It is still
-    /// input from the network rendered directly into the app's chrome, and the cost of
-    /// validating it is nil, so blank, overlong, control and bidi-override values fall
-    /// back rather than render.
+    /// TEXT ONLY, and every field is validated. Since ADEV-118 a person can point a
+    /// release build at any https server from the sign-in screen, so this IS input the
+    /// person (or whoever talked them into typing an address) chose, rendered directly
+    /// into the app's chrome. Blank, overlong, control and bidi-override values fall back
+    /// rather than render.
     ///
     /// Deliberately NOT here:
     ///   host / agentEmailDomain — trust boundaries. A server claiming a different brand

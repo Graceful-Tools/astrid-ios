@@ -4,9 +4,21 @@ import Foundation
     @preconcurrency enum API {
         // MARK: - Environment Configuration
 
-        // Cached base URL to avoid repeated UserDefaults reads and logging
-        // This is computed once at first access and cached
-        private static let _cachedBaseURL: String = {
+        /// The server every request goes to: the one chosen at sign-in (ADEV-118), else this
+        /// build's own. Resolved once and kept, so the API client, the core and every link agree;
+        /// `ServerSwitcher` calls `reloadBaseURL()` after a switch, which is the only time it moves.
+        static var baseURL: String { baseURLCache.value(resolveBaseURL) }
+
+        /// Forget the resolved server, so the next read sees a new choice. Only `ServerSwitcher`
+        /// calls this, while signed out and with the core restarting behind it.
+        static func reloadBaseURL() { baseURLCache.reset() }
+
+        private static let baseURLCache = ResolvedValueCache<String>()
+
+        private static func resolveBaseURL() -> String {
+            let chosen = ServerSelection.resolve(
+                custom: ServerSelectionStore.standard.custom,
+                brandDefault: environment.baseURL)
             #if DEBUG
             // A UI-test run carries a PRODUCTION session for uitest@astrid.cc, so it must talk
             // to production — a Debug build otherwise points at localhost:3000 and the request
@@ -16,18 +28,13 @@ import Foundation
                 isOffline: UITestSession.isOffline,
                 uiTestBaseURL: UITestSession.baseURLOverride,
                 debugPreference: Foundation.UserDefaults.standard.string(forKey: "debug_server_url"),
-                defaultURL: environment.baseURL,
+                defaultURL: chosen,
                 productionURL: Environment.production.baseURL)
             AppLog.debug("🌐 [Constants.API.baseURL] Using: \(resolved)")
             return resolved
             #else
-            return environment.baseURL
+            return chosen
             #endif
-        }()
-
-        // Get base URL - now returns cached value (no logging on every access)
-        static var baseURL: String {
-            return _cachedBaseURL
         }
 
         // Default environment (can be overridden in DEBUG with the debug_server_url preference).
@@ -207,5 +214,33 @@ import Foundation
             "GA", // Gabon
             "CF"  // Central African Republic
         ]
+    }
+}
+
+/// A value worked out once and kept until `reset()`, safe to read from any thread.
+final class ResolvedValueCache<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cached: Value?
+
+    func value(_ resolve: () -> Value) -> Value {
+        lock.lock()
+        defer { lock.unlock() }
+        if let cached { return cached }
+        let value = resolve()
+        cached = value
+        return value
+    }
+
+    func reset() {
+        lock.lock()
+        cached = nil
+        lock.unlock()
+    }
+
+    /// Swap in `value` in one step, so no reader ever sees the cache empty.
+    func replace(with value: Value) {
+        lock.lock()
+        cached = value
+        lock.unlock()
     }
 }

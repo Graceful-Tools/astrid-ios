@@ -1675,3 +1675,20 @@
 "projects.edit_forbidden" = "只有项目的所有者和管理员可以更改它。";
 "projects.color_invalid" = "无法使用该颜色。请从色板中选择。";
 "projects.name_required" = "项目需要一个名称。";
+
+/* Bring your own server (ADEV-118) */
+"server.use_different" = "使用其他服务器";
+"server.picker_title" = "连接到服务器";
+"server.picker_message" = "输入你的组织提供的地址。你将在其页面上登录，应用只会与该服务器通信。";
+"server.address_placeholder" = "tasks.example.com";
+"server.connect" = "连接";
+"server.current" = "服务器：%@";
+"server.use_brand" = "使用 %@ 服务器";
+"server.error_not_https" = "请使用 https:// 地址。";
+"server.error_invalid" = "这不是服务器地址。";
+"server.error_not_astrid" = "%@ 未以兼容服务器的方式响应。";
+"server.error_unreachable" = "无法连接到 %@。请检查地址和网络连接。";
+"server.settings_title" = "服务器";
+"server.switch_back_confirm" = "退出登录并使用 %@ 服务器？";
+"server.switch_back_message" = "此设备上来自 %@ 的数据副本将被删除。你的账户仍保留在该服务器上。";
+"server.switch_back" = "退出登录并切换";

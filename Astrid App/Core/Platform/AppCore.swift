@@ -15,20 +15,45 @@ final class AppCore: ObservableObject {
     static let shared = AppCore()
 
     /// The running core. Started on first use, so every service reaches the same one.
-    let session: CoreSession
+    ///
+    /// Replaced only by `restart()`, when the person points the app at another server
+    /// (ADEV-118); services read it through this property each time rather than keeping one.
+    nonisolated var session: CoreSession { current.value { fatalError("AppCore session read before start") } }
+
+    private let current = ResolvedValueCache<CoreSession>()
 
     private let relay = ChangeRelay()
 
     private init() {
-        let testing = Self.isRunningUnitTests
+        let session = Self.makeSession()
+        current.replace(with: session)
+        session.subscribe(relay)
+        // The one answer to the network coming back: writes that waited for it go now, delivery
+        // wakes, and the live stream starts over rather than waiting out a backoff chosen offline.
+        networkObserver = NotificationCenter.default.addObserver(
+            forName: .networkDidBecomeAvailable, object: nil, queue: .main
+        ) { _ in
+            _Concurrency.Task { @MainActor in AppCore.shared.networkRestored() }
+        }
+        // The first launch after the move: carry Core Data's cache and the Swift Outbox's unsent
+        // task and list writes over before anything reads the cache.
+        if Self.runsUpgrade(unitTesting: Self.isRunningUnitTests, uiTesting: UITestSession.isUITesting) {
+            CoreUpgrade.runIfNeeded(session)
+            GoogleLedgerUpgrade.start(session)
+        }
+    }
+
+    /// A core for `Constants.API.baseURL`, on this run's cache.
+    private static func makeSession() -> CoreSession {
+        let testing = isRunningUnitTests
         let cachePath = Self.cachePath(unitTesting: testing, uiTesting: UITestSession.isUITesting)
         do {
-            session = try CoreSession(
+            return try CoreSession(
                 // A unit-test run gets a throwaway cache and no background loops, so no test can
                 // reach the network or someone's real data. A UI-test run gets a scratch file.
                 cachePath: cachePath,
                 baseURL: Constants.API.baseURL,
-                platform: Self.platform,
+                platform: platform,
                 // The brand's scheme and hand-off client, so a white-label build's browser sign-in
                 // comes back to it rather than to Astrid (AITD-616).
                 urlScheme: Brand.urlScheme,
@@ -40,25 +65,26 @@ final class AppCore: ObservableObject {
             // than a data layer that is not there: the server has everything but unsent writes.
             AppLog.debug("❌ [AppCore] could not open the cache (\(error)); starting a fresh one")
             try? FileManager.default.removeItem(atPath: cachePath)
-            session = try! CoreSession(
+            return try! CoreSession(
                 cachePath: cachePath, baseURL: Constants.API.baseURL,
-                platform: Self.platform, urlScheme: Brand.urlScheme, handoffClientId: DesktopHandoff.clientId,
+                platform: platform, urlScheme: Brand.urlScheme, handoffClientId: DesktopHandoff.clientId,
                 credentials: CoreCredentials(), background: !testing)
         }
-        session.subscribe(relay)
-        // The one answer to the network coming back: writes that waited for it go now, delivery
-        // wakes, and the live stream starts over rather than waiting out a backoff chosen offline.
-        networkObserver = NotificationCenter.default.addObserver(
-            forName: .networkDidBecomeAvailable, object: nil, queue: .main
-        ) { _ in
-            _Concurrency.Task { @MainActor in AppCore.shared.networkRestored() }
-        }
-        // The first launch after the move: carry Core Data's cache and the Swift Outbox's unsent
-        // task and list writes over before anything reads the cache.
-        if Self.runsUpgrade(unitTesting: testing, uiTesting: UITestSession.isUITesting) {
-            CoreUpgrade.runIfNeeded(session)
-            GoogleLedgerUpgrade.start(session)
-        }
+    }
+
+    /// Start over against the server `Constants.API.baseURL` now names (ADEV-118).
+    ///
+    /// The core takes its server once, at start, so a switch needs a new one. The old core's
+    /// cache and journal are wiped first (its `signOut`), so nothing the previous server sent,
+    /// and no write meant for it, reaches the next one. Signed out by then: `ServerSwitcher`
+    /// signs out before calling this.
+    func restart() async {
+        let old = session
+        _ = try? await old.run(CoreCommand(kind: "signOut"))
+        old.stop()
+        let fresh = Self.makeSession()
+        current.replace(with: fresh)
+        fresh.subscribe(relay)
     }
 
     /// Which cache a run opens (AITD-448).

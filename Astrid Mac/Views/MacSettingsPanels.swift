@@ -79,15 +79,31 @@ struct MacLanguageSettingsView: View {
 
 struct MacConnectionSettingsView: View {
     @StateObject private var conn = ConnectionModeManager.shared
+    @State private var confirmingSwitchBack = false
 
     var body: some View {
         Form {
             Section(NSLocalizedString("Connection", comment: "")) {
                 LabeledContent(NSLocalizedString("sync.mode", comment: ""), value: conn.currentMode.displayName)
                 LabeledContent(NSLocalizedString("mac.server", comment: ""), value: Constants.API.baseURL)
+                // Someone else's server (ADEV-118): the way back signs out first.
+                if ServerSwitcher.shared.isCustom {
+                    Button(String(format: NSLocalizedString("server.use_brand", comment: ""), Brand.appName),
+                           role: .destructive) { confirmingSwitchBack = true }
+                }
             }
         }
         .formStyle(.grouped).macThemedSurface()
+        .alert(String(format: NSLocalizedString("server.switch_back_confirm", comment: ""), Brand.appName),
+               isPresented: $confirmingSwitchBack) {
+            Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) {}
+            Button(NSLocalizedString("server.switch_back", comment: ""), role: .destructive) {
+                _Concurrency.Task { await ServerSwitcher.shared.use(nil) }
+            }
+        } message: {
+            Text(String(format: NSLocalizedString("server.switch_back_message", comment: ""),
+                        ServerSwitcher.shared.currentHost))
+        }
     }
 }
 

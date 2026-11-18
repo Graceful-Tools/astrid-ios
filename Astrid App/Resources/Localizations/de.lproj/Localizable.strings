@@ -1675,3 +1675,20 @@
 "projects.edit_forbidden" = "Nur der Eigentümer und die Admins des Projekts können es ändern.";
 "projects.color_invalid" = "Diese Farbe ist nicht möglich. Wähle eine der Farben.";
 "projects.name_required" = "Ein Projekt braucht einen Namen.";
+
+/* Bring your own server (ADEV-118) */
+"server.use_different" = "Anderen Server verwenden";
+"server.picker_title" = "Mit einem Server verbinden";
+"server.picker_message" = "Gib die Adresse ein, die du von deiner Organisation erhalten hast. Du meldest dich auf deren Seite an, und die App kommuniziert nur mit diesem Server.";
+"server.address_placeholder" = "tasks.example.com";
+"server.connect" = "Verbinden";
+"server.current" = "Server: %@";
+"server.use_brand" = "%@-Server verwenden";
+"server.error_not_https" = "Verwende eine https://-Adresse.";
+"server.error_invalid" = "Das ist keine Serveradresse.";
+"server.error_not_astrid" = "%@ hat nicht wie ein kompatibler Server geantwortet.";
+"server.error_unreachable" = "%@ ist nicht erreichbar. Prüfe die Adresse und deine Verbindung.";
+"server.settings_title" = "Server";
+"server.switch_back_confirm" = "Abmelden und den %@-Server verwenden?";
+"server.switch_back_message" = "Die Kopie deiner Daten von %@ auf diesem Gerät wird entfernt. Dein Konto bleibt auf diesem Server.";
+"server.switch_back" = "Abmelden und wechseln";

@@ -1675,3 +1675,20 @@
 "projects.edit_forbidden" = "Alleen de eigenaar en beheerders van het project kunnen het wijzigen.";
 "projects.color_invalid" = "Die kleur kan niet. Kies een van de stalen.";
 "projects.name_required" = "Een project heeft een naam nodig.";
+
+/* Bring your own server (ADEV-118) */
+"server.use_different" = "Andere server gebruiken";
+"server.picker_title" = "Verbinden met een server";
+"server.picker_message" = "Voer het adres in dat je van je organisatie hebt gekregen. Je logt in op hun pagina en de app praat alleen met die server.";
+"server.address_placeholder" = "tasks.example.com";
+"server.connect" = "Verbinden";
+"server.current" = "Server: %@";
+"server.use_brand" = "De %@-server gebruiken";
+"server.error_not_https" = "Gebruik een https://-adres.";
+"server.error_invalid" = "Dat is geen serveradres.";
+"server.error_not_astrid" = "%@ antwoordde niet als een compatibele server.";
+"server.error_unreachable" = "Kan %@ niet bereiken. Controleer het adres en je verbinding.";
+"server.settings_title" = "Server";
+"server.switch_back_confirm" = "Uitloggen en de %@-server gebruiken?";
+"server.switch_back_message" = "De kopie van je gegevens van %@ op dit apparaat wordt verwijderd. Je account blijft op die server.";
+"server.switch_back" = "Uitloggen en wisselen";

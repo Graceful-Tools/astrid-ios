@@ -289,6 +289,7 @@ struct SettingsView: View {
                             }
                         }
                     }
+                    SettingsServerRows()
                 }
 
                 // App info
@@ -410,6 +411,44 @@ struct SettingsView: View {
 }
 
 // MARK: - Extracted Sections (isolate @ObservedObject re-renders)
+
+/// The server this account is on, when it is not the build's own, and the way back (ADEV-118).
+private struct SettingsServerRows: View {
+    @ThemedPalette private var palette
+    @State private var confirming = false
+    private var switcher: ServerSwitcher { .shared }
+
+    var body: some View {
+        if switcher.isCustom {
+            HStack {
+                Image(systemName: "server.rack")
+                    .foregroundColor(Theme.accent)
+                    .frame(width: 24)
+                Text(NSLocalizedString("server.settings_title", comment: ""))
+                    .foregroundColor(palette.textPrimary)
+                Spacer()
+                Text(switcher.currentHost)
+                    .foregroundColor(palette.textSecondary)
+                    .accessibilityIdentifier("settings.server")
+            }
+            Button(role: .destructive) {
+                confirming = true
+            } label: {
+                Text(String(format: NSLocalizedString("server.use_brand", comment: ""), Brand.appName))
+            }
+            .alert(String(format: NSLocalizedString("server.switch_back_confirm", comment: ""), Brand.appName),
+                   isPresented: $confirming) {
+                Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) {}
+                Button(NSLocalizedString("server.switch_back", comment: ""), role: .destructive) {
+                    _Concurrency.Task { await switcher.use(nil) }
+                }
+            } message: {
+                Text(String(format: NSLocalizedString("server.switch_back_message", comment: ""), switcher.currentHost))
+            }
+        }
+    }
+}
+
 
 /// Sync section — only re-renders when SyncManager publishes
 private struct SettingsSyncSection: View {

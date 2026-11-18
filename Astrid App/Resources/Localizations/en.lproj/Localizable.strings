@@ -1683,3 +1683,20 @@
 "projects.edit_forbidden" = "Only the project's owner and admins can change it.";
 "projects.color_invalid" = "That color can't be used. Pick one of the swatches.";
 "projects.name_required" = "A project needs a name.";
+
+/* Bring your own server (ADEV-118) */
+"server.use_different" = "Use a different server";
+"server.picker_title" = "Connect to a server";
+"server.picker_message" = "Enter the address your organization gave you. You'll sign in on its page, and the app will talk only to that server.";
+"server.address_placeholder" = "tasks.example.com";
+"server.connect" = "Connect";
+"server.current" = "Server: %@";
+"server.use_brand" = "Use the %@ server";
+"server.error_not_https" = "Use an https:// address.";
+"server.error_invalid" = "That isn't a server address.";
+"server.error_not_astrid" = "%@ didn't answer as a compatible server.";
+"server.error_unreachable" = "Couldn't reach %@. Check the address and your connection.";
+"server.settings_title" = "Server";
+"server.switch_back_confirm" = "Sign out and use the %@ server?";
+"server.switch_back_message" = "This device's copy of your data on %@ is removed. Your account stays on that server.";
+"server.switch_back" = "Sign Out and Switch";
