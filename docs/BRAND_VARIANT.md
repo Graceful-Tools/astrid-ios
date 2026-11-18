@@ -48,7 +48,8 @@ These come from three places. Later ones win:
      "urlScheme": "acmetasks",
      "googleClientId": "123456-abcdef.apps.googleusercontent.com",
      "appIcon": "acme-icon-1024.png",
-     "characterImage": "acme-mascot.png"
+     "characterImage": "acme-mascot.png",
+     "copyright": "Copyright © 2026 Acme Inc."
    }
    ```
 3. **Arguments:** `--bundle-id`, `--app-group`, `--keychain-group`, `--team`, `--display-name`,
@@ -62,12 +63,14 @@ These come from three places. Later ones win:
 | `developmentTeam` | `34K3P7PD2W` | `DEVELOPMENT_TEAM` of every Whitelabel build configuration |
 | `displayName` | `Whitelabel` | iOS home-screen name; Mac `PRODUCT_NAME`, so `<displayName>.app`, "About/Quit <displayName>", and the Services item |
 | `googleClientId` | none (Astrid's own app keeps Astrid's) | `BrandGoogleClientId`, and the reversed-client URL type Google returns sign-in to. With no client, the build registers no Google redirect and draws no Google button, even when the server offers Google. Create an **iOS** OAuth client for the partner's bundle id in Google Cloud Console (docs/GOOGLE_OAUTH_SETUP.md) |
-| `urlScheme` | the profile's `NEXT_PUBLIC_BRAND_APP_URL_SCHEME`, else `astrid` | the scheme the iOS app registers (`CFBundleURLSchemes`) and `Brand.urlScheme` answers: in-app links, deep links, the browser sign-in and OAuth callbacks |
+| `copyright` | Whitelabel's Graceful Tools line; a re-identified app gets `Copyright © <year> <brand name>. All rights reserved.` | the Mac About box (`NSHumanReadableCopyright` of the app configurations) |
+| `urlScheme` | the profile's `NEXT_PUBLIC_BRAND_APP_URL_SCHEME`; `astrid` only for Whitelabel itself — a re-identified app without one is refused | the scheme the iOS app registers (`CFBundleURLSchemes`) and `Brand.urlScheme` answers: in-app links, deep links, the browser sign-in and OAuth callbacks |
 
 **The URL scheme has to be the deployment's.** The server sends the browser back to
 `<NEXT_PUBLIC_BRAND_APP_URL_SCHEME>://auth/callback`, so the app reads that same profile key, and
 `ios.urlScheme` is only for a server that has been set to match. A partner on Astrid's own
-deployment, like Whitelabel on astrid.cc, keeps `astrid`. The app also starts astrid-core with
+deployment, like Whitelabel on astrid.cc, keeps `astrid`. The app's own URL type is named
+`<bundleId>` rather than `cc.astrid.app`. The app also starts astrid-core with
 the scheme and its hand-off client id.
 
 Two system identifiers are always re-identified from `bundleId`, so the two apps never share
@@ -85,7 +88,18 @@ your camera…". It can differ from `displayName`.
   - Any other size is refused.
 - **`characterImage`** is the mascot on sign-in, welcome and empty states. Without it, the script uses the profile's `NEXT_PUBLIC_BRAND_LOGO` under astrid-web's `public/`.
   - It becomes `<file stem>.imageset`, the name `Brand.characterImage` resolves, and the previous partner's imageset is removed.
-- Art the profile does not name, or that cannot be found, leaves the committed art alone.
+- A profile passed by path from outside astrid-web looks for `NEXT_PUBLIC_BRAND_LOGO` beside it
+  (`<profile dir>/../public/`), then in the paired astrid-web checkout's `public/`.
+- For Whitelabel itself, art the profile does not name, or that cannot be found, leaves the
+  committed art alone.
+- **A re-identified app (any `bundleId` but Whitelabel's) is refused** when it names no
+  `appIcon`, when art it names cannot be found, or when it has no URL scheme of its own
+  (ADEV-108). Each would otherwise ship Whitelabel's icon or character, or register `astrid://`.
+
+**What stays Astrid's on purpose.** The keychain service name `com.astrid.ios`
+(`Constants.swift`) is not an identity: items are scoped by the keychain access group, which
+is the variant's own, so the two apps never see each other's tokens. Renaming it would sign
+every existing Astrid user out. The test targets' bundle IDs never ship.
 
 **Each app carries only its own brand's art.**
 - The partner's icon and character live in `PartnerArt-iOS.xcassets` / `PartnerArt-Mac.xcassets`; Astrid's character lives in `AstridArt-iOS` / `AstridArt-Mac`.

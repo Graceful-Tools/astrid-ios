@@ -47,7 +47,9 @@ final class BrandVariantTests: XCTestCase {
             return (value as? [[String: Any]] ?? []).compactMap { urlType -> [String: Any]? in
                 var urlType = urlType
                 switch urlType["CFBundleURLName"] as? String {
-                case "cc.astrid.app": urlType["CFBundleURLSchemes"] = [scheme]
+                case "cc.astrid.app":   // named for the variant, not Astrid (ADEV-108)
+                    urlType["CFBundleURLSchemes"] = [scheme]
+                    urlType["CFBundleURLName"] = bundleId
                 case "com.googleusercontent.apps":
                     guard let googleClient else { return nil }
                     urlType["CFBundleURLSchemes"] = [Brand.reversedGoogleClient(googleClient)]

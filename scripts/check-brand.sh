@@ -30,9 +30,10 @@ echo ""
 
 ERRORS=0
 
-# Source directories to scan. Tests are excluded: they legitimately assert on the
-# Astrid defaults, which is the point of BrandTests.
-SOURCE_DIRS=("Astrid App" "Astrid Mac")
+# Source directories to scan: both apps, the Share extension ("Astrid") and the code they
+# share — a partner ships all four (ADEV-108). Tests are excluded: they legitimately assert
+# on the Astrid defaults, which is the point of BrandTests.
+SOURCE_DIRS=("Astrid App" "Astrid Mac" "Astrid" "Shared")
 
 # run_rule <id> <description> <fix> <ERE pattern> [exempt-basename ...]
 run_rule() {

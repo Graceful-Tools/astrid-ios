@@ -29,7 +29,7 @@ struct TaskQuickCreateView: View {
                         HStack(spacing: 12) {
                             Image(systemName: fileData.iconName)
                                 .font(.system(size: 32))
-                                .foregroundColor(.blue)
+                                .foregroundStyle(.tint)   // the extension's accent, never a hardcoded blue (ADEV-108)
 
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(fileData.fileName)

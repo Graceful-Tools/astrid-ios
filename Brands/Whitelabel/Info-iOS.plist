@@ -52,7 +52,7 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>cc.astrid.app</string>
+			<string>Graceful-Tools-Inc.Whitelabel</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>astrid</string>

@@ -27,11 +27,17 @@
 #                 "keychainGroup": "com.acme.tasks", "developmentTeam": "ABCDE12345",
 #                 "displayName": "Acme Tasks", "urlScheme": "acmetasks",
 #                 "googleClientId": "123-abc.apps.googleusercontent.com",
-#                 "appIcon": "acme-icon-1024.png", "characterImage": "acme-mascot.png" }
+#                 "appIcon": "acme-icon-1024.png", "characterImage": "acme-mascot.png",
+#                 "copyright": "Copyright © 2026 Acme Inc." }
 #   (appIcon and characterImage are paths relative to the profile; the character art otherwise
 #   comes from NEXT_PUBLIC_BRAND_LOGO under astrid-web's public/.)
 #   3. --bundle-id / --app-group / --keychain-group / --team / --display-name / --url-scheme
-# The Share extension is <bundleId>.Share; keychainGroup defaults to bundleId. The previous
+# The Share extension is <bundleId>.Share; keychainGroup defaults to bundleId.
+#
+# A RE-IDENTIFIED variant (any bundleId but Whitelabel's) is refused unless it names an
+# ios.appIcon, art it names can be found, and it has a URL scheme of its own — otherwise it
+# would ship Whitelabel's art or register astrid:// (ADEV-108). Its Mac About box reads
+# ios.copyright, else "Copyright © <year> <brand name>. All rights reserved." The previous
 # identity is read back from variant.json, which is how a second run finds what to replace.
 #
 # The URL scheme is the profile's NEXT_PUBLIC_BRAND_APP_URL_SCHEME (apply-brand registers it),
@@ -102,12 +108,14 @@ PB=/usr/libexec/PlistBuddy
 set_string() { $PB -c "Delete :$2" "$1" 2>/dev/null || true; $PB -c "Add :$2 string $3" "$1"; }
 
 python3 - "$OUT" "$PROFILE_PATH" "$PROJECT_DIR/Astrid App.xcodeproj/project.pbxproj" ${OVERRIDES[@]+"${OVERRIDES[@]}"} > "$OUT/.identity" <<'PY'
-import json, os, re, sys
+import datetime, json, os, re, sys
 out, profile_path, pbxproj = sys.argv[1:4]
 
 # Today's Whitelabel app. A profile without an ios block, and no arguments, reproduces it.
 DEFAULTS = {"bundleId": "Graceful-Tools-Inc.Whitelabel", "appGroup": "group.gracefultools.whitelabel",
             "developmentTeam": "34K3P7PD2W", "displayName": "Whitelabel"}
+DEFAULT_COPYRIGHT = "Copyright © 2026 Graceful Tools LLC. All rights reserved."
+SCHEME = r'[a-z][a-z0-9+.-]*'
 
 profile = json.load(open(profile_path))
 env = profile.get('env') or {}
@@ -117,14 +125,33 @@ for arg in sys.argv[4:]:
     key, _, value = arg.partition('=')
     ident[key] = value
 ident.setdefault('keychainGroup', ident['bundleId'])
+copyright = ident.pop('copyright', '')   # the Mac About box, not identity (ADEV-108)
 ident.pop('googleClientId', None)   # brand configuration, not identity: apply-brand writes it (AITD-617)
 for art in ('appIcon', 'characterImage'):   # artwork, installed below (AITD-618)
     ident.pop(art, None)
 scheme = (ident.pop('urlScheme', '') or '').strip().lower()
 scheme = scheme[:-3] if scheme.endswith('://') else scheme
-if scheme and not re.fullmatch(r'[a-z][a-z0-9+.-]*', scheme):
+if scheme and not re.fullmatch(SCHEME, scheme):
     sys.exit('not a URL scheme: %r' % scheme)
 name = (env.get('NEXT_PUBLIC_BRAND_NAME') or '').strip() or ident['displayName']
+
+# A re-identified app is someone else's app (ADEV-108). Whatever it does not name would
+# otherwise ship as Graceful Tools' Whitelabel app or as Astrid: refuse rather than warn,
+# because a warning in a release log is read after the build is on a partner's phone.
+reidentified = ident['bundleId'] != DEFAULTS['bundleId']
+if reidentified:
+    ios = profile.get('ios') or {}
+    if not str(ios.get('appIcon') or '').strip():
+        sys.exit('%s is its own app but the profile names no ios.appIcon: it would ship the '
+                 'Whitelabel icon. Add a 1024x1024 PNG beside the profile.' % ident['bundleId'])
+    profile_scheme = (env.get('NEXT_PUBLIC_BRAND_APP_URL_SCHEME') or '').strip().lower()
+    profile_scheme = profile_scheme[:-3] if profile_scheme.endswith('://') else profile_scheme
+    if not scheme and not re.fullmatch(SCHEME, profile_scheme):
+        sys.exit('%s is its own app but the profile has no valid NEXT_PUBLIC_BRAND_APP_URL_SCHEME: '
+                 'it would register astrid://, and sign-in returns to the server\'s scheme. Set the '
+                 'deployment\'s value in the profile, or pass --url-scheme.' % ident['bundleId'])
+copyright = copyright or ('Copyright © %d %s. All rights reserved.' % (datetime.date.today().year, name)
+                          if reidentified else DEFAULT_COPYRIGHT)
 ident['brandName'] = name
 apple = env.get('NEXT_PUBLIC_BRAND_ENABLE_AUTH_APPLE', 'true').strip().lower() != 'false'
 
@@ -172,6 +199,10 @@ def plist(text):
     if scheme:
         text = re.sub(r'(<key>CFBundleURLName</key>\s*<string>cc\.astrid\.app</string>\s*<key>CFBundleURLSchemes</key>\s*<array>\s*<string>)[^<]*',
                       lambda m: m.group(1) + scheme, text)
+    # The app's own URL type is named for the app (ADEV-108). Last, because the scheme
+    # rewrites above and apply-brand find Astrid's URL type by this name.
+    text = re.sub(r'(<key>CFBundleURLName</key>\s*<string>)cc\.astrid\.app(</string>)',
+                  lambda m: m.group(1) + ident['bundleId'] + m.group(2), text)
     return text
 
 for p in ('Info-iOS.plist', 'Info-Mac.plist', 'Info-Share.plist'):
@@ -192,6 +223,8 @@ def configuration(m):
     body = body.replace('PRODUCT_NAME = %s;' % q(previous['displayName']), 'PRODUCT_NAME = %s;' % q(ident['displayName']))
     body = body.replace('/%s.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/%s"' % (previous['displayName'], previous['displayName']),
                         '/%s.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/%s"' % (ident['displayName'], ident['displayName']))
+    # Only where Astrid sets one (the apps); the Share extension's stays empty.
+    body = re.sub(r'(INFOPLIST_KEY_NSHumanReadableCopyright = )(?!"";)[^;]+;', lambda b: b.group(1) + q(copyright) + ';', body)
     body = re.sub(r'(INFOPLIST_KEY_NS\w*UsageDescription = ")%s ' % re.escape(previous['brandName']),
                   lambda b: b.group(1) + name + ' ', body)
     return body
@@ -222,9 +255,13 @@ fi
 # only the Whitelabel configurations compile; Astrid's lives in AstridArt-*, which they exclude
 # (EXCLUDED_SOURCE_FILE_NAMES), so neither app carries the other's. Art the profile does not
 # name, or that cannot be found, leaves the committed art as it is.
-python3 - "$PROJECT_DIR" "$PROFILE_PATH" <<'PY'
+WEB_PUBLIC="$(find_web_repo "$PROJECT_DIR" 2>/dev/null)/public" || WEB_PUBLIC=""
+python3 - "$PROJECT_DIR" "$PROFILE_PATH" "$OUT/variant.json" "$WEB_PUBLIC" <<'PY'
 import json, os, shutil, subprocess, sys, tempfile
-root, profile_path = sys.argv[1:3]
+root, profile_path, record, web_public = sys.argv[1:5]
+# Art a re-identified app names but that cannot be found is refused, not skipped: skipping
+# keeps the Whitelabel app's art in someone else's app (ADEV-108).
+reidentified = json.load(open(record))['bundleId'] != 'Graceful-Tools-Inc.Whitelabel'
 profile = json.load(open(profile_path))
 ios, env = profile.get('ios') or {}, profile.get('env') or {}
 here = os.path.dirname(profile_path)
@@ -239,6 +276,8 @@ def sips(*args):
 def found(path, what):
     if path and os.path.isfile(path):
         return path
+    if path and reidentified:
+        sys.exit(f"{what} {path} not found — refusing to ship the Whitelabel art in another app")
     if path:
         print(f"  ! {what} {path} not found — the committed art is unchanged")
     return None
@@ -272,7 +311,11 @@ logo = env.get('NEXT_PUBLIC_BRAND_LOGO', '').strip()
 if ios.get('characterImage'):
     art = found(os.path.join(here, ios['characterImage']), 'ios.characterImage')
 elif logo and os.path.splitext(os.path.basename(logo))[0] != 'astrid-character':
-    art = found(os.path.join(here, '..', 'public', logo.lstrip('/')), 'NEXT_PUBLIC_BRAND_LOGO')
+    # Beside a profile in astrid-web's brands/, public/ is its sibling; a profile passed by
+    # path from anywhere else falls back to the paired astrid-web checkout's public/.
+    beside = os.path.join(here, '..', 'public', logo.lstrip('/'))
+    paired = os.path.join(web_public, logo.lstrip('/')) if web_public.strip('/') else ''
+    art = found(beside if os.path.isfile(beside) or not os.path.isfile(paired) else paired, 'NEXT_PUBLIC_BRAND_LOGO')
 else:
     art = None
 if art:
