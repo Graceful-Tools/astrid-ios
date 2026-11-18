@@ -211,6 +211,8 @@ if [[ "$QUICK_MODE" != "true" ]]; then
         "$SCRIPT_DIR/test-xcresult-summary.sh"
     gate "monkey verdict script tests passed" "monkey verdict script tests failed" \
         "$SCRIPT_DIR/test-monkey-verdict.sh"
+    gate "brand variant smoke check tests passed" "brand variant smoke check tests failed" \
+        "$SCRIPT_DIR/test-brand-variant-smoke.sh"
     gate "Apple signing script tests passed" "Apple signing script tests failed" \
         node --test "$SCRIPT_DIR/test-developer-id.mjs" "$SCRIPT_DIR/test-appstore-release.mjs"
     gate "Gate safety and workflow tests passed" "Gate safety or workflow tests failed" \
