@@ -61,7 +61,7 @@ npm run predeploy             # Run standard checks before pushing
 | `npm run predeploy` | Quick + partner-brand audit + unit tests (with the per-directory coverage table, failing below `scripts/coverage-floor.json`) + script self-tests + `test:core` — **the standard gate before pushing** |
 | `npm run predeploy:full` | Standard + iOS UI tests (mints a per-run test account) + Mac unit tests + Mac UI tests |
 | `npm run check:version` | Refuse a `MARKETING_VERSION` the App Store has already released, iOS and Mac (skips offline) |
-| `npm run test:scripts` | Self-tests for the shell scripts (`check-version.sh`, `check-app-version-table.sh`, `fixall-loop.sh`, `make-brand-variant.sh`, `monkey-test.sh`'s verdict, the source-contract rules) |
+| `npm run test:scripts` | Self-tests for the shell scripts (`check-version.sh`, `check-app-version-table.sh`, `fixall-loop.sh`, `make-brand-variant.sh` and the brand-variant smoke's checks, `monkey-test.sh`'s verdict, the source-contract rules) |
 | `npm run test` | Unit tests |
 | `npm run test:ui` | UI tests only |
 | `npm run test:mac` | Mac unit tests (`Astrid MacTests`), unsandboxed and with coverage against the same floor; never alongside `predeploy`, whose brand audit rewrites the Info.plists |
@@ -71,6 +71,7 @@ npm run predeploy             # Run standard checks before pushing
 | `npm run check:localizations` | Validate translations (12 languages) |
 | `npm run check:contracts` | Source contracts the compiler cannot check — no `URLSession.shared`, no network client in a view, every key in every language, the Mac entitlement allowlist… (`scripts/check-source-contracts.mjs --list`); a new tree-wide rule goes here, not into a unit test that greps source |
 | `npm run check:design` | The design ratchet (AITD-608): hand-written colours, font sizes, radii, padding, shadows, durations, `colorScheme == .dark ?` ternaries and hardcoded copy, counted per target against `scripts/design-metrics.budget.json`; fails when a count rises. `npm run design:metrics` prints them; `-- --update` lowers the budgets after a reduction (it never raises them) |
+| `npm run smoke:brand-variant` | Build a client's brand variant (own identity, non-astrid.cc host) for the simulator in a temporary worktree, check the built app, and launch it (ADEV-109; `--no-launch` to skip the simulator). CI runs it on every push to `main` |
 | `npm run build` | Build app (quiet) |
 | `npm run build:verbose` | Build app (verbose — for debugging build failures) |
 

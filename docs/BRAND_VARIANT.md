@@ -216,6 +216,44 @@ committed tree first, then `--brand` writes the client's variant. The repo's che
 the variant itself. If the checkout already holds a variant (a previous partner's run), the script
 refuses and says how to restore it. `--skip-gate` remains for a checkout you have just gated.
 
+## Smoke-testing against your own server
+
+The repository can only check part of this for you. `npm run smoke:brand-variant` (see *What
+checks it*) builds a variant with a client's identity on a host that is not astrid.cc. It then
+launches the variant on a simulator. It cannot sign in, because a variant only reaches a real
+server:
+- The Whitelabel configuration is a release build. The host (`NEXT_PUBLIC_BRAND_DOMAIN`) is
+  compiled in.
+- There is no `debug_server_url` setting and no App Transport Security exception.
+- So `http://localhost` and a self-signed certificate are both refused. The self-host compose
+  stack (astrid-web `deploy/self-host/`, smoke-tested on Linux by its `self-host.yml` workflow)
+  serves plain HTTP. The app cannot reach it as it stands.
+
+**Run these checks yourself once your server is live, before the first upload:**
+
+1. The server is at its final host, over HTTPS with a publicly trusted certificate, and answers
+   `curl -fsS https://<host>/api/health`.
+2. `node scripts/check-aasa.mjs --host <host> --app-id <team>.<bundleId> --profile <brand>`
+   passes. `--brand` runs this for you; without it, passkeys fail silently.
+3. Build for the simulator with your profile, in a worktree (see above):
+   `./scripts/make-brand-variant.sh <brand>`, then build and run the `Whitelabel App` scheme on a
+   simulator from Xcode.
+4. On the sign-in screen, check:
+   - your name and art appear
+   - only the sign-in methods your profile enables are offered
+5. Sign in with each enabled method. Each one checks a different setting:
+   - **A passkey** checks the AASA file and that the host is the relying party.
+   - **Google** checks `googleClientId` and `GOOGLE_ALLOWED_AUDIENCES`.
+   - **Apple** checks `APPLE_CLIENT_IDS`.
+   - **Email and browser sign-in** checks that the server returns to `<urlScheme>://auth/callback`.
+6. After signing in:
+   - create a task
+   - open the Share extension from Safari and save a page (this checks the App Group)
+   - kill and relaunch the app: you should still be signed in (this checks the keychain group)
+
+Any failure at step 4 or later is a server setting. Those are listed in the checklist printed at
+the end of each `--brand` run, and none of them needs a rebuild.
+
 ## Not configurable here (yet)
 
 Nothing on the app side: everything above comes from the profile.
@@ -235,3 +273,12 @@ writing every client's resources — is astrid-core
   when any permission prompt, Services item or Mac product name still says Astrid. To fix it,
   re-run the script for `whitelabel-partner` and commit the result. Both checks expect Graceful
   Tools' Whitelabel app, which is why a client's variant stays off `main` (above).
+- `scripts/brand-variant-smoke.sh` (`npm run smoke:brand-variant`, and the `brand-variant` job
+  in `ios-tests.yml` on every push to `main`) is the only check that compiles and runs a
+  client's variant (ADEV-109). In a temporary worktree it writes a scratch client profile, with
+  its own bundle id, team, App Group, URL scheme and icon, and the host
+  `tasks.smoke-client.invalid`. It builds `Whitelabel App` for the simulator, unsigned. It checks
+  the built app's bundle id, `BrandHost`, URL types, App Group, sync task id and Share extension
+  id, then launches the app and checks it is still running. `--no-launch` skips the simulator.
+  `scripts/test-brand-variant-smoke.sh` (in `test:scripts`) tests those checks against fixture
+  apps.

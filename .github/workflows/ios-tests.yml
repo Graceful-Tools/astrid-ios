@@ -298,3 +298,31 @@ jobs:
       - name: Build (simulator)
         run: npm run build
         timeout-minutes: 20
+
+  # A client's brand variant: a non-default identity on a host that is not astrid.cc, built for
+  # the simulator and launched (ADEV-109). The other checks compare files. Only this one compiles
+  # a re-identified app and runs it. It does not sign in. The variant's host is compiled in and
+  # has no ATS exception, so it can only reach a public HTTPS server. Signing in against a
+  # partner's own server is in docs/BRAND_VARIANT.md, "Smoke-testing against your own server".
+  # Main and dispatch only: the build takes minutes on the one runner.
+  brand-variant:
+    name: 'Brand Variant (build + launch)'
+    runs-on: ${{ fromJSON(inputs.runner == 'macos-latest' && '["macos-latest"]' || '["self-hosted","astrid-ios"]') }}
+    needs: build-check
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and launch a client variant
+        run: npm run smoke:brand-variant
+        timeout-minutes: 30
