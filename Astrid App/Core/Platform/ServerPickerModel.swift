@@ -36,11 +36,16 @@ final class ServerPickerModel: ObservableObject {
 
         isChecking = true
         defer { isChecking = false }
+        let host = URL(string: origin)?.host ?? origin
         do {
-            _ = try await probe(origin)
+            let capabilities = try await probe(origin)
+            // Too old for this app: say so now, not after a sign-in that never returns (ADEV-121).
+            guard !ServerCompatibility.isTooOld(capabilities) else {
+                errorMessage = ServerCompatibility.message(host: host)
+                return false
+            }
         } catch {
-            errorMessage = Self.message(for: error as? ServerProbe.Failure ?? .unreachable,
-                                        host: URL(string: origin)?.host ?? origin)
+            errorMessage = Self.message(for: error as? ServerProbe.Failure ?? .unreachable, host: host)
             return false
         }
         await switchTo(origin)

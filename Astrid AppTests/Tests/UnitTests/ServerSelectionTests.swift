@@ -203,7 +203,9 @@ final class ServerPickerModelTests: XCTestCase {
     func testAGoodServerIsCheckedThenUsed_ADEV118() async {
         var probed: [String] = []
         var switched: [String?] = []
-        let model = ServerPickerModel(probe: { probed.append($0); return .permissive },
+        var current = ServerCapabilities()
+        current.meta.apiLevel = ServerCompatibility.requiredLevel
+        let model = ServerPickerModel(probe: { probed.append($0); return current },
                                       switchTo: { switched.append($0) })
         model.address = "Tasks.Example.com/signin"
         let connected = await model.connect()
@@ -260,5 +262,59 @@ final class ActiveServerTests: XCTestCase {
                        ["tasks.example.com"])
         XCTAssertEqual(ActiveServer.webHosts(origin: "https://www.astrid.cc", chosen: false, brandHosts: brandHosts),
                        brandHosts)
+    }
+}
+
+/// ADEV-121: a chosen server too old for this app is refused by name.
+@MainActor
+final class ServerCompatibilityTests: XCTestCase {
+    private func capabilities(_ json: String) throws -> ServerCapabilities {
+        try JSONDecoder().decode(ServerCapabilities.self, from: Data(json.utf8))
+    }
+
+    func testAServerWithNoLevelIsTheOldest_ADEV121() throws {
+        let old = try capabilities(#"{"auth":{},"meta":{"apiVersion":"v1"}}"#)
+        XCTAssertEqual(old.meta.level, 0)
+        XCTAssertTrue(ServerCompatibility.isTooOld(old, required: 1))
+    }
+
+    func testOlderAndCurrentLevels_ADEV121() throws {
+        let current = try capabilities(#"{"meta":{"apiVersion":"v1","apiLevel":1}}"#)
+        let newer = try capabilities(#"{"meta":{"apiVersion":"v1","apiLevel":7}}"#)
+        XCTAssertFalse(ServerCompatibility.isTooOld(current, required: 1))
+        XCTAssertFalse(ServerCompatibility.isTooOld(newer, required: 1))
+        XCTAssertTrue(ServerCompatibility.isTooOld(current, required: 2))
+    }
+
+    func testAMalformedMetaReadsAsTheOldestRatherThanFailingTheWholeDocument_ADEV121() throws {
+        let odd = try capabilities(#"{"brand":{"appName":"Acme"},"meta":{"apiLevel":"high"}}"#)
+        XCTAssertEqual(odd.meta.level, 0)
+        XCTAssertEqual(odd.brand.appName, "Acme")
+    }
+
+    func testTheMessageNamesTheServer_ADEV121() {
+        XCTAssertTrue(ServerCompatibility.message(host: "tasks.example.com").contains("tasks.example.com"))
+    }
+
+    func testThePickerRefusesATooOldServerAndDoesNotSwitch_ADEV121() async {
+        var switched = false
+        let model = ServerPickerModel(probe: { _ in try JSONDecoder().decode(
+            ServerCapabilities.self, from: Data(#"{"auth":{},"meta":{"apiVersion":"v1"}}"#.utf8)) },
+                                      switchTo: { _ in switched = true })
+        model.address = "tasks.example.com"
+        let connected = await model.connect()
+        XCTAssertFalse(connected)
+        XCTAssertFalse(switched)
+        XCTAssertEqual(model.errorMessage, ServerCompatibility.message(host: "tasks.example.com"))
+    }
+
+    func testOnlyAChosenServerIsFlaggedTooOld_ADEV121() async {
+        let old: ServerCapabilities = .permissive
+        let chosen = ServerCapabilityService(fetch: { old }, storeCopy: { _ in }, isChosenServer: { true })
+        let own = ServerCapabilityService(fetch: { old }, storeCopy: { _ in }, isChosenServer: { false })
+        await chosen.refresh()
+        await own.refresh()
+        XCTAssertTrue(chosen.chosenServerTooOld)
+        XCTAssertFalse(own.chosenServerTooOld, "the build's own server ships with the build")
     }
 }

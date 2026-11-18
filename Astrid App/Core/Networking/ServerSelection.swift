@@ -129,3 +129,25 @@ enum ActiveServer {
         return [host]
     }
 }
+
+/// Whether a server the person chose is new enough for this app (ADEV-121).
+///
+/// The app updates on our schedule and a partner's server on theirs. Below the level this app
+/// needs, it says so by name ("this server needs an update") instead of signing in and failing
+/// somewhere odd. Only a CHOSEN server is gated: the build's own server ships with the build.
+/// Optional features follow the capability flags instead, so a newer app keeps working, with
+/// less, against an older server. Policy: astrid-web `docs/deployment/WHITE_LABEL_COMPATIBILITY.md`.
+enum ServerCompatibility {
+    /// The level this app needs. 1: browser sign-in calls back on this app's own scheme
+    /// (astrid-web ADEV-124), without which sign-in on a partner's server never returns.
+    /// Raise it only for something the app cannot work without, never for an optional feature.
+    static let requiredLevel = 1
+
+    static func isTooOld(_ capabilities: ServerCapabilities, required: Int = requiredLevel) -> Bool {
+        capabilities.meta.level < required
+    }
+
+    static func message(host: String) -> String {
+        String(format: NSLocalizedString("server.error_too_old", comment: ""), host, Brand.appName)
+    }
+}

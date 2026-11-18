@@ -1693,3 +1693,4 @@
 "server.switch_back_message" = "此设备上来自 %@ 的数据副本将被删除。你的账户仍保留在该服务器上。";
 "server.switch_back" = "退出登录并切换";
 "auth.sign_in_on_server" = "在 %@ 上登录";
+"server.error_too_old" = "%1$@ 需要更新才能与此版本的 %2$@ 配合使用。请联系其管理员，或使用其他服务器。";

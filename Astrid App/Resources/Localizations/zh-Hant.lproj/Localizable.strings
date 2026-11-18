@@ -1695,3 +1695,4 @@
 "server.switch_back_message" = "此裝置上來自 %@ 的資料副本將被刪除。你的帳號仍保留在該伺服器上。";
 "server.switch_back" = "登出並切換";
 "auth.sign_in_on_server" = "在 %@ 上登入";
+"server.error_too_old" = "%1$@ 需要更新才能與此版本的 %2$@ 搭配使用。請聯絡其管理員，或使用其他伺服器。";

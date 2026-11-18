@@ -208,6 +208,13 @@ struct MacLoginView: View {
                     ForEach(methods.buttons) { provider in
                         signInButton(for: provider)
                     }
+                case .serverPage(let host) where serverCapabilities.chosenServerTooOld:
+                    // Too old for this app: say so rather than start a sign-in that cannot
+                    // finish (ADEV-121).
+                    Text(ServerCompatibility.message(host: host))
+                        .macFont(.callout).foregroundStyle(Theme.errorInk)
+                        .multilineTextAlignment(.center)
+                        .accessibilityIdentifier("login.serverTooOld")
                 case .serverPage(let host):
                     // A partner's server: its own sign-in page (ADEV-119).
                     Button { run { try await auth.signInWithBrowser(provider: nil) } } label: {

@@ -22,6 +22,13 @@ final class ServerCapabilityService: ObservableObject {
     /// Starts permissive so nothing is hidden before the first fetch completes.
     @Published private(set) var capabilities: ServerCapabilities = .permissive
 
+    /// The server the person chose answered, and is too old for this app (ADEV-121). False until
+    /// it has answered: an unreachable server is a different problem with its own message.
+    @Published private(set) var chosenServerTooOld = false
+
+    /// Whether the app is on a server the person chose. `ActiveServer` in the app; a stub in tests.
+    private let isChosenServer: @MainActor () -> Bool
+
     private var isRefreshing = false
     private var lastFetchedBaseURL: String?
 
@@ -32,7 +39,9 @@ final class ServerCapabilityService: ObservableObject {
     private let storeCopy: @MainActor (ServerCapabilities.BrandCopy?) -> Void
 
     init(fetch: Fetch? = nil,
-         storeCopy: (@MainActor (ServerCapabilities.BrandCopy?) -> Void)? = nil) {
+         storeCopy: (@MainActor (ServerCapabilities.BrandCopy?) -> Void)? = nil,
+         isChosenServer: (@MainActor () -> Bool)? = nil) {
+        self.isChosenServer = isChosenServer ?? { ActiveServer.isChosen }
         // Unauthenticated on the server, so this works before sign-in — which is when the app
         // needs to know which sign-in methods to show. The core sends it without a session.
         self.fetch = fetch ?? {
@@ -56,6 +65,7 @@ final class ServerCapabilityService: ObservableObject {
         do {
             let fetched = try await fetch()
             capabilities = fetched
+            chosenServerTooOld = isChosenServer() && ServerCompatibility.isTooOld(fetched)
             // Cache the brand's voice so the in-app reminder view has it before/without
             // a fetch. Only written on a SUCCESSFUL fetch: a failed request must leave the
             // last known voice alone rather than reverting a partner's app to Astrid's
@@ -72,6 +82,7 @@ final class ServerCapabilityService: ObservableObject {
     /// (ADEV-118). Called on a server switch, before asking the new one.
     func reset() {
         capabilities = .permissive
+        chosenServerTooOld = false
         lastFetchedBaseURL = nil
         storeCopy(nil)
     }
