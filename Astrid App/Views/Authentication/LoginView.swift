@@ -16,6 +16,9 @@ struct LoginView: View {
     @State private var showPasskeyEmailSheet = false
     @State private var passkeyEmail = ""
     @State private var isCreatingLocalUser = false
+    @State private var showServerPicker = false
+    /// Read when the screen draws; a switch re-renders it through `serverCapabilities`.
+    private var serverSwitcher: ServerSwitcher { .shared }
 
     /// Only the methods the connected deployment supports — a partner without Google or
     /// Apple sign-in must not show buttons that fail on tap (SignInMethods).
@@ -139,6 +142,8 @@ struct LoginView: View {
                                 .foregroundColor(palette.textSecondary)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, Theme.spacing4)
+
+                            serverFooter
                         }
                         .padding(.horizontal, Theme.spacing32)
 
@@ -168,6 +173,11 @@ struct LoginView: View {
             #else
             .navigationBarHidden(true)
             #endif
+            .sheet(isPresented: $showServerPicker) {
+                ServerPickerSheet { showServerPicker = false }
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
+            }
             .sheet(isPresented: $showPasskeyEmailSheet) {
                 PasskeyEmailSheet(
                     email: $passkeyEmail,
@@ -193,6 +203,29 @@ struct LoginView: View {
             // to show. Failure leaves this build's own brand in place (task 97208a72).
             .task { await serverCapabilities.refreshIfServerChanged() }
         }
+    }
+
+    /// Which server this screen signs in to, and the way to another (ADEV-118).
+    @ViewBuilder
+    private var serverFooter: some View {
+        VStack(spacing: Theme.spacing4) {
+            if serverSwitcher.isCustom {
+                Text(String(format: NSLocalizedString("server.current", comment: ""), serverSwitcher.currentHost))
+                    .font(Theme.Typography.caption2())
+                    .foregroundColor(palette.textSecondary)
+                    .accessibilityIdentifier("login.server")
+                Button(String(format: NSLocalizedString("server.use_brand", comment: ""), Brand.appName)) {
+                    _Concurrency.Task { await serverSwitcher.use(nil) }
+                }
+                .font(Theme.Typography.caption1())
+            }
+            Button(NSLocalizedString("server.use_different", comment: "")) {
+                showServerPicker = true
+            }
+            .font(Theme.Typography.caption1())
+            .accessibilityIdentifier("login.useDifferentServer")
+        }
+        .padding(.top, Theme.spacing8)
     }
 
     @ViewBuilder

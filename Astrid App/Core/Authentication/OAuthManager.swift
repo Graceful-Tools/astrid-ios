@@ -54,11 +54,11 @@ class OAuthManager {
     private var refreshCallbacks: [(Result<String, Error>) -> Void] = []
 
     // Configuration
-    private let baseURL: URL
+    /// Read each time: the server can change at sign-in (ADEV-118).
+    private var baseURL: URL { URL(string: Constants.API.baseURL)! }
     private let session: URLSession
 
     private init() {
-        self.baseURL = URL(string: Constants.API.baseURL)!
 
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = Constants.API.timeout

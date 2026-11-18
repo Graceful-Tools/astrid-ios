@@ -68,6 +68,14 @@ final class ServerCapabilityService: ObservableObject {
         }
     }
 
+    /// Forget the previous server's answer: its brand, its sign-in methods, its cached voice
+    /// (ADEV-118). Called on a server switch, before asking the new one.
+    func reset() {
+        capabilities = .permissive
+        lastFetchedBaseURL = nil
+        storeCopy(nil)
+    }
+
     /// Refresh when the app points at a different server than the one we last asked.
     func refreshIfServerChanged() async {
         guard lastFetchedBaseURL != Constants.API.baseURL else { return }

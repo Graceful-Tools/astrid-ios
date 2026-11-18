@@ -66,10 +66,9 @@ final class ServerBrandTests: XCTestCase {
 
     // MARK: - Untrusted input
 
-    /// Defence in depth. A release build only talks to `Brand.productionBaseURL` — the
-    /// server picker is `#if DEBUG` with three fixed options — so this is not
-    /// attacker-chosen input. It is still network data rendered straight into the UI
-    /// chrome, and validating it costs nothing.
+    /// Since ADEV-118 a release build can be pointed at any https server from the sign-in
+    /// screen, so this is input someone else may have chosen, rendered straight into the UI
+    /// chrome.
     func testBlankServerValuesFallBackRatherThanBlankingTheUI() throws {
         let caps = try decode(#"{"brand":{"appName":"","wordmark":"   ","slogan":"\n"}}"#)
 

@@ -162,6 +162,10 @@ struct MacLoginView: View {
     /// A local-only passkey request found nothing on this Mac: offer the routes explicitly
     /// instead of greeting the user with the nearby-device QR (AITD-298).
     @State private var showPasskeyAlternatives = false
+    /// "Use a different server" (ADEV-118).
+    @State private var showServerPicker = false
+    @StateObject private var serverPicker = ServerPickerModel()
+    private var serverSwitcher: ServerSwitcher { .shared }
 
     /// Only the methods the connected deployment supports, and Apple only when this build is
     /// entitled to it (SignInMethods).
@@ -207,6 +211,7 @@ struct MacLoginView: View {
                 }
                 .buttonStyle(.link).macFont(.callout).foregroundStyle(Theme.textSecondary)
                 .accessibilityIdentifier("login.offline")
+                serverFooter
             }
 
             if auth.isLoading { ProgressView().controlSize(.small) }
@@ -219,11 +224,65 @@ struct MacLoginView: View {
         .frame(width: 400)
         .background(Theme.bgPrimary)
         .sheet(isPresented: $showSignUp) { signUpSheet }
+        .sheet(isPresented: $showServerPicker) { serverPickerSheet }
         // Ask the connected deployment who it is. /api/v1/capabilities is
         // unauthenticated precisely so this can happen before sign-in — which is exactly
         // when the app needs to know which brand to show. Failure leaves this build's
         // own brand in place (task 97208a72).
         .task { await serverCapabilities.refreshIfServerChanged() }
+    }
+
+    /// Which server this screen signs in to, and the way to another (ADEV-118).
+    @ViewBuilder
+    private var serverFooter: some View {
+        if serverSwitcher.isCustom {
+            Text(String(format: NSLocalizedString("server.current", comment: ""), serverSwitcher.currentHost))
+                .macFont(.caption).foregroundStyle(Theme.textSecondary)
+                .accessibilityIdentifier("login.server")
+            Button(String(format: NSLocalizedString("server.use_brand", comment: ""), Brand.appName)) {
+                _Concurrency.Task { await serverSwitcher.use(nil) }
+            }
+            .buttonStyle(.link).macFont(.callout)
+        }
+        Button(NSLocalizedString("server.use_different", comment: "")) {
+            serverPicker.address = ""
+            showServerPicker = true
+        }
+        .buttonStyle(.link).macFont(.callout).foregroundStyle(Theme.textSecondary)
+        .accessibilityIdentifier("login.useDifferentServer")
+    }
+
+    private var serverPickerSheet: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(NSLocalizedString("server.picker_title", comment: "")).macFont(.headline).foregroundStyle(Theme.textPrimary)
+            Text(NSLocalizedString("server.picker_message", comment: ""))
+                .macFont(.callout).foregroundStyle(Theme.textSecondary)
+            TextField(NSLocalizedString("server.address_placeholder", comment: ""), text: $serverPicker.address)
+                .textFieldStyle(.roundedBorder).onSubmit(connectServer)
+                .accessibilityIdentifier("server.address")
+            if let error = serverPicker.errorMessage {
+                Text(error).macFont(.caption).foregroundStyle(Theme.errorInk)
+                    .accessibilityIdentifier("server.error")
+            }
+            HStack {
+                if serverPicker.isChecking { ProgressView().controlSize(.small) }
+                Spacer()
+                Button(NSLocalizedString("actions.cancel", comment: "")) { showServerPicker = false }
+                    .keyboardShortcut(.escape, modifiers: [])
+                Button(NSLocalizedString("server.connect", comment: ""), action: connectServer)
+                    .buttonStyle(.borderedProminent).disabled(!serverPicker.canConnect)
+                    .accessibilityIdentifier("server.connect")
+            }
+        }
+        .padding(Theme.spacing20)
+        .frame(width: 380)
+        .background(Theme.bgPrimary)
+    }
+
+    private func connectServer() {
+        _Concurrency.Task {
+            if await serverPicker.connect() { showServerPicker = false }
+        }
     }
 
     private var signUpSheet: some View {
