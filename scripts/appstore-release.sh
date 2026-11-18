@@ -28,6 +28,9 @@
 #                   With --upload, predeploy gates the COMMITTED tree before the variant is written
 #                   (ADEV-106). Run partner builds in their own worktree; never commit a client's
 #                   variant to main.
+#   --skip-aasa     with --brand: don't ask the partner's server whether its apple-app-site-association
+#                   names the app (ADEV-107). Without it, a server that does not stops an --upload
+#                   before archiving and warns on a build-only run.
 #
 # Every run ends with one line starting `RESULT:` saying exactly what happened.
 #
@@ -42,12 +45,13 @@ ROOT="$(pwd -P)"
 source "$ROOT/scripts/lib/asc-key.sh"
 
 TARGET="${1:-}"; shift || true
-UPLOAD=0; WAIT=1; SKIP_GATE=0; BUILD_NUM=""; ARCH=""; BRAND=""
+UPLOAD=0; WAIT=1; SKIP_GATE=0; SKIP_AASA=0; BUILD_NUM=""; ARCH=""; BRAND=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --upload)    UPLOAD=1 ;;
     --dry-run)   UPLOAD=0 ;;          # the default; accepted so it can be stated explicitly
     --skip-gate) SKIP_GATE=1 ;;
+    --skip-aasa) SKIP_AASA=1 ;;
     --no-wait)   WAIT=0 ;;
     --build)     BUILD_NUM="${2:-}"; shift ;;
     --arch)      ARCH="${2:-}"; shift ;;
@@ -183,6 +187,31 @@ if ! ./scripts/check-version.sh "$TARGET" --version "$VERSION"; then
     fail "$SCHEME $VERSION has already been released and this upload would be rejected — see above for the fix."
   fi
   echo "  Note: building is fine. Uploading needs a higher MARKETING_VERSION."
+fi
+
+# --- The partner's server ---------------------------------------------------------
+# The host is compiled into the app, and its apple-app-site-association decides whether the app's
+# passkeys and links work. astrid-web fills it from BRAND_APPLE_APP_IDS; unset, it lists Astrid's
+# apps instead and the partner's passkeys fail with no error anywhere (ADEV-107). Asked before the
+# archive, so a wrong server costs seconds rather than a twenty-minute build.
+if [ -n "$BRAND" ] && [ "$SKIP_AASA" = "0" ]; then
+  step "The partner's apple-app-site-association"
+  AASA_IDENTITY=$(python3 - "$ROOT/Brands/Whitelabel/variant.json" "$ROOT/Brands/Whitelabel/Info-iOS.plist" <<'PY'
+import json, plistlib, sys
+ident = json.load(open(sys.argv[1]))
+info = plistlib.load(open(sys.argv[2], 'rb'))
+print(info.get('BrandHost', 'astrid.cc'), f"{ident['developmentTeam']}.{ident['bundleId']}")
+PY
+) || fail "could not read the variant's host and app id from Brands/Whitelabel."
+  read -r AASA_HOST AASA_APP_ID <<< "$AASA_IDENTITY"
+  set +e
+  node scripts/check-aasa.mjs --host "$AASA_HOST" --app-id "$AASA_APP_ID" --profile "$BRAND" | sed 's/^/  /'
+  AASA_RC=${PIPESTATUS[0]}
+  set -e
+  if [ "$AASA_RC" -ne 0 ]; then
+    [ "$UPLOAD" = "0" ] || fail "$AASA_HOST does not serve an apple-app-site-association naming $AASA_APP_ID, so the app's passkeys and links would not work (see above). Fix the deployment, or re-run with --skip-aasa if you know why."
+    echo "  Warning: passkeys and links will fail in this build until the server names $AASA_APP_ID. --upload stops here."
+  fi
 fi
 
 # --- Quality gate -----------------------------------------------------------------

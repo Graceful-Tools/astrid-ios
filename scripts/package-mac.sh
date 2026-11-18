@@ -33,6 +33,12 @@
 # (the partner's domain, no Sign in with Apple), and takes the bundle id, app and DMG names from
 # that configuration rather than Astrid's (AITD-618). Its bundle id needs its own Developer ID
 # profile, which mac-devid-profile.mjs --bundle-id creates.
+#
+# It also needs MAC_DEVID_IDENTITY: the SHA-1 of the PARTNER's "Developer ID Application" identity,
+# as `security find-identity -v -p codesigning` prints it (ADEV-107). The keychain of the machine
+# building it usually holds the owner's Developer ID too, and the first one found is not
+# necessarily the partner's. The run stops unless the partner's profile signs with exactly that one.
+#   MAC_DEVID_IDENTITY=<sha1> ASC_ENV_FILE=~/partners/acme/asc.env ./scripts/package-mac.sh --whitelabel
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -44,7 +50,9 @@ EXPORT_DIR="$BUILD_DIR/export"
 DIST_DIR="$BUILD_DIR/dist"
 SCHEME="Astrid Mac"
 DIRECT_ENTITLEMENTS="Astrid Mac/Astrid Mac Direct.entitlements"
+WHITELABEL=0
 if [ "${1:-}" = "--whitelabel" ]; then
+  WHITELABEL=1
   SCHEME="Whitelabel Mac"
   DIRECT_ENTITLEMENTS="Brands/Whitelabel/Whitelabel-Mac-Direct.entitlements"
 fi
@@ -83,6 +91,24 @@ if [ -z "$IDENTITY_NAME" ]; then
 fi
 green "✓ Developer ID signing identity found"
 
+# A partner's DMG is signed with the partner's identity, named explicitly (ADEV-107).
+WANT_IDENTITY=""
+if [ "$WHITELABEL" = "1" ]; then
+  WANT_IDENTITY=$(printf '%s' "${MAC_DEVID_IDENTITY:-}" | tr '[:lower:]' '[:upper:]')
+  if ! [[ "$WANT_IDENTITY" =~ ^[0-9A-F]{40}$ ]]; then
+    red "--whitelabel needs MAC_DEVID_IDENTITY: the SHA-1 of the partner's Developer ID Application identity."
+    echo "  List them with: security find-identity -v -p codesigning"
+    echo "  The first one in this keychain may be the machine owner's, which must not sign a partner's app."
+    exit 1
+  fi
+  if ! security find-identity -v -p codesigning | grep -i "$WANT_IDENTITY" | grep -q "Developer ID Application"; then
+    red "MAC_DEVID_IDENTITY $WANT_IDENTITY is not an installed Developer ID Application identity."
+    echo "  Import the partner's certificate and private key (.p12) into the login keychain first."
+    exit 1
+  fi
+  green "✓ Partner identity $WANT_IDENTITY installed"
+fi
+
 # Read the version from the Mac scheme's own build settings. A grep of project.pbxproj
 # picks up whichever target appears first in the file (the iOS app), which silently
 # mislabels the DMG with the iOS version.
@@ -103,6 +129,11 @@ PROFILE_ARGS=(--print-path)
 PROFILE_PATH=$(node scripts/mac-devid-profile.mjs "${PROFILE_ARGS[@]}") || { red "Could not obtain a Developer ID profile"; exit 1; }
 SIGNING_IDENTITY=$(node scripts/mac-devid-identity.mjs "$PROFILE_PATH") || { red "Could not match the Developer ID profile to an installed identity"; exit 1; }
 read -r IDENTITY TEAM_ID <<< "$SIGNING_IDENTITY"
+if [ -n "$WANT_IDENTITY" ] && [ "$IDENTITY" != "$WANT_IDENTITY" ]; then
+  red "The Developer ID profile for $BUNDLE_ID (team $TEAM_ID) signs with $IDENTITY, not MAC_DEVID_IDENTITY $WANT_IDENTITY."
+  echo "  ASC_ENV_FILE must be the partner's key, and the identity theirs. Check both, then re-run."
+  exit 1
+fi
 PROFILE_UUID=$(basename "$PROFILE_PATH" .provisionprofile)
 green "✓ Signing identity: $IDENTITY (team $TEAM_ID)"
 
