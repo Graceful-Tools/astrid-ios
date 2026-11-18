@@ -1692,3 +1692,4 @@
 "server.switch_back_confirm" = "Uscire e usare il server di %@?";
 "server.switch_back_message" = "La copia dei tuoi dati di %@ su questo dispositivo verrà rimossa. Il tuo account resta su quel server.";
 "server.switch_back" = "Esci e cambia";
+"auth.sign_in_on_server" = "Accedi su %@";

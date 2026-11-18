@@ -79,3 +79,23 @@ struct SignInMethods: Equatable {
         )
     }
 }
+
+/// How the sign-in screen signs in (ADEV-119).
+///
+/// On the build's own server: its native buttons, as the server lists them. On anyone else's,
+/// one button that opens that server's own sign-in page in the browser. The native flows cannot
+/// work there: passkeys and Universal Links are bound to the domains in this app's entitlements,
+/// and Google and Apple sign-in to this app's own client ids. The server's page offers whatever
+/// it has, passkeys on its own domain included.
+enum SignInPlan: Equatable {
+    case native(SignInMethods)
+    /// Sign in on this host's page.
+    case serverPage(host: String)
+
+    static func forServer(isCustom: Bool, host: String, auth: ServerCapabilities.Auth,
+                          appleEntitled: Bool = true,
+                          googleConfigured: Bool = Brand.googleClientId != nil) -> SignInPlan {
+        if isCustom { return .serverPage(host: host) }
+        return .native(.offered(by: auth, appleEntitled: appleEntitled, googleConfigured: googleConfigured))
+    }
+}

@@ -1708,3 +1708,4 @@
 "server.switch_back_confirm" = "¿Cerrar sesión y usar el servidor de %@?";
 "server.switch_back_message" = "Se eliminará la copia de tus datos de %@ en este dispositivo. Tu cuenta sigue en ese servidor.";
 "server.switch_back" = "Cerrar sesión y cambiar";
+"auth.sign_in_on_server" = "Iniciar sesión en %@";

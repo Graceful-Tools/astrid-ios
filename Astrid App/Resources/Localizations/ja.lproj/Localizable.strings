@@ -1692,3 +1692,4 @@
 "server.switch_back_confirm" = "サインアウトして%@のサーバーを使用しますか?";
 "server.switch_back_message" = "このデバイス上の %@ のデータのコピーは削除されます。アカウントはそのサーバーに残ります。";
 "server.switch_back" = "サインアウトして切り替え";
+"auth.sign_in_on_server" = "%@ でサインイン";

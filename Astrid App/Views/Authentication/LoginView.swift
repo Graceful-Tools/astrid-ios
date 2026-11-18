@@ -24,6 +24,12 @@ struct LoginView: View {
     /// Apple sign-in must not show buttons that fail on tap (SignInMethods).
     private var signInMethods: SignInMethods { .offered(by: serverCapabilities.capabilities.auth) }
 
+    /// Native buttons on the build's own server, the server's page on anyone else's (ADEV-119).
+    private var signInPlan: SignInPlan {
+        .forServer(isCustom: serverSwitcher.isCustom, host: serverSwitcher.currentHost,
+                   auth: serverCapabilities.capabilities.auth)
+    }
+
     #if DEBUG
     @State private var showingServerSettings = false
     #endif
@@ -89,8 +95,19 @@ struct LoginView: View {
 
                         // Sign-in buttons, in the order the deployment lists them (AITD-465)
                         VStack(spacing: Theme.spacing12) {
-                            ForEach(signInMethods.buttons) { provider in
-                                signInButton(for: provider)
+                            switch signInPlan {
+                            case .native(let methods):
+                                ForEach(methods.buttons) { provider in
+                                    signInButton(for: provider)
+                                }
+                            case .serverPage(let host):
+                                // A partner's server: its own sign-in page (ADEV-119).
+                                providerButton(icon: "globe",
+                                               title: String(format: NSLocalizedString("auth.sign_in_on_server", comment: ""), host),
+                                               background: palette.bgTertiary, foreground: palette.textPrimary) {
+                                    _Concurrency.Task { await signInWithBrowser(nil) }
+                                }
+                                .accessibilityIdentifier("login.serverPage")
                             }
 
                             // Divider
@@ -265,11 +282,17 @@ struct LoginView: View {
 
     private func providerButton(icon: String, titleKey: String, background: Color, foreground: Color,
                                 action: @escaping () -> Void) -> some View {
+        providerButton(icon: icon, title: NSLocalizedString(titleKey, comment: ""),
+                       background: background, foreground: foreground, action: action)
+    }
+
+    private func providerButton(icon: String, title: String, background: Color, foreground: Color,
+                                action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: Theme.spacing12) {
                 Image(systemName: icon)
                     .font(Theme.Typography.headline())
-                Text(NSLocalizedString(titleKey, comment: ""))
+                Text(title)
                     .font(Theme.Typography.headline())
             }
             .frame(maxWidth: .infinity)
@@ -283,7 +306,7 @@ struct LoginView: View {
         .opacity(isLoading ? 0.6 : 1.0)
     }
 
-    private func signInWithBrowser(_ provider: SignInProvider) async {
+    private func signInWithBrowser(_ provider: SignInProvider?) async {
         isLoading = true
         showError = false
 

@@ -55,16 +55,25 @@ enum DesktopHandoff {
         base64URL(Data(SHA256.hash(data: Data(verifier.utf8))))
     }
 
-    static func startURL(baseURL: URL, provider: SignInProvider, attempt: Attempt,
-                         client: String = clientId) -> URL? {
+    /// The hand-off page's address. `provider` starts that provider straight away; nil opens the
+    /// deployment's own sign-in page, which is how a partner's server is signed in to (ADEV-119).
+    ///
+    /// `scheme` names where this app listens for the callback. A partner's server would otherwise
+    /// call back on ITS brand's scheme, which this app does not own; the server accepts its own
+    /// scheme or the stock app's and refuses anything else, so the redirect is still one of a
+    /// fixed set rather than whatever a request asks for. An older server ignores it.
+    static func startURL(baseURL: URL, provider: SignInProvider?, attempt: Attempt,
+                         client: String = clientId, scheme: String = callbackScheme) -> URL? {
         var parts = URLComponents(url: baseURL.appendingPathComponent("auth/desktop"), resolvingAgainstBaseURL: false)
-        parts?.queryItems = [
-            URLQueryItem(name: "client", value: client),
-            URLQueryItem(name: "provider", value: provider.rawValue),
+        var items = [URLQueryItem(name: "client", value: client)]
+        if let provider { items.append(URLQueryItem(name: "provider", value: provider.rawValue)) }
+        items += [
             URLQueryItem(name: "state", value: attempt.state),
             URLQueryItem(name: "code_challenge", value: attempt.challenge),
             URLQueryItem(name: "code_challenge_method", value: "S256"),
+            URLQueryItem(name: "scheme", value: scheme),
         ]
+        parts?.queryItems = items
         return parts?.url
     }
 

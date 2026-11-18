@@ -1708,3 +1708,4 @@
 "server.switch_back_confirm" = "Se déconnecter et utiliser le serveur %@ ?";
 "server.switch_back_message" = "La copie de vos données de %@ sur cet appareil sera supprimée. Votre compte reste sur ce serveur.";
 "server.switch_back" = "Se déconnecter et changer";
+"auth.sign_in_on_server" = "Se connecter sur %@";
