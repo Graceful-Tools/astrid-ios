@@ -70,6 +70,34 @@ enum ServerSelection {
     }
 }
 
+/// The server a company's device management sets (ADEV-122).
+///
+/// Managed App Configuration arrives in `UserDefaults` under `com.apple.configuration.managed`
+/// on iOS and Mac alike. Two keys: `serverURL`, the server to use, and `serverLocked`, which
+/// hides both ways to change it. An address that does not parse is ignored rather than pointing
+/// the app at nothing. Keys for IT admins: docs/MANAGED_CONFIG.md.
+struct ManagedServerConfig: Equatable {
+    static let defaultsKey = "com.apple.configuration.managed"
+    static let serverKey = "serverURL"
+    static let lockedKey = "serverLocked"
+
+    var server: String?
+    var locked: Bool
+
+    init(server: String? = nil, locked: Bool = false) {
+        self.server = server
+        self.locked = locked
+    }
+
+    init(_ configuration: [String: Any]?) {
+        let raw = configuration?[Self.serverKey] as? String
+        server = raw.flatMap { try? ServerSelection.origin(from: $0).get() }
+        locked = (configuration?[Self.lockedKey] as? Bool)
+            ?? (configuration?[Self.lockedKey] as? NSNumber)?.boolValue
+            ?? false
+    }
+}
+
 /// Where the chosen server is kept between launches.
 struct ServerSelectionStore {
     static let key = "custom_server_url"
@@ -78,9 +106,20 @@ struct ServerSelectionStore {
 
     static var standard: ServerSelectionStore { ServerSelectionStore(defaults: .standard) }
 
-    /// The chosen server, or nil for the build's own. A stored value that no longer parses (an
-    /// older build's, a hand edit) reads as nil rather than pointing the app at nothing.
-    var custom: String? {
+    /// What device management set, if anything.
+    var managed: ManagedServerConfig {
+        ManagedServerConfig(defaults.dictionary(forKey: ManagedServerConfig.defaultsKey))
+    }
+
+    /// The server to use other than the build's own: device management's, else the person's.
+    var custom: String? { managed.server ?? saved }
+
+    /// Device management has fixed the server; nobody on the device can change it.
+    var isLocked: Bool { managed.locked }
+
+    /// The person's own choice. A stored value that no longer parses (an older build's, a hand
+    /// edit) reads as nil rather than pointing the app at nothing.
+    var saved: String? {
         guard let stored = defaults.string(forKey: Self.key) else { return nil }
         return try? ServerSelection.origin(from: stored).get()
     }
@@ -92,6 +131,25 @@ struct ServerSelectionStore {
             return
         }
         defaults.set(origin, forKey: Self.key)
+    }
+}
+
+/// Which server the saved sign-in belongs to (ADEV-122).
+///
+/// The server can change while the app is not running: device management pushes a new one, or
+/// a developer changes the debug server. The Keychain still holds the previous server's session,
+/// and the core would send it to the new server the moment it starts. `AppCore` asks this first
+/// and wipes the sign-in when the answer is yes.
+enum SessionServerGuard {
+    static let key = "session_server"
+
+    /// Record `current` and say whether the last recorded server was a different one. The first
+    /// launch with this guard records without wiping.
+    static func serverChanged(current: String, defaults: UserDefaults) -> Bool {
+        let previous = defaults.string(forKey: key)
+        defaults.set(current, forKey: key)
+        guard let previous else { return false }
+        return previous != current
     }
 }
 

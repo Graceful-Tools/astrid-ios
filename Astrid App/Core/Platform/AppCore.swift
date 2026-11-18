@@ -25,6 +25,9 @@ final class AppCore: ObservableObject {
     private let relay = ChangeRelay()
 
     private init() {
+        // Before the core starts and sends the saved session anywhere: if the server changed
+        // while the app was not running, that session belongs to the old one (ADEV-122).
+        let serverChanged = Self.wipeSignInIfServerChanged()
         let session = Self.makeSession()
         current.replace(with: session)
         session.subscribe(relay)
@@ -35,12 +38,35 @@ final class AppCore: ObservableObject {
         ) { _ in
             _Concurrency.Task { @MainActor in AppCore.shared.networkRestored() }
         }
+        if serverChanged {
+            // The rest of a sign-out (caches, preferences, the services' memory) needs the app up.
+            _Concurrency.Task { @MainActor in try? await AuthManager.shared.signOut() }
+        }
+        if !Self.isRunningUnitTests {
+            _Concurrency.Task { @MainActor in ServerSwitcher.shared.watchManagedConfiguration() }
+        }
         // The first launch after the move: carry Core Data's cache and the Swift Outbox's unsent
         // task and list writes over before anything reads the cache.
         if Self.runsUpgrade(unitTesting: Self.isRunningUnitTests, uiTesting: UITestSession.isUITesting) {
             CoreUpgrade.runIfNeeded(session)
             GoogleLedgerUpgrade.start(session)
         }
+    }
+
+    /// The server changed while the app was not running (device management pushed a new one, or
+    /// the debug server moved): drop the saved session and the cache before the core can send
+    /// that session to the new server or show the old one's data. Test runs bring their own.
+    private static func wipeSignInIfServerChanged() -> Bool {
+        guard !isRunningUnitTests, !UITestSession.isUITesting,
+              SessionServerGuard.serverChanged(current: Constants.API.baseURL, defaults: .standard)
+        else { return false }
+        AppLog.debug("🔁 [AppCore] server changed since the last run; signing out of the previous one")
+        let keychain = KeychainService.shared
+        try? keychain.deleteSessionCookie()
+        keychain.deleteOAuthClientSecret()
+        try? keychain.deleteOAuthAccessToken()
+        try? FileManager.default.removeItem(at: cacheURL)
+        return true
     }
 
     /// A core for `Constants.API.baseURL`, on this run's cache.

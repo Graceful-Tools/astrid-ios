@@ -431,20 +431,26 @@ private struct SettingsServerRows: View {
                     .foregroundColor(palette.textSecondary)
                     .accessibilityIdentifier("settings.server")
             }
-            Button(role: .destructive) {
-                confirming = true
-            } label: {
-                Text(String(format: NSLocalizedString("server.use_brand", comment: ""), Brand.appName))
+            if !switcher.isLocked {
+                switchBackButton
             }
-            .alert(String(format: NSLocalizedString("server.switch_back_confirm", comment: ""), Brand.appName),
-                   isPresented: $confirming) {
-                Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) {}
-                Button(NSLocalizedString("server.switch_back", comment: ""), role: .destructive) {
-                    _Concurrency.Task { await switcher.use(nil) }
-                }
-            } message: {
-                Text(String(format: NSLocalizedString("server.switch_back_message", comment: ""), switcher.currentHost))
+        }
+    }
+
+    private var switchBackButton: some View {
+        Button(role: .destructive) {
+            confirming = true
+        } label: {
+            Text(String(format: NSLocalizedString("server.use_brand", comment: ""), Brand.appName))
+        }
+        .alert(String(format: NSLocalizedString("server.switch_back_confirm", comment: ""), Brand.appName),
+               isPresented: $confirming) {
+            Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) {}
+            Button(NSLocalizedString("server.switch_back", comment: ""), role: .destructive) {
+                _Concurrency.Task { await switcher.use(nil) }
             }
+        } message: {
+            Text(String(format: NSLocalizedString("server.switch_back_message", comment: ""), switcher.currentHost))
         }
     }
 }

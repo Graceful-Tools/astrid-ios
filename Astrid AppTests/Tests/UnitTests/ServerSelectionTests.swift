@@ -318,3 +318,99 @@ final class ServerCompatibilityTests: XCTestCase {
         XCTAssertFalse(own.chosenServerTooOld, "the build's own server ships with the build")
     }
 }
+
+/// ADEV-122: a company's device management presets, and can lock, the server.
+@MainActor
+final class ManagedServerTests: XCTestCase {
+    private let brand = "https://astrid.cc"
+    private var defaults: UserDefaults!
+    private var store: ServerSelectionStore!
+    private var current = "https://astrid.cc"
+    private var events: [String] = []
+
+    override func setUp() {
+        super.setUp()
+        let name = "ManagedServerTests-\(UUID().uuidString)"
+        defaults = UserDefaults(suiteName: name)!
+        addTeardownBlock { [defaults] in defaults?.removePersistentDomain(forName: name) }
+        store = ServerSelectionStore(defaults: defaults)
+        current = brand
+        events = []
+    }
+
+    private func manage(_ configuration: [String: Any]?) {
+        defaults.set(configuration, forKey: ManagedServerConfig.defaultsKey)
+    }
+
+    private func makeSwitcher(signedIn: Bool = true) -> ServerSwitcher {
+        var signedIn = signedIn
+        return ServerSwitcher(.init(
+            store: store, brandDefault: brand,
+            currentServer: { [unowned self] in current },
+            reloadServer: { [unowned self] in current = ServerSelection.resolve(custom: store.custom, brandDefault: brand) },
+            isSignedIn: { signedIn },
+            signOut: { [unowned self] in events.append("signOut"); signedIn = false },
+            clearCookies: { _ in },
+            restartCore: { [unowned self] in events.append("restartCore:\(current)") },
+            resetCapabilities: {},
+            refreshCapabilities: {},
+            recordSessionServer: { [unowned self] in events.append("record:\($0)") }))
+    }
+
+    func testTheManagedKeysAreRead_ADEV122() {
+        XCTAssertEqual(ManagedServerConfig(["serverURL": "tasks.example.com", "serverLocked": true]),
+                       ManagedServerConfig(server: "https://tasks.example.com", locked: true))
+        XCTAssertEqual(ManagedServerConfig(["serverLocked": NSNumber(value: 1)]).locked, true)
+        XCTAssertEqual(ManagedServerConfig(nil), ManagedServerConfig())
+    }
+
+    func testAManagedAddressThatDoesNotParseIsIgnored_ADEV122() {
+        XCTAssertNil(ManagedServerConfig(["serverURL": "http://insecure.example.com"]).server)
+    }
+
+    func testManagedBeatsSavedBeatsTheBuildsOwn_ADEV122() {
+        XCTAssertNil(store.custom)
+        store.save("https://mine.example.com", brandDefault: brand)
+        XCTAssertEqual(store.custom, "https://mine.example.com")
+        manage(["serverURL": "https://corp.example.com"])
+        XCTAssertEqual(store.custom, "https://corp.example.com")
+    }
+
+    func testALockedServerCannotBeChangedOnTheDevice_ADEV122() async {
+        manage(["serverURL": "https://corp.example.com", "serverLocked": true])
+        let switcher = makeSwitcher()
+        await switcher.reconcile()
+        XCTAssertTrue(switcher.isLocked)
+        events = []
+        let changed = await switcher.use(nil)
+        XCTAssertFalse(changed)
+        XCTAssertEqual(current, "https://corp.example.com")
+        XCTAssertEqual(events, [])
+    }
+
+    func testAConfigurationChangeSwitchesWithTheSameCleanBreak_ADEV122() async {
+        let switcher = makeSwitcher(signedIn: true)
+        manage(["serverURL": "https://corp.example.com"])
+        let changed = await switcher.managedConfigurationMayHaveChanged()
+        XCTAssertTrue(changed)
+        XCTAssertEqual(events, ["signOut", "restartCore:https://corp.example.com", "record:https://corp.example.com"])
+    }
+
+    func testAnUnrelatedDefaultsWriteDoesNothing_ADEV122() async {
+        manage(["serverURL": "https://corp.example.com"])
+        let switcher = makeSwitcher()
+        await switcher.managedConfigurationMayHaveChanged()
+        events = []
+        defaults.set(true, forKey: "someOtherSetting")
+        let changed = await switcher.managedConfigurationMayHaveChanged()
+        XCTAssertFalse(changed)
+        XCTAssertEqual(events, [])
+    }
+
+    func testTheSessionGuardSpotsAServerThatChangedWhileClosed_ADEV122() {
+        XCTAssertFalse(SessionServerGuard.serverChanged(current: brand, defaults: defaults), "first run records only")
+        XCTAssertFalse(SessionServerGuard.serverChanged(current: brand, defaults: defaults))
+        XCTAssertTrue(SessionServerGuard.serverChanged(current: "https://corp.example.com", defaults: defaults))
+        XCTAssertFalse(SessionServerGuard.serverChanged(current: "https://corp.example.com", defaults: defaults))
+    }
+}

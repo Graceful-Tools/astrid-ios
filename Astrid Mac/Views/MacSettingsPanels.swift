@@ -87,7 +87,7 @@ struct MacConnectionSettingsView: View {
                 LabeledContent(NSLocalizedString("sync.mode", comment: ""), value: conn.currentMode.displayName)
                 LabeledContent(NSLocalizedString("mac.server", comment: ""), value: Constants.API.baseURL)
                 // Someone else's server (ADEV-118): the way back signs out first.
-                if ServerSwitcher.shared.isCustom {
+                if ServerSwitcher.shared.isCustom && !ServerSwitcher.shared.isLocked {
                     Button(String(format: NSLocalizedString("server.use_brand", comment: ""), Brand.appName),
                            role: .destructive) { confirmingSwitchBack = true }
                 }

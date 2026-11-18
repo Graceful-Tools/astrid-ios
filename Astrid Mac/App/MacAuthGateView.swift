@@ -267,17 +267,22 @@ struct MacLoginView: View {
             Text(String(format: NSLocalizedString("server.current", comment: ""), serverSwitcher.currentHost))
                 .macFont(.caption).foregroundStyle(Theme.textSecondary)
                 .accessibilityIdentifier("login.server")
-            Button(String(format: NSLocalizedString("server.use_brand", comment: ""), Brand.appName)) {
-                _Concurrency.Task { await serverSwitcher.use(nil) }
+        }
+        // Device management can fix the server; then there is no way to change it (ADEV-122).
+        if !serverSwitcher.isLocked {
+            if serverSwitcher.isCustom {
+                Button(String(format: NSLocalizedString("server.use_brand", comment: ""), Brand.appName)) {
+                    _Concurrency.Task { await serverSwitcher.use(nil) }
+                }
+                .buttonStyle(.link).macFont(.callout)
             }
-            .buttonStyle(.link).macFont(.callout)
+            Button(NSLocalizedString("server.use_different", comment: "")) {
+                serverPicker.address = ""
+                showServerPicker = true
+            }
+            .buttonStyle(.link).macFont(.callout).foregroundStyle(Theme.textSecondary)
+            .accessibilityIdentifier("login.useDifferentServer")
         }
-        Button(NSLocalizedString("server.use_different", comment: "")) {
-            serverPicker.address = ""
-            showServerPicker = true
-        }
-        .buttonStyle(.link).macFont(.callout).foregroundStyle(Theme.textSecondary)
-        .accessibilityIdentifier("login.useDifferentServer")
     }
 
     private var serverPickerSheet: some View {
