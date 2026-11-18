@@ -214,7 +214,7 @@ final class BrandVariantTests: XCTestCase {
         }
         let ios = try plist("Brands/Whitelabel/Info-iOS.plist")
         let registered = (ios["CFBundleURLTypes"] as? [[String: Any]] ?? [])
-            .first { $0["CFBundleURLName"] as? String == "cc.astrid.app" }?["CFBundleURLSchemes"] as? [String]
+            .first { $0["CFBundleURLName"] as? String == (try? variantBundleId) }?["CFBundleURLSchemes"] as? [String]
         XCTAssertEqual(registered, [Brand.resolveURLScheme(ios["BrandURLScheme"] as? String)])
     }
 
