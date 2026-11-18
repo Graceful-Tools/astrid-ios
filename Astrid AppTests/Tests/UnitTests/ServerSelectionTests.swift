@@ -235,3 +235,30 @@ final class ServerPickerModelTests: XCTestCase {
                        String(format: NSLocalizedString("server.error_not_astrid", comment: ""), "example.com"))
     }
 }
+
+/// ADEV-120: links and link handling follow the server the person chose.
+final class ActiveServerTests: XCTestCase {
+    private let partner = "https://tasks.example.com"
+
+    func testOnlyAChosenServerThatIsInUseCountsAsChosen_ADEV120() {
+        XCTAssertTrue(ActiveServer.isChosen(origin: partner, chosen: partner))
+        XCTAssertFalse(ActiveServer.isChosen(origin: "http://localhost:3000", chosen: nil),
+                       "a developer's localhost is not a choice")
+        XCTAssertFalse(ActiveServer.isChosen(origin: "https://www.astrid.cc", chosen: partner),
+                       "a UI-test run's override is not the person's choice")
+    }
+
+    func testLinksPointAtTheChosenServer_ADEV120() {
+        XCTAssertEqual(ActiveServer.linkOrigin(origin: partner, chosen: true, brandOrigin: "https://astrid.cc"), partner)
+        XCTAssertEqual(ActiveServer.linkOrigin(origin: "http://localhost:3000", chosen: false, brandOrigin: "https://astrid.cc"),
+                       "https://astrid.cc")
+    }
+
+    func testOnlyTheChosenServersLinksOpenInPlace_ADEV120() {
+        let brandHosts: Set<String> = ["astrid.cc", "www.astrid.cc"]
+        XCTAssertEqual(ActiveServer.webHosts(origin: partner, chosen: true, brandHosts: brandHosts),
+                       ["tasks.example.com"])
+        XCTAssertEqual(ActiveServer.webHosts(origin: "https://www.astrid.cc", chosen: false, brandHosts: brandHosts),
+                       brandHosts)
+    }
+}

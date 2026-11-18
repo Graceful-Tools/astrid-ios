@@ -42,7 +42,7 @@ enum MacDeepLink: Equatable {
         }
         // Only real web links count — `http://astrid.cc/...`, or any other scheme claiming this
         // host, must not be routed as a trusted universal link.
-        if url.scheme == "https", let host = url.host, Brand.webHosts.contains(host) {
+        if url.scheme == "https", let host = url.host, ActiveServer.webHosts.contains(host) {
             let parts = url.pathComponents.filter { $0 != "/" }
             guard parts.count >= 2, APIPathSafety.isValidIdentifier(parts[1]) else { return nil }
             if parts[0] == "settings" { return SettingsPage(rawValue: parts[1]).map { .settings($0) } }

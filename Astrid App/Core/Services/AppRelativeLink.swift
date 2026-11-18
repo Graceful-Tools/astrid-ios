@@ -14,6 +14,6 @@ enum AppRelativeLink {
     /// of these: resolving it would hand an attacker-chosen site the trust of an app link.
     static func resolve(_ url: URL) -> URL? {
         guard url.scheme == nil, url.host == nil, url.path.hasPrefix("/") else { return nil }
-        return URL(string: Brand.productionBaseURL + url.absoluteString)
+        return URL(string: ActiveServer.linkOrigin + url.absoluteString)
     }
 }
