@@ -116,6 +116,11 @@ const trips = {
       '"a" = "Sind Sie sicher?";\n"b" = "Bist du sicher?";\n"c" = "wenn sie gelöscht wurden";\n"d" = "Ihre Aufgaben";\n',
     'Astrid App/Resources/Localizations/de.lproj/InfoPlist.strings': '"NSCameraUsageDescription" = "Astrid nutzt deine Kamera.";\n',
   }),
+  'talks-only-to-its-server': () => fixture({
+    'Astrid App/Core/Services/Telemetry.swift': 'let url = URL(string: "https://metrics.astrid.cc/collect")!\n',
+    'Astrid App/Core/Services/Side.swift': 'let s = URLSession(configuration: .default)\n',
+    'Astrid App/Core/Services/Fine.swift': '// https://astrid.cc in a comment is fine\nlet help = URL(string: "https://docs.github.com/x")\n',
+  }),
   'private-network-address': () => fixture({ 'Astrid App/Dev.swift': 'let url = "http://192.168.50.254:3000"\n' }),
   'due-day-names': () => fixture({
     'Astrid App/Views/Row.swift': `${view('Text("Today")')}\n#Preview { Text("Tomorrow") }\n`,
@@ -327,4 +332,17 @@ test('source-file-size reports growth and a stale ceiling', () => {
   const messages = violations(trips['source-file-size'](), 'source-file-size').map((v) => `${v.file}: ${v.message}`)
   assert.ok(messages.some((m) => m.startsWith('Astrid App/Big.swift: 5 lines, ceiling 3')))
   assert.ok(messages.some((m) => m.startsWith('Astrid App/Gone.swift: has a ceiling but is gone')))
+})
+
+test('ADEV-123: a new host or a new URLSession fails; a listed host or a comment does not', () => {
+  const sessionFiles = rules.find((r) => r.id === 'talks-only-to-its-server').sessionFiles
+  const root = fixture({
+    'docs/NETWORK_POLICY.md': 'policy\n',
+    ...Object.fromEntries(sessionFiles.map((f) => [f, 'let s = URLSession(configuration: c)\n'])),
+    'Astrid App/Core/Services/Telemetry.swift': 'let url = URL(string: "https://metrics.astrid.cc/collect")!\n',
+    'Astrid Mac/Side.swift': 'let s = URLSession(configuration: .default)\n',
+    'Astrid App/Core/Services/Fine.swift': '// https://astrid.cc in a comment is fine\nlet help = URL(string: "https://docs.github.com/x")\n',
+  })
+  const found = violations(root, 'talks-only-to-its-server').map((v) => `${v.file}:${v.line}`)
+  assert.deepEqual(found.sort(), ['Astrid App/Core/Services/Telemetry.swift:1', 'Astrid Mac/Side.swift:1'])
 })

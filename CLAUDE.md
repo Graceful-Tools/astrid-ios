@@ -238,6 +238,8 @@ each task's completion comment, and the terminal gets one `RESULT:` line. See
 | `docs/CORE_MIGRATION.md` | Moving the Apple apps onto astrid-core: state, findings, what's left |
 | `docs/MAC_SIGNING.md`, `docs/MAC_DISTRIBUTION.md` | Mac signing / passkeys; release channels |
 | `docs/BRAND_VARIANT.md` | Building a brand as its own app: `make-brand-variant.sh`, the profile's `ios` block |
+| `docs/NETWORK_POLICY.md` | What the app connects to — the policy a partner running the stock app on their own server reviews; enforced by `check:contracts` (`talks-only-to-its-server`) |
+| `docs/MANAGED_CONFIG.md` | Device management keys (`serverURL`, `serverLocked`) that preset and lock the server |
 | `docs/archive/` | Point-in-time reviews and the original Mac plan; history only |
 | [`../astrid-web/docs/WEEKLY_DEEP_REVIEW.md`](../astrid-web/docs/WEEKLY_DEEP_REVIEW.md) | Weekly cross-repo deep review — driven from this board by a repeating Astrid task (`/weekly-deep-review`) |
 | `docs/GOOGLE_OAUTH_SETUP.md`, `docs/SHARE_EXTENSION_SETUP.md`, `docs/XCODE_SETUP.md` | Setup guides |
