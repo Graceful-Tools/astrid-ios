@@ -94,3 +94,38 @@ struct ServerSelectionStore {
         defaults.set(origin, forKey: Self.key)
     }
 }
+
+/// The server in use, as links and link handling need it (ADEV-120).
+///
+/// Thread-safe and nonisolated: link builders run everywhere. "Chosen" means the person picked
+/// this server at sign-in and the app is talking to it. A developer's localhost or a UI-test
+/// run's production override is not a choice, so links keep the build's own origin there.
+enum ActiveServer {
+    /// The origin every request goes to.
+    static var origin: String { Constants.API.baseURL }
+
+    /// Whether the app is on a server the person chose.
+    static var isChosen: Bool { isChosen(origin: origin, chosen: ServerSelectionStore.standard.custom) }
+
+    static func isChosen(origin: String, chosen: String?) -> Bool {
+        guard let chosen else { return false }
+        return chosen == origin
+    }
+
+    /// Where links to the person's data point: the chosen server, else the build's own web.
+    static var linkOrigin: String { linkOrigin(origin: origin, chosen: isChosen) }
+
+    static func linkOrigin(origin: String, chosen: Bool, brandOrigin: String = Brand.productionBaseURL) -> String {
+        chosen ? origin : brandOrigin
+    }
+
+    /// The hosts whose https links the app opens in place: the chosen server's, else the
+    /// build's own. Never both: a link to the build's own web, opened against a partner's
+    /// server, would look the id up in the wrong place.
+    static var webHosts: Set<String> { webHosts(origin: origin, chosen: isChosen) }
+
+    static func webHosts(origin: String, chosen: Bool, brandHosts: Set<String> = Brand.webHosts) -> Set<String> {
+        guard chosen, let host = URL(string: origin)?.host else { return brandHosts }
+        return [host]
+    }
+}

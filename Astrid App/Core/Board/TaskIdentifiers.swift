@@ -165,12 +165,12 @@ enum TaskIdentifiers {
     /// Where an id links: the web's `/t/KEY-N`, which resolves and redirects. The app opens it
     /// in place when it can (`identifier(inLink:)`); anywhere else it still lands on the task.
     static func url(for identifier: String) -> URL {
-        URL(string: "\(Brand.productionBaseURL)/t/\(identifier)")!
+        URL(string: "\(ActiveServer.linkOrigin)/t/\(identifier)")!
     }
 
     /// The id a tapped link names, when it is one of ours — `nil` for any other URL.
     static func identifier(inLink url: URL) -> String? {
-        guard url.scheme == "https", let host = url.host, Brand.webHosts.contains(host) else { return nil }
+        guard url.scheme == "https", let host = url.host, ActiveServer.webHosts.contains(host) else { return nil }
         let parts = url.pathComponents.filter { $0 != "/" }
         guard parts.count == 2, parts[0] == "t", let parsed = parse(parts[1]) else { return nil }
         return format(parsed)

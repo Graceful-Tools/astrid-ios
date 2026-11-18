@@ -85,7 +85,8 @@ final class ServerSwitcher {
 
     /// The server in use, and whether it is someone else's.
     var currentServer: String { deps.currentServer() }
-    var isCustom: Bool { ServerSelection.isCustom(deps.currentServer(), brandDefault: deps.brandDefault) }
+    /// The person chose this server; a developer's localhost or a test override is not a choice.
+    var isCustom: Bool { ActiveServer.isChosen(origin: deps.currentServer(), chosen: deps.store.custom) }
 
     /// The host to show a person: `tasks.example.com`, not the whole origin.
     var currentHost: String { URL(string: deps.currentServer())?.host ?? deps.currentServer() }

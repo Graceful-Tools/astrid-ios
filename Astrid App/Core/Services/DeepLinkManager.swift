@@ -7,6 +7,9 @@ import SafariServices
  *
  * Parses and routes incoming URLs to the appropriate presenters.
  * Supports both custom scheme (astrid://) and Universal Links (https://astrid.cc).
+ * On a server the person chose (ADEV-120), https links to THAT server open in place when they
+ * reach the app (a tapped link in chat, a pasted one); the system never routes them here as
+ * Universal Links, which are bound to the domains in this build's entitlements.
  * Falls back to in-app browser for web pages not available natively.
  */
 @MainActor
@@ -54,7 +57,7 @@ class DeepLinkManager {
         }
         
         // Handle Universal Links: https://<brand host>/...
-        if let host = url.host, Brand.webHosts.contains(host) {
+        if let host = url.host, ActiveServer.webHosts.contains(host) {
             handleUniversalLink(url)
             return
         }
@@ -100,7 +103,7 @@ class DeepLinkManager {
         default:
             // Convert custom scheme to https URL and open in in-app browser
             AppLog.debug("ℹ️ [DeepLinkManager] Unknown custom scheme host '\(host)' - opening in in-app browser")
-            if let httpsURL = URL(string: "\(Brand.productionBaseURL)/\(host)\(url.path)") {
+            if let httpsURL = URL(string: "\(ActiveServer.linkOrigin)/\(host)\(url.path)") {
                 openInAppBrowser(url: httpsURL)
             }
         }
@@ -168,7 +171,7 @@ class DeepLinkManager {
             } catch {
                 AppLog.debug("❌ [DeepLinkManager] Failed to resolve shortcode \(code): \(error)")
                 // Fallback to web if resolution fails
-                if let url = URL(string: "\(Brand.productionBaseURL)/s/\(code)") {
+                if let url = URL(string: "\(ActiveServer.linkOrigin)/s/\(code)") {
                     await MainActor.run {
                         UIApplication.shared.open(url)
                     }
