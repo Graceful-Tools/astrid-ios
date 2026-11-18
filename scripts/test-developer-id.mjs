@@ -295,7 +295,19 @@ test('AITD-447: Mac packaging exports and signs with the exact profile and ident
   // `rm -rf` is mocked to do nothing, so the first run's DMG stage is still there; a second
   // `ln -s /Applications <stage>/Applications` would follow that link into the REAL /Applications.
   rmSync(join(dir, 'build/dmg-stage'), { recursive: true, force: true })
-  const branded = spawnSync('/bin/bash', [join(scriptsDir, 'package-mac.sh'), '--whitelabel'], { cwd: dir, env, encoding: 'utf8' })
+  // ADEV-107: a partner's DMG names its signing identity. The first Developer ID certificate in
+  // the keychain is the machine owner's, not the partner's.
+  const unnamed = spawnSync('/bin/bash', [join(scriptsDir, 'package-mac.sh'), '--whitelabel'], { cwd: dir, env, encoding: 'utf8' })
+  assert.notEqual(unnamed.status, 0)
+  assert.match(unnamed.stdout + unnamed.stderr, /--whitelabel needs MAC_DEVID_IDENTITY/)
+  assert.equal(existsSync(env.MOCK_ARCHIVE_ARGS) && readFileSync(env.MOCK_ARCHIVE_ARGS, 'utf8').includes('Whitelabel'), false)
+  const notInstalled = spawnSync('/bin/bash', [join(scriptsDir, 'package-mac.sh'), '--whitelabel'], { cwd: dir, env: { ...env, MAC_DEVID_IDENTITY: 'C'.repeat(40) }, encoding: 'utf8' })
+  assert.notEqual(notInstalled.status, 0)
+  assert.match(notInstalled.stdout + notInstalled.stderr, /MAC_DEVID_IDENTITY C{40} is not an installed Developer ID Application identity/)
+  const otherTeam = spawnSync('/bin/bash', [join(scriptsDir, 'package-mac.sh'), '--whitelabel'], { cwd: dir, env: { ...env, MAC_DEVID_IDENTITY: 'A'.repeat(40) }, encoding: 'utf8' })
+  assert.notEqual(otherTeam.status, 0)
+  assert.match(otherTeam.stdout + otherTeam.stderr, new RegExp(`profile .*signs with ${profileFingerprint}, not MAC_DEVID_IDENTITY A{40}`))
+  const branded = spawnSync('/bin/bash', [join(scriptsDir, 'package-mac.sh'), '--whitelabel'], { cwd: dir, env: { ...env, MAC_DEVID_IDENTITY: profileFingerprint.toLowerCase() }, encoding: 'utf8' })
   assert.equal(branded.status, 0, `${branded.stdout}\n${branded.stderr}`)
   const archived = readFileSync(env.MOCK_ARCHIVE_ARGS, 'utf8')
   assert.match(archived, /-scheme\nWhitelabel Mac\n/)

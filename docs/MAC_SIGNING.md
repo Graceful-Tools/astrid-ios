@@ -55,3 +55,6 @@ and leaves ad-hoc/CI builds working.
 Sign in with Apple is also absent from the direct-download (Developer ID) build: Apple does
 not issue that entitlement in Developer ID profiles, so the DMG hides the button rather than
 showing one that fails (`MacSignInOptions`). See `MAC_DISTRIBUTION.md`.
+
+**A partner's Mac app** is signed by the partner's team, with their Developer ID identity named in
+`MAC_DEVID_IDENTITY`. See `docs/MAC_DISTRIBUTION.md` → *A partner's Mac app* and `docs/BRAND_VARIANT.md`.

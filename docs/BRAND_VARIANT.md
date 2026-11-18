@@ -96,6 +96,7 @@ your camera…". It can differ from `displayName`.
 **The Mac Direct (Developer ID) channel.**
 - `Whitelabel-Mac-Direct.entitlements` is the branded copy of `Astrid Mac Direct.entitlements`.
 - `./scripts/package-mac.sh --whitelabel` packages the partner's DMG with it, and with its own Developer ID profile (`mac-devid-profile.mjs --bundle-id`).
+- It must be signed with the **partner's** Developer ID identity, named explicitly. See `docs/MAC_DISTRIBUTION.md` → *A partner's Mac app*.
 
 ## What it writes
 
@@ -110,6 +111,73 @@ A second run finds the values to replace by reading `variant.json`. Switching fr
 partner's identity to another's is just another run. Don't edit the Whitelabel build settings
 by hand: the next run only rewrites values it recognises.
 
+## Before the first build: the partner's Apple account and server
+
+A client's app is published from **the client's own Apple Developer account**, not Graceful
+Tools'. Work through this once per partner, before the first `--brand` run. The script's closing
+checklist repeats it, but by then a build has already been spent.
+
+**1. The host is compiled in, so settle it first.**
+- The server the app talks to is the profile's `NEXT_PUBLIC_BRAND_DOMAIN`. It is written into
+  the Info.plist as `BrandHost` and read by `Brand.host`.
+- A Release build has no way to change it: there is no ATS exception and no `debug_server_url`
+  setting. The setting exists only in Debug.
+- So it must be the **final, public HTTPS host**, already serving astrid-web, before the first
+  build.
+- Changing the host means a rebuild and a re-upload. It also invalidates every passkey
+  registered so far, because the host is the passkey relying-party id
+  (`PasskeyManager.performAuthentication`). Users would have to register passkeys again.
+
+**2. The partner's Apple Developer team.**
+- `ios.developmentTeam` is their 10-character team id (developer.apple.com → Membership).
+- Under Identifiers, register these App IDs:
+
+  | App ID | Capabilities |
+  |---|---|
+  | `<bundleId>` (one id, used by both the iOS and the Mac app) | App Groups (`appGroup`), Associated Domains, plus Sign in with Apple and Push Notifications if the profile keeps them |
+  | `<bundleId>.Share` (the Share extension) | App Groups |
+
+  codesign drops an App Group the App ID lacks without failing. The script catches that
+  afterwards by checking the signed entitlements.
+- **The first signing of each new App ID** needs one of two things: one Xcode sign-in to the
+  partner's team (open the project, pick the `Whitelabel App` / `Whitelabel Mac` scheme, and let
+  Signing & Capabilities create the profiles), or an **Admin**-role App Store Connect key.
+  Automatic signing only uses Xcode-managed profiles, and a Developer- or App Manager-role key
+  cannot create one. The script then stops with "this App ID has no Xcode-managed signing
+  profile yet". After the first signing, any of their keys works.
+
+**3. The partner's App Store Connect.**
+- Create an app record for `<bundleId>` (iOS and macOS platforms).
+- Make an API key: Users and Access → Integrations.
+- Put both in the partner's own credentials file, outside this repository, and point
+  `ASC_ENV_FILE` at it:
+  `APPLE_ASC_KEY_ID`, `APPLE_ASC_ISSUER_ID`, `APPLE_ASC_PRIVATE_KEY`, and
+  `APPLE_APP_STORE_APP_ID` (the record's numeric Apple ID).
+- Build numbers and the released-version check ask about that app, not Astrid.
+
+**4. The partner's server names the app.**
+- Passkeys and universal links work only if
+  `https://<host>/.well-known/apple-app-site-association` lists `<team>.<bundleId>`.
+- astrid-web builds that file from `BRAND_APPLE_APP_IDS`. **Unset, it serves Astrid's own ids,
+  and the partner's passkeys fail without an error anywhere.**
+- The variant builds the iOS and Mac apps as **one** bundle id, so list that single
+  `<team>.<bundleId>`. Separate iOS and Mac ids, as `acme.brand.json` shows, would name a Mac
+  app this script never builds.
+- `--brand` checks this before it archives:
+
+  ```bash
+  node scripts/check-aasa.mjs --host tasks.acme.example --app-id ABCDE12345.com.acme.tasks --profile acme
+  ```
+
+  It checks two things: that the live file names the app for both `webcredentials` and
+  `applinks`, without a redirect, and that the profile's own `BRAND_APPLE_APP_IDS` includes the
+  app.
+  - A build-only run warns.
+  - An `--upload` stops, unless `--skip-aasa` is passed.
+
+The server's other settings (`APPLE_CLIENT_IDS`, `GOOGLE_ALLOWED_AUDIENCES`, the URL scheme) are
+in the checklist printed at the end of each run.
+
 ## Building and signing a partner's apps
 
 ```bash
@@ -117,10 +185,12 @@ ASC_ENV_FILE=~/partners/acme/asc.env ./scripts/appstore-release.sh ios --brand a
 ASC_ENV_FILE=~/partners/acme/asc.env ./scripts/appstore-release.sh mac --brand acme
 ```
 
-`--brand` does three things:
+`--brand` does four things:
 1. It runs this script for the profile.
-2. It archives and exports the Whitelabel scheme, signed with the partner's App Store Connect key. `ASC_ENV_FILE` names **their** credentials, and its `APPLE_APP_STORE_APP_ID` is their app, so the build number and version check ask about it.
-3. It verifies the signed App Groups and ends with `RESULT:`, followed by the checklist of what is left outside this repository:
+2. It asks the partner's server whether its apple-app-site-association names the app (above).
+   With `--upload`, a server that does not stops the run before archiving.
+3. It archives and exports the Whitelabel scheme, signed with the partner's App Store Connect key. `ASC_ENV_FILE` names **their** credentials, and its `APPLE_APP_STORE_APP_ID` is their app, so the build number and version check ask about it.
+4. It verifies the signed App Groups and ends with `RESULT:`, followed by the checklist of what is left outside this repository:
    - the App IDs and the App Group capability
    - the App Store Connect record
    - the deployment's `BRAND_APPLE_APP_IDS`, `APPLE_CLIENT_IDS`, `GOOGLE_ALLOWED_AUDIENCES` and URL scheme

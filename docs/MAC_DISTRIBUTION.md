@@ -38,3 +38,30 @@ display name can remain installed during renewal. App Store Connect credentials 
 the private file named by `ASC_ENV_FILE`, which must be outside this public repository.
 Notarization uses a mode-600 temporary key in a private directory outside the repository; it
 is removed on exit. Set `TMPDIR` outside the repository as well.
+
+## A partner's Mac app
+
+A client's Mac app (the `Whitelabel Mac` scheme, written by `make-brand-variant.sh`; see
+`docs/BRAND_VARIANT.md`) is signed by **the client's** Apple Developer team, not Graceful
+Tools'.
+
+- **App Store channel.** `ASC_ENV_FILE=<partner's credentials> ./scripts/appstore-release.sh mac --brand <profile>`.
+  The partner's App IDs, app record and first signing are covered in `docs/BRAND_VARIANT.md`
+  → *Before the first build*.
+- **Direct channel (DMG).** You need three things:
+  1. The partner's **Developer ID Application** certificate and its private key, imported into
+     the login keychain as a `.p12` the partner exports. Only their Account Holder can create the
+     certificate.
+  2. Their App Store Connect key in `ASC_ENV_FILE`. It creates the Developer ID profile for
+     their bundle id and notarizes under their team.
+  3. `MAC_DEVID_IDENTITY` set to the SHA-1 of that identity, as listed by
+     `security find-identity -v -p codesigning`.
+
+  ```bash
+  MAC_DEVID_IDENTITY=<sha1> ASC_ENV_FILE=~/partners/acme/asc.env ./scripts/package-mac.sh --whitelabel
+  ```
+
+  `--whitelabel` refuses to run without `MAC_DEVID_IDENTITY`. It also stops if the identity is
+  not installed, or if the partner's profile signs with a different one (ADEV-107). A build Mac
+  usually holds Graceful Tools' own Developer ID too, and the first one in the keychain must
+  never sign a partner's app.

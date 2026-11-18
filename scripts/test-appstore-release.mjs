@@ -43,6 +43,11 @@ exit 0
       scripts/asc-appstore.mjs:next)
         printf '%s\\n' "\${ASC_ENV_FILE:-}" > "$MOCK_ASC_ENV"
         echo 123 ;;
+      scripts/check-aasa.mjs:*)
+        shift
+        printf '%s\\n' "$@" > "$MOCK_ROOT/aasa-args"
+        echo 'mock aasa verdict'
+        exit "\${MOCK_AASA_RC:-0}" ;;
       *) exit 1 ;;
     esac`,
     xcodebuild: `case "$1" in
@@ -162,6 +167,23 @@ echo 'mock variant written'
   assert.match(brand.run.stdout, /NEXT_PUBLIC_BRAND_APP_URL_SCHEME is acmetasks/)
   assert.match(brand.run.stdout, /RESULT: OK — Whitelabel Mac 1\.0 built and signed/)
   assert.doesNotMatch(brand.run.stdout, /altool|Uploading/)
+  // ADEV-107: the partner's server is asked whether it names this app for passkeys and links.
+  assert.equal(readFileSync(join(root, 'aasa-args'), 'utf8').trim(),
+    '--host\ntasks.acme.example\n--app-id\nABCDE12345.com.acme.tasks\n--profile\nacme')
+  // Build-only: a wrong association warns but does not stop a build nobody receives.
+  const aasaWarn = runRelease('brand-aasa-warn', { MOCK_AASA_RC: '1' }, 'mac', ['--brand', 'acme'])
+  assert.equal(aasaWarn.run.status, 0, `${aasaWarn.run.stdout}\n${aasaWarn.run.stderr}`)
+  assert.match(aasaWarn.run.stdout, /passkeys and links will fail .*--upload stops here/)
+  // --skip-aasa skips the question entirely.
+  rmSync(join(root, 'aasa-args'))
+  const aasaSkipped = runRelease('brand-aasa-skip', { MOCK_AASA_RC: '1' }, 'mac', ['--brand', 'acme', '--skip-aasa'])
+  assert.equal(aasaSkipped.run.status, 0, `${aasaSkipped.run.stdout}\n${aasaSkipped.run.stderr}`)
+  assert.equal(existsSync(join(root, 'aasa-args')), false)
+  // An upload stops BEFORE archiving: a build whose server does not name it signs in to nothing.
+  const aasaUpload = runRelease('brand-aasa-upload', { MOCK_AASA_RC: '1' }, 'mac', ['--brand', 'acme', '--upload', '--skip-gate'])
+  assert.notEqual(aasaUpload.run.status, 0)
+  assert.match(aasaUpload.run.stdout, /RESULT: FAILED — tasks\.acme\.example does not serve an apple-app-site-association naming ABCDE12345\.com\.acme\.tasks/)
+  assert.equal(existsSync(aasaUpload.env.MOCK_XCODE_ARGS), false, 'archived despite the failed association check')
   // AITD-619: a new App ID with no Xcode-managed profile says what to do, not "bearer token".
   const unsigned = runRelease('brand-unsigned', { MOCK_FAIL_ARCHIVE: 'auth' }, 'mac', ['--brand', 'acme'])
   assert.notEqual(unsigned.run.status, 0)
