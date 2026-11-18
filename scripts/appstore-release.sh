@@ -25,6 +25,9 @@
 #                   the partner's App Store Connect key — ASC_ENV_FILE must name THEIR credentials,
 #                   whose APPLE_APP_STORE_APP_ID is their app. It ends with the portal and server
 #                   checklist a partner still has to work through. --upload is asked first, as ever.
+#                   With --upload, predeploy gates the COMMITTED tree before the variant is written
+#                   (ADEV-106). Run partner builds in their own worktree; never commit a client's
+#                   variant to main.
 #
 # Every run ends with one line starting `RESULT:` saying exactly what happened.
 #
@@ -124,12 +127,28 @@ mkdir -p "$BUILD_DIR"
 green "✓ App Store Connect API key loaded"
 
 # --- Brand variant ----------------------------------------------------------------
+# What make-brand-variant.sh writes. The repo's own checks (test-make-brand-variant.sh,
+# BrandVariantTests) compare these against Graceful Tools' committed Whitelabel app, so a client's
+# variant always fails them. A partner upload therefore gates the committed tree FIRST, then writes
+# the variant (ADEV-106). Partner builds belong in their own worktree; never commit a client's
+# variant to main.
+VARIANT_PATHS=(Brands "Astrid App.xcodeproj" "Astrid App/PartnerArt-iOS.xcassets" "Astrid Mac/PartnerArt-Mac.xcassets")
+if [ -n "$BRAND" ] && [ "$UPLOAD" = "1" ] && [ "$SKIP_GATE" = "0" ]; then
+  step "Quality gate on the committed tree (npm run predeploy)"
+  if ! git rev-parse --git-dir >/dev/null 2>&1 \
+     || [ -n "$(git status --porcelain -- "${VARIANT_PATHS[@]}" 2>/dev/null)" ]; then
+    fail "the variant files in this checkout are not the committed Whitelabel files, so the gate cannot pass. Restore them (git checkout -- Brands \"Astrid App.xcodeproj\" and the PartnerArt catalogs), or re-run with --skip-gate after gating a clean checkout."
+  fi
+  npm run predeploy || fail "predeploy did not pass on the committed tree. Fix the build/tests before uploading, or re-run with --skip-gate if you know why it is failing."
+  green "✓ Gate passed"
+fi
 if [ -n "$BRAND" ]; then
   step "Brand variant ($BRAND)"
   ./scripts/make-brand-variant.sh "$BRAND" 2>&1 | tee "$BUILD_DIR/make-brand-variant.log" | sed 's/^/  /'
   [ "${PIPESTATUS[0]}" -eq 0 ] || fail "make-brand-variant.sh $BRAND failed — see $BUILD_DIR/make-brand-variant.log"
   if ! git diff --quiet -- Brands "Astrid App.xcodeproj" "Astrid App/PartnerArt-iOS.xcassets" "Astrid Mac/PartnerArt-Mac.xcassets" 2>/dev/null; then
-    echo "  Note: the variant differs from what is committed — commit it if this partner is the one to keep."
+    echo "  Note: this checkout now holds $BRAND's variant. Do not commit it to main — the repo's checks"
+    echo "  expect the committed Whitelabel app. Restore with: git checkout -- ${VARIANT_PATHS[*]}"
   fi
 fi
 
@@ -169,7 +188,8 @@ fi
 # --- Quality gate -----------------------------------------------------------------
 # An upload can never be taken back, so it does not happen on untested code. Build-only runs skip
 # this: the archive below compiles everything anyway.
-if [ "$UPLOAD" = "1" ] && [ "$SKIP_GATE" = "0" ]; then
+# A partner build was gated above, before its variant was written.
+if [ "$UPLOAD" = "1" ] && [ "$SKIP_GATE" = "0" ] && [ -z "$BRAND" ]; then
   step "Quality gate (npm run predeploy)"
   npm run predeploy || fail "predeploy did not pass. Fix the build/tests before uploading, or re-run with --skip-gate if you know why it is failing."
   green "✓ Gate passed"
