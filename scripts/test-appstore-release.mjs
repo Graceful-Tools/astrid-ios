@@ -170,6 +170,34 @@ echo 'mock variant written'
   assert.notEqual(noProfile.run.status, 0)
   assert.match(noProfile.run.stdout, /RESULT: FAILED — --brand needs a profile/)
 
+  // ADEV-106: a partner upload gates the COMMITTED tree, before the variant is written. The
+  // repo's own checks (test-make-brand-variant.sh, BrandVariantTests) compare against the
+  // committed Whitelabel files, so a gate run after writing a client's variant always failed.
+  const git = (...args) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.com', ...args], { cwd: root, encoding: 'utf8' })
+  git('init', '-q')
+  git('add', '-A')
+  assert.equal(git('commit', '-qm', 'fixture').status, 0)
+  writeFileSync(join(bin, 'npm'), `#!/bin/sh
+printf '%s\\n' "$@" > "$MOCK_ROOT/npm-args"
+[ ! -e "$MOCK_ROOT/variant-args" ] || echo yes > "$MOCK_ROOT/npm-saw-variant"
+exit "\${MOCK_GATE_RC:-1}"
+`, { mode: 0o755 })
+  rmSync(join(root, 'variant-args'))
+  const gated = runRelease('brand-gate', {}, 'mac', ['--brand', 'acme', '--upload'])
+  assert.notEqual(gated.run.status, 0)
+  assert.equal(readFileSync(join(root, 'npm-args'), 'utf8').trim(), 'run\npredeploy')
+  assert.equal(existsSync(join(root, 'npm-saw-variant')), false, 'predeploy ran after the variant was written')
+  assert.equal(existsSync(join(root, 'variant-args')), false, 'a failed gate must stop before the variant is written')
+  assert.match(gated.run.stdout, /RESULT: FAILED — predeploy did not pass/)
+  // A previous partner's variant left in the tree would fail the gate the same way: refuse it.
+  rmSync(join(root, 'npm-args'))
+  writeFileSync(join(root, 'Brands', 'Whitelabel', 'variant.json'), '{"bundleId": "com.other.app"}')
+  const dirty = runRelease('brand-dirty', {}, 'mac', ['--brand', 'acme', '--upload'])
+  assert.notEqual(dirty.run.status, 0)
+  assert.equal(existsSync(join(root, 'npm-args')), false)
+  assert.match(dirty.run.stdout, /RESULT: FAILED — .*not the committed Whitelabel files/)
+  git('checkout', '--', 'Brands')
+
   const inside = runRelease('inside', { ASC_ENV_FILE: join(root, '.env.local') });
   assert.notEqual(inside.run.status, 0);
   assert.match(`${inside.run.stdout}\n${inside.run.stderr}`, /credentials.*outside.*repository/i);

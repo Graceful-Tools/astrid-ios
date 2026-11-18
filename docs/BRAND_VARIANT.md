@@ -14,7 +14,22 @@ comes from a `*.brand.json` profile. See astrid-web
 ./scripts/make-brand-variant.sh acme --team ABCDE12345 --bundle-id com.acme.tasks
 ```
 
-Commit what it writes, then build the Whitelabel schemes.
+Then build the Whitelabel schemes. **What to commit depends on whose app it is:**
+
+- **Graceful Tools' own Whitelabel app** (`whitelabel-partner`, no `ios` block) is what `main`
+  holds. Commit a re-run of it, for example after Astrid's plists gained a key.
+- **A client's app** (any other identity) is **never committed to `main`.** The repo's own checks
+  (`test-make-brand-variant.sh`, `BrandVariantTests`) compare against the committed Whitelabel
+  files, so a client's variant on `main` turns predeploy red and leaves the shared `/fixall` tree
+  dirty. Build it in a worktree of its own, and keep it on a branch there if it needs keeping:
+
+  ```bash
+  git worktree add ../astrid-ios-acme -b partner/acme origin/main
+  cd ../astrid-ios-acme && ASC_ENV_FILE=~/partners/acme/asc.env ./scripts/appstore-release.sh ios --brand acme
+  ```
+
+  Rebase or recreate the worktree from fresh `main` before each release; a stale one builds an
+  old app.
 
 ## The app's identity
 
@@ -112,6 +127,11 @@ ASC_ENV_FILE=~/partners/acme/asc.env ./scripts/appstore-release.sh mac --brand a
 
 `--upload` sends it, which is asked first, as for Astrid. A partner build pushes no `ios-build-N` tag; those track Astrid's releases.
 
+**The gate runs before the variant is written.** With `--upload`, `npm run predeploy` runs on the
+committed tree first, then `--brand` writes the client's variant. The repo's checks would fail on
+the variant itself. If the checkout already holds a variant (a previous partner's run), the script
+refuses and says how to restore it. `--skip-gate` remains for a checkout you have just gated.
+
 ## Not configurable here (yet)
 
 Nothing on the app side: everything above comes from the profile.
@@ -129,4 +149,5 @@ writing every client's resources — is astrid-core
   change nothing outside the Whitelabel configurations.
 - `BrandVariantTests` (unit tests) fails when Astrid's plists gain a key the copies lack, or
   when any permission prompt, Services item or Mac product name still says Astrid. To fix it,
-  re-run the script and commit the result.
+  re-run the script for `whitelabel-partner` and commit the result. Both checks expect Graceful
+  Tools' Whitelabel app, which is why a client's variant stays off `main` (above).
