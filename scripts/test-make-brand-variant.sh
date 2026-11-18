@@ -44,7 +44,10 @@ cp -R "$ROOT/Astrid App/PartnerArt-iOS.xcassets" "$WORK/Astrid App/"
 cp -R "$ROOT/Astrid Mac/PartnerArt-Mac.xcassets" "$WORK/Astrid Mac/"
 cp "$PARTNER" "$TMP/partner.brand.json"
 
-# The partner profile plus an ios block — a third party's own identity.
+# The partner profile plus an ios block — a third party's own identity, with its own icon
+# (a re-identified variant without one is refused, ADEV-108).
+cp "$ROOT/Astrid App/PartnerArt-iOS.xcassets/AppIcon-Whitelabel.appiconset/icon-1024x1024.png" "$TMP/acme-icon.png"
+cp "$ROOT/Astrid App/PartnerArt-iOS.xcassets/whitelabel-logo.imageset/whitelabel-logo.png" "$TMP/acme-mascot.png"
 python3 - "$PARTNER" "$TMP/acme.brand.json" <<'PY'
 import json, sys
 profile = json.load(open(sys.argv[1]))
@@ -52,7 +55,8 @@ profile["env"]["NEXT_PUBLIC_BRAND_NAME"] = "Acme"
 profile["env"]["NEXT_PUBLIC_BRAND_APP_URL_SCHEME"] = "AcmeProfile"
 profile["ios"] = {"bundleId": "com.acme.tasks", "appGroup": "group.com.acme.tasks",
                   "keychainGroup": "com.acme.shared", "developmentTeam": "ABCDE12345",
-                  "displayName": "Acme Tasks", "googleClientId": "123456-abcdef.apps.googleusercontent.com"}
+                  "displayName": "Acme Tasks", "googleClientId": "123456-abcdef.apps.googleusercontent.com",
+                  "appIcon": "acme-icon.png", "characterImage": "acme-mascot.png"}
 json.dump(profile, open(sys.argv[2], "w"), indent=2)
 PY
 
@@ -69,7 +73,8 @@ same_as_committed() {
     cmp -s "$ROOT/Astrid App.xcodeproj/project.pbxproj" "$WORK/Astrid App.xcodeproj/project.pbxproj"
 }
 
-run() { (cd "$TMP" && "$WORK/scripts/make-brand-variant.sh" "$@" >"$TMP/out.log" 2>&1) || { cat "$TMP/out.log"; return 1; }; }
+# ASTRID_WEB_DIR unset: the profile-by-path case must not find astrid-web through it.
+run() { (cd "$TMP" && env -u ASTRID_WEB_DIR "$WORK/scripts/make-brand-variant.sh" "$@" >"$TMP/out.log" 2>&1) || { cat "$TMP/out.log"; return 1; }; }
 
 echo "1. no ios block, profile by path, no astrid-web beside the repo"
 check "runs" 'run "$TMP/partner.brand.json"'
@@ -113,6 +118,12 @@ check "its own drag type and background task (AITD-616)" \
        grep -q "<string>com.acme.tasks.board-card</string>" "$V/Info-Mac.plist" &&
        grep -q "<string>com.acme.tasks.sync</string>" "$V/Info-iOS.plist" &&
        ! grep -rq "cc.astrid.board-card\|cc.astrid.app.sync" "$V"'
+check "its URL type is named for the app, not cc.astrid.app (ADEV-108)" \
+      '[[ "$(/usr/libexec/PlistBuddy -c "Print :CFBundleURLTypes:0:CFBundleURLName" "$V/Info-iOS.plist")" == com.acme.tasks ]] &&
+       ! grep -rq "<string>cc.astrid.app</string>" "$V"'
+check "the Mac About box names the brand, not Graceful Tools (ADEV-108)" \
+      'grep -q "INFOPLIST_KEY_NSHumanReadableCopyright = \"Copyright © [0-9]* Acme. All rights reserved.\";" <<< "$IN" &&
+       ! grep -q "Graceful Tools" <<< "$IN"'
 
 echo "3. arguments beat the profile"
 check "runs" 'run "$TMP/acme.brand.json" --team ZZZZZ99999 --bundle-id com.acme.other --url-scheme acmetasks'
@@ -149,7 +160,30 @@ check "the character imageset is named after its file, and the previous one is g
        [[ ! -e "$ART_IOS/whitelabel-logo.imageset" && ! -e "$ART_MAC/whitelabel-logo.imageset" ]]'
 check "an icon that is not 1024 px is refused" '! run "$TMP/acme-small.brand.json"'
 
-echo "5. back to the defaults"
+echo "5. a re-identified variant never ships the Whitelabel app's art or Astrid's scheme (ADEV-108)"
+python3 - "$TMP/acme.brand.json" "$TMP" <<'PY'
+import json, os, sys
+base, tmp = sys.argv[1:3]
+def variant(name, change):
+    profile = json.load(open(base)); change(profile)
+    json.dump(profile, open(os.path.join(tmp, name), "w"), indent=2)
+variant("acme-noicon.brand.json", lambda p: p["ios"].pop("appIcon"))
+variant("acme-noscheme.brand.json", lambda p: p["env"].pop("NEXT_PUBLIC_BRAND_APP_URL_SCHEME"))
+variant("acme-lostart.brand.json", lambda p: p["ios"].update(characterImage="missing-mascot.png"))
+variant("acme-copyright.brand.json", lambda p: p["ios"].update(copyright="© Acme Corp"))
+PY
+check "no ios.appIcon is refused, naming the key" \
+      '! run "$TMP/acme-noicon.brand.json" && grep -q "ios.appIcon" "$TMP/out.log"'
+check "no URL scheme is refused rather than registering astrid" \
+      '! run "$TMP/acme-noscheme.brand.json" && grep -q "NEXT_PUBLIC_BRAND_APP_URL_SCHEME" "$TMP/out.log"'
+check "...unless --url-scheme names one" 'run "$TMP/acme-noscheme.brand.json" --url-scheme acmetasks'
+check "a character image that cannot be found is refused" \
+      '! run "$TMP/acme-lostart.brand.json" && grep -q "missing-mascot.png" "$TMP/out.log"'
+check "ios.copyright is the About box line" \
+      'run "$TMP/acme-copyright.brand.json" &&
+       grep -q "INFOPLIST_KEY_NSHumanReadableCopyright = \"© Acme Corp\";" <<< "$(whitelabel_blocks "$PB" in)"'
+
+echo "6. back to the defaults"
 check "runs" 'run "$TMP/partner.brand.json"'
 check "reproduces the committed files" same_as_committed
 
