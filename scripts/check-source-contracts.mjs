@@ -256,6 +256,61 @@ export const rules = [
     },
   },
   {
+    id: 'talks-only-to-its-server',
+    why: 'The app talks to the server it is pointed at and nowhere else (ADEV-123): a partner running the stock app on their own server is promised that nothing goes to Graceful Tools (docs/NETWORK_POLICY.md). A host typed into app source must be on this list with its reason, and only the listed files may open a network session.',
+    // Every host the app source may name, and why. Adding one is a change to the published
+    // policy: update docs/NETWORK_POLICY.md in the same commit.
+    hosts: {
+      'localhost': 'a developer\'s own server (DEBUG picker, ASTRID_DEV_SERVER_URL)',
+      '127.0.0.1': 'development, and the UI-test offline address that answers nothing',
+      'accounts.google.com': 'native Google sign-in, only on the build\'s own server (ADEV-119)',
+      'oauth2.googleapis.com': 'native Google sign-in token exchange, as above',
+      'console.anthropic.com': 'a help page the person opens in the browser (AI keys)',
+      'platform.openai.com': 'a help page the person opens in the browser (AI keys)',
+      'aistudio.google.com': 'a help page the person opens in the browser (AI keys)',
+      'developer.meta.com': 'a help page the person opens in the browser (AI keys)',
+      'docs.github.com': 'a help page the person opens in the browser (Copilot setup)',
+      'www.npmjs.com': 'a help page the person opens in the browser (agent SDK)',
+      'your-server.com': 'placeholder text in an empty field',
+      'example.com': 'a UI-test fixture',
+    },
+    // The files that may open a URLSession. Each sends only to the server in use, except
+    // GoogleSignInManager (via AstridHTTP.remoteURL) on the build's own server.
+    sessionFiles: [
+      'Astrid App/Core/Networking/AstridAPIClient.swift',
+      'Astrid App/Core/Networking/AstridHTTP.swift',
+      'Astrid App/Core/Networking/ServerSwitcher.swift',
+      'Astrid App/Core/Authentication/OAuthManager.swift',
+      'Astrid App/Core/Services/AttachmentService.swift',
+    ],
+    run(ctx) {
+      const files = ctx.files(['Astrid App', 'Astrid Mac', 'Astrid', 'Shared'])
+      const violations = eachCodeLine(ctx, files, (line) => {
+        const code = line.replace(/comment:\s*"(?:\\.|[^"\\])*"/g, '').replace(/(^|[^:])\/\/.*$/, '$1')
+        for (const match of code.matchAll(/https?:\/\/([A-Za-z0-9.-]+)/g)) {
+          const host = match[1].toLowerCase()
+          if (host === 'host' || Object.hasOwn(this.hosts, host)) continue
+          return `names ${host} — the app talks only to the server in use (Constants.API.baseURL / ActiveServer); a new host is a change to docs/NETWORK_POLICY.md and this rule's list`
+        }
+        return null
+      })
+      for (const file of files) {
+        if (this.sessionFiles.includes(file)) continue
+        ctx.lines(file).forEach((line, index) => {
+          if (isComment(line)) return
+          if (/URLSession\s*\(/.test(line)) {
+            violations.push({ file, line: index + 1, message: 'opens its own URLSession — send through AstridAPIClient / AstridHTTP, or add the file to this rule with the host it talks to' })
+          }
+        })
+      }
+      violations.push(...this.sessionFiles.flatMap((f) => missingFile(ctx, f)))
+      if (!ctx.exists('docs/NETWORK_POLICY.md')) {
+        violations.push({ file: 'docs/NETWORK_POLICY.md', line: 0, message: 'the published policy this rule enforces is missing' })
+      }
+      return violations
+    },
+  },
+  {
     id: 'brand-url-scheme',
     why: 'The app\'s URL scheme is the brand\'s (`Brand.urlScheme`, AITD-616): a hardcoded `"astrid"` scheme makes a partner app answer — or send — Astrid\'s links and sign-in callbacks, so the two installed side by side fight over them. Build a URL with `Brand.appURL(...)`, compare with `Brand.urlScheme`.',
     pattern: /"astrid:\/\/|scheme\s*==\s*"astrid"|[Ss]cheme:\s*"astrid"|[Ss]cheme\s*=\s*"astrid"/,
