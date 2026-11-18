@@ -1692,3 +1692,4 @@
 "server.switch_back_confirm" = "退出登录并使用 %@ 服务器？";
 "server.switch_back_message" = "此设备上来自 %@ 的数据副本将被删除。你的账户仍保留在该服务器上。";
 "server.switch_back" = "退出登录并切换";
+"auth.sign_in_on_server" = "在 %@ 上登录";

@@ -1692,3 +1692,4 @@
 "server.switch_back_confirm" = "Abmelden und den %@-Server verwenden?";
 "server.switch_back_message" = "Die Kopie deiner Daten von %@ auf diesem Gerät wird entfernt. Dein Konto bleibt auf diesem Server.";
 "server.switch_back" = "Abmelden und wechseln";
+"auth.sign_in_on_server" = "Bei %@ anmelden";

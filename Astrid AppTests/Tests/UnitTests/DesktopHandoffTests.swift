@@ -44,9 +44,37 @@ final class DesktopHandoffTests: XCTestCase {
             "state": "s",
             "code_challenge": "c",
             "code_challenge_method": "S256",
+            "scheme": DesktopHandoff.callbackScheme,
         ])
         // The verifier never leaves the app until the exchange.
         XCTAssertFalse(url.absoluteString.contains("verifier"))
+    }
+
+    /// ADEV-119: on a partner's server there is no provider to name; its own page decides.
+    func testADEV119_NoProviderOpensTheServersOwnSignInPage() throws {
+        let attempt = DesktopHandoff.Attempt(verifier: "v", challenge: "c", state: "s")
+        let url = try XCTUnwrap(DesktopHandoff.startURL(
+            baseURL: URL(string: "https://tasks.example.com")!, provider: nil, attempt: attempt,
+            client: "ios", scheme: "astrid"))
+        let parts = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        XCTAssertEqual(parts.host, "tasks.example.com")
+        let names = (parts.queryItems ?? []).map(\.name)
+        XCTAssertFalse(names.contains("provider"))
+        // The partner's server must call back on THIS app's scheme, not its own brand's.
+        XCTAssertEqual(parts.queryItems?.first { $0.name == "scheme" }?.value, "astrid")
+    }
+
+    func testADEV119_APartnersServerSignsInOnItsOwnPage() {
+        let auth = ServerCapabilities.Auth()
+        XCTAssertEqual(SignInPlan.forServer(isCustom: true, host: "tasks.example.com", auth: auth),
+                       .serverPage(host: "tasks.example.com"))
+    }
+
+    func testADEV119_TheBuildsOwnServerKeepsItsNativeButtons() {
+        let auth = ServerCapabilities.Auth()
+        XCTAssertEqual(SignInPlan.forServer(isCustom: false, host: "astrid.cc", auth: auth,
+                                            appleEntitled: true, googleConfigured: true),
+                       .native(.offered(by: auth, appleEntitled: true, googleConfigured: true)))
     }
 
     func testAITD465_EachPlatformNamesItself() {

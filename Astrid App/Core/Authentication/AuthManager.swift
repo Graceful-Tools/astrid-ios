@@ -512,7 +512,9 @@ class AuthManager: ObservableObject {
     /// GitHub and SSO sign-in via the desktop hand-off (AITD-465, spec §6.5): the deployment's own
     /// sign-in page runs in an ASWebAuthenticationSession, hands back a one-time code, and the code
     /// plus this attempt's PKCE verifier is exchanged for a session. No provider SDK in the app.
-    func signInWithBrowser(provider: SignInProvider) async throws {
+    /// A nil provider opens the deployment's own sign-in page: the only way in on a partner's
+    /// server (ADEV-119).
+    func signInWithBrowser(provider: SignInProvider?) async throws {
         PrivacyLogger.debug("AuthManager", "browser_sign_in=started")
         isLoading = true
         errorMessage = nil

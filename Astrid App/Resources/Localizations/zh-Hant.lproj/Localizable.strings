@@ -1694,3 +1694,4 @@
 "server.switch_back_confirm" = "登出並使用 %@ 伺服器？";
 "server.switch_back_message" = "此裝置上來自 %@ 的資料副本將被刪除。你的帳號仍保留在該伺服器上。";
 "server.switch_back" = "登出並切換";
+"auth.sign_in_on_server" = "在 %@ 上登入";

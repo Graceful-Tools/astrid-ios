@@ -173,6 +173,12 @@ struct MacLoginView: View {
         .offered(by: serverCapabilities.capabilities.auth, appleEntitled: MacSignInOptions.showsAppleSignIn)
     }
 
+    /// Native buttons on the build's own server, the server's page on anyone else's (ADEV-119).
+    private var signInPlan: SignInPlan {
+        .forServer(isCustom: serverSwitcher.isCustom, host: serverSwitcher.currentHost,
+                   auth: serverCapabilities.capabilities.auth, appleEntitled: MacSignInOptions.showsAppleSignIn)
+    }
+
     private var emailValid: Bool { EmailAddress.isPlausible(email) }
 
     var body: some View {
@@ -197,15 +203,30 @@ struct MacLoginView: View {
                 // In the order the deployment lists them (AITD-465). Apple only shows when this
                 // build is entitled too: the Developer ID profile cannot carry Sign In with Apple
                 // (MacSignInOptions, folded into SignInMethods).
-                ForEach(signInMethods.buttons) { provider in
-                    signInButton(for: provider)
+                switch signInPlan {
+                case .native(let methods):
+                    ForEach(methods.buttons) { provider in
+                        signInButton(for: provider)
+                    }
+                case .serverPage(let host):
+                    // A partner's server: its own sign-in page (ADEV-119).
+                    Button { run { try await auth.signInWithBrowser(provider: nil) } } label: {
+                        Label(String(format: NSLocalizedString("auth.sign_in_on_server", comment: ""), host),
+                              systemImage: "globe")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent).controlSize(.large).disabled(auth.isLoading)
+                    .accessibilityIdentifier("login.serverPage")
                 }
             }
             .frame(width: 280)
 
             VStack(spacing: 6) {
-                Button(NSLocalizedString("mac.new_here", comment: "")) { showSignUp = true }
-                    .buttonStyle(.link).macFont(.callout)
+                if !serverSwitcher.isCustom {
+                    // In-app passkey sign-up is bound to this build's own domain (ADEV-119).
+                    Button(NSLocalizedString("mac.new_here", comment: "")) { showSignUp = true }
+                        .buttonStyle(.link).macFont(.callout)
+                }
                 Button(NSLocalizedString("mac.continue_without_account", comment: "")) {
                     _Concurrency.Task { await ConnectionModeManager.shared.createLocalUser() }
                 }

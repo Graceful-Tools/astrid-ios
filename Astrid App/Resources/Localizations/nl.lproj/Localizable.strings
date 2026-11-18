@@ -1692,3 +1692,4 @@
 "server.switch_back_confirm" = "Uitloggen en de %@-server gebruiken?";
 "server.switch_back_message" = "De kopie van je gegevens van %@ op dit apparaat wordt verwijderd. Je account blijft op die server.";
 "server.switch_back" = "Uitloggen en wisselen";
+"auth.sign_in_on_server" = "Inloggen bij %@";

@@ -1694,3 +1694,4 @@
 "server.switch_back_confirm" = "로그아웃하고 %@ 서버를 사용할까요?";
 "server.switch_back_message" = "이 기기에 있는 %@의 데이터 사본이 삭제됩니다. 계정은 해당 서버에 남아 있습니다.";
 "server.switch_back" = "로그아웃 후 전환";
+"auth.sign_in_on_server" = "%@에서 로그인";
