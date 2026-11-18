@@ -1709,3 +1709,4 @@
 "server.switch_back_message" = "La copie de vos données de %@ sur cet appareil sera supprimée. Votre compte reste sur ce serveur.";
 "server.switch_back" = "Se déconnecter et changer";
 "auth.sign_in_on_server" = "Se connecter sur %@";
+"server.error_too_old" = "%1$@ doit être mis à jour pour fonctionner avec cette version de %2$@. Contactez son administrateur ou utilisez un autre serveur.";

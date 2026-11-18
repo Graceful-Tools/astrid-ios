@@ -1695,3 +1695,4 @@
 "server.switch_back_message" = "이 기기에 있는 %@의 데이터 사본이 삭제됩니다. 계정은 해당 서버에 남아 있습니다.";
 "server.switch_back" = "로그아웃 후 전환";
 "auth.sign_in_on_server" = "%@에서 로그인";
+"server.error_too_old" = "이 버전의 %2$@에서 사용하려면 %1$@ 서버를 업데이트해야 합니다. 서버 관리자에게 문의하거나 다른 서버를 사용하세요.";

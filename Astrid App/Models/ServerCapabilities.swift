@@ -269,6 +269,19 @@ struct ServerCapabilities: Codable, Equatable {
     var product = Product()
     var brand = BrandInfo()
     var copy: BrandCopy?
+    var meta = Meta()
+
+    /// Which API this server speaks (ADEV-121). `apiLevel` rises by one whenever the server
+    /// gains behaviour a client may depend on (astrid-web `lib/api-level.ts`); a server older
+    /// than the field sends none, read as level 0.
+    struct Meta: Codable, Equatable {
+        var apiVersion: String?
+        var apiLevel: Int?
+
+        init() {}
+
+        var level: Int { apiLevel ?? 0 }
+    }
 
     /// Assume everything is available.
     ///
@@ -289,5 +302,6 @@ struct ServerCapabilities: Codable, Equatable {
         product = try c.decodeIfPresent(Product.self, forKey: .product) ?? Product()
         brand = try c.decodeIfPresent(BrandInfo.self, forKey: .brand) ?? BrandInfo()
         copy = try c.decodeIfPresent(BrandCopy.self, forKey: .copy)
+        meta = (try? c.decodeIfPresent(Meta.self, forKey: .meta)) ?? Meta()
     }
 }

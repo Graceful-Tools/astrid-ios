@@ -1701,3 +1701,4 @@
 "server.switch_back_message" = "This device's copy of your data on %@ is removed. Your account stays on that server.";
 "server.switch_back" = "Sign Out and Switch";
 "auth.sign_in_on_server" = "Sign in on %@";
+"server.error_too_old" = "%1$@ needs an update to work with this version of %2$@. Ask whoever runs it, or use a different server.";
