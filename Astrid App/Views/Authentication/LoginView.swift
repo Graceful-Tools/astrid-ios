@@ -239,16 +239,21 @@ struct LoginView: View {
                     .font(Theme.Typography.caption2())
                     .foregroundColor(palette.textSecondary)
                     .accessibilityIdentifier("login.server")
-                Button(String(format: NSLocalizedString("server.use_brand", comment: ""), Brand.appName)) {
-                    _Concurrency.Task { await serverSwitcher.use(nil) }
+            }
+            // Device management can fix the server; then there is no way to change it (ADEV-122).
+            if !serverSwitcher.isLocked {
+                if serverSwitcher.isCustom {
+                    Button(String(format: NSLocalizedString("server.use_brand", comment: ""), Brand.appName)) {
+                        _Concurrency.Task { await serverSwitcher.use(nil) }
+                    }
+                    .font(Theme.Typography.caption1())
+                }
+                Button(NSLocalizedString("server.use_different", comment: "")) {
+                    showServerPicker = true
                 }
                 .font(Theme.Typography.caption1())
+                .accessibilityIdentifier("login.useDifferentServer")
             }
-            Button(NSLocalizedString("server.use_different", comment: "")) {
-                showServerPicker = true
-            }
-            .font(Theme.Typography.caption1())
-            .accessibilityIdentifier("login.useDifferentServer")
         }
         .padding(.top, Theme.spacing8)
     }

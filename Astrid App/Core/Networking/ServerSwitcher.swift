@@ -73,6 +73,8 @@ final class ServerSwitcher {
         var restartCore: () async -> Void
         var resetCapabilities: () -> Void
         var refreshCapabilities: () async -> Void
+        /// Note which server the sign-in now belongs to (`SessionServerGuard`).
+        var recordSessionServer: (String) -> Void = { _ in }
     }
 
     static let shared = ServerSwitcher(.live)
@@ -91,12 +93,29 @@ final class ServerSwitcher {
     /// The host to show a person: `tasks.example.com`, not the whole origin.
     var currentHost: String { URL(string: deps.currentServer())?.host ?? deps.currentServer() }
 
+    /// Device management has fixed the server (ADEV-122): no way to change it is offered.
+    var isLocked: Bool { deps.store.isLocked }
+
     /// Use `origin` from now on; nil goes back to the build's own server. Returns whether the
-    /// server changed.
+    /// server changed. Refused while device management has locked the server.
     @discardableResult
     func use(_ origin: String?) async -> Bool {
-        let previous = deps.currentServer()
+        guard !isLocked else { return false }
         deps.store.save(origin, brandDefault: deps.brandDefault)
+        return await reconcile()
+    }
+
+    private var isSwitching = false
+
+    /// Make the app match the configured server: the person's choice, or device management's,
+    /// which can change at any moment. Nothing happens unless the server actually moved.
+    @discardableResult
+    func reconcile() async -> Bool {
+        guard !isSwitching else { return false }
+        isSwitching = true
+        defer { isSwitching = false }
+
+        let previous = deps.currentServer()
         deps.reloadServer()
         let next = deps.currentServer()
         guard next != previous else { return false }
@@ -104,10 +123,36 @@ final class ServerSwitcher {
         if deps.isSignedIn() { await deps.signOut() }
         if let host = URL(string: previous)?.host { deps.clearCookies(host) }
         await deps.restartCore()
+        deps.recordSessionServer(next)
         // The old server's brand and sign-in methods must not show while the new one answers.
         deps.resetCapabilities()
         await deps.refreshCapabilities()
         return true
+    }
+
+    private var managedObserver: NSObjectProtocol?
+
+    /// Follow device management from now on (ADEV-122). Called once at launch.
+    func watchManagedConfiguration() {
+        guard managedObserver == nil else { return }
+        lastManaged = deps.store.managed
+        managedObserver = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            _Concurrency.Task { @MainActor in await self?.managedConfigurationMayHaveChanged() }
+        }
+    }
+
+    private var lastManaged: ManagedServerConfig?
+
+    /// Every defaults write posts the same notification; act only when device management's
+    /// configuration is what moved.
+    @discardableResult
+    func managedConfigurationMayHaveChanged() async -> Bool {
+        let managed = deps.store.managed
+        guard managed != lastManaged else { return false }
+        lastManaged = managed
+        return await reconcile()
     }
 }
 
@@ -129,6 +174,7 @@ extension ServerSwitcher.Dependencies {
             },
             restartCore: { await AppCore.shared.restart() },
             resetCapabilities: { ServerCapabilityService.shared.reset() },
-            refreshCapabilities: { await ServerCapabilityService.shared.refresh() })
+            refreshCapabilities: { await ServerCapabilityService.shared.refresh() },
+            recordSessionServer: { _ = SessionServerGuard.serverChanged(current: $0, defaults: .standard) })
     }
 }
