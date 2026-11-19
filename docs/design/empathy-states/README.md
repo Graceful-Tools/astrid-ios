@@ -23,15 +23,20 @@ frame**, top right and identical whatever the metaphor, so the state reads first
 The scenes' own loose checks went, since the checkbox carries Done, and Journey's Waiting is now a
 bus stop so the clock is not shown twice.
 
+Fourth pass (Jon, 2026-11-19): the **Race** gets running shoes, a stretch of track with the start
+line for Ready, and a podium for Done; **Journey became a Hike**, which starts at a trailhead sign
+and ends on the summit with the flag planted. The hiker wears boots, so in both sets the
+costume says which metaphor it is before the props do.
+
 ![contact sheet](contact-sheet.png)
 
 | Metaphor | Inbox | Ready | Doing | Waiting | Done |
 |---|---|---|---|---|---|
-| Race | reading the flyer | on your marks | mid-sprint | water break | medal |
+| Race | reading the flyer | shoes on, at the start line | mid-sprint | water break | podium, medal |
 | Building a wall | blueprint | hard hat, trowel | laying a brick | mortar setting (coffee) | finished |
 | Chef | recipe | apron, mise en place | stirring | kitchen timer | plated |
 | Garden | seed packet | hat, can filled | watering | sprout coming | bloom |
-| Journey | letter arrives | pack + map | on the road | at the bus stop | flag planted |
+| Hike | postcard of the mountain | boots on, at the trailhead | climbing the trail | resting on a rock | summit, flag planted |
 
 - `svg/<metaphor>-<state>.svg`: 512×512, transparent, with no text, so any locale and either theme can use them.
 - `generate.mjs`: the source. One shared octopus (`octo()`: faces `curious`, `grin`,
