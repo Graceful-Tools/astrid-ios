@@ -64,12 +64,17 @@ struct MacBoardView: View {
 
     private var columns: [ProjectBoardColumn] { board.columns.map(\.column) }
 
+    /// How far back Done goes on this list's board, per person (ADEV-131).
+    @State private var doneSince: DoneSince = .default
+
     private var query: BoardModel.Query { BoardModel.Query(listId: listId, rowOfProjectId: rowOfProjectId) }
 
     /// Each column's cards, from the core's ids: the service's own tasks.
     private func cardsByColumn() -> [String: [Task]] {
-        Dictionary(board.columns.map { ($0.id, BoardModel.cards($0, in: taskService.tasksById)) },
-                   uniquingKeysWith: { first, _ in first })
+        Dictionary(board.columns.map { col -> (String, [Task]) in
+            let cards = BoardModel.cards(col, in: taskService.tasksById)
+            return (col.id, col.kind == .done ? doneSince.filter(cards) : cards)
+        }, uniquingKeysWith: { first, _ in first })
     }
 
     var body: some View {
@@ -94,13 +99,27 @@ struct MacBoardView: View {
         // opened the members sheet first, which is not something the board can assume.
         .task(id: listId) { try? await memberService.fetchMembers(listId: listId) }
         .task(id: query) { board.update(query) }
+        .task(id: listId) { doneSince = DoneSince.load(listId: listId, userId: AuthManager.shared.userId) }
+        .onChange(of: doneSince) { _, since in since.save(listId: listId, userId: AuthManager.shared.userId) }
     }
 
     private func columnView(_ col: ProjectBoardColumn, items: [Task]) -> some View {
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(col.name).macFont(.headline).foregroundStyle(Theme.textSecondary)
-                Text("\(items.count)").macFont(.caption).foregroundStyle(Theme.textMuted)
+                if col.kind == .done {
+                    // "Done 15 ✓ This week" — a click picks how far back (ADEV-131).
+                    DoneSinceMenu(since: $doneSince, count: items.count) { text in
+                        HStack(spacing: Theme.spacing4) {
+                            Text(verbatim: text)
+                            Image(systemName: "chevron.down").imageScale(.small)
+                        }
+                        .macFont(.caption).foregroundStyle(Theme.textMuted)
+                    }
+                    .menuStyle(.borderlessButton)
+                } else {
+                    Text("\(items.count)").macFont(.caption).foregroundStyle(Theme.textMuted)
+                }
             }
             .help(col.description)
             // The CARDS scroll, not the board. Without this the column was a plain stack of

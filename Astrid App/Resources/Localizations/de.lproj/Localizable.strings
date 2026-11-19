@@ -1696,3 +1696,12 @@
 "server.switch_back" = "Abmelden und wechseln";
 "auth.sign_in_on_server" = "Bei %@ anmelden";
 "server.error_too_old" = "%1$@ muss aktualisiert werden, um mit dieser Version von %2$@ zu funktionieren. Wende dich an die Betreiber oder verwende einen anderen Server.";
+
+/* Board Done column: since when (ADEV-131) */
+"board.done_since.this_year" = "Dieses Jahr";
+"board.done_since.all_time" = "Gesamte Zeit";
+"board.done_since.since_date" = "seit %@";
+"board.done_since.header" = "%1$d ✓ %2$@";
+"board.done_since.accessibility" = "%1$d erledigt, %2$@";
+"board.done_since.pick_date" = "Datum wählen…";
+"board.done_since.menu_title" = "Erledigt anzeigen seit";

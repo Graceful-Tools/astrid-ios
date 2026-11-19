@@ -1704,3 +1704,12 @@
 "server.switch_back" = "Sign Out and Switch";
 "auth.sign_in_on_server" = "Sign in on %@";
 "server.error_too_old" = "%1$@ needs an update to work with this version of %2$@. Ask whoever runs it, or use a different server.";
+
+/* Board Done column: since when (ADEV-131) */
+"board.done_since.this_year" = "This year";
+"board.done_since.all_time" = "All time";
+"board.done_since.since_date" = "since %@";
+"board.done_since.header" = "%1$d ✓ %2$@";
+"board.done_since.accessibility" = "%1$d done, %2$@";
+"board.done_since.pick_date" = "Pick a date…";
+"board.done_since.menu_title" = "Show done since";

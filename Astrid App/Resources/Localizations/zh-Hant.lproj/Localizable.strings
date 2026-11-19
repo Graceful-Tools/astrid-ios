@@ -1698,3 +1698,12 @@
 "server.switch_back" = "登出並切換";
 "auth.sign_in_on_server" = "在 %@ 上登入";
 "server.error_too_old" = "%1$@ 需要更新才能與此版本的 %2$@ 搭配使用。請聯絡其管理員，或使用其他伺服器。";
+
+/* Board Done column: since when (ADEV-131) */
+"board.done_since.this_year" = "今年";
+"board.done_since.all_time" = "全部時間";
+"board.done_since.since_date" = "自 %@ 起";
+"board.done_since.header" = "%1$d ✓ %2$@";
+"board.done_since.accessibility" = "已完成 %1$d 項，%2$@";
+"board.done_since.pick_date" = "選擇日期…";
+"board.done_since.menu_title" = "顯示完成的起始時間";

@@ -150,6 +150,17 @@ struct BoardColumnView: View {
     /// auto-cleared once the parent's `tasks` prop catches up.
     @State private var pendingTaskOrder: [String] = []
 
+    /// How far back the Done column goes (ADEV-131), per person and list; loaded on appear.
+    @State private var doneSince: DoneSince = .default
+
+    /// What `doneSince` is saved under: the board's list.
+    private var doneSinceListId: String { selectedList?.id ?? column.id }
+
+    /// The column's cards: the core's, and on Done only those finished since `doneSince`.
+    private var columnTasks: [Task] {
+        column.kind == .done ? doneSince.filter(tasks) : tasks
+    }
+
     private var effectiveTheme: String {
         ThemeMode.resolvedName(themeMode, colorScheme: colorScheme)
     }
@@ -215,6 +226,7 @@ struct BoardColumnView: View {
     /// dropped; tasks not yet in the override (e.g. just-arrived
     /// cross-column drops) are appended in their parent order.
     private var displayedTasks: [Task] {
+        let tasks = columnTasks
         guard !pendingTaskOrder.isEmpty else { return tasks }
         let byId = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
         var seen = Set<String>()
@@ -444,7 +456,11 @@ struct BoardColumnView: View {
     /// left sidebar (`ListRowView`): caption text in a soft capsule.
     @ViewBuilder
     private var countBadge: some View {
-        Text("\(displayedTasks.count)")
+        badge(Text(verbatim: "\(displayedTasks.count)"))
+    }
+
+    private func badge<Content: View>(_ content: Content) -> some View {
+        content
             .font(Theme.Typography.caption1())
             .foregroundColor(palette.textSecondary)
             .padding(.horizontal, Theme.spacing8)
@@ -462,10 +478,22 @@ struct BoardColumnView: View {
                 Text(column.name)
                     .font(.headline)
                     .accessibilityIdentifier("board.column.\(column.id)")
-                Spacer()
-                countBadge
+                if column.kind == .done {
+                    // "Done · 15 ✓ This week", inline with the name; a tap picks how far back.
+                    DoneSinceMenu(since: $doneSince, count: displayedTasks.count) { text in
+                        badge(HStack(spacing: Theme.spacing4) {
+                            Text(verbatim: text)
+                            Image(systemName: "chevron.down").imageScale(.small)
+                        })
+                    }
+                    Spacer()
+                } else {
+                    Spacer()
+                    countBadge
+                }
             }
-            if !column.description.isEmpty {
+            // Done says what it counts in its own line instead (ADEV-131).
+            if column.kind != .done && !column.description.isEmpty {
                 Text(column.description)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -476,6 +504,13 @@ struct BoardColumnView: View {
         .padding(.top, 12)
         .padding(.bottom, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .task(id: doneSinceListId) {
+            guard column.kind == .done else { return }
+            doneSince = DoneSince.load(listId: doneSinceListId, userId: AuthManager.shared.userId)
+        }
+        .onChange(of: doneSince) { _, since in
+            since.save(listId: doneSinceListId, userId: AuthManager.shared.userId)
+        }
         // No own background — the header sits directly on the column
         // frame, so it's the same surface as the side borders/footer.
     }

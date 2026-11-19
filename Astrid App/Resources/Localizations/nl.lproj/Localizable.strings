@@ -1696,3 +1696,12 @@
 "server.switch_back" = "Uitloggen en wisselen";
 "auth.sign_in_on_server" = "Inloggen bij %@";
 "server.error_too_old" = "%1$@ moet worden bijgewerkt om met deze versie van %2$@ te werken. Vraag het de beheerder of gebruik een andere server.";
+
+/* Board Done column: since when (ADEV-131) */
+"board.done_since.this_year" = "Dit jaar";
+"board.done_since.all_time" = "Altijd";
+"board.done_since.since_date" = "sinds %@";
+"board.done_since.header" = "%1$d ✓ %2$@";
+"board.done_since.accessibility" = "%1$d voltooid, %2$@";
+"board.done_since.pick_date" = "Kies een datum…";
+"board.done_since.menu_title" = "Voltooid tonen sinds";
