@@ -479,14 +479,19 @@ struct BoardColumnView: View {
                     .font(.headline)
                     .accessibilityIdentifier("board.column.\(column.id)")
                 if column.kind == .done {
-                    // "Done · 15 ✓ This week", inline with the name; a tap picks how far back.
+                    // "Done … 15 ✓ This week", on the right where every other column's count
+                    // sits; a tap picks how far back (ADEV-131, ADEV-134).
+                    Spacer()
                     DoneSinceMenu(since: $doneSince, count: displayedTasks.count) { text in
                         badge(HStack(spacing: Theme.spacing4) {
                             Text(verbatim: text)
                             Image(systemName: "chevron.down").imageScale(.small)
                         })
+                        .contentShape(Capsule())
                     }
-                    Spacer()
+                    // The capsule IS the button. The system's own menu-button chrome drew a
+                    // second pill inside it (ADEV-134).
+                    .buttonStyle(.plain)
                 } else {
                     Spacer()
                     countBadge

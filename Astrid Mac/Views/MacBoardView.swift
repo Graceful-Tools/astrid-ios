@@ -108,7 +108,9 @@ struct MacBoardView: View {
             HStack {
                 Text(col.name).macFont(.headline).foregroundStyle(Theme.textSecondary)
                 if col.kind == .done {
-                    // "Done 15 ✓ This week" — a click picks how far back (ADEV-131).
+                    // "Done … 15 ✓ This week", on the right — a click picks how far back
+                    // (ADEV-131, ADEV-134).
+                    Spacer()
                     DoneSinceMenu(since: $doneSince, count: items.count) { text in
                         HStack(spacing: Theme.spacing4) {
                             Text(verbatim: text)
