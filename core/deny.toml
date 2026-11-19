@@ -64,14 +64,6 @@ ignore = [
     # graph does not resolve it, which cargo-deny reports as a warning, not a failure. Remove it
     # the day a uniffi release drops basic-toml.
     { id = "RUSTSEC-2026-0374", reason = "build-time only, via uniffi_bindgen's askama; no upgrade exists (AATD-74, AITD-519, AITD-665)" },
-    # 2026-11-17. chrono and chrono-tz were declared unmaintained (chronotope/chrono#1768): no
-    # vulnerability, no safe upgrade, every version affected. Both are direct dependencies of
-    # astrid-core and astrid-rules — dates, repeat math and zones — and rusqlite and schemars reach
-    # chrono through their own features, so leaving them is a migration (to `jiff`, the advisory's
-    # first recommendation), not a bump. Accepted until that migration lands, so CI gates on a NEW
-    # advisory again instead of failing every pull request on this one. Remove both with it.
-    { id = "RUSTSEC-2026-0543", reason = "chrono unmaintained, no vulnerability or upgrade; migration to jiff tracked separately" },
-    { id = "RUSTSEC-2026-0555", reason = "chrono-tz unmaintained, no vulnerability or upgrade; migration to jiff tracked separately" },
 ]
 
 # A yank is not a vulnerability. Upstream yanks for a bad release as often as for a security

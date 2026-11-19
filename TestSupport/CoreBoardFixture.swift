@@ -160,6 +160,7 @@ enum CoreBoardFixture {
         let moved = allTasks.map { task -> Task in
             var copy = task
             copy.updatedAt = task.updatedAt?.addingTimeInterval(shift)
+            copy.completedAt = task.completedAt?.addingTimeInterval(shift)
             return copy
         }
         var seeded = lists

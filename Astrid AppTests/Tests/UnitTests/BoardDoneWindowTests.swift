@@ -44,4 +44,26 @@ final class BoardDoneWindowTests: XCTestCase {
         let ids = Set(result.map { $0.id })
         XCTAssertEqual(ids, ["recent", "old"], "'show' filter keeps every completed task")
     }
+
+    /// Done is newest first by when each card was finished — `completedAt`, else `updatedAt` —
+    /// whatever the manual order says (Jon, 2026-11-19; astrid-core CONTRACTS D43).
+    func testDoneIsNewestFirstWhateverTheManualOrder_doneDatePill() {
+        var oldest = completedTask(id: "oldest", completedAgo: 60 * 60)
+        oldest.completedAt = now.addingTimeInterval(-72 * 60 * 60)
+        var newest = completedTask(id: "newest", completedAgo: 30 * 24 * 60 * 60)
+        newest.completedAt = now.addingTimeInterval(-10 * 60)
+        let legacy = completedTask(id: "legacy", completedAgo: 24 * 60 * 60)
+
+        let result = CoreBoardFixture.columnTasks(
+            [oldest, newest, legacy],
+            projectId: "p1",
+            column: doneColumn(),
+            lists: [domainList()],
+            manualOrder: ["oldest", "legacy", "newest"],
+            completionFilter: "show",
+            now: now
+        )
+
+        XCTAssertEqual(result.map { $0.id }, ["newest", "legacy", "oldest"])
+    }
 }
