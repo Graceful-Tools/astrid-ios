@@ -147,14 +147,15 @@ function arm([tx, ty], side) {
  * The octopus, positioned in scene coordinates.
  *   face: grin | focus | curious | calm | joy      look: pupil offset [x, y]
  *   arms: [{ side: 'l'|'r', to: [x, y] }] in LOCAL coords
- *   behind / hat / onBody / front: extra SVG in local coords
+ *   behind / feet / hat / onBody / front: extra SVG in local coords (feet sit over the tentacle tips)
  */
-function octo({ x = 256, y = 268, s = 0.92, rot = 0, sy = 1, face = 'grin', look = [0, 0], arms = [], behind = '', hat = '', onBody = '', front = '' }) {
+function octo({ x = 256, y = 268, s = 0.92, rot = 0, sy = 1, face = 'grin', look = [0, 0], arms = [], behind = '', feet = '', hat = '', onBody = '', front = '' }) {
   return `<g transform="translate(${x} ${y}) rotate(${rot}) scale(${s} ${s * sy})">` +
     behind +
     // body and tentacles share one gradient, so the body flows into them with no seam; a thin
     // darker edge on each tentacle separates the ones that overlap
     TENTACLE_PATHS.map((d) => `<path d="${d}" fill="url(#octoGrad)" stroke="${C.coralRim}" stroke-width="2.5" stroke-opacity=".45"/>`).join('') +
+    feet +
     `<path d="${BODY}" fill="url(#octoGrad)"/>` +
     `<path d="${BODY}" fill="url(#sideShade)"/>` +
     // the soft sheen on the crown, as the icon is lit from the upper left
@@ -271,25 +272,76 @@ function bloom(x, y) {
     [0, 60, 120, 180, 240, 300].map((a) => `<ellipse cx="${x}" cy="${fy - 32}" rx="18" ry="32" fill="${C.pink}" transform="rotate(${a} ${x} ${fy})"/>`).join('') +
     `<circle cx="${x}" cy="${fy}" r="20" fill="${C.gold}"/>`
 }
-function envelope(x, y, rot) {
-  return `<g transform="rotate(${rot} ${x + 50} ${y + 34})"><rect x="${x}" y="${y}" width="100" height="68" rx="6" fill="#fff" stroke="${C.greyDark}" stroke-width="4"/><path d="M ${x} ${y} L ${x + 50} ${y + 40} L ${x + 100} ${y}" fill="none" stroke="${C.greyDark}" stroke-width="4"/><rect x="${x + 70}" y="${y + 8}" width="20" height="22" fill="${C.coral}"/></g>`
-}
-function map(x, y) {
-  return `<path d="M ${x} ${y} L ${x + 64} ${y + 12} L ${x + 128} ${y} L ${x + 192} ${y + 12} L ${x + 192} ${y + 92} L ${x + 128} ${y + 80} L ${x + 64} ${y + 92} L ${x} ${y + 80} Z" fill="#FFF8E1" stroke="${C.wood}" stroke-width="4"/>` +
-    `<path d="M ${x + 64} ${y + 12} L ${x + 64} ${y + 92} M ${x + 128} ${y} L ${x + 128} ${y + 80}" stroke="${C.wood}" stroke-width="3"/>` +
-    `<path d="M ${x + 20} ${y + 64} Q ${x + 56} ${y + 20} ${x + 96} ${y + 50} T ${x + 170} ${y + 30}" stroke="${C.coral}" stroke-width="4" fill="none" stroke-dasharray="8 6"/>` +
-    `<path d="M ${x + 162} ${y + 22} l 14 14 m 0 -14 l -14 14" stroke="${C.coral}" stroke-width="4"/>`
-}
-// A bus-stop sign: a pole and a round sign with a bus on it (no words).
-function busStop(x, base) {
-  const cy = base - 250
-  return `<rect x="${x - 5}" y="${cy}" width="10" height="${base - cy}" rx="4" fill="${C.greyDark}"/>` +
-    `<circle cx="${x}" cy="${cy}" r="40" fill="${C.blue}" stroke="#fff" stroke-width="5"/>` +
-    `<rect x="${x - 22}" y="${cy - 20}" width="44" height="34" rx="8" fill="#fff"/><rect x="${x - 16}" y="${cy - 14}" width="32" height="12" rx="3" fill="${C.blue}"/>` +
-    `<circle cx="${x - 12}" cy="${cy + 18}" r="5" fill="#fff"/><circle cx="${x + 12}" cy="${cy + 18}" r="5" fill="#fff"/>`
-}
 function flag(x, base) {
   return `<rect x="${x}" y="${base - 230}" width="10" height="230" rx="4" fill="${C.woodDark}"/><path d="M ${x + 10} ${base - 224} L ${x + 110} ${base - 196} L ${x + 10} ${base - 166} Z" fill="${C.lime}"/>`
+}
+
+// ── footwear (local coords): worn on the two front tentacle tips ────────────────────
+// Fourth pass (Jon, 2026-11-19: "shoes for the Ready"): running shoes for the Race, hiking boots
+// for the Hike, so the costume says which metaphor before the props do.
+function shoe(x, y, dir, upper, sole, accent, extra = '') {
+  return `<g transform="translate(${x} ${y}) scale(${dir * 1.35} 1.35)">` +
+    `<path d="M -30 -20 Q -34 4 -30 12 L 36 12 Q 46 4 38 -4 Q 18 -8 6 -22 Q -12 -28 -30 -20 Z" fill="${upper}" stroke="rgba(0,0,0,.25)" stroke-width="2.5"/>` +
+    `<rect x="-34" y="8" width="82" height="11" rx="5.5" fill="${sole}"/>` +
+    `<path d="M -4 -16 l 10 6 M 4 -20 l 10 6 M 12 -14 l 8 5" stroke="${accent}" stroke-width="4" stroke-linecap="round"/>` +
+    extra + `</g>`
+}
+const FRONT_TIPS = [[-42, 170, -1], [50, 168, 1]]
+const runningShoes = FRONT_TIPS.map(([x, y, d]) => shoe(x, y, d, C.blue, '#fff', '#fff',
+  `<path d="M -22 -2 q 18 -8 34 0" stroke="${C.lime}" stroke-width="5" fill="none" stroke-linecap="round"/>`)).join('')
+const hikingBoots = FRONT_TIPS.map(([x, y, d]) => shoe(x, y, d, '#8A5A36', '#3A2A20', C.gold,
+  `<rect x="-32" y="-30" width="44" height="12" rx="6" fill="#6E4527"/>`)).join('')
+
+// ── race props ──────────────────────────────────────────────────────────────────────
+// A short stretch of track: the lane, its edge lines and the white start line across it.
+function startLine(base) {
+  return `<path d="M 70 ${base - 46} L 442 ${base - 46} L 478 ${base + 10} L 34 ${base + 10} Z" fill="#D2603F"/>` +
+    `<path d="M 152 ${base - 46} L 124 ${base + 10} M 360 ${base - 46} L 388 ${base + 10}" stroke="#fff" stroke-width="5" opacity=".85"/>` +
+    `<path d="M 54 ${base - 8} L 458 ${base - 8}" stroke="#fff" stroke-width="12"/>`
+}
+// The winner's step, with a star where a number would be (no text).
+function podium(x, base) {
+  return `<rect x="${x}" y="${base - 70}" width="220" height="70" rx="8" fill="${C.gold}" stroke="${C.goldDark}" stroke-width="4"/>` +
+    `<path d="M ${x + 110} ${base - 54} l 9 18 l 20 3 l -14 14 l 3 20 l -18 -9 l -18 9 l 3 -20 l -14 -14 l 20 -3 Z" fill="#fff" opacity=".9"/>`
+}
+
+// ── hike props ──────────────────────────────────────────────────────────────────────
+const peak = (x, y, w, h, snow = true) =>
+  `<path d="M ${x - w / 2} ${y} L ${x} ${y - h} L ${x + w / 2} ${y} Z" fill="#7C8A99"/>` +
+  `<path d="M ${x} ${y - h} L ${x + w / 2} ${y} L ${x + w * 0.1} ${y} Z" fill="#62707F"/>` +
+  (snow ? `<path d="M ${x - w * 0.14} ${y - h * 0.72} L ${x} ${y - h} L ${x + w * 0.14} ${y - h * 0.72} L ${x + w * 0.06} ${y - h * 0.78} L ${x} ${y - h * 0.7} L ${x - w * 0.06} ${y - h * 0.78} Z" fill="#fff"/>` : '')
+// The idea: a postcard of the mountain.
+function postcard(x, y, rot) {
+  return `<g transform="rotate(${rot} ${x + 56} ${y + 40})"><rect x="${x}" y="${y}" width="112" height="80" rx="6" fill="#CFEAFB" stroke="${C.greyDark}" stroke-width="4"/>` +
+    `<circle cx="${x + 86}" cy="${y + 22}" r="10" fill="${C.gold}"/>` +
+    peak(x + 50, y + 76, 84, 56) + `<path d="M ${x + 2} ${y + 76} L ${x + 110} ${y + 76}" stroke="${C.leaf}" stroke-width="6"/></g>`
+}
+// The trailhead: a wooden post with an arrow plank that points up the trail, a mountain on it.
+function trailSign(x, base) {
+  const py = base - 200
+  return `<rect x="${x - 7}" y="${py - 10}" width="14" height="${base - py + 10}" rx="4" fill="${C.woodDark}"/>` +
+    `<path d="M ${x - 56} ${py - 30} L ${x + 40} ${py - 30} L ${x + 66} ${py} L ${x + 40} ${py + 30} L ${x - 56} ${py + 30} Z" fill="${C.wood}" stroke="${C.woodDark}" stroke-width="4" stroke-linejoin="round"/>` +
+    `<path d="M ${x - 36} ${py + 18} L ${x - 10} ${py - 16} L ${x + 4} ${py + 2} L ${x + 14} ${py - 8} L ${x + 34} ${py + 18} Z" fill="#fff" opacity=".9"/>`
+}
+// A walking pole, from the hand down to the ground (scene coords).
+const pole = (x1, y1, x2, y2) =>
+  `<path d="M ${x1} ${y1} L ${x2} ${y2}" stroke="${C.greyDark}" stroke-width="8" stroke-linecap="round"/>` +
+  `<path d="M ${x1 + (x1 - x2) * 0.04} ${y1 + (y1 - y2) * 0.04} L ${x1} ${y1}" stroke="#2E2E2E" stroke-width="14" stroke-linecap="round"/>`
+// The trail going uphill under the hiker.
+function trail() {
+  return `<path d="M 20 500 L 20 470 Q 200 440 492 330 L 492 500 Z" fill="${C.leaf}" opacity=".9"/>` +
+    `<path d="M 20 470 Q 200 440 492 330" stroke="${C.leafDark}" stroke-width="6" fill="none"/>` +
+    `<path d="M 60 480 Q 230 448 470 360" stroke="#C9A46A" stroke-width="12" fill="none" stroke-dasharray="26 18" stroke-linecap="round"/>`
+}
+// A rest stop: a boulder to sit on and a thermos.
+function boulder(x, base) {
+  return `<path d="M ${x - 120} ${base} Q ${x - 124} ${base - 62} ${x - 60} ${base - 74} Q ${x} ${base - 92} ${x + 70} ${base - 70} Q ${x + 126} ${base - 54} ${x + 120} ${base} Z" fill="#9AA5B1"/>` +
+    `<path d="M ${x - 70} ${base - 60} Q ${x - 20} ${base - 78} ${x + 40} ${base - 64}" stroke="#C3CBD3" stroke-width="8" fill="none" stroke-linecap="round"/>`
+}
+function thermos(x, y) {
+  return `<rect x="${x}" y="${y}" width="32" height="70" rx="10" fill="${C.leafDark}"/><rect x="${x + 2}" y="${y - 14}" width="28" height="16" rx="4" fill="${C.greyDark}"/>` +
+    `<rect x="${x + 4}" y="${y + 24}" width="24" height="10" rx="3" fill="#fff" opacity=".6"/>` +
+    `<path d="M ${x + 10} ${y - 22} Q ${x + 4} ${y - 34} ${x + 12} ${y - 44} M ${x + 22} ${y - 22} Q ${x + 16} ${y - 34} ${x + 24} ${y - 44}" stroke="${C.grey}" stroke-width="4" fill="none" stroke-linecap="round"/>`
 }
 
 // ── the scenes: the character, its costume, and one key object ──────────────────────
@@ -301,14 +353,14 @@ const SCENES = {
     title: 'Race',
     inbox: { caption: 'Reading the race flyer', draw: () =>
       octo({ x: 236, face: 'curious', look: [6, 4], arms: [R(118, 0), L(-108, 80)], front: paper(78, -60, 70, 86, 10, 3) }) },
-    ready: { caption: 'On your marks', draw: () =>
-      octo({ x: 256, y: 300, sy: 0.86, face: 'focus', look: [8, 0], hat: headband, arms: [R(112, 132), L(-62, 134)] }) },
+    ready: { caption: 'Shoes on, at the start line', draw: () => startLine(470) +
+      octo({ x: 256, y: 290, s: 0.86, sy: 0.86, face: 'focus', look: [0, 4], hat: headband, feet: runningShoes, arms: [R(104, 146), L(-104, 146)] }) },
     doing: { caption: 'Mid-sprint', draw: () => motion(140, 220) +
-      octo({ x: 286, y: 262, rot: 12, face: 'focus', look: [8, 0], hat: headband, arms: [R(128, -20), L(-128, 92)] }) },
+      octo({ x: 286, y: 262, rot: 12, face: 'focus', look: [8, 0], hat: headband, feet: runningShoes, arms: [R(128, -20), L(-128, 92)] }) },
     waiting: { caption: 'Water break between heats', draw: () =>
-      octo({ x: 236, face: 'calm', hat: headband, arms: [R(100, -20), L(-104, 96)], front: bottle(86, -76) }) },
-    done: { caption: 'Medal, and done', draw: () =>
-      octo({ x: 236, y: 290, s: 0.86, face: 'joy', onBody: medal, arms: [R(140, -110), L(-124, -60)] }) },
+      octo({ x: 236, face: 'calm', hat: headband, feet: runningShoes, arms: [R(100, -20), L(-104, 96)], front: bottle(86, -76) }) },
+    done: { caption: 'On the podium, medal on', draw: () => podium(146, 490) +
+      octo({ x: 256, y: 252, s: 0.8, face: 'joy', hat: headband, feet: runningShoes, onBody: medal, arms: [R(140, -110), L(-140, -110)] }) },
   },
   wall: {
     title: 'Building a wall',
@@ -359,20 +411,24 @@ const SCENES = {
       plantPot(90, 360, bloom(130, 360)) +
       octo({ x: 330, y: 280, s: 0.84, face: 'joy', hat: strawHat, arms: [L(-120, -10), R(130, -100)] }) },
   },
-  journey: {
-    title: 'Journey',
-    inbox: { caption: 'A letter arrives', draw: () =>
-      octo({ x: 290, face: 'curious', look: [-6, 2], arms: [L(-110, -10), R(100, 90)], front: envelope(-180, -60, -10) }) },
-    ready: { caption: 'Pack on, map out', draw: () =>
-      octo({ x: 256, face: 'grin', look: [0, 6], behind: backpack, onBody: backpackStraps, arms: [L(-96, 50), R(96, 50)], front: map(-96, 0) }) },
-    doing: { caption: 'On the road', draw: () => motion(150, 230) +
-      octo({ x: 286, y: 264, s: 0.88, rot: 8, face: 'focus', behind: backpack, onBody: backpackStraps, arms: [L(-120, 80), R(120, -10)] }) },
-    waiting: { caption: 'At the bus stop', draw: () =>
-      busStop(392, 470) +
-      octo({ x: 226, s: 0.9, face: 'calm', behind: backpack, onBody: backpackStraps, arms: [L(-100, 100), R(150, 20)] }) },
-    done: { caption: 'Flag planted', draw: () =>
-      flag(380, 470) +
-      octo({ x: 230, y: 280, s: 0.86, face: 'joy', behind: backpack, onBody: backpackStraps, arms: [R(160, 20), L(-124, -110)] }) },
+  hike: {
+    title: 'Hike',
+    inbox: { caption: 'A postcard of the mountain', draw: () =>
+      octo({ x: 300, face: 'curious', look: [-6, 2], arms: [L(-110, -10), R(100, 90)], front: postcard(-196, -60, -8) }) },
+    ready: { caption: 'Boots on, at the trailhead', draw: () =>
+      trailSign(110, 470) +
+      octo({ x: 300, y: 276, s: 0.86, face: 'grin', look: [-6, 0], behind: backpack, onBody: backpackStraps, feet: hikingBoots, arms: [L(-110, 80), R(110, 40)] }) +
+      pole(396, 310, 420, 470) },
+    doing: { caption: 'Climbing the trail', draw: () => trail() +
+      octo({ x: 236, y: 250, s: 0.8, rot: 14, face: 'focus', look: [6, -2], behind: backpack, onBody: backpackStraps, feet: hikingBoots, arms: [L(-110, 60), R(130, 10)] }) +
+      pole(352, 252, 382, 410) },
+    waiting: { caption: 'Resting on a rock', draw: () =>
+      boulder(236, 480) +
+      octo({ x: 226, y: 262, s: 0.82, sy: 0.94, face: 'calm', behind: backpack, onBody: backpackStraps, feet: hikingBoots, arms: [L(-100, 100), R(150, 40)] }) +
+      thermos(380, 330) },
+    done: { caption: 'At the summit, flag planted', draw: () =>
+      peak(256, 510, 500, 250) + flag(350, 354) +
+      octo({ x: 236, y: 196, s: 0.6, face: 'joy', behind: backpack, onBody: backpackStraps, feet: hikingBoots, arms: [L(-130, -110), R(130, -110)] }) },
   },
 }
 
