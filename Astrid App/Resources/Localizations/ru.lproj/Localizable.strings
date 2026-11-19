@@ -1696,3 +1696,12 @@
 "server.switch_back" = "Выйти и переключиться";
 "auth.sign_in_on_server" = "Войти на %@";
 "server.error_too_old" = "%1$@ нужно обновить, чтобы он работал с этой версией %2$@. Обратитесь к администратору или используйте другой сервер.";
+
+/* Board Done column: since when (ADEV-131) */
+"board.done_since.this_year" = "В этом году";
+"board.done_since.all_time" = "За всё время";
+"board.done_since.since_date" = "с %@";
+"board.done_since.header" = "%1$d ✓ %2$@";
+"board.done_since.accessibility" = "Выполнено: %1$d, %2$@";
+"board.done_since.pick_date" = "Выбрать дату…";
+"board.done_since.menu_title" = "Показывать выполненные с";

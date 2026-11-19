@@ -1696,3 +1696,12 @@
 "server.switch_back" = "サインアウトして切り替え";
 "auth.sign_in_on_server" = "%@ でサインイン";
 "server.error_too_old" = "%1$@ をこのバージョンの %2$@ で使うには、サーバーの更新が必要です。管理者に問い合わせるか、別のサーバーを使用してください。";
+
+/* Board Done column: since when (ADEV-131) */
+"board.done_since.this_year" = "今年";
+"board.done_since.all_time" = "すべての期間";
+"board.done_since.since_date" = "%@ 以降";
+"board.done_since.header" = "%1$d ✓ %2$@";
+"board.done_since.accessibility" = "%1$d 件完了、%2$@";
+"board.done_since.pick_date" = "日付を選択…";
+"board.done_since.menu_title" = "完了の表示期間";

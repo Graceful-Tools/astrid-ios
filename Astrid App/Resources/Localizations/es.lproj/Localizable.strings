@@ -1712,3 +1712,12 @@
 "server.switch_back" = "Cerrar sesión y cambiar";
 "auth.sign_in_on_server" = "Iniciar sesión en %@";
 "server.error_too_old" = "%1$@ necesita una actualización para funcionar con esta versión de %2$@. Pídesela a quien lo administra o usa otro servidor.";
+
+/* Board Done column: since when (ADEV-131) */
+"board.done_since.this_year" = "Este año";
+"board.done_since.all_time" = "Todo";
+"board.done_since.since_date" = "desde %@";
+"board.done_since.header" = "%1$d ✓ %2$@";
+"board.done_since.accessibility" = "%1$d completadas, %2$@";
+"board.done_since.pick_date" = "Elegir fecha…";
+"board.done_since.menu_title" = "Mostrar completadas desde";
