@@ -179,6 +179,7 @@
 "empty_state.board.waiting" = "保留中のタスクはありません！日付や他のタスクを待っているタスクがここに表示されます。";
 "empty_state.board.done" = "完了したタスクはまだありません。ひとつ完了して、ここでお祝いしましょう！";
 "board.card.completed_on" = "%@ に完了";
+"board.card.completed_pill" = "✓ %@";
 "empty_state.board.custom" = "まだ何もありません！タスクをドラッグして進めましょう。";
 "empty_state.no_lists" = "リストがまだありません。最初のリストを作成して始めましょう！";
 

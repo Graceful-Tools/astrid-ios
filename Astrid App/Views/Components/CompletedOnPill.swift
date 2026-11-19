@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The completed date under a Done card's title (`CompletedOnLabel`), drawn like the board-status
+/// The completed date under a Done card's title, after a check ("✓ on Nov 19", `CompletedOnLabel`), drawn like the board-status
 /// pill a list row shows, in Done's tint. The font comes from the card (`.font` on iOS, `.macFont`
 /// on Mac), so it matches the metadata beside it.
 struct CompletedOnPill: View {
@@ -8,7 +8,7 @@ struct CompletedOnPill: View {
 
     var body: some View {
         let tint = TaskBoardStatusPill.tint(for: .done)
-        Text(verbatim: text)
+        Text(verbatim: CompletedOnLabel.pillText(text))
             .foregroundColor(tint)
             .lineLimit(1)
             .fixedSize()

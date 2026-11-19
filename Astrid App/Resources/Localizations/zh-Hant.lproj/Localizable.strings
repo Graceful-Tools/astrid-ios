@@ -179,6 +179,7 @@
 "empty_state.board.waiting" = "沒有擱置的任務！等待日期或其他任務的任務會顯示在這裡。";
 "empty_state.board.done" = "還沒有完成的任務。完成一個，在這裡慶祝吧！";
 "board.card.completed_on" = "完成於 %@";
+"board.card.completed_pill" = "✓ %@";
 "empty_state.board.custom" = "這裡還沒有任務！拖一個任務進來推進它吧。";
 "empty_state.no_lists" = "暫無清單。創建您的第一個清單開始吧！";
 

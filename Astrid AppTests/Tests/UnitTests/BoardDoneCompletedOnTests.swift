@@ -47,4 +47,13 @@ final class BoardDoneCompletedOnTests: XCTestCase {
         let open = Task(id: "c", title: "c", completedAt: at("2026-11-10T12:00:00Z"))
         XCTAssertNil(CompletedOnLabel.text(for: open))
     }
+
+    /// The pill says it is a completion: a plain U+2713 check before the date ("✓ on Nov 19"),
+    /// never the emoji-prone U+2714; VoiceOver reads the words instead.
+    func testThePillLeadsWithAPlainCheck_doneDatePill() {
+        let pill = CompletedOnLabel.pillText("Nov 19")
+        XCTAssertEqual(pill, "✓ on Nov 19")
+        XCTAssertEqual(pill.unicodeScalars.first?.value, 0x2713)
+        XCTAssertEqual(CompletedOnLabel.accessibilityLabel("Nov 19"), "Completed Nov 19")
+    }
 }

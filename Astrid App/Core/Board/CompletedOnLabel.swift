@@ -36,7 +36,14 @@ enum CompletedOnLabel {
         completedAt(task).map { text(for: $0, now: now, calendar: calendar, locale: locale) }
     }
 
-    /// What VoiceOver reads: "Completed Nov 19".
+    /// What the pill says: "✓ on Nov 19" — a plain U+2713 check (never ✔ U+2714, which some
+    /// systems draw as an emoji) inside each language's own words, so every platform shows the
+    /// same text in the pill's colour (Jon, 2026-11-19). The preposition only where it is short.
+    static func pillText(_ text: String) -> String {
+        String(format: NSLocalizedString("board.card.completed_pill", comment: ""), text)
+    }
+
+    /// What VoiceOver reads: "Completed Nov 19" — the words, not "check mark".
     static func accessibilityLabel(_ text: String) -> String {
         String(format: NSLocalizedString("board.card.completed_on", comment: ""), text)
     }

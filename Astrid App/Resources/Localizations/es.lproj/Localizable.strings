@@ -176,6 +176,7 @@
 "empty_state.board.waiting" = "¡Nada en espera! Las tareas que esperan una fecha u otra tarea aparecen aquí.";
 "empty_state.board.done" = "Aún no hay tareas terminadas. ¡Completa una y celébrala aquí!";
 "board.card.completed_on" = "Completada el %@";
+"board.card.completed_pill" = "✓ el %@";
 "empty_state.board.custom" = "¡Aún no hay nada aquí! Arrastra una tarea para hacerla avanzar.";
 "empty_state.no_lists" = "Aún no hay listas. ¡Crea tu primera lista para comenzar!";
 
