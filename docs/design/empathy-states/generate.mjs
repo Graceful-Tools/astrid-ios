@@ -3,13 +3,18 @@
 //
 //   node docs/design/empathy-states/generate.mjs
 //
-// Writes svg/<metaphor>-<state>.svg (512×512, no text, so any locale can use them) and
-// contact-sheet.png (needs `sharp`; it is taken from the paired astrid-web checkout,
-// ASTRID_WEB_DIR or ../astrid-web, since this repo has no node_modules of its own).
+// Writes svg/<metaphor>-<state>.svg (512×512, transparent, no text, so any locale and any theme
+// can use them) and contact-sheet.png (needs `sharp`; it is taken from the paired astrid-web
+// checkout, ASTRID_WEB_DIR or ../astrid-web, since this repo has no node_modules of its own).
+//
+// Second pass, from Jon's reply on the task (2026-11-19): all five metaphors, but one per board so
+// every column of a view speaks the same metaphor; only the character and a key object, no
+// background; and the character drawn much closer to the icon's — its face, body and colour.
+// The colours below are sampled from `astrid-web/public/images/astrid-character.png`.
 //
 // Exploration artwork for choosing a set. Nothing here is in the app bundle.
 
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -17,111 +22,107 @@ import { fileURLToPath } from 'node:url'
 const HERE = dirname(fileURLToPath(import.meta.url))
 const W = 512
 
-// ── palette (taken from the app icon) ────────────────────────────────────────────────
+// ── palette: sampled from the icon character ─────────────────────────────────────────
 const C = {
-  red: '#E8483F', redLight: '#F67B6D', redDark: '#BF2F29',
-  green: '#9ACD32', greenDark: '#5E9A1C', greenLight: '#C3E64B',
-  ink: '#2A1714', cream: '#FBEBDD', creamLine: '#D9B8A4',
-  white: '#FFFFFF', gold: '#F5C13D', goldDark: '#C9921A',
-  wood: '#B97A4B', woodDark: '#8A5532', grey: '#9AA5B1', greyDark: '#5F6B78',
-  blue: '#3E8EDE', sky: '#87DBF7', brick: '#C8553D', brickDark: '#99402E',
-  soil: '#7A5236', leaf: '#5DBB4A', leafDark: '#3F8F34',
+  // body, light to dark: the lit crown, the face, the shaded flank, the rim
+  coralHi: '#FF8C76', coral: '#F66653', coralMid: '#F0594A', coralLow: '#DB3E34', coralRim: '#B92F2F',
+  mouth: '#A8302A', teeth: '#FBEDE2', teethShade: '#D9B8A4',
+  eye: '#2A1612', white: '#FFFFFF', blush: '#FF9A86',
+  // the check
+  lime: '#94BC29', limeHi: '#B9DA43', limeLow: '#6E9418',
+  // props
+  gold: '#F5C13D', goldDark: '#C9921A', wood: '#B97A4B', woodDark: '#8A5532',
+  grey: '#AEB7C1', greyDark: '#5F6B78', steel: '#D3D9DF', blue: '#3E8EDE', blueDark: '#2F6FB0',
+  water: '#7FD0F5', brick: '#C8553D', brickDark: '#99402E', soil: '#7A5236', leaf: '#5DBB4A',
+  leafDark: '#3F8F34', paper: '#FFFDF6', pink: '#FF8FB1', orange: '#F28C28',
 }
 
 const STATES = {
-  inbox: { label: 'Inbox', bg: '#E3EEF8', ground: '#C9DAEA' },
-  ready: { label: 'Ready', bg: '#FFF2CF', ground: '#F3DDA0' },
-  doing: { label: 'Doing', bg: '#D6EFFC', ground: '#AED8EE' },
-  waiting: { label: 'Waiting', bg: '#ECE5FA', ground: '#D3C7EE' },
-  done: { label: 'Done', bg: '#DDF4D1', ground: '#B8E3A3' },
+  inbox: { label: 'Inbox' }, ready: { label: 'Ready' }, doing: { label: 'Doing' },
+  waiting: { label: 'Waiting' }, done: { label: 'Done' },
 }
 
 // ── the octopus ──────────────────────────────────────────────────────────────────────
-// Local coordinates: body centred on x=0, head top ≈ y-112, tentacle tips ≈ y+145.
-const BODY = `M -95 30 C -95 -160 95 -160 95 30 L 95 62
-  C 100 90 128 100 142 114 C 122 126 96 118 82 104
-  C 82 122 76 136 60 146 C 46 136 44 118 44 106
-  C 34 126 20 140 4 146 C -10 136 -10 118 -10 106
-  C -22 126 -36 140 -52 146 C -66 134 -62 116 -56 102
-  C -76 116 -106 126 -142 112 C -120 100 -100 88 -95 62 Z`
+// Local coordinates: body centred on x=0, crown at y≈-150, tentacle tips at y≈+150.
+// The icon's shape: a tall gumdrop, narrower at the crown than the base, whose hem breaks into
+// short tentacles that curl outward — the outer two the most.
+const BODY = `M -92 64
+  L -92 -78 C -92 -138 -58 -158 0 -158 C 58 -158 92 -138 92 -78 L 92 64
+  C 98 96 128 112 160 106 C 152 130 112 138 86 122
+  C 88 140 78 154 60 158 C 48 148 46 132 44 120
+  C 36 140 22 154 4 158 C -10 150 -12 134 -12 120
+  C -24 140 -40 154 -58 158 C -72 148 -68 130 -62 118
+  C -88 134 -136 140 -172 112 C -140 108 -102 96 -92 64 Z`
 
 const eye = (x, y, [lx, ly]) =>
-  `<circle cx="${x}" cy="${y}" r="15" fill="${C.ink}"/>` +
-  `<circle cx="${x + 4 + lx}" cy="${y - 5 + ly}" r="4.5" fill="${C.white}"/>`
+  `<ellipse cx="${x + lx}" cy="${y + ly}" rx="13" ry="17" fill="${C.eye}"/>` +
+  `<ellipse cx="${x + lx + 4}" cy="${y + ly - 6}" rx="4.6" ry="5.4" fill="${C.white}"/>`
 
-const closedEye = (x, y) =>
-  `<path d="M ${x - 14} ${y + 4} Q ${x} ${y - 14} ${x + 14} ${y + 4}" fill="none" stroke="${C.ink}" stroke-width="6" stroke-linecap="round"/>`
+// Shut in delight: the icon's eyes curved into arcs.
+const happyEye = (x, y) =>
+  `<path d="M ${x - 14} ${y + 5} Q ${x} ${y - 14} ${x + 14} ${y + 5}" fill="none" stroke="${C.eye}" stroke-width="6.5" stroke-linecap="round"/>`
 
-const restingEye = (x, y) =>
-  `<path d="M ${x - 14} ${y - 2} Q ${x} ${y + 12} ${x + 14} ${y - 2}" fill="none" stroke="${C.ink}" stroke-width="6" stroke-linecap="round"/>`
+// Resting, patient.
+const restEye = (x, y) =>
+  `<path d="M ${x - 14} ${y - 2} Q ${x} ${y + 11} ${x + 14} ${y - 2}" fill="none" stroke="${C.eye}" stroke-width="6.5" stroke-linecap="round"/>`
 
-const teeth = (x0, x1, y, n) => {
-  const step = (x1 - x0) / n
-  let d = `M ${x0} ${y}`
-  for (let i = 0; i < n; i++) d += ` L ${x0 + step * (i + 0.5)} ${y + (i % 2 ? -7 : 7)}`
-  return `<path d="${d} L ${x1} ${y}" fill="none" stroke="${C.creamLine}" stroke-width="3" stroke-linejoin="round"/>`
+// The icon's grin: a wide mouth full of cream teeth that meet in a zigzag.
+function grin(w, top, bottom, n) {
+  const x0 = -w, x1 = w
+  const mid = (top + bottom) / 2 + 2
+  const shape = `M ${x0} ${top} Q 0 ${top + 6} ${x1} ${top} Q ${x1 - 6} ${bottom} 0 ${bottom + 2} Q ${x0 + 6} ${bottom} ${x0} ${top} Z`
+  let zig = `M ${x0 + 4} ${mid}`
+  const step = (x1 - x0 - 8) / n
+  for (let i = 1; i <= n; i++) zig += ` L ${x0 + 4 + step * (i - 0.5)} ${mid + (i % 2 ? -6 : 6)} L ${x0 + 4 + step * i} ${mid}`
+  return `<path d="${shape}" fill="${C.mouth}"/>` +
+    `<path d="M ${x0 + 3} ${top + 2} Q 0 ${top + 7} ${x1 - 3} ${top + 2} Q ${x1 - 8} ${bottom - 3} 0 ${bottom - 1} Q ${x0 + 8} ${bottom - 3} ${x0 + 3} ${top + 2} Z" fill="${C.teeth}"/>` +
+    `<path d="${zig}" fill="none" stroke="${C.teethShade}" stroke-width="3.4" stroke-linejoin="round"/>`
 }
 
+const EYE_Y = -58, EYE_X = 40
 const FACES = {
   // the icon's own face
-  grin: (look) =>
-    eye(-42, -28, look) + eye(42, -28, look) +
-    `<path d="M -58 6 Q 0 0 58 6 Q 52 58 0 60 Q -52 58 -58 6 Z" fill="${C.redDark}"/>` +
-    `<path d="M -50 11 Q 0 6 50 11 Q 44 50 0 52 Q -44 50 -50 11 Z" fill="${C.cream}"/>` +
-    teeth(-40, 40, 28, 6),
-  // concentrating: brows down, mouth set
-  focus: (look) =>
-    eye(-42, -26, look) + eye(42, -26, look) +
-    `<path d="M -60 -52 L -26 -44 M 60 -52 L 26 -44" stroke="${C.redDark}" stroke-width="7" stroke-linecap="round"/>` +
-    `<path d="M -34 14 Q 0 10 34 14 Q 30 36 0 38 Q -30 36 -34 14 Z" fill="${C.redDark}"/>` +
-    `<path d="M -28 17 Q 0 14 28 17 Q 24 31 0 33 Q -24 31 -28 17 Z" fill="${C.cream}"/>` +
-    teeth(-22, 22, 24, 4),
-  // just arrived, a little curious
-  curious: (look) =>
-    eye(-42, -28, look) + eye(42, -28, look) +
-    `<path d="M -60 -56 Q -44 -66 -28 -58 M 28 -62 Q 44 -70 60 -60" fill="none" stroke="${C.redDark}" stroke-width="6" stroke-linecap="round"/>` +
-    `<ellipse cx="0" cy="22" rx="14" ry="16" fill="${C.redDark}"/>` +
-    `<ellipse cx="0" cy="26" rx="8" ry="8" fill="#8E1F1A"/>`,
-  // patient — eyes at rest, small smile
-  calm: () =>
-    restingEye(-42, -26) + restingEye(42, -26) +
-    `<path d="M -26 16 Q 0 34 26 16" fill="none" stroke="${C.redDark}" stroke-width="7" stroke-linecap="round"/>` +
-    `<ellipse cx="-66" cy="4" rx="13" ry="8" fill="${C.redLight}" opacity=".8"/>` +
-    `<ellipse cx="66" cy="4" rx="13" ry="8" fill="${C.redLight}" opacity=".8"/>`,
-  // delighted
-  joy: () =>
-    closedEye(-42, -26) + closedEye(42, -26) +
-    `<path d="M -60 4 Q 0 -2 60 4 Q 54 70 0 72 Q -54 70 -60 4 Z" fill="${C.redDark}"/>` +
-    `<path d="M -52 9 Q 0 4 52 9 Q 48 30 0 32 Q -48 30 -52 9 Z" fill="${C.cream}"/>` +
-    teeth(-42, 42, 20, 6) +
-    `<ellipse cx="0" cy="56" rx="24" ry="12" fill="#F49A8E"/>` +
-    `<ellipse cx="-70" cy="8" rx="13" ry="8" fill="${C.redLight}"/>` +
-    `<ellipse cx="70" cy="8" rx="13" ry="8" fill="${C.redLight}"/>`,
+  grin: (look) => eye(-EYE_X, EYE_Y, look) + eye(EYE_X, EYE_Y, look) + grin(56, -26, 22, 7),
+  // concentrating: the same grin, set narrower
+  focus: (look) => eye(-EYE_X, EYE_Y + 2, look) + eye(EYE_X, EYE_Y + 2, look) + grin(40, -22, 10, 5),
+  // just arrived, a little curious: a small "oh"
+  curious: (look) => eye(-EYE_X, EYE_Y - 2, look) + eye(EYE_X, EYE_Y - 2, look) +
+    `<ellipse cx="0" cy="-8" rx="13" ry="15" fill="${C.mouth}"/><ellipse cx="0" cy="-3" rx="8" ry="6" fill="#C2453C"/>`,
+  // patient: eyes at rest, a closed smile, a little blush
+  calm: () => restEye(-EYE_X, EYE_Y) + restEye(EYE_X, EYE_Y) +
+    `<path d="M -26 -16 Q 0 4 26 -16" fill="none" stroke="${C.mouth}" stroke-width="6.5" stroke-linecap="round"/>` +
+    `<ellipse cx="-64" cy="-14" rx="12" ry="7" fill="${C.blush}" opacity=".7"/><ellipse cx="64" cy="-14" rx="12" ry="7" fill="${C.blush}" opacity=".7"/>`,
+  // delighted: eyes shut, the grin at its widest
+  joy: () => happyEye(-EYE_X, EYE_Y) + happyEye(EYE_X, EYE_Y) + grin(60, -28, 28, 8) +
+    `<ellipse cx="-68" cy="-14" rx="12" ry="7" fill="${C.blush}" opacity=".8"/><ellipse cx="68" cy="-14" rx="12" ry="7" fill="${C.blush}" opacity=".8"/>`,
 }
 
-// An arm reaching from the body's side to a hand point (local coords).
+// A tentacle arm from the body's side to a hand point (local coords), thick at the shoulder and
+// tapering — the arm holding the icon's check.
 function arm([tx, ty], side) {
-  const ax = side === 'l' ? -78 : 78
-  const ay = 52
-  const bow = side === 'l' ? -30 : 30
+  const ax = side === 'l' ? -84 : 84
+  const ay = 40
+  const bow = side === 'l' ? -34 : 34
   const cx = (ax + tx) / 2 + bow
-  const cy = Math.max(ay, ty) + 18
-  return `<path d="M ${ax} ${ay} Q ${cx} ${cy} ${tx} ${ty}" fill="none" stroke="url(#armGrad)" stroke-width="24" stroke-linecap="round"/>` +
-    `<circle cx="${tx}" cy="${ty}" r="17" fill="url(#bodyGrad)"/>`
+  const cy = Math.max(ay, ty) + 20
+  return `<path d="M ${ax} ${ay} Q ${cx} ${cy} ${tx} ${ty}" fill="none" stroke="${C.coralLow}" stroke-width="38" stroke-linecap="round"/>` +
+    `<path d="M ${ax} ${ay - 2} Q ${cx} ${cy - 3} ${tx} ${ty - 2}" fill="none" stroke="url(#armGrad)" stroke-width="31" stroke-linecap="round"/>` +
+    `<circle cx="${tx}" cy="${ty}" r="19" fill="${C.coralMid}"/>`
 }
 
 /**
  * The octopus, positioned in scene coordinates.
  *   face: grin | focus | curious | calm | joy      look: pupil offset [x, y]
  *   arms: [{ side: 'l'|'r', to: [x, y] }] in LOCAL coords
- *   behind / hat / front: extra SVG in local coords (drawn behind body, on head, in front)
+ *   behind / hat / onBody / front: extra SVG in local coords
  */
-function octo({ x = 256, y = 286, s = 0.95, rot = 0, sy = 1, face = 'grin', look = [0, 0], arms = [], behind = '', hat = '', onBody = '', front = '', shadow = true }) {
-  return (shadow ? `<ellipse cx="${x}" cy="${y + 150 * s * sy}" rx="${120 * s}" ry="${14 * s}" fill="#000" opacity=".10"/>` : '') +
-    `<g transform="translate(${x} ${y}) rotate(${rot}) scale(${s} ${s * sy})">` +
+function octo({ x = 256, y = 268, s = 0.92, rot = 0, sy = 1, face = 'grin', look = [0, 0], arms = [], behind = '', hat = '', onBody = '', front = '' }) {
+  return `<g transform="translate(${x} ${y}) rotate(${rot}) scale(${s} ${s * sy})">` +
     behind +
     `<path d="${BODY}" fill="url(#bodyGrad)"/>` +
-    `<ellipse cx="-30" cy="-80" rx="34" ry="20" fill="#fff" opacity=".18" transform="rotate(-25 -30 -80)"/>` +
+    `<path d="${BODY}" fill="url(#hemShade)"/>` +
+    // the soft sheen on the crown, as the icon is lit from the upper left
+    `<ellipse cx="-30" cy="-118" rx="40" ry="20" fill="#fff" opacity=".10" transform="rotate(-20 -30 -118)"/>` +
     onBody +
     FACES[face](look) +
     hat +
@@ -131,206 +132,97 @@ function octo({ x = 256, y = 286, s = 0.95, rot = 0, sy = 1, face = 'grin', look
 }
 
 // ── props (scene coords unless noted) ────────────────────────────────────────────────
+// The icon's check: lime, chunky, lit from above.
 const check = (x, y, s = 1, rot = 0) =>
   `<g transform="translate(${x} ${y}) rotate(${rot}) scale(${s})">` +
-  `<path d="M -46 2 L -16 32 L 50 -38" fill="none" stroke="${C.greenDark}" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" transform="translate(3 5)"/>` +
-  `<path d="M -46 2 L -16 32 L 50 -38" fill="none" stroke="${C.green}" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>` +
-  `<path d="M -40 -2 L -16 22 L 44 -42" fill="none" stroke="${C.greenLight}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/></g>`
+  `<path d="M -46 2 L -14 34 L 52 -38" fill="none" stroke="${C.limeLow}" stroke-width="32" stroke-linecap="round" stroke-linejoin="round" transform="translate(2 6)"/>` +
+  `<path d="M -46 2 L -14 34 L 52 -38" fill="none" stroke="${C.lime}" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>` +
+  `<path d="M -42 -4 L -14 22 L 46 -42" fill="none" stroke="${C.limeHi}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/></g>`
 
-const sparkle = (x, y, r = 10, fill = C.gold) =>
-  `<path d="M ${x} ${y - r} Q ${x + r * 0.2} ${y - r * 0.2} ${x + r} ${y} Q ${x + r * 0.2} ${y + r * 0.2} ${x} ${y + r} Q ${x - r * 0.2} ${y + r * 0.2} ${x - r} ${y} Q ${x - r * 0.2} ${y - r * 0.2} ${x} ${y - r} Z" fill="${fill}"/>`
+const motion = (x, y) => [0, 24, 48].map((d, i) =>
+  `<path d="M ${x - 64 + i * 14} ${y + d} L ${x - i * 10} ${y + d}" stroke="${C.grey}" stroke-width="7" stroke-linecap="round" opacity=".7"/>`).join('')
 
-const confetti = () => [
-  [70, 80, C.gold, 20], [120, 140, C.blue, -30], [420, 70, C.green, 40], [450, 150, C.red, 10],
-  [390, 40, C.blue, 60], [60, 190, C.red, -10], [470, 230, C.gold, 25], [150, 50, C.green, -45],
-].map(([x, y, f, r]) => `<rect x="${x}" y="${y}" width="16" height="8" rx="3" fill="${f}" transform="rotate(${r} ${x} ${y})"/>`).join('') +
-  sparkle(96, 110, 12) + sparkle(430, 110, 14) + sparkle(250, 40, 10, C.white)
-
-const motion = (x, y) => [0, 26, 52].map((d, i) =>
-  `<path d="M ${x - 70 + i * 14} ${y + d} L ${x - i * 10} ${y + d}" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity=".85"/>`).join('')
-
-const sweat = (x, y) => `<path d="M ${x} ${y} Q ${x - 9} ${y + 14} ${x} ${y + 18} Q ${x + 9} ${y + 14} ${x} ${y} Z" fill="#7FD0F5" stroke="#fff" stroke-width="2"/>`
-
-const clock = (x, y, r = 26) =>
+const clockFace = (x, y, r = 26) =>
   `<circle cx="${x}" cy="${y}" r="${r}" fill="#fff" stroke="${C.greyDark}" stroke-width="5"/>` +
-  `<path d="M ${x} ${y} L ${x} ${y - r * 0.62} M ${x} ${y} L ${x + r * 0.45} ${y + r * 0.2}" stroke="${C.ink}" stroke-width="4" stroke-linecap="round"/>`
+  `<path d="M ${x} ${y} L ${x} ${y - r * 0.62} M ${x} ${y} L ${x + r * 0.45} ${y + r * 0.2}" stroke="${C.eye}" stroke-width="4" stroke-linecap="round"/>`
 
-const paper = (x, y, w, h, rot = 0, lines = 4, fill = '#fff') =>
+const paper = (x, y, w, h, rot = 0, lines = 4, fill = C.paper) =>
   `<g transform="rotate(${rot} ${x + w / 2} ${y + h / 2})"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${fill}" stroke="${C.greyDark}" stroke-width="3"/>` +
   Array.from({ length: lines }, (_, i) => `<line x1="${x + 10}" y1="${y + 16 + i * ((h - 24) / lines)}" x2="${x + w - 10 - (i === lines - 1 ? w * 0.3 : 0)}" y2="${y + 16 + i * ((h - 24) / lines)}" stroke="${C.grey}" stroke-width="3" stroke-linecap="round"/>`).join('') + `</g>`
 
-const bench = (x, y, w = 260) =>
-  `<rect x="${x}" y="${y}" width="${w}" height="18" rx="6" fill="${C.wood}"/>` +
-  `<rect x="${x + 20}" y="${y + 18}" width="14" height="44" fill="${C.woodDark}"/><rect x="${x + w - 34}" y="${y + 18}" width="14" height="44" fill="${C.woodDark}"/>`
+// ── wearables (local coords; crown at y≈-150) ────────────────────────────────────────
+const headband = `<path d="M -92 -98 Q 0 -128 92 -98 L 94 -78 Q 0 -108 -94 -78 Z" fill="#fff"/><path d="M -93 -90 Q 0 -120 93 -90" stroke="${C.blue}" stroke-width="5" fill="none"/>`
+const hardHat = `<path d="M -80 -112 Q -76 -184 0 -186 Q 76 -184 80 -112 Z" fill="${C.gold}"/><rect x="-104" y="-120" width="208" height="18" rx="9" fill="${C.goldDark}"/><path d="M -10 -184 L -10 -118 M 10 -184 L 10 -118" stroke="${C.goldDark}" stroke-width="6"/>`
+const toque = `<rect x="-58" y="-158" width="116" height="36" rx="6" fill="#fff" stroke="#E2E2E2" stroke-width="3"/><circle cx="-42" cy="-180" r="32" fill="#fff"/><circle cx="0" cy="-196" r="38" fill="#fff"/><circle cx="42" cy="-180" r="32" fill="#fff"/><path d="M -36 -150 L -36 -128 M 0 -150 L 0 -128 M 36 -150 L 36 -128" stroke="#E2E2E2" stroke-width="3"/>`
+const strawHat = `<ellipse cx="0" cy="-122" rx="132" ry="24" fill="#E9C46A"/><path d="M -66 -124 Q -62 -190 0 -192 Q 62 -190 66 -124 Z" fill="#F2D27E"/><path d="M -66 -136 Q 0 -150 66 -136 L 66 -124 Q 0 -138 -66 -124 Z" fill="${C.leafDark}"/>`
+const apron = `<path d="M -60 30 L 60 30 L 72 110 Q 0 120 -72 110 Z" fill="#fff"/><path d="M -60 30 L -82 6 M 60 30 L 82 6" stroke="#fff" stroke-width="6"/><rect x="-18" y="56" width="36" height="20" rx="4" fill="none" stroke="#E2E2E2" stroke-width="3"/>`
+const backpackStraps = `<path d="M -84 -40 Q -52 0 -70 60 M 84 -40 Q 52 0 70 60" stroke="${C.blue}" stroke-width="12" fill="none" stroke-linecap="round"/>`
+const backpack = `<rect x="68" y="-70" width="70" height="110" rx="22" fill="${C.blue}"/><rect x="80" y="-20" width="46" height="34" rx="8" fill="${C.blueDark}"/>`
+const medal = `<path d="M -24 18 L 0 62 L 24 18" fill="none" stroke="${C.blue}" stroke-width="12"/><circle cx="0" cy="74" r="20" fill="${C.gold}" stroke="${C.goldDark}" stroke-width="4"/>`
 
-// ── hats and wearables (local coords; head top ≈ y-112) ──────────────────────────────
-const headband = `<path d="M -94 -66 Q 0 -96 94 -66 L 94 -46 Q 0 -76 -94 -46 Z" fill="#fff"/><path d="M -94 -60 Q 0 -90 94 -60" stroke="${C.blue}" stroke-width="5" fill="none"/>`
-const hardHat = `<path d="M -84 -78 Q -80 -150 0 -152 Q 80 -150 84 -78 Z" fill="${C.gold}"/><rect x="-108" y="-86" width="216" height="18" rx="9" fill="${C.goldDark}"/><path d="M -10 -150 L -10 -84 M 10 -150 L 10 -84" stroke="${C.goldDark}" stroke-width="6"/>`
-const toque = `<rect x="-62" y="-130" width="124" height="38" rx="6" fill="#fff" stroke="#E2E2E2" stroke-width="3"/><circle cx="-46" cy="-152" r="34" fill="#fff"/><circle cx="0" cy="-170" r="40" fill="#fff"/><circle cx="46" cy="-152" r="34" fill="#fff"/><path d="M -40 -122 L -40 -100 M 0 -122 L 0 -100 M 40 -122 L 40 -100" stroke="#E2E2E2" stroke-width="3"/>`
-const strawHat = `<ellipse cx="0" cy="-90" rx="138" ry="26" fill="#E9C46A"/><path d="M -70 -92 Q -66 -160 0 -162 Q 66 -160 70 -92 Z" fill="#F2D27E"/><path d="M -70 -104 Q 0 -118 70 -104 L 70 -92 Q 0 -106 -70 -92 Z" fill="${C.red}" opacity=".9"/><path d="M -70 -104 Q 0 -118 70 -104 L 70 -92 Q 0 -106 -70 -92 Z" fill="${C.leafDark}"/>`
-const apron = `<path d="M -62 50 L 62 50 L 72 118 Q 0 128 -72 118 Z" fill="#fff"/><path d="M -62 50 L -86 30 M 62 50 L 86 30" stroke="#fff" stroke-width="6"/><rect x="-20" y="72" width="40" height="22" rx="4" fill="none" stroke="#E2E2E2" stroke-width="3"/>`
-const backpack = `<path d="M -84 -10 Q -50 30 -70 80 M 84 -10 Q 50 30 70 80" stroke="${C.blue}" stroke-width="12" fill="none" stroke-linecap="round"/>`
-const backpackBehind = `<rect x="70" y="-40" width="70" height="110" rx="22" fill="${C.blue}"/><rect x="82" y="10" width="46" height="34" rx="8" fill="#2F6FB0"/>`
-const medal = `<path d="M -26 30 L 0 76 L 26 30" fill="none" stroke="${C.blue}" stroke-width="12"/><circle cx="0" cy="88" r="20" fill="${C.gold}" stroke="${C.goldDark}" stroke-width="4"/>` + sparkle(0, 88, 9, '#fff')
-
-// ── backgrounds ──────────────────────────────────────────────────────────────────────
-const groundStrip = (st) => `<rect x="0" y="418" width="${W}" height="${W - 418}" fill="${STATES[st].ground}"/>`
-const track = `<rect x="0" y="410" width="${W}" height="${W - 410}" fill="#D9714E"/><path d="M 0 440 L 512 440 M 0 478 L 512 478" stroke="#fff" stroke-width="4" opacity=".7"/>`
-const road = `<path d="M 0 512 L 200 400 L 312 400 L 512 512 Z" fill="#6E7782"/><path d="M 256 404 L 256 420 M 256 436 L 256 458 M 256 476 L 256 506" stroke="#fff" stroke-width="7"/>`
-
-// ── the scenes ───────────────────────────────────────────────────────────────────────
-const L = (x, y) => ({ side: 'l', to: [x, y] })
-const R = (x, y) => ({ side: 'r', to: [x, y] })
-
-const SCENES = {
-  race: {
-    title: 'Race',
-    inbox: { caption: 'Reading the race flyer', draw: () => groundStrip('inbox') +
-      `<rect x="40" y="356" width="110" height="68" rx="16" fill="${C.blue}"/><path d="M 70 360 Q 95 320 120 360" stroke="#2F6FB0" stroke-width="10" fill="none"/>` +
-      octo({ x: 270, face: 'curious', look: [5, 4], arms: [R(118, 20), L(-108, 80)], front: paper(78, -40, 70, 86, 10, 3) + `<circle cx="113" cy="10" r="13" fill="none" stroke="${C.red}" stroke-width="4" transform="rotate(10 113 3)"/>` }) },
-    ready: { caption: 'On your marks', draw: () => track +
-      `<rect x="330" y="408" width="14" height="104" fill="#fff"/>` +
-      octo({ x: 236, y: 300, sy: 0.86, face: 'focus', look: [6, 0], hat: headband, arms: [R(110, 132), L(-60, 134)] }) },
-    doing: { caption: 'Mid-sprint', draw: () => track + motion(150, 220) +
-      octo({ x: 270, y: 274, rot: 12, face: 'focus', look: [6, 0], hat: headband, arms: [R(128, -10), L(-128, 92)] }) + sweat(150, 160) },
-    waiting: { caption: 'Water break between heats', draw: () => groundStrip('waiting') + bench(120, 360) +
-      octo({ x: 256, y: 250, face: 'calm', hat: `<rect x="-60" y="-118" width="120" height="30" rx="12" fill="#fff" transform="rotate(-6)"/>`, arms: [R(96, -6), L(-104, 96)],
-        front: `<rect x="82" y="-58" width="30" height="62" rx="9" fill="#7FD0F5" stroke="${C.blue}" stroke-width="4"/><rect x="88" y="-70" width="18" height="14" rx="4" fill="${C.blue}"/>` }) +
-      clock(430, 120, 30) },
-    done: { caption: 'On the podium', draw: () => groundStrip('done') + confetti() +
-      `<rect x="166" y="370" width="180" height="142" rx="10" fill="${C.gold}"/><rect x="40" y="420" width="126" height="92" rx="10" fill="#D7DDE3"/><rect x="346" y="440" width="126" height="72" rx="10" fill="#E3A86B"/>` +
-      `<path d="M 256 404 L 256 474 M 244 416 L 256 404" stroke="${C.goldDark}" stroke-width="12" stroke-linecap="round" fill="none"/>` +
-      octo({ x: 256, y: 238, s: 0.88, face: 'joy', onBody: medal, arms: [R(140, -96), L(-124, -60)], front: check(170, -150, 0.85, -8), shadow: false }) },
-  },
-  wall: {
-    title: 'Building a wall',
-    inbox: { caption: 'Unrolling the blueprint', draw: () => groundStrip('inbox') +
-      bricks(36, 380, 3, 2, true) +
-      octo({ x: 286, face: 'curious', look: [0, 6], arms: [L(-70, 30), R(70, 30)], front:
-        `<rect x="-86" y="2" width="172" height="104" rx="6" fill="${C.blue}" stroke="#2F6FB0" stroke-width="4"/>` +
-        `<path d="M -70 20 L 70 20 M -70 40 L 70 40 M -70 60 L 70 60 M -70 80 L 70 80 M -50 10 L -50 98 M -10 10 L -10 98 M 30 10 L 30 98" stroke="#9CC8F2" stroke-width="2"/>` +
-        `<rect x="-56" y="30" width="96" height="44" fill="none" stroke="#fff" stroke-width="4"/>` +
-        `<circle cx="-86" cy="54" r="12" fill="#2F6FB0"/><circle cx="86" cy="54" r="12" fill="#2F6FB0"/>` }) },
-    ready: { caption: 'Hard hat on, trowel up', draw: () => groundStrip('ready') + bricks(40, 360, 4, 3, true) +
-      octo({ x: 300, face: 'grin', look: [-4, 0], hat: hardHat, arms: [R(130, -40), L(-110, 90)], front: trowel(130, -40) }) },
-    doing: { caption: 'Half built', draw: () => groundStrip('doing') +
-      wallRows(30, 418, [6, 5, 4, 3, 2]) +
-      octo({ x: 360, y: 290, s: 0.85, face: 'focus', look: [-8, 2], hat: hardHat, arms: [L(-150, -10), R(110, 90)],
-        front: `<rect x="-196" y="-34" width="70" height="34" rx="4" fill="${C.brick}" stroke="${C.brickDark}" stroke-width="4"/>` }) + sweat(420, 150) },
-    waiting: { caption: 'Letting the mortar set', draw: () => groundStrip('waiting') +
-      wallRows(20, 418, [7, 7, 7, 7], '#B9AFC4', '#978DA3') + cone(440, 418) +
-      octo({ x: 262, y: 236, s: 0.8, face: 'calm', hat: hardHat, arms: [L(-110, 60), R(104, -6)], shadow: false,
-        front: `<rect x="86" y="-30" width="40" height="44" rx="8" fill="#fff" stroke="${C.greyDark}" stroke-width="4"/><path d="M 126 -18 Q 146 -10 126 4" stroke="${C.greyDark}" stroke-width="4" fill="none"/><path d="M 96 -44 Q 90 -56 98 -66 M 112 -44 Q 106 -56 114 -66" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round"/>` }) + clock(70, 90, 30) },
-    done: { caption: 'Wall finished', draw: () => groundStrip('done') + confetti() +
-      wallRows(16, 418, [7, 7, 7, 7, 7]) + check(150, 330, 0.95) +
-      octo({ x: 380, y: 270, s: 0.78, face: 'joy', hat: hardHat, arms: [L(-120, -110), R(124, -110)] }) },
-  },
-  chef: {
-    title: 'Chef',
-    inbox: { caption: 'Groceries and a recipe', draw: () => groundStrip('inbox') + counter() +
-      groceryBag(70, 300) +
-      octo({ x: 300, y: 262, s: 0.9, face: 'curious', look: [-4, 4], arms: [L(-80, 10), R(110, 80)], front: paper(-130, -50, 74, 92, -8, 4, '#FFF8E1') }) },
-    ready: { caption: 'Apron on, mise en place', draw: () => groundStrip('ready') + counter() +
-      octo({ x: 256, y: 240, s: 0.86, face: 'grin', hat: toque, onBody: apron, arms: [L(-120, 70), R(120, 70)], shadow: false }) +
-      `<rect x="140" y="378" width="232" height="26" rx="8" fill="${C.wood}"/>` +
-      `<circle cx="184" cy="372" r="18" fill="#E44D3A"/><path d="M 184 354 l -6 -8 m 6 8 l 6 -8" stroke="${C.leafDark}" stroke-width="4"/>` +
-      `<path d="M 232 382 L 300 370 L 300 384 Z" fill="#F28C28"/><path d="M 300 370 l 14 -6 m -14 14 l 14 4" stroke="${C.leafDark}" stroke-width="4"/>` +
-      `<circle cx="340" cy="374" r="14" fill="${C.leaf}"/>` },
-    doing: { caption: 'Stirring the pot', draw: () => groundStrip('doing') + counter() +
-      `<path d="M 178 298 L 128 330" stroke="${C.wood}" stroke-width="10" stroke-linecap="round"/>` +
-      octo({ x: 300, y: 236, s: 0.84, face: 'focus', look: [-8, 6], hat: toque, onBody: apron, arms: [L(-150, 70), R(110, 90)], shadow: false }) +
-      `<rect x="70" y="320" width="150" height="80" rx="14" fill="${C.greyDark}"/><rect x="60" y="312" width="170" height="16" rx="8" fill="#4A545F"/>` +
-      steam(145, 290) },
-    waiting: { caption: 'Watching the oven timer', draw: () => groundStrip('waiting') +
-      `<rect x="40" y="214" width="190" height="204" rx="16" fill="#D7DDE3" stroke="${C.greyDark}" stroke-width="5"/><rect x="62" y="270" width="146" height="110" rx="10" fill="#FFB347" opacity=".85"/><rect x="62" y="270" width="146" height="110" rx="10" fill="none" stroke="${C.greyDark}" stroke-width="5"/><circle cx="90" cy="240" r="9" fill="${C.greyDark}"/><circle cx="125" cy="240" r="9" fill="${C.greyDark}"/>` +
-      `<path d="M 96 340 Q 135 310 174 340 Z" fill="#C98B4B"/>` +
-      octo({ x: 350, y: 280, s: 0.82, face: 'calm', hat: toque, onBody: apron, arms: [L(-106, -10), R(110, 90)], front: clockLocal(-110, -40) }) },
-    done: { caption: 'Plated and served', draw: () => groundStrip('done') + confetti() +
-      octo({ x: 236, y: 280, s: 0.86, face: 'joy', hat: toque, onBody: apron, arms: [R(140, 10), L(-110, 80)],
-        front: `<ellipse cx="160" cy="6" rx="86" ry="20" fill="#fff" stroke="#D5D5D5" stroke-width="4"/>` +
-          `<ellipse cx="160" cy="-4" rx="46" ry="16" fill="#E9A23B"/><circle cx="140" cy="-14" r="10" fill="#E44D3A"/><circle cx="170" cy="-18" r="9" fill="${C.leaf}"/><circle cx="186" cy="-8" r="7" fill="#E44D3A"/>` +
-          `<path d="M 150 -40 Q 160 -56 150 -70 M 172 -40 Q 182 -56 172 -70" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round"/>` }) +
-      check(110, 120, 0.55, -10) },
-  },
-  garden: {
-    title: 'Garden',
-    inbox: { caption: 'A packet of seeds', draw: () => groundStrip('inbox') + pot(90, 350, '') +
-      octo({ x: 300, face: 'curious', look: [-6, 6], arms: [L(-100, 20), R(110, 80)], front: seedPacket(-150, -50, -8) }) },
-    ready: { caption: 'Soil dug, can filled', draw: () => groundStrip('ready') +
-      `<ellipse cx="130" cy="420" rx="100" ry="26" fill="${C.soil}"/>` + wateringCan(330, 330, 0) +
-      octo({ x: 236, y: 270, s: 0.86, face: 'grin', hat: strawHat, arms: [L(-120, 20), R(80, 110)],
-        front: `<circle cx="-120" cy="10" r="5" fill="#8A6A3A"/><circle cx="-108" cy="2" r="5" fill="#8A6A3A"/><circle cx="-128" cy="-2" r="5" fill="#8A6A3A"/>` }) },
-    doing: { caption: 'Planting and watering', draw: () => groundStrip('doing') +
-      `<ellipse cx="140" cy="420" rx="110" ry="26" fill="${C.soil}"/><path d="M 120 410 Q 120 390 128 384 M 128 384 q 10 -4 14 4 M 128 384 q -10 -6 -14 2" stroke="${C.leafDark}" stroke-width="5" fill="none" stroke-linecap="round"/>` +
-      `<g fill="#7FD0F5">${[[120, 330], [138, 352], [110, 362], [150, 320], [130, 300]].map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="5" ry="8"/>`).join('')}</g>` +
-      octo({ x: 330, y: 270, s: 0.86, face: 'focus', look: [-8, 6], hat: strawHat, arms: [L(-140, -10), R(100, 90)], front: wateringCan(-180, -40, -25, true) }) },
-    waiting: { caption: 'Waiting for the sprout', draw: () => groundStrip('waiting') +
-      `<circle cx="430" cy="80" r="40" fill="${C.gold}"/>` + pot(150, 340, sprout(190, 340)) +
-      octo({ x: 330, y: 290, s: 0.82, face: 'calm', hat: strawHat, arms: [L(-60, 40), R(60, 40)] }) },
-    done: { caption: 'In full bloom', draw: () => groundStrip('done') + confetti() +
-      pot(110, 340, bloom(150, 340)) +
-      octo({ x: 330, y: 280, s: 0.86, face: 'joy', hat: strawHat, arms: [L(-120, -10), R(130, -90)], front: check(150, -150, 0.6, 6) }) },
-  },
-  journey: {
-    title: 'Journey',
-    inbox: { caption: 'A letter arrives', draw: () => groundStrip('inbox') +
-      `<path d="M 40 360 L 170 360 L 160 418 L 50 418 Z" fill="${C.wood}"/><path d="M 40 360 L 170 360" stroke="${C.woodDark}" stroke-width="6"/>` +
-      octo({ x: 310, face: 'curious', look: [-6, 2], arms: [L(-110, 0), R(100, 90)], front: envelope(-170, -40, -10) }) },
-    ready: { caption: 'Pack on, map out', draw: () => groundStrip('ready') + signpost(420, 418) +
-      octo({ x: 236, face: 'grin', behind: backpackBehind, onBody: backpack, arms: [L(-86, 30), R(86, 30)],
-        front: `<path d="M -96 0 L -32 12 L 32 0 L 96 12 L 96 92 L 32 80 L -32 92 L -96 80 Z" fill="#FFF8E1" stroke="${C.wood}" stroke-width="4"/><path d="M -32 12 L -32 92 M 32 0 L 32 80" stroke="${C.wood}" stroke-width="3"/><path d="M -76 64 Q -40 20 0 50 T 74 30" stroke="${C.red}" stroke-width="4" fill="none" stroke-dasharray="8 6"/><path d="M 66 22 l 14 14 m 0 -14 l -14 14" stroke="${C.red}" stroke-width="4"/>` }) },
-    doing: { caption: 'On the road', draw: () => `<rect x="0" y="400" width="${W}" height="112" fill="${STATES.doing.ground}"/>` + road + motion(160, 230) +
-      octo({ x: 270, y: 270, s: 0.86, rot: 8, face: 'focus', behind: backpackBehind, onBody: backpack, arms: [L(-120, 80), R(120, 0)] }) },
-    waiting: { caption: 'At the bus stop', draw: () => groundStrip('waiting') + bench(70, 360, 280) +
-      `<rect x="410" y="150" width="12" height="270" fill="${C.greyDark}"/><circle cx="416" cy="140" r="38" fill="${C.blue}" stroke="#fff" stroke-width="6"/><rect x="398" y="124" width="36" height="28" rx="6" fill="#fff"/><circle cx="406" cy="156" r="5" fill="#fff"/><circle cx="426" cy="156" r="5" fill="#fff"/>` +
-      octo({ x: 210, y: 250, s: 0.86, face: 'calm', behind: backpackBehind, onBody: backpack, arms: [L(-100, 100), R(110, -30)], front: clockLocal(110, -40, 22) }) },
-    done: { caption: 'Flag on the summit', draw: () => `<path d="M 0 512 L 0 440 Q 256 330 512 440 L 512 512 Z" fill="${STATES.done.ground}"/>` + confetti() +
-      `<rect x="370" y="180" width="10" height="230" fill="${C.woodDark}"/><path d="M 380 186 L 480 214 L 380 244 Z" fill="${C.green}"/>` + check(420, 214, 0.32) +
-      octo({ x: 236, y: 262, s: 0.86, face: 'joy', behind: backpackBehind, onBody: backpack, arms: [R(156, 0), L(-124, -100)] }) },
-  },
+// ── key objects ──────────────────────────────────────────────────────────────────────
+function bottle(x, y) {
+  return `<rect x="${x}" y="${y}" width="30" height="62" rx="9" fill="${C.water}" stroke="${C.blue}" stroke-width="4"/><rect x="${x + 6}" y="${y - 12}" width="18" height="14" rx="4" fill="${C.blue}"/>`
 }
-
-// ── helpers used by scenes (declared after for readability; hoisted functions) ───────
-function bricks(x, y, cols, rows, loose) {
-  let s = ''
-  for (let r = 0; r < rows; r++) for (let c = 0; c < cols - r; c++) {
-    const bx = x + c * 36 + r * 18, by = y + 8 - (r + 1) * 22
-    s += `<rect x="${bx}" y="${by + (loose ? 30 : 0)}" width="34" height="20" rx="3" fill="${C.brick}" stroke="${C.brickDark}" stroke-width="3"/>`
-  }
-  return s
+function blueprint(x, y) {
+  return `<rect x="${x}" y="${y}" width="172" height="104" rx="6" fill="${C.blue}" stroke="${C.blueDark}" stroke-width="4"/>` +
+    `<path d="M ${x + 16} ${y + 18} H ${x + 156} M ${x + 16} ${y + 38} H ${x + 156} M ${x + 16} ${y + 58} H ${x + 156} M ${x + 16} ${y + 78} H ${x + 156} M ${x + 36} ${y + 8} V ${y + 96} M ${x + 76} ${y + 8} V ${y + 96} M ${x + 116} ${y + 8} V ${y + 96}" stroke="#9CC8F2" stroke-width="2"/>` +
+    `<rect x="${x + 30}" y="${y + 28}" width="96" height="44" fill="none" stroke="#fff" stroke-width="4"/>`
 }
-function wallRows(x, base, counts, fill = C.brick, edge = C.brickDark) {
+function trowel(x, y) {
+  return `<path d="M ${x} ${y} L ${x + 4} ${y - 30}" stroke="${C.woodDark}" stroke-width="10" stroke-linecap="round"/>` +
+    `<path d="M ${x - 22} ${y - 30} L ${x + 30} ${y - 30} L ${x + 4} ${y - 92} Z" fill="${C.steel}" stroke="${C.greyDark}" stroke-width="4" stroke-linejoin="round"/>`
+}
+function brick(x, y, rot = 0) {
+  return `<rect x="${x}" y="${y}" width="66" height="34" rx="4" fill="${C.brick}" stroke="${C.brickDark}" stroke-width="4" transform="rotate(${rot} ${x + 33} ${y + 17})"/>`
+}
+function wall(x, base, counts) {
   let s = ''
   counts.forEach((n, r) => {
     for (let c = 0; c < n; c++) {
       const bx = x + c * 46 + (r % 2 ? 23 : 0), by = base - (r + 1) * 28
-      s += `<rect x="${bx}" y="${by}" width="44" height="26" rx="3" fill="${fill}" stroke="${edge}" stroke-width="3"/>`
+      s += `<rect x="${bx}" y="${by}" width="44" height="26" rx="3" fill="${C.brick}" stroke="${C.brickDark}" stroke-width="3"/>`
     }
   })
   return s
 }
-function trowel(x, y) {
-  return `<path d="M ${x} ${y} L ${x + 4} ${y - 30}" stroke="${C.woodDark}" stroke-width="10" stroke-linecap="round"/>` +
-    `<path d="M ${x - 22} ${y - 30} L ${x + 30} ${y - 30} L ${x + 4} ${y - 92} Z" fill="#C9D1D9" stroke="${C.greyDark}" stroke-width="4" stroke-linejoin="round"/>`
+function mug(x, y) {
+  return `<rect x="${x}" y="${y}" width="40" height="44" rx="8" fill="#fff" stroke="${C.greyDark}" stroke-width="4"/><path d="M ${x + 40} ${y + 12} Q ${x + 60} ${y + 20} ${x + 40} ${y + 34}" stroke="${C.greyDark}" stroke-width="4" fill="none"/>` +
+    `<path d="M ${x + 10} ${y - 14} Q ${x + 4} ${y - 26} ${x + 12} ${y - 36} M ${x + 26} ${y - 14} Q ${x + 20} ${y - 26} ${x + 28} ${y - 36}" stroke="${C.grey}" stroke-width="4" fill="none" stroke-linecap="round"/>`
 }
-function cone(x, base) {
-  return `<path d="M ${x - 26} ${base} L ${x} ${base - 80} L ${x + 26} ${base} Z" fill="#F28C28"/><path d="M ${x - 15} ${base - 30} L ${x + 15} ${base - 30} L ${x + 10} ${base - 46} L ${x - 10} ${base - 46} Z" fill="#fff"/><rect x="${x - 36}" y="${base - 6}" width="72" height="10" rx="4" fill="#D9731A"/>`
+function recipe(x, y, rot) { return paper(x, y, 74, 92, rot, 4, '#FFF8E1') }
+function board(x, y) {
+  return `<rect x="${x}" y="${y}" width="200" height="26" rx="8" fill="${C.wood}"/>` +
+    `<circle cx="${x + 44}" cy="${y - 6}" r="18" fill="#E44D3A"/><path d="M ${x + 44} ${y - 24} l -6 -8 m 6 8 l 6 -8" stroke="${C.leafDark}" stroke-width="4"/>` +
+    `<path d="M ${x + 90} ${y + 6} L ${x + 150} ${y - 6} L ${x + 150} ${y + 8} Z" fill="${C.orange}"/>` +
+    `<circle cx="${x + 176}" cy="${y - 2}" r="13" fill="${C.leaf}"/>`
 }
-function counter() {
-  return `<rect x="0" y="404" width="${W}" height="${W - 404}" fill="#C9A27E"/><rect x="0" y="398" width="${W}" height="14" fill="#E3C49F"/>`
+function pot(x, y) {
+  return `<path d="M ${x} ${y} L ${x + 150} ${y} L ${x + 138} ${y + 76} L ${x + 12} ${y + 76} Z" fill="${C.greyDark}"/><rect x="${x - 10}" y="${y - 8}" width="170" height="16" rx="8" fill="#4A545F"/>` +
+    [-26, 0, 26].map((d) => `<path d="M ${x + 75 + d} ${y - 18} Q ${x + 63 + d} ${y - 38} ${x + 75 + d} ${y - 58} Q ${x + 87 + d} ${y - 76} ${x + 75 + d} ${y - 94}" stroke="${C.grey}" stroke-width="6" fill="none" stroke-linecap="round" opacity=".8"/>`).join('')
 }
-function groceryBag(x, y) {
-  return `<path d="M ${x + 8} ${y} Q ${x + 30} ${y - 60} ${x + 40} ${y} M ${x + 60} ${y} Q ${x + 72} ${y - 70} ${x + 82} ${y}" stroke="${C.leafDark}" stroke-width="10" fill="none" stroke-linecap="round"/>` +
-    `<circle cx="${x + 54}" cy="${y - 10}" r="18" fill="#E44D3A"/>` +
-    `<path d="M ${x} ${y} L ${x + 100} ${y} L ${x + 92} ${y + 100} L ${x + 8} ${y + 100} Z" fill="#D6A971"/><path d="M ${x} ${y} L ${x + 100} ${y}" stroke="#B8894F" stroke-width="6"/>`
+function kitchenTimer(x, y) {
+  return `<ellipse cx="${x}" cy="${y + 22}" rx="34" ry="10" fill="#D9731A"/><path d="M ${x - 34} ${y + 22} Q ${x - 36} ${y - 26} ${x} ${y - 30} Q ${x + 36} ${y - 26} ${x + 34} ${y + 22} Z" fill="${C.orange}"/>` +
+    `<rect x="${x - 6}" y="${y - 42}" width="12" height="14" rx="3" fill="#D9731A"/><path d="M ${x} ${y - 12} L ${x} ${y + 6}" stroke="#fff" stroke-width="5" stroke-linecap="round"/>`
 }
-function steam(x, y) {
-  return [-26, 0, 26].map((d) => `<path d="M ${x + d} ${y} Q ${x + d - 12} ${y - 22} ${x + d} ${y - 42} Q ${x + d + 12} ${y - 60} ${x + d} ${y - 80}" stroke="#fff" stroke-width="7" fill="none" stroke-linecap="round" opacity=".9"/>`).join('')
+function plate(x, y) {
+  return `<ellipse cx="${x}" cy="${y}" rx="86" ry="20" fill="#fff" stroke="#D5D5D5" stroke-width="4"/>` +
+    `<ellipse cx="${x}" cy="${y - 10}" rx="46" ry="16" fill="#E9A23B"/><circle cx="${x - 20}" cy="${y - 20}" r="10" fill="#E44D3A"/><circle cx="${x + 10}" cy="${y - 24}" r="9" fill="${C.leaf}"/><circle cx="${x + 26}" cy="${y - 14}" r="7" fill="#E44D3A"/>`
 }
-function clockLocal(x, y, r = 26) {
-  return clock(x, y - r - 4, r)
+function seedPacket(x, y, rot) {
+  return `<g transform="rotate(${rot} ${x + 40} ${y + 50})"><rect x="${x}" y="${y}" width="80" height="100" rx="6" fill="${C.paper}" stroke="${C.wood}" stroke-width="4"/>` +
+    `<rect x="${x}" y="${y}" width="80" height="16" fill="#E9C46A"/>` +
+    `<path d="M ${x + 40} ${y + 92} L ${x + 40} ${y + 56}" stroke="${C.leafDark}" stroke-width="4"/>` +
+    [0, 72, 144, 216, 288].map((a) => `<ellipse cx="${x + 40}" cy="${y + 38}" rx="7" ry="12" fill="${C.pink}" transform="rotate(${a} ${x + 40} ${y + 50})"/>`).join('') +
+    `<circle cx="${x + 40}" cy="${y + 50}" r="7" fill="${C.gold}"/></g>`
 }
-function pot(x, y, plant) {
+function wateringCan(x, y, rot, drops) {
+  return `<g transform="rotate(${rot} ${x + 40} ${y + 40})">` +
+    `<path d="M ${x} ${y + 20} L ${x - 50} ${y - 10}" stroke="#4FA3E0" stroke-width="12" stroke-linecap="round"/><rect x="${x - 62}" y="${y - 22}" width="20" height="18" rx="4" fill="#4FA3E0" transform="rotate(-30 ${x - 52} ${y - 13})"/>` +
+    `<rect x="${x}" y="${y}" width="84" height="70" rx="14" fill="#5DB0EE"/><path d="M ${x + 20} ${y} Q ${x + 42} ${y - 34} ${x + 64} ${y}" stroke="#4FA3E0" stroke-width="10" fill="none"/></g>` +
+    (drops ? `<g fill="${C.water}">${drops.map(([dx, dy]) => `<ellipse cx="${dx}" cy="${dy}" rx="5" ry="8"/>`).join('')}</g>` : '')
+}
+function plantPot(x, y, plant) {
   return plant + `<path d="M ${x} ${y} L ${x + 80} ${y} L ${x + 70} ${y + 78} L ${x + 10} ${y + 78} Z" fill="#D9714E"/><rect x="${x - 8}" y="${y - 6}" width="96" height="20" rx="6" fill="#C25E3D"/>`
 }
 function sprout(x, y) {
@@ -340,41 +232,119 @@ function bloom(x, y) {
   const fy = y - 130
   return `<path d="M ${x} ${y} Q ${x - 8} ${y - 60} ${x} ${fy}" stroke="${C.leafDark}" stroke-width="8" fill="none"/>` +
     `<path d="M ${x - 2} ${y - 50} Q ${x - 50} ${y - 80} ${x - 56} ${y - 46} Q ${x - 26} ${y - 34} ${x - 2} ${y - 50} Z" fill="${C.leaf}"/>` +
-    [0, 60, 120, 180, 240, 300].map((a) => `<ellipse cx="${x}" cy="${fy - 32}" rx="18" ry="32" fill="#FF8FB1" transform="rotate(${a} ${x} ${fy})"/>`).join('') +
+    [0, 60, 120, 180, 240, 300].map((a) => `<ellipse cx="${x}" cy="${fy - 32}" rx="18" ry="32" fill="${C.pink}" transform="rotate(${a} ${x} ${fy})"/>`).join('') +
     `<circle cx="${x}" cy="${fy}" r="20" fill="${C.gold}"/>`
 }
-function seedPacket(x, y, rot) {
-  return `<g transform="rotate(${rot} ${x + 40} ${y + 50})"><rect x="${x}" y="${y}" width="80" height="100" rx="6" fill="#FFF8E1" stroke="${C.wood}" stroke-width="4"/>` +
-    `<rect x="${x}" y="${y}" width="80" height="16" fill="#E9C46A"/>` +
-    `<path d="M ${x + 40} ${y + 92} L ${x + 40} ${y + 56}" stroke="${C.leafDark}" stroke-width="4"/>` +
-    [0, 72, 144, 216, 288].map((a) => `<ellipse cx="${x + 40}" cy="${y + 38}" rx="7" ry="12" fill="#FF8FB1" transform="rotate(${a} ${x + 40} ${y + 50})"/>`).join('') +
-    `<circle cx="${x + 40}" cy="${y + 50}" r="7" fill="${C.gold}"/></g>`
-}
-function wateringCan(x, y, rot, pouring) {
-  return `<g transform="rotate(${rot} ${x + 40} ${y + 40})">` +
-    `<path d="M ${x} ${y + 20} L ${x - 50} ${y - 10}" stroke="#4FA3E0" stroke-width="12" stroke-linecap="round"/><rect x="${x - 62}" y="${y - 22}" width="20" height="18" rx="4" fill="#4FA3E0" transform="rotate(-30 ${x - 52} ${y - 13})"/>` +
-    `<rect x="${x}" y="${y}" width="84" height="70" rx="14" fill="#5DB0EE"/><path d="M ${x + 20} ${y} Q ${x + 42} ${y - 34} ${x + 64} ${y}" stroke="#4FA3E0" stroke-width="10" fill="none"/>` +
-    (pouring ? '' : '') + `</g>`
-}
 function envelope(x, y, rot) {
-  return `<g transform="rotate(${rot} ${x + 50} ${y + 34})"><rect x="${x}" y="${y}" width="100" height="68" rx="6" fill="#fff" stroke="${C.greyDark}" stroke-width="4"/><path d="M ${x} ${y} L ${x + 50} ${y + 40} L ${x + 100} ${y}" fill="none" stroke="${C.greyDark}" stroke-width="4"/><rect x="${x + 70}" y="${y + 8}" width="20" height="22" fill="${C.red}"/></g>` +
-    sparkle(x - 10, y - 16, 10)
+  return `<g transform="rotate(${rot} ${x + 50} ${y + 34})"><rect x="${x}" y="${y}" width="100" height="68" rx="6" fill="#fff" stroke="${C.greyDark}" stroke-width="4"/><path d="M ${x} ${y} L ${x + 50} ${y + 40} L ${x + 100} ${y}" fill="none" stroke="${C.greyDark}" stroke-width="4"/><rect x="${x + 70}" y="${y + 8}" width="20" height="22" fill="${C.coral}"/></g>`
 }
-function signpost(x, base) {
-  return `<rect x="${x - 6}" y="${base - 170}" width="12" height="170" fill="${C.woodDark}"/><path d="M ${x - 60} ${base - 160} L ${x + 50} ${base - 160} L ${x + 70} ${base - 140} L ${x + 50} ${base - 120} L ${x - 60} ${base - 120} Z" fill="${C.wood}"/><path d="M ${x + 60} ${base - 100} L ${x - 50} ${base - 100} L ${x - 70} ${base - 80} L ${x - 50} ${base - 60} L ${x + 60} ${base - 60} Z" fill="${C.wood}"/>`
+function map(x, y) {
+  return `<path d="M ${x} ${y} L ${x + 64} ${y + 12} L ${x + 128} ${y} L ${x + 192} ${y + 12} L ${x + 192} ${y + 92} L ${x + 128} ${y + 80} L ${x + 64} ${y + 92} L ${x} ${y + 80} Z" fill="#FFF8E1" stroke="${C.wood}" stroke-width="4"/>` +
+    `<path d="M ${x + 64} ${y + 12} L ${x + 64} ${y + 92} M ${x + 128} ${y} L ${x + 128} ${y + 80}" stroke="${C.wood}" stroke-width="3"/>` +
+    `<path d="M ${x + 20} ${y + 64} Q ${x + 56} ${y + 20} ${x + 96} ${y + 50} T ${x + 170} ${y + 30}" stroke="${C.coral}" stroke-width="4" fill="none" stroke-dasharray="8 6"/>` +
+    `<path d="M ${x + 162} ${y + 22} l 14 14 m 0 -14 l -14 14" stroke="${C.coral}" stroke-width="4"/>`
+}
+function flag(x, base) {
+  return `<rect x="${x}" y="${base - 230}" width="10" height="230" rx="4" fill="${C.woodDark}"/><path d="M ${x + 10} ${base - 224} L ${x + 110} ${base - 196} L ${x + 10} ${base - 166} Z" fill="${C.lime}"/>`
+}
+
+// ── the scenes: the character, its costume, and one key object ──────────────────────
+const L = (x, y) => ({ side: 'l', to: [x, y] })
+const R = (x, y) => ({ side: 'r', to: [x, y] })
+
+const SCENES = {
+  race: {
+    title: 'Race',
+    inbox: { caption: 'Reading the race flyer', draw: () =>
+      octo({ x: 236, face: 'curious', look: [6, 4], arms: [R(118, 0), L(-108, 80)], front: paper(78, -60, 70, 86, 10, 3) }) },
+    ready: { caption: 'On your marks', draw: () =>
+      octo({ x: 256, y: 300, sy: 0.86, face: 'focus', look: [8, 0], hat: headband, arms: [R(112, 132), L(-62, 134)] }) },
+    doing: { caption: 'Mid-sprint', draw: () => motion(140, 220) +
+      octo({ x: 286, y: 262, rot: 12, face: 'focus', look: [8, 0], hat: headband, arms: [R(128, -20), L(-128, 92)] }) },
+    waiting: { caption: 'Water break between heats', draw: () =>
+      octo({ x: 236, face: 'calm', hat: headband, arms: [R(100, -20), L(-104, 96)], front: bottle(86, -76) }) },
+    done: { caption: 'Medal, and done', draw: () =>
+      octo({ x: 236, y: 290, s: 0.86, face: 'joy', onBody: medal, arms: [R(140, -110), L(-124, -60)], front: check(170, -170, 0.85, -8) }) },
+  },
+  wall: {
+    title: 'Building a wall',
+    inbox: { caption: 'Reading the blueprint', draw: () =>
+      octo({ x: 256, face: 'curious', look: [0, 6], arms: [L(-82, 40), R(82, 40)], front: blueprint(-86, -10) }) },
+    ready: { caption: 'Hard hat on, trowel up', draw: () =>
+      octo({ x: 236, y: 290, s: 0.88, face: 'grin', look: [-4, 0], hat: hardHat, arms: [R(130, -50), L(-110, 90)], front: trowel(130, -50) }) },
+    doing: { caption: 'Laying a brick', draw: () =>
+      wall(28, 470, [4, 3, 2]) +
+      octo({ x: 330, y: 290, s: 0.84, face: 'focus', look: [-8, 4], hat: hardHat, arms: [L(-150, -10), R(110, 90)], front: brick(-200, -36) }) },
+    waiting: { caption: 'Letting the mortar set', draw: () =>
+      octo({ x: 236, y: 290, s: 0.88, face: 'calm', hat: hardHat, arms: [L(-110, 60), R(104, -20)], front: mug(86, -44) }) },
+    done: { caption: 'Wall finished', draw: () =>
+      wall(18, 476, [5, 5, 5]) + check(118, 310, 0.8) +
+      octo({ x: 370, y: 270, s: 0.74, face: 'joy', hat: hardHat, arms: [L(-120, -120), R(124, -120)] }) },
+  },
+  chef: {
+    title: 'Chef',
+    inbox: { caption: 'Reading the recipe', draw: () =>
+      octo({ x: 286, face: 'curious', look: [-6, 4], arms: [L(-86, 0), R(110, 80)], front: recipe(-150, -60, -8) }) },
+    ready: { caption: 'Apron on, mise en place', draw: () =>
+      octo({ x: 256, y: 250, s: 0.84, face: 'grin', hat: toque, onBody: apron, arms: [L(-120, 90), R(120, 90)] }) +
+      board(156, 410) },
+    doing: { caption: 'Stirring the pot', draw: () =>
+      `<path d="M 186 300 L 136 340" stroke="${C.wood}" stroke-width="10" stroke-linecap="round"/>` +
+      octo({ x: 330, y: 250, s: 0.82, face: 'focus', look: [-8, 6], hat: toque, onBody: apron, arms: [L(-150, 70), R(110, 90)] }) +
+      pot(70, 340) },
+    waiting: { caption: 'Watching the timer', draw: () =>
+      octo({ x: 236, y: 280, s: 0.84, face: 'calm', hat: toque, onBody: apron, arms: [L(-106, 80), R(122, 0)] }) +
+      kitchenTimer(372, 258) },
+    done: { caption: 'Plated and served', draw: () =>
+      octo({ x: 220, y: 290, s: 0.84, face: 'joy', hat: toque, onBody: apron, arms: [R(150, 10), L(-110, 80)], front: plate(170, 0) }) +
+      check(120, 110, 0.55, -10) },
+  },
+  garden: {
+    title: 'Garden',
+    inbox: { caption: 'A packet of seeds', draw: () =>
+      octo({ x: 286, face: 'curious', look: [-6, 6], arms: [L(-100, 0), R(110, 80)], front: seedPacket(-160, -70, -8) }) },
+    ready: { caption: 'Hat on, can filled', draw: () =>
+      octo({ x: 230, y: 280, s: 0.86, face: 'grin', hat: strawHat, arms: [L(-110, 90), R(100, 100)] }) +
+      wateringCan(340, 360, 0) },
+    doing: { caption: 'Watering', draw: () =>
+      octo({ x: 330, y: 276, s: 0.86, face: 'focus', look: [-8, 6], hat: strawHat, arms: [L(-140, -10), R(100, 90)] }) +
+      wateringCan(160, 220, -25, [[110, 330], [128, 352], [100, 362], [140, 320], [120, 300]]) },
+    waiting: { caption: 'Waiting for the sprout', draw: () =>
+      plantPot(110, 370, sprout(150, 370)) +
+      octo({ x: 330, y: 280, s: 0.82, face: 'calm', hat: strawHat, arms: [L(-60, 60), R(60, 60)] }) },
+    done: { caption: 'In full bloom', draw: () =>
+      plantPot(90, 360, bloom(130, 360)) +
+      octo({ x: 330, y: 280, s: 0.84, face: 'joy', hat: strawHat, arms: [L(-120, -10), R(130, -100)], front: check(150, -170, 0.6, 6) }) },
+  },
+  journey: {
+    title: 'Journey',
+    inbox: { caption: 'A letter arrives', draw: () =>
+      octo({ x: 290, face: 'curious', look: [-6, 2], arms: [L(-110, -10), R(100, 90)], front: envelope(-180, -60, -10) }) },
+    ready: { caption: 'Pack on, map out', draw: () =>
+      octo({ x: 256, face: 'grin', look: [0, 6], behind: backpack, onBody: backpackStraps, arms: [L(-96, 50), R(96, 50)], front: map(-96, 0) }) },
+    doing: { caption: 'On the road', draw: () => motion(150, 230) +
+      octo({ x: 286, y: 264, s: 0.88, rot: 8, face: 'focus', behind: backpack, onBody: backpackStraps, arms: [L(-120, 80), R(120, -10)] }) },
+    waiting: { caption: 'Watching the clock', draw: () =>
+      octo({ x: 236, s: 0.9, face: 'calm', behind: backpack, onBody: backpackStraps, arms: [L(-100, 100), R(116, -40)] }) +
+      clockFace(372, 150, 30) },
+    done: { caption: 'Flag planted', draw: () =>
+      flag(380, 470) + check(434, 270, 0.3) +
+      octo({ x: 230, y: 280, s: 0.86, face: 'joy', behind: backpack, onBody: backpackStraps, arms: [R(160, 20), L(-124, -110)] }) },
+  },
 }
 
 // ── render ───────────────────────────────────────────────────────────────────────────
 const DEFS = `<defs>
-  <radialGradient id="bodyGrad" cx="0.4" cy="0.3" r="0.8"><stop offset="0" stop-color="${C.redLight}"/><stop offset="0.55" stop-color="${C.red}"/><stop offset="1" stop-color="${C.redDark}"/></radialGradient>
-  <linearGradient id="armGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${C.red}"/><stop offset="1" stop-color="${C.redDark}"/></linearGradient>
+  <radialGradient id="bodyGrad" cx="0.42" cy="0.2" r="0.9"><stop offset="0" stop-color="${C.coral}"/><stop offset="0.45" stop-color="${C.coralMid}"/><stop offset="0.8" stop-color="${C.coralLow}"/><stop offset="1" stop-color="${C.coralRim}"/></radialGradient>
+  <linearGradient id="hemShade" x1="0" y1="0" x2="0" y2="1"><stop offset="0.55" stop-color="${C.coralRim}" stop-opacity="0"/><stop offset="1" stop-color="${C.coralRim}" stop-opacity=".45"/></linearGradient>
+  <linearGradient id="armGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${C.coral}"/><stop offset="1" stop-color="${C.coralMid}"/></linearGradient>
 </defs>`
 
 function svgFor(metaphor, state) {
   const scene = SCENES[metaphor][state]
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${W}" width="${W}" height="${W}">` +
     `<title>Astrid — ${SCENES[metaphor].title}: ${STATES[state].label} (${scene.caption})</title>` + DEFS +
-    `<rect width="${W}" height="${W}" fill="${STATES[state].bg}"/>` + scene.draw() + `</svg>\n`
+    scene.draw() + `</svg>\n`
 }
 
 const outDir = join(HERE, 'svg')
@@ -384,27 +354,35 @@ const states = Object.keys(STATES)
 for (const m of metaphors) for (const s of states) writeFileSync(join(outDir, `${m}-${s}.svg`), svgFor(m, s))
 console.log(`wrote ${metaphors.length * states.length} SVGs to ${outDir}`)
 
-// Contact sheet: rows = metaphors, columns = states.
+// Contact sheet: rows = metaphors (one per board), columns = states; the icon character beside the
+// title so the likeness can be judged at a glance. Tiles sit on a light and a dark card, since the
+// frames are transparent and will be seen in both themes.
 const webDir = resolve(process.env.ASTRID_WEB_DIR || join(HERE, '../../../../astrid-web'))
 let sharp
 try { sharp = createRequire(join(webDir, 'package.json'))('sharp') } catch { console.log(`no sharp under ${webDir}; skipped contact-sheet.png`); process.exit(0) }
 
-const T = 256, PAD = 16, HEAD = 56, SIDE = 200
+const T = 220, PAD = 14, HEAD = 150, SIDE = 190
 const sheetW = SIDE + states.length * (T + PAD) + PAD
-const sheetH = HEAD + metaphors.length * (T + PAD + 30) + PAD
+const sheetH = HEAD + metaphors.length * (T + PAD + 28) + PAD
 const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+const cardFill = (r) => (r % 2 ? '#1E2430' : '#F2F4F7')
 const labels = `<svg xmlns="http://www.w3.org/2000/svg" width="${sheetW}" height="${sheetH}"><rect width="100%" height="100%" fill="#fff"/>` +
   `<g font-family="Helvetica, Arial, sans-serif">` +
-  states.map((s, i) => `<text x="${SIDE + i * (T + PAD) + T / 2}" y="38" font-size="24" font-weight="700" text-anchor="middle" fill="#333">${STATES[s].label}</text>`).join('') +
+  `<text x="150" y="58" font-size="26" font-weight="700" fill="#222">Astrid at work — one metaphor per board</text>` +
+  `<text x="150" y="88" font-size="16" fill="#666">Character + key object, transparent. The icon (left) is the reference. Rows alternate light / dark to check both themes.</text>` +
+  states.map((s, i) => `<text x="${SIDE + i * (T + PAD) + T / 2}" y="${HEAD - 14}" font-size="22" font-weight="700" text-anchor="middle" fill="#333">${STATES[s].label}</text>`).join('') +
   metaphors.map((m, r) => {
-    const y = HEAD + r * (T + PAD + 30)
-    return `<text x="${SIDE - 16}" y="${y + T / 2}" font-size="22" font-weight="700" text-anchor="end" fill="#333">${esc(SCENES[m].title)}</text>` +
-      states.map((s, i) => `<text x="${SIDE + i * (T + PAD) + T / 2}" y="${y + T + 22}" font-size="15" text-anchor="middle" fill="#666">${esc(SCENES[m][s].caption)}</text>`).join('')
+    const y = HEAD + r * (T + PAD + 28)
+    return `<text x="${SIDE - 16}" y="${y + T / 2}" font-size="20" font-weight="700" text-anchor="end" fill="#333">${esc(SCENES[m].title)}</text>` +
+      states.map((s, i) => `<rect x="${SIDE + i * (T + PAD)}" y="${y}" width="${T}" height="${T}" rx="18" fill="${cardFill(r)}"/>` +
+        `<text x="${SIDE + i * (T + PAD) + T / 2}" y="${y + T + 20}" font-size="14" text-anchor="middle" fill="#666">${esc(SCENES[m][s].caption)}</text>`).join('')
   }).join('') + `</g></svg>`
 
+const icon = join(webDir, 'public/images/astrid-character.png')
 const tiles = await Promise.all(metaphors.flatMap((m, r) => states.map(async (s, i) => ({
   input: await sharp(Buffer.from(svgFor(m, s))).resize(T, T).png().toBuffer(),
-  left: SIDE + i * (T + PAD), top: HEAD + r * (T + PAD + 30),
+  left: SIDE + i * (T + PAD), top: HEAD + r * (T + PAD + 28),
 }))))
+try { tiles.push({ input: await sharp(readFileSync(icon)).resize(110, 110).png().toBuffer(), left: 20, top: 14 }) } catch { /* the reference is optional */ }
 await sharp(Buffer.from(labels)).composite(tiles).png().toFile(join(HERE, 'contact-sheet.png'))
 console.log(`wrote ${join(HERE, 'contact-sheet.png')}`)
