@@ -73,6 +73,15 @@ nonisolated struct ProjectBoardColumn: Equatable, Identifiable, Sendable {
     }
 }
 
+/// The column a board opens on (ADEV-128). Waiting sits to the LEFT of Inbox on every platform,
+/// but a phone still opens on Inbox — Waiting is what a right swipe passes on its way back to the
+/// sidebar. A multi-column board starts at its leading edge so nothing is hidden off to the left.
+/// Before the columns load, aim at Inbox; `scrollPosition` keeps that id once they arrive.
+func initialBoardColumnId(_ columns: [ProjectBoardColumn], multiColumn: Bool) -> String {
+    if !multiColumn, let inbox = columns.first(where: { $0.kind == .inbox }) { return inbox.id }
+    return columns.first?.id ?? VIRTUAL_INBOX_COLUMN_ID
+}
+
 // MARK: - Which board a task is on
 
 /// Is this task part of a project — i.e. does it have a board column at all? (AITD-327)

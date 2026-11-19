@@ -192,10 +192,9 @@ struct ProjectStatusBoardView: View {
             // would flash/jump as the detail slides out.
             .animation(nil, value: selectedTaskId)
             .onAppear {
-                // Default to virtual Inbox when the board first appears
-                // so the user doesn't start mid-board.
+                // Open on Inbox, even with Waiting to its left (ADEV-128).
                 if visibleColumnId == nil {
-                    visibleColumnId = columns.first?.id ?? VIRTUAL_INBOX_COLUMN_ID
+                    visibleColumnId = initialBoardColumnId(columns, multiColumn: multiColumn)
                 }
             }
             .task(id: boardQuery) { board.update(boardQuery) }
