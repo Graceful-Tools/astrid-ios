@@ -8,6 +8,21 @@ Second pass: only the character, its costume and one key object, on a **transpar
 and the character redrawn from `astrid-web/public/images/astrid-character.png`: the capsule body
 with outward-curling tentacles, the sampled coral, the big wide-set eyes and the cream zigzag grin.
 
+Third pass (Jon, 2026-11-19): the tentacles redrawn as the icon's fat, round-ended tubes that grow
+out of the body on one gradient (no hem seam), the arms likewise; and **a state marker in every
+frame**, top right and identical whatever the metaphor, so the state reads first:
+
+| State | Marker |
+|---|---|
+| Inbox (Ideas) | lit light bulb |
+| Ready | traffic light on green |
+| Doing | progress bar, about two-thirds |
+| Waiting | clock |
+| Done | ticked checkbox (the icon's check) |
+
+The scenes' own loose checks went, since the checkbox carries Done, and Journey's Waiting is now a
+bus stop so the clock is not shown twice.
+
 ![contact sheet](contact-sheet.png)
 
 | Metaphor | Inbox | Ready | Doing | Waiting | Done |
@@ -16,7 +31,7 @@ with outward-curling tentacles, the sampled coral, the big wide-set eyes and the
 | Building a wall | blueprint | hard hat, trowel | laying a brick | mortar setting (coffee) | finished |
 | Chef | recipe | apron, mise en place | stirring | kitchen timer | plated |
 | Garden | seed packet | hat, can filled | watering | sprout coming | bloom |
-| Journey | letter arrives | pack + map | on the road | watching the clock | flag planted |
+| Journey | letter arrives | pack + map | on the road | at the bus stop | flag planted |
 
 - `svg/<metaphor>-<state>.svg`: 512×512, transparent, with no text, so any locale and either theme can use them.
 - `generate.mjs`: the source. One shared octopus (`octo()`: faces `curious`, `grin`,

@@ -44,15 +44,47 @@ const STATES = {
 
 // ── the octopus ──────────────────────────────────────────────────────────────────────
 // Local coordinates: body centred on x=0, crown at y≈-150, tentacle tips at y≈+150.
-// The icon's shape: a tall gumdrop, narrower at the crown than the base, whose hem breaks into
-// short tentacles that curl outward — the outer two the most.
-const BODY = `M -92 64
-  L -92 -78 C -92 -138 -58 -158 0 -158 C 58 -158 92 -138 92 -78 L 92 64
-  C 98 96 128 112 160 106 C 152 130 112 138 86 122
-  C 88 140 78 154 60 158 C 48 148 46 132 44 120
-  C 36 140 22 154 4 158 C -10 150 -12 134 -12 120
-  C -24 140 -40 154 -58 158 C -72 148 -68 130 -62 118
-  C -88 134 -136 140 -172 112 C -140 108 -102 96 -92 64 Z`
+// The icon's shape: a tall capsule with a round crown that flares a little toward the hem.
+// Third pass (Jon, 2026-11-19: "the tentacle to look more like the original character"): the
+// tentacles are no longer points cut into the hem but separate fat tubes with round ends, as in
+// the icon — the inner ones fall down and slightly out, the outer pair sweep sideways and lift.
+const BODY = `M -100 72 C -98 20 -92 -36 -90 -80 C -90 -140 -56 -160 0 -160
+  C 56 -160 90 -140 90 -80 C 92 -36 98 20 100 72 Q 0 100 -100 72 Z`
+
+// A tapered tube along a quadratic curve p0 → c → p1, w0 wide at p0 and w1 at p1, with a round end.
+function tube([x0, y0], [cx, cy], [x1, y1], w0, w1) {
+  const N = 18, left = [], right = []
+  let dx = 0, dy = 0
+  for (let i = 0; i <= N; i++) {
+    const t = i / N, u = 1 - t
+    const px = u * u * x0 + 2 * u * t * cx + t * t * x1
+    const py = u * u * y0 + 2 * u * t * cy + t * t * y1
+    dx = 2 * u * (cx - x0) + 2 * t * (x1 - cx)
+    dy = 2 * u * (cy - y0) + 2 * t * (y1 - cy)
+    const len = Math.hypot(dx, dy) || 1
+    dx /= len; dy /= len
+    const w = (w0 + (w1 - w0) * t) / 2
+    left.push([px - dy * w, py + dx * w])
+    right.push([px + dy * w, py - dx * w])
+  }
+  const f = (p) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`
+  const k = (w1 / 2) * 1.33
+  const L = left[N], R = right[N]
+  return `M ${f(left[0])} ` + left.slice(1).map((p) => `L ${f(p)}`).join(' ') +
+    ` C ${f([L[0] + dx * k, L[1] + dy * k])} ${f([R[0] + dx * k, R[1] + dy * k])} ${f(R)} ` +
+    right.slice(0, N).reverse().map((p) => `L ${f(p)}`).join(' ') + ' Z'
+}
+
+// [start, control, end, base width, tip width], back to front.
+const TENTACLES = [
+  [[-20, 40], [-24, 112], [-34, 152], 64, 48],
+  [[24, 40], [30, 112], [42, 150], 64, 48],
+  [[-58, 36], [-76, 104], [-100, 138], 62, 46],
+  [[62, 36], [82, 102], [106, 134], 62, 46],
+  [[-84, 30], [-112, 104], [-170, 94], 58, 40],
+  [[86, 30], [114, 100], [168, 88], 58, 40],
+]
+const TENTACLE_PATHS = TENTACLES.map(([a, c, b, w0, w1]) => tube(a, c, b, w0, w1))
 
 const eye = (x, y, [lx, ly]) =>
   `<ellipse cx="${x + lx}" cy="${y + ly}" rx="13" ry="17" fill="${C.eye}"/>` +
@@ -100,14 +132,15 @@ const FACES = {
 // A tentacle arm from the body's side to a hand point (local coords), thick at the shoulder and
 // tapering — the arm holding the icon's check.
 function arm([tx, ty], side) {
-  const ax = side === 'l' ? -84 : 84
-  const ay = 40
+  const ax = side === 'l' ? -78 : 78
+  const ay = 34
   const bow = side === 'l' ? -34 : 34
   const cx = (ax + tx) / 2 + bow
   const cy = Math.max(ay, ty) + 20
-  return `<path d="M ${ax} ${ay} Q ${cx} ${cy} ${tx} ${ty}" fill="none" stroke="${C.coralLow}" stroke-width="38" stroke-linecap="round"/>` +
-    `<path d="M ${ax} ${ay - 2} Q ${cx} ${cy - 3} ${tx} ${ty - 2}" fill="none" stroke="url(#armGrad)" stroke-width="31" stroke-linecap="round"/>` +
-    `<circle cx="${tx}" cy="${ty}" r="19" fill="${C.coralMid}"/>`
+  // the body's own gradient and a round shoulder, so the arm grows out of the body with no cut
+  return `<path d="${tube([ax, ay], [cx, cy], [tx, ty], 40, 30)}" fill="url(#octoGrad)" stroke="${C.coralRim}" stroke-width="2.5" stroke-opacity=".4"/>` +
+    `<circle cx="${ax}" cy="${ay}" r="18.5" fill="url(#octoGrad)"/>` +
+    `<circle cx="${tx}" cy="${ty}" r="19" fill="url(#octoGrad)" stroke="${C.coralRim}" stroke-width="2.5" stroke-opacity=".4"/>`
 }
 
 /**
@@ -119,8 +152,11 @@ function arm([tx, ty], side) {
 function octo({ x = 256, y = 268, s = 0.92, rot = 0, sy = 1, face = 'grin', look = [0, 0], arms = [], behind = '', hat = '', onBody = '', front = '' }) {
   return `<g transform="translate(${x} ${y}) rotate(${rot}) scale(${s} ${s * sy})">` +
     behind +
-    `<path d="${BODY}" fill="url(#bodyGrad)"/>` +
-    `<path d="${BODY}" fill="url(#hemShade)"/>` +
+    // body and tentacles share one gradient, so the body flows into them with no seam; a thin
+    // darker edge on each tentacle separates the ones that overlap
+    TENTACLE_PATHS.map((d) => `<path d="${d}" fill="url(#octoGrad)" stroke="${C.coralRim}" stroke-width="2.5" stroke-opacity=".45"/>`).join('') +
+    `<path d="${BODY}" fill="url(#octoGrad)"/>` +
+    `<path d="${BODY}" fill="url(#sideShade)"/>` +
     // the soft sheen on the crown, as the icon is lit from the upper left
     `<ellipse cx="-30" cy="-118" rx="40" ry="20" fill="#fff" opacity=".10" transform="rotate(-20 -30 -118)"/>` +
     onBody +
@@ -244,6 +280,14 @@ function map(x, y) {
     `<path d="M ${x + 20} ${y + 64} Q ${x + 56} ${y + 20} ${x + 96} ${y + 50} T ${x + 170} ${y + 30}" stroke="${C.coral}" stroke-width="4" fill="none" stroke-dasharray="8 6"/>` +
     `<path d="M ${x + 162} ${y + 22} l 14 14 m 0 -14 l -14 14" stroke="${C.coral}" stroke-width="4"/>`
 }
+// A bus-stop sign: a pole and a round sign with a bus on it (no words).
+function busStop(x, base) {
+  const cy = base - 250
+  return `<rect x="${x - 5}" y="${cy}" width="10" height="${base - cy}" rx="4" fill="${C.greyDark}"/>` +
+    `<circle cx="${x}" cy="${cy}" r="40" fill="${C.blue}" stroke="#fff" stroke-width="5"/>` +
+    `<rect x="${x - 22}" y="${cy - 20}" width="44" height="34" rx="8" fill="#fff"/><rect x="${x - 16}" y="${cy - 14}" width="32" height="12" rx="3" fill="${C.blue}"/>` +
+    `<circle cx="${x - 12}" cy="${cy + 18}" r="5" fill="#fff"/><circle cx="${x + 12}" cy="${cy + 18}" r="5" fill="#fff"/>`
+}
 function flag(x, base) {
   return `<rect x="${x}" y="${base - 230}" width="10" height="230" rx="4" fill="${C.woodDark}"/><path d="M ${x + 10} ${base - 224} L ${x + 110} ${base - 196} L ${x + 10} ${base - 166} Z" fill="${C.lime}"/>`
 }
@@ -264,7 +308,7 @@ const SCENES = {
     waiting: { caption: 'Water break between heats', draw: () =>
       octo({ x: 236, face: 'calm', hat: headband, arms: [R(100, -20), L(-104, 96)], front: bottle(86, -76) }) },
     done: { caption: 'Medal, and done', draw: () =>
-      octo({ x: 236, y: 290, s: 0.86, face: 'joy', onBody: medal, arms: [R(140, -110), L(-124, -60)], front: check(170, -170, 0.85, -8) }) },
+      octo({ x: 236, y: 290, s: 0.86, face: 'joy', onBody: medal, arms: [R(140, -110), L(-124, -60)] }) },
   },
   wall: {
     title: 'Building a wall',
@@ -278,7 +322,7 @@ const SCENES = {
     waiting: { caption: 'Letting the mortar set', draw: () =>
       octo({ x: 236, y: 290, s: 0.88, face: 'calm', hat: hardHat, arms: [L(-110, 60), R(104, -20)], front: mug(86, -44) }) },
     done: { caption: 'Wall finished', draw: () =>
-      wall(18, 476, [5, 5, 5]) + check(118, 310, 0.8) +
+      wall(18, 476, [5, 5, 5]) +
       octo({ x: 370, y: 270, s: 0.74, face: 'joy', hat: hardHat, arms: [L(-120, -120), R(124, -120)] }) },
   },
   chef: {
@@ -296,8 +340,7 @@ const SCENES = {
       octo({ x: 236, y: 280, s: 0.84, face: 'calm', hat: toque, onBody: apron, arms: [L(-106, 80), R(122, 0)] }) +
       kitchenTimer(372, 258) },
     done: { caption: 'Plated and served', draw: () =>
-      octo({ x: 220, y: 290, s: 0.84, face: 'joy', hat: toque, onBody: apron, arms: [R(150, 10), L(-110, 80)], front: plate(170, 0) }) +
-      check(120, 110, 0.55, -10) },
+      octo({ x: 220, y: 290, s: 0.84, face: 'joy', hat: toque, onBody: apron, arms: [R(150, 10), L(-110, 80)], front: plate(170, 0) }) },
   },
   garden: {
     title: 'Garden',
@@ -314,7 +357,7 @@ const SCENES = {
       octo({ x: 330, y: 280, s: 0.82, face: 'calm', hat: strawHat, arms: [L(-60, 60), R(60, 60)] }) },
     done: { caption: 'In full bloom', draw: () =>
       plantPot(90, 360, bloom(130, 360)) +
-      octo({ x: 330, y: 280, s: 0.84, face: 'joy', hat: strawHat, arms: [L(-120, -10), R(130, -100)], front: check(150, -170, 0.6, 6) }) },
+      octo({ x: 330, y: 280, s: 0.84, face: 'joy', hat: strawHat, arms: [L(-120, -10), R(130, -100)] }) },
   },
   journey: {
     title: 'Journey',
@@ -324,27 +367,60 @@ const SCENES = {
       octo({ x: 256, face: 'grin', look: [0, 6], behind: backpack, onBody: backpackStraps, arms: [L(-96, 50), R(96, 50)], front: map(-96, 0) }) },
     doing: { caption: 'On the road', draw: () => motion(150, 230) +
       octo({ x: 286, y: 264, s: 0.88, rot: 8, face: 'focus', behind: backpack, onBody: backpackStraps, arms: [L(-120, 80), R(120, -10)] }) },
-    waiting: { caption: 'Watching the clock', draw: () =>
-      octo({ x: 236, s: 0.9, face: 'calm', behind: backpack, onBody: backpackStraps, arms: [L(-100, 100), R(116, -40)] }) +
-      clockFace(372, 150, 30) },
+    waiting: { caption: 'At the bus stop', draw: () =>
+      busStop(392, 470) +
+      octo({ x: 226, s: 0.9, face: 'calm', behind: backpack, onBody: backpackStraps, arms: [L(-100, 100), R(150, 20)] }) },
     done: { caption: 'Flag planted', draw: () =>
-      flag(380, 470) + check(434, 270, 0.3) +
+      flag(380, 470) +
       octo({ x: 230, y: 280, s: 0.86, face: 'joy', behind: backpack, onBody: backpackStraps, arms: [R(160, 20), L(-124, -110)] }) },
   },
 }
 
 // ── render ───────────────────────────────────────────────────────────────────────────
 const DEFS = `<defs>
-  <radialGradient id="bodyGrad" cx="0.42" cy="0.2" r="0.9"><stop offset="0" stop-color="${C.coral}"/><stop offset="0.45" stop-color="${C.coralMid}"/><stop offset="0.8" stop-color="${C.coralLow}"/><stop offset="1" stop-color="${C.coralRim}"/></radialGradient>
-  <linearGradient id="hemShade" x1="0" y1="0" x2="0" y2="1"><stop offset="0.55" stop-color="${C.coralRim}" stop-opacity="0"/><stop offset="1" stop-color="${C.coralRim}" stop-opacity=".45"/></linearGradient>
-  <linearGradient id="armGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${C.coral}"/><stop offset="1" stop-color="${C.coralMid}"/></linearGradient>
+  <linearGradient id="octoGrad" gradientUnits="userSpaceOnUse" x1="0" y1="-160" x2="0" y2="168"><stop offset="0" stop-color="${C.coralHi}"/><stop offset="0.25" stop-color="${C.coral}"/><stop offset="0.6" stop-color="${C.coralMid}"/><stop offset="0.85" stop-color="${C.coralLow}"/><stop offset="1" stop-color="${C.coralRim}"/></linearGradient>
+  <linearGradient id="sideShade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${C.coralRim}" stop-opacity=".45"/><stop offset="0.22" stop-color="${C.coralRim}" stop-opacity="0"/><stop offset="0.7" stop-color="${C.coralRim}" stop-opacity="0"/><stop offset="1" stop-color="${C.coralRim}" stop-opacity=".5"/></linearGradient>
 </defs>`
+
+// ── the state markers ────────────────────────────────────────────────────────────────
+// Third pass (Jon, 2026-11-19): one object per state, the same in every metaphor and always in
+// the same corner, so the state reads before the metaphor does. No text, so every locale works.
+const MX = 436, MY = 78, MS = 1.2
+const MARKERS = {
+  // an idea: a lit bulb
+  inbox: () => `<g transform="translate(${MX} ${MY}) scale(${MS})">` +
+    [-90, -45, 0, 45, 90, 135, 225].map((a) => `<path d="M 0 -40 L 0 -52" stroke="${C.gold}" stroke-width="6" stroke-linecap="round" transform="rotate(${a} 0 -6)"/>`).join('') +
+    `<path d="M -16 18 C -16 4 -28 -2 -28 -18 A 28 28 0 1 1 28 -18 C 28 -2 16 4 16 18 Z" fill="#FFE27A" stroke="${C.goldDark}" stroke-width="4" stroke-linejoin="round"/>` +
+    `<path d="M -8 -18 Q -12 -30 0 -32" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" opacity=".9"/>` +
+    `<rect x="-16" y="18" width="32" height="10" rx="3" fill="${C.grey}" stroke="${C.greyDark}" stroke-width="3"/>` +
+    `<rect x="-13" y="28" width="26" height="9" rx="3" fill="${C.grey}" stroke="${C.greyDark}" stroke-width="3"/>` +
+    `<rect x="-6" y="37" width="12" height="6" rx="3" fill="${C.greyDark}"/></g>`,
+  // go: a traffic light on green
+  ready: () => `<g transform="translate(${MX} ${MY}) scale(${MS})">` +
+    `<rect x="-24" y="-50" width="48" height="100" rx="14" fill="#3A4250" stroke="${C.grey}" stroke-width="3"/>` +
+    `<circle cx="0" cy="-29" r="11" fill="#6B3A3A"/><circle cx="0" cy="0" r="11" fill="#6B5A2E"/>` +
+    `<circle cx="0" cy="29" r="19" fill="${C.limeHi}" opacity=".35"/><circle cx="0" cy="29" r="12" fill="#5BE35B"/><circle cx="-3" cy="25" r="4" fill="#fff" opacity=".8"/></g>`,
+  // underway: a progress bar about two-thirds full
+  doing: () => `<g transform="translate(${MX} ${MY}) scale(${MS})">` +
+    `<rect x="-52" y="-16" width="104" height="32" rx="16" fill="#fff" stroke="${C.greyDark}" stroke-width="4"/>` +
+    `<rect x="-46" y="-10" width="62" height="20" rx="10" fill="${C.blue}"/>` +
+    `<path d="M -30 -10 l -10 20 M -14 -10 l -10 20 M 2 -10 l -10 20" stroke="#fff" stroke-width="5" opacity=".35"/></g>`,
+  // patient: a clock
+  waiting: () => `<g transform="translate(${MX} ${MY}) scale(${MS})">` +
+    `<circle cx="0" cy="0" r="38" fill="#fff" stroke="${C.greyDark}" stroke-width="5"/>` +
+    [0, 90, 180, 270].map((a) => `<path d="M 0 -30 L 0 -24" stroke="${C.greyDark}" stroke-width="4" stroke-linecap="round" transform="rotate(${a})"/>`).join('') +
+    `<path d="M 0 0 L 0 -22 M 0 0 L 16 8" stroke="${C.eye}" stroke-width="5" stroke-linecap="round"/><circle r="4" fill="${C.eye}"/></g>`,
+  // finished: a ticked checkbox, ticked with the icon's check
+  done: () => `<g transform="translate(${MX} ${MY}) scale(${MS})">` +
+    `<rect x="-34" y="-30" width="64" height="64" rx="12" fill="#fff" stroke="${C.greyDark}" stroke-width="5"/>` +
+    check(4, -4, 0.62) + `</g>`,
+}
 
 function svgFor(metaphor, state) {
   const scene = SCENES[metaphor][state]
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${W}" width="${W}" height="${W}">` +
     `<title>Astrid — ${SCENES[metaphor].title}: ${STATES[state].label} (${scene.caption})</title>` + DEFS +
-    scene.draw() + `</svg>\n`
+    scene.draw() + MARKERS[state]() + `</svg>\n`
 }
 
 const outDir = join(HERE, 'svg')
@@ -369,7 +445,7 @@ const cardFill = (r) => (r % 2 ? '#1E2430' : '#F2F4F7')
 const labels = `<svg xmlns="http://www.w3.org/2000/svg" width="${sheetW}" height="${sheetH}"><rect width="100%" height="100%" fill="#fff"/>` +
   `<g font-family="Helvetica, Arial, sans-serif">` +
   `<text x="150" y="58" font-size="26" font-weight="700" fill="#222">Astrid at work — one metaphor per board</text>` +
-  `<text x="150" y="88" font-size="16" fill="#666">Character + key object, transparent. The icon (left) is the reference. Rows alternate light / dark to check both themes.</text>` +
+  `<text x="150" y="88" font-size="16" fill="#666">Character + key object + the state marker (top right: bulb, green light, progress, clock, checkbox). Transparent; rows alternate light / dark.</text>` +
   states.map((s, i) => `<text x="${SIDE + i * (T + PAD) + T / 2}" y="${HEAD - 14}" font-size="22" font-weight="700" text-anchor="middle" fill="#333">${STATES[s].label}</text>`).join('') +
   metaphors.map((m, r) => {
     const y = HEAD + r * (T + PAD + 28)
