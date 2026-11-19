@@ -1615,7 +1615,7 @@
 "tasks.tradeoff_grid.full_screen" = "全画面表示";
 
 /* AITD-613: board status pill on list rows */
-"board.status.inbox" = "受信箱";
+"board.status.inbox" = "アイデア";
 "board.status.ready" = "準備完了";
 "board.status.doing" = "作業中";
 "board.status.waiting" = "待機中";

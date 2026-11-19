@@ -90,9 +90,9 @@ final class BoardModelTests: XCTestCase {
         let model = BoardModel(session: session, changed: Empty().eraseToAnyPublisher())
         await model.load(.init(listId: "board"))
         XCTAssertEqual(model.columns.map(\.id),
-                       [VIRTUAL_INBOX_COLUMN_ID, "ready", "doing", "waiting", VIRTUAL_DONE_COLUMN_ID])
+                       ["waiting", VIRTUAL_INBOX_COLUMN_ID, "ready", "doing", VIRTUAL_DONE_COLUMN_ID])
         XCTAssertEqual(model.columnId(of: "d"), "doing")
-        XCTAssertEqual(BoardModel.cards(model.columns[2], in: ["d": task("d")]).map(\.id), ["d"])
+        XCTAssertEqual(BoardModel.cards(model.columns[3], in: ["d": task("d")]).map(\.id), ["d"])
 
         // A second view of the same board draws the last answer at once.
         let again = BoardModel(session: session, changed: Empty().eraseToAnyPublisher())

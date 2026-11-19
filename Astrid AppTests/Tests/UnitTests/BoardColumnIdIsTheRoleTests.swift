@@ -55,7 +55,7 @@ final class BoardColumnIdIsTheRoleTests: XCTestCase {
                      staleStatusRow("waiting", "l-waiting", "Waiting")]
         let columns = CoreBoardFixture.columns(lists)
 
-        XCTAssertEqual(columns.filter { $0.kind == .status }.map(\.id), ["ready", "doing", "waiting"])
+        XCTAssertEqual(columns.filter { $0.kind == .status }.map(\.id), ["waiting", "ready", "doing"])
     }
 
     func testACustomColumnIdIsItsRoleNotItsListId() {

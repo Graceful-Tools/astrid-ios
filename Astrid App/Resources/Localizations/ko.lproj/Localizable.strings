@@ -1617,7 +1617,7 @@
 "tasks.tradeoff_grid.full_screen" = "전체 화면";
 
 /* AITD-613: board status pill on list rows */
-"board.status.inbox" = "받은 편지함";
+"board.status.inbox" = "아이디어";
 "board.status.ready" = "준비됨";
 "board.status.doing" = "진행 중";
 "board.status.waiting" = "대기 중";

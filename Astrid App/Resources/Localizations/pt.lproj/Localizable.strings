@@ -1615,7 +1615,7 @@
 "tasks.tradeoff_grid.full_screen" = "Tela cheia";
 
 /* AITD-613: board status pill on list rows */
-"board.status.inbox" = "Caixa de entrada";
+"board.status.inbox" = "Ideias";
 "board.status.ready" = "Pronto";
 "board.status.doing" = "Fazendo";
 "board.status.waiting" = "Aguardando";

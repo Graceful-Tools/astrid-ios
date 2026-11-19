@@ -50,7 +50,7 @@ final class BoardColumnsFromConfigTests: XCTestCase {
     func testRendersTheThreeDefaultsWithNoStatusListsAtAll() {
         let columns = CoreBoardFixture.columns([domainList()])
 
-        XCTAssertEqual(columns.map { $0.name }, ["Inbox", "Ready", "Doing", "Waiting", "Done"])
+        XCTAssertEqual(columns.map { $0.name }, ["Waiting", "Ideas", "Ready", "Doing", "Done"])
     }
 
     func testPlacesACardByItsRoleAloneWithNoListsAndNoMembership() {
@@ -86,7 +86,7 @@ final class BoardColumnsFromConfigTests: XCTestCase {
         let renamed = statusList("ready", "l-ready", "Backlog")
         let columns = CoreBoardFixture.columns([domainList(), renamed])
 
-        XCTAssertEqual(columns.map { $0.name }, ["Inbox", "Backlog", "Doing", "Waiting", "Done"])
+        XCTAssertEqual(columns.map { $0.name }, ["Waiting", "Ideas", "Backlog", "Doing", "Done"])
     }
 
     // MARK: - Custom states belong to one board
@@ -99,7 +99,7 @@ final class BoardColumnsFromConfigTests: XCTestCase {
             customStates: [ProjectCustomState(role: "custom-blocked", name: "Blocked", order: 5)]
         )
 
-        XCTAssertEqual(columns.map { $0.name }, ["Inbox", "Ready", "Doing", "Waiting", "Blocked", "Done"])
+        XCTAssertEqual(columns.map { $0.name }, ["Waiting", "Ideas", "Ready", "Doing", "Blocked", "Done"])
     }
 
     func testACustomStateCannotLeakOntoAnotherBoard() {
@@ -111,6 +111,6 @@ final class BoardColumnsFromConfigTests: XCTestCase {
                                         order: 5, projectId: "other-project")
         let columns = CoreBoardFixture.columns([domainList(), otherBoardsRow], customStates: nil)
 
-        XCTAssertEqual(columns.map { $0.name }, ["Inbox", "Ready", "Doing", "Waiting", "Done"])
+        XCTAssertEqual(columns.map { $0.name }, ["Waiting", "Ideas", "Ready", "Doing", "Done"])
     }
 }

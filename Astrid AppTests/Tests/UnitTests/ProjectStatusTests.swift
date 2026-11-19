@@ -76,7 +76,7 @@ final class ProjectStatusTests: XCTestCase {
     func test_seedsOnlyReadyDoingWaitingAsRealStatusLists() {
         let columns = CoreBoardFixture.columns([])
         let defaults = columns.filter { $0.kind == .status }
-        XCTAssertEqual(defaults.map { $0.name }, ["Ready", "Doing", "Waiting"])
+        XCTAssertEqual(defaults.map { $0.name }, ["Waiting", "Ready", "Doing"])
         XCTAssertTrue(defaults.allSatisfy { $0.description.count > 12 })
     }
 
@@ -93,14 +93,14 @@ final class ProjectStatusTests: XCTestCase {
 
     // MARK: - Column ordering
 
-    func test_buildsBoardColumnsWithVirtualInboxFirstAndDoneLast() {
+    func test_buildsBoardColumnsWithWaitingThenVirtualInboxFirstAndDoneLast_ADEV128() {
         let ready = makeStatusList(id: "ready", name: "Ready", statusRole: "ready", statusOrder: 0)
         let doing = makeStatusList(id: "doing", name: "Doing", statusRole: "doing", statusOrder: 1)
         let waiting = makeStatusList(id: "waiting", name: "Waiting", statusRole: "waiting", statusOrder: 2)
 
         let columns = CoreBoardFixture.columns([ready, doing, waiting])
         XCTAssertEqual(columns.map { $0.id }, [
-            VIRTUAL_INBOX_COLUMN_ID, "ready", "doing", "waiting", VIRTUAL_DONE_COLUMN_ID,
+            "waiting", VIRTUAL_INBOX_COLUMN_ID, "ready", "doing", VIRTUAL_DONE_COLUMN_ID,
         ])
     }
 
@@ -117,7 +117,7 @@ final class ProjectStatusTests: XCTestCase {
         // keyed on the role.
         let columns = CoreBoardFixture.columns([projectA, ready, doing])
         XCTAssertEqual(columns.map { $0.id }, [
-            VIRTUAL_INBOX_COLUMN_ID, "ready", "doing", "waiting", VIRTUAL_DONE_COLUMN_ID,
+            "waiting", VIRTUAL_INBOX_COLUMN_ID, "ready", "doing", VIRTUAL_DONE_COLUMN_ID,
         ])
     }
 
@@ -130,7 +130,7 @@ final class ProjectStatusTests: XCTestCase {
         // The legacy inbox/done rows stay hidden; the config defaults render.
         let columns = CoreBoardFixture.columns([legacyInbox, ready, legacyDone])
         XCTAssertEqual(columns.map { $0.id }, [
-            VIRTUAL_INBOX_COLUMN_ID, "ready", "doing", "waiting", VIRTUAL_DONE_COLUMN_ID,
+            "waiting", VIRTUAL_INBOX_COLUMN_ID, "ready", "doing", VIRTUAL_DONE_COLUMN_ID,
         ])
     }
 
