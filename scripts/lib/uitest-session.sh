@@ -49,7 +49,9 @@ uitest_run_id() {
 uitest_account() {
     local env_flag=()
     [[ -f "$ASTRID_WEB_DIR/.env.local" ]] && env_flag=(--env-file=.env.local)
-    (cd "$ASTRID_WEB_DIR" && npx tsx "${env_flag[@]}" scripts/uitest-account.ts "$@")
+    # `${a[@]+"${a[@]}"}`, not "${a[@]}": bash 3.2 calls an empty array unbound under `set -u`,
+    # and that killed every CI Mac UI run before a test (ADEV-117; scripts/test-uitest-session.sh).
+    (cd "$ASTRID_WEB_DIR" && npx tsx ${env_flag[@]+"${env_flag[@]}"} scripts/uitest-account.ts "$@")
 }
 
 write_uitest_session() {
