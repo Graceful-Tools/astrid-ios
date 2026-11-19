@@ -286,6 +286,7 @@
 "empty_state.board.doing" = "Nichts in Arbeit. Nimm dir etwas aus „Bereit“ vor und leg los!";
 "empty_state.board.waiting" = "Nichts in der Warteschleife! Aufgaben, die auf ein Datum oder eine andere Aufgabe warten, erscheinen hier.";
 "empty_state.board.done" = "Noch nichts erledigt. Schließ eine Aufgabe ab und feiere sie hier!";
+"board.card.completed_on" = "Erledigt am %@";
 "empty_state.board.custom" = "Noch nichts hier! Zieh eine Aufgabe hierher, um sie voranzubringen.";
 "empty_state.no_lists" = "Noch keine Listen. Erstelle deine erste Liste!";
 

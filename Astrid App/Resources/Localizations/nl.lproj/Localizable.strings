@@ -178,6 +178,7 @@
 "empty_state.board.doing" = "Niets onderhanden. Kies iets uit Klaar en ga aan de slag!";
 "empty_state.board.waiting" = "Niets in de wacht! Taken die op een datum of een andere taak wachten, verschijnen hier.";
 "empty_state.board.done" = "Nog geen afgeronde taken. Rond er een af en vier het hier!";
+"board.card.completed_on" = "Voltooid op %@";
 "empty_state.board.custom" = "Nog niets hier! Sleep een taak hierheen om hem verder te helpen.";
 "empty_state.no_lists" = "Nog geen lijsten. Maak je eerste lijst aan!";
 

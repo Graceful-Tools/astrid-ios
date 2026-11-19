@@ -180,6 +180,13 @@ struct MacBoardView: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(t.title).foregroundStyle(Theme.textPrimary).strikethrough(t.completed)
+                // A Done card's completed date, as a pill under the title — the iOS card's
+                // (Jon, 2026-11-19). A finished card is only ever in Done.
+                if let completedOn = CompletedOnLabel.text(for: t) {
+                    CompletedOnPill(text: completedOn)
+                        .macFont(.caption2)
+                        .padding(.vertical, Theme.spacing2)
+                }
                 // The task id, muted, before the date — the iOS card's metadata row (AITD-505).
                 let identifier = TaskIdentifiers.boardCardLabel(for: t)
                 if identifier != nil || t.dueDateTime != nil {

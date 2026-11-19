@@ -300,6 +300,7 @@
 "empty_state.board.doing" = "Nothing in progress. Pick something from Ready and get going!";
 "empty_state.board.waiting" = "Nothing on hold! Tasks waiting on a date or another task show up here.";
 "empty_state.board.done" = "No finished tasks yet. Complete one and celebrate it here!";
+"board.card.completed_on" = "Completed %@";
 "empty_state.board.custom" = "Nothing here yet! Drag a task in to move it along.";
 "empty_state.no_lists" = "No lists yet. Create your first list to get started!";
 

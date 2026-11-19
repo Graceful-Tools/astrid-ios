@@ -159,6 +159,13 @@ struct TaskRowView: View {
                     }
                 }
 
+                // A Done card's completed date, as a pill under the title (Jon, 2026-11-19). A
+                // finished card is only ever in Done; a list row never draws it.
+                if surface == .boardCard, let completedOn = CompletedOnLabel.text(for: task) {
+                    CompletedOnPill(text: completedOn)
+                        .font(Theme.Typography.subheadline())
+                }
+
                 // Combined metadata row: date first (left), then lists - matching web
                 // Drop the row entirely when there's nothing useful to show
                 // (no chips after context-filtering AND no due date). Without

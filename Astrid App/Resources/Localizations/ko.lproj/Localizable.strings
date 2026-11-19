@@ -178,6 +178,7 @@
 "empty_state.board.doing" = "진행 중인 작업이 없어요. 준비됨에서 하나 골라 시작해 보세요!";
 "empty_state.board.waiting" = "보류 중인 작업이 없어요! 날짜나 다른 작업을 기다리는 작업이 여기에 표시됩니다.";
 "empty_state.board.done" = "아직 완료한 작업이 없어요. 하나를 완료하고 여기서 축하하세요!";
+"board.card.completed_on" = "%@ 완료";
 "empty_state.board.custom" = "아직 아무것도 없어요! 작업을 끌어와 진행해 보세요.";
 "empty_state.no_lists" = "아직 목록이 없습니다. 첫 번째 목록을 만들어 시작해 보세요!";
 

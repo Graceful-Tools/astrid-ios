@@ -177,6 +177,7 @@
 "empty_state.board.doing" = "Niente in corso. Scegli qualcosa da Pronto e inizia!";
 "empty_state.board.waiting" = "Niente in sospeso! Le attività in attesa di una data o di un'altra attività compaiono qui.";
 "empty_state.board.done" = "Ancora nessuna attività completata. Completane una e festeggiala qui!";
+"board.card.completed_on" = "Completata il %@";
 "empty_state.board.custom" = "Ancora niente qui! Trascina un'attività per farla avanzare.";
 "empty_state.no_lists" = "Nessuna lista ancora. Crea la tua prima lista!";
 
