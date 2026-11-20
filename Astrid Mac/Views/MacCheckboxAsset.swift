@@ -1,11 +1,9 @@
 //  MacCheckboxAsset.swift
 //  Astrid for Mac — the shared checkbox artwork (Task ca13c94b).
 //
-//  iOS (TaskRowView.checkboxImage) and web (task-checkbox.tsx) both build
-//  check_box[_repeat][_checked]_<priority> from the same asset catalog, so a repeating task shows a
-//  box with arrow corners. The Mac drew its own rounded rect and had no notion of repeating at all,
-//  so you could not tell a repeating task from a one-off. Same names here, so the three platforms
-//  cannot drift.
+//  The Mac drew its own rounded rect and had no notion of repeating at all, so you could not tell a
+//  repeating task from a one-off. It now draws the shared `TaskCheckboxArt` (ADEV-164: astrid-core's
+//  layers), and these are the shared rules under the Mac's old names.
 
 #if os(macOS)
 import SwiftUI

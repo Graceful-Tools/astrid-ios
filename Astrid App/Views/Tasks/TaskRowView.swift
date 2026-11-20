@@ -555,16 +555,10 @@ struct TaskRowView: View {
         }
     }
 
-    /// Custom checkbox image matching mobile web design
+    /// The shared checkbox art (ADEV-148), drawn from astrid-core's layers (ADEV-164).
     private var checkboxImage: some View {
-        // check_box[_repeat][_checked]_<priority>, the shared rule (ADEV-148).
-        let imageName = TaskCheckboxAsset.name(priority: task.priority.rawValue,
-                                               completed: task.completed,
-                                               repeating: TaskCheckboxAsset.isRepeating(task.repeating))
-        return Image(imageName)
-            .resizable()
-            .aspectRatio(contentMode: .fit)
-            .frame(width: 34, height: 34)
+        TaskCheckboxArt(priority: task.priority.rawValue, completed: task.completed,
+                        repeating: TaskCheckboxAsset.isRepeating(task.repeating))
     }
 
     /// Format date + time in short form (e.g., "Jan 5 6:26 PM")

@@ -313,11 +313,7 @@ struct QuickAddTaskView: View {
         } else {
             // Show priority-colored checkbox (unchecked state) — the repeat arrows when the
             // destination list's default repeats, as the Mac's add bar shows (ca13c94b).
-            Image(draftRepeats ? "check_box_repeat_\(selectedPriority.rawValue)"
-                               : "check_box_\(selectedPriority.rawValue)")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 34, height: 34)
+            TaskCheckboxArt(priority: selectedPriority.rawValue, completed: false, repeating: draftRepeats)
         }
     }
 

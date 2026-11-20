@@ -84,21 +84,6 @@ extension MacTaskVisualsTests {
 
 extension MacTaskVisualsTests {
 
-    /// The mark must dominate the box, like the iOS asset — it used to sit at 0.62, which read as
-    /// a small tick inside a chunky box.
-    func testCheckmarkFillsMostOfTheBox() {
-        XCTAssertGreaterThanOrEqual(MacTaskVisuals.checkmarkRatio, 0.75)
-        XCTAssertLessThan(MacTaskVisuals.checkmarkRatio, 1.0, "The mark must still fit inside the box")
-    }
-
-    /// The stroke scales with the box instead of being 2pt at every size, so a small checkbox
-    /// doesn't look chunkier than a large one.
-    func testStrokeScalesWithTheBox() {
-        XCTAssertLessThan(MacTaskVisuals.checkboxStroke(size: 20), MacTaskVisuals.checkboxStroke(size: 40))
-        XCTAssertGreaterThanOrEqual(MacTaskVisuals.checkboxStroke(size: 12), 1.5,
-                                    "Never thinner than a visible hairline")
-    }
-
     /// The box should sit WITH macOS's 13pt body text, not tower over it.
     func testCheckboxesAreDesktopScale() {
         XCTAssertLessThanOrEqual(MacTaskVisuals.rowCheckboxSize, 18,
@@ -106,14 +91,5 @@ extension MacTaskVisualsTests {
         XCTAssertGreaterThanOrEqual(MacTaskVisuals.rowCheckboxSize, 14, "Still a comfortable target")
         XCTAssertGreaterThan(MacTaskVisuals.detailCheckboxSize, MacTaskVisuals.rowCheckboxSize,
                              "The detail's checkbox stays a step larger, as before")
-    }
-
-    /// Row and detail must stay visually consistent — the same ratios drive both.
-    func testRowAndDetailShareTheSameProportions() {
-        for size in [MacTaskVisuals.rowCheckboxSize, MacTaskVisuals.detailCheckboxSize] {
-            let mark = size * MacTaskVisuals.checkmarkRatio
-            XCTAssertGreaterThan(mark, size * 0.7, "Mark should dominate at size \(size)")
-            XCTAssertLessThan(MacTaskVisuals.checkboxStroke(size: size), size * 0.12)
-        }
     }
 }
