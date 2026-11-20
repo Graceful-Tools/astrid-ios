@@ -1705,3 +1705,7 @@
 "board.done_since.accessibility" = "已完成 %1$d 项，%2$@";
 "board.done_since.pick_date" = "选择日期…";
 "board.done_since.menu_title" = "显示完成的起始时间";
+
+/* ADEV-146: the quick changer's completion row — same words as web tasks.markAsDone / tasks.markAsTodo */
+"tasks.mark_as_done" = "标记为已完成";
+"tasks.mark_as_todo" = "标记为待办";

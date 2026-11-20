@@ -35,10 +35,15 @@ extension CoreRules {
     /// `currentUserId` on `surface` (`listRow` /
     /// `boardCard` / `detail`). Nil only when the core could not answer; the caller picks the
     /// safe fallback.
+    ///
+    /// `completed` is the task's real state (ADEV-147): a completed task draws the checked box
+    /// whoever holds it, while the action is still decided by whose it is, so tapping someone
+    /// else's finished task opens the picker rather than reopening it.
     public static func leadingControl(assigneeId: String?, currentUserId: String?,
-                                      surface: String) -> LeadingControlAnswer? {
+                                      surface: String, completed: Bool = false) -> LeadingControlAnswer? {
         let request = LeadingRowsRequest(
-            tasks: [.init(assigneeId: assigneeId?.isEmpty == false ? assigneeId : nil)],
+            tasks: [.init(completed: completed,
+                          assigneeId: assigneeId?.isEmpty == false ? assigneeId : nil)],
             currentUserId: currentUserId, surface: surface, now: Date())
         guard let row = (try? ask(request, as: LeadingRowsAnswer.self))?.rows.first else { return nil }
         return LeadingControlAnswer(kind: row.leading.kind, action: row.action)
@@ -47,15 +52,25 @@ extension CoreRules {
 
 private struct LeadingRowsRequest: Encodable {
     struct OneTask: Encodable {
-        // The id and title are placeholders: only the assignee decides the control. Never
-        // completed, so the default completion filter cannot drop the one row asked about.
+        // The id and title are placeholders: the assignee and the completion decide the
+        // control. `list` below shows every completion, so a completed placeholder is not
+        // dropped by the default filter before it is projected (ADEV-147).
         let id = "leading-control"
         let title = ""
-        let completed = false
+        let completed: Bool
         let assigneeId: String?
     }
 
+    /// A list with no settings but "show every completion": the default filter hides
+    /// completed tasks, and the one row asked about may be completed.
+    struct AllCompletions: Encodable {
+        let id = "leading-control"
+        let name = ""
+        let filterCompletion = "all"
+    }
+
     let kind = "rows"
+    let list = AllCompletions()
     let tasks: [OneTask]
     let currentUserId: String?
     let surface: String

@@ -29,7 +29,8 @@ struct MacLeadingControlButton: View {
 
     private var kind: TaskLeadingControl {
         TaskLeadingControl.kind(assigneeId: task.assigneeId,
-                                currentUserId: AuthManager.shared.userId)
+                                currentUserId: AuthManager.shared.userId,
+                                completed: task.completed)
     }
 
     /// Asked of the SHARED rule rather than spelled here, so the board card, the list row and
@@ -41,8 +42,9 @@ struct MacLeadingControlButton: View {
     /// folded that third one silently back into "open the picker" — the Mac quietly doing
     /// something else than the phone for the same task, which is what sharing the rule prevents.
     private var tapAction: TaskLeadingControlAction {
-        TaskLeadingControl.action(surface: surface, kind: kind,
-                                  currentUserId: AuthManager.shared.userId)
+        TaskLeadingControl.action(surface: surface, assigneeId: task.assigneeId,
+                                  currentUserId: AuthManager.shared.userId,
+                                  completed: task.completed)
     }
 
     /// What the task's lists refuse — a GitHub board with no Priority field (AITD-491). Asked
@@ -71,9 +73,8 @@ struct MacLeadingControlButton: View {
     private var helpText: String {
         switch tapAction {
         case .complete:
-            return task.completed
-                ? NSLocalizedString("mac.mark_incomplete", comment: "")
-                : NSLocalizedString("tasks.complete_task", comment: "")
+            // The quick changer's own words, so the tooltip and the popover agree (ADEV-146).
+            return MarkDoneQuickSet.label(completed: task.completed)
         case .openPicker:
             return NSLocalizedString("tasks.priority", comment: "")
         }
@@ -167,17 +168,10 @@ struct MacLeadingControlButton: View {
                                 onToggleComplete()
                             })
                     } else {
-                    Button {
+                    MarkDoneQuickSetRow(completed: task.completed) {
                         isPresented = false
                         onToggleComplete()
-                    } label: {
-                        Label(task.completed
-                              ? NSLocalizedString("mac.mark_incomplete", comment: "")
-                              : NSLocalizedString("tasks.complete_task", comment: ""),
-                              systemImage: task.completed ? "arrow.uturn.backward" : "checkmark.circle.fill")
-                            .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
                     .macPointingHand()
                     }
                 }

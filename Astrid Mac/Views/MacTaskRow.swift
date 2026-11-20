@@ -64,9 +64,9 @@ struct MacTaskRow: View {
     /// the two surfaces drift (task f9d7ed42).
     private var opensQuickChanger: Bool {
         TaskLeadingControl.action(surface: .listRow,
-                                 kind: TaskLeadingControl.kind(assigneeId: task.assigneeId,
-                                                               currentUserId: auth.userId),
-                                 currentUserId: auth.userId) == .openPicker
+                                  assigneeId: task.assigneeId,
+                                  currentUserId: auth.userId,
+                                  completed: task.completed) == .openPicker
     }
 
     /// One decision for all three faces, so the rule is not written once per branch.
@@ -77,7 +77,8 @@ struct MacTaskRow: View {
     }
 
     private var avatarAssignee: User? {
-        guard MacAssignee.showsAvatar(assigneeId: task.assigneeId, currentUserId: auth.userId),
+        guard MacAssignee.showsAvatar(assigneeId: task.assigneeId, currentUserId: auth.userId,
+                                      completed: task.completed),
               task.assigneeId != nil else { return nil }
         // Not `task.assignee ?? …`: a reassignment leaves that stale, which drew the previous
         // person on the row (AITD-442).
@@ -122,7 +123,8 @@ struct MacTaskRow: View {
                     .contentShape(Rectangle())
                     .onTapGesture { handleLeadingTap() }
             } else if TaskLeadingControl.kind(assigneeId: task.assigneeId,
-                                              currentUserId: AuthManager.shared.userId) == .unassigned {
+                                              currentUserId: AuthManager.shared.userId,
+                                              completed: task.completed) == .unassigned {
                 // Nobody assigned → "U", not the checkbox (42013da7). Same three-state rule as
                 // iOS, from the same shared helper, so a task cannot look different per platform.
                 // Clicking still completes: the mark changes, the action does not. A tap gesture
@@ -157,7 +159,7 @@ struct MacTaskRow: View {
                         }
                     }
                     .macPointingHand()
-                    .help(task.completed ? NSLocalizedString("mac.mark_incomplete", comment: "") : NSLocalizedString("mac.mark_complete", comment: ""))
+                    .help(MarkDoneQuickSet.label(completed: task.completed))  // ADEV-146: the quick changer's words
                     .accessibilityElement()
                     .accessibilityAddTraits(.isButton)
                     .accessibilityLabel(task.completed ? NSLocalizedString("mac.a11y_completed_toggle", comment: "")

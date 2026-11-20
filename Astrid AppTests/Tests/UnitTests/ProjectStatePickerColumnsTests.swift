@@ -52,13 +52,12 @@ final class ProjectStatePickerColumnsTests: XCTestCase {
                       "a project's own column called Done is a state, not the completion column")
     }
 
-    // MARK: - The button that replaces it
+    // MARK: - The row that replaces it
 
     /// The label has to carry what the removed chip used to say: this is also how a task
-    /// reaches Done.
-    func testTheCompleteButtonSaysCompleteSlashDone() {
-        XCTAssertNotEqual(NSLocalizedString("tasks.complete_task", comment: ""), "tasks.complete_task")
-        XCTAssertEqual(EnglishStrings.text("tasks.complete_task"), "Complete / Done!")
+    /// reaches Done. Since ADEV-146 that row reads "Mark as done".
+    func testTheCompleteRowSaysMarkAsDone() {
+        XCTAssertEqual(EnglishStrings.text(MarkDoneQuickSet.labelKey(completed: false)), "Mark as done")
     }
 
     // MARK: - Both pickers must use the filter

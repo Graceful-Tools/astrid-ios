@@ -15,10 +15,14 @@ enum MacAssignee {
     ///
     /// Two spellings of "whose face goes on this task" is how the Mac and the phone start
     /// disagreeing about the same task (task 132d7b3f).
+    ///
+    /// Never on a completed task: that is the checked box whoever holds it (ADEV-147).
     static func showsAvatar(assigneeId: String?,
-                            currentUserId: String?) -> Bool {
+                            currentUserId: String?,
+                            completed: Bool) -> Bool {
         if case .avatar = TaskLeadingControl.kind(assigneeId: assigneeId,
-                                                  currentUserId: currentUserId) { return true }
+                                                  currentUserId: currentUserId,
+                                                  completed: completed) { return true }
         return false
     }
 }

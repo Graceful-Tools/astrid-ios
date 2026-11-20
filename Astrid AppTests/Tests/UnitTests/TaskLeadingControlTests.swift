@@ -17,8 +17,8 @@ final class TaskLeadingControlTests: XCTestCase {
 
     /// THE BUG: nobody assigned is its own state and gets its own mark.
     func testUnassignedIsItsOwnControl() {
-        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: nil, currentUserId: me), .unassigned)
-        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: "", currentUserId: me), .unassigned,
+        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: nil, currentUserId: me, completed: false), .unassigned)
+        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: "", currentUserId: me, completed: false), .unassigned,
                        "an empty id is unassigned, not a user whose id is empty")
     }
 
@@ -26,7 +26,7 @@ final class TaskLeadingControlTests: XCTestCase {
     /// Your own task is the checkbox — it is how you complete it (ADEV-70 removed the Project
     /// layout, where it showed your photo).
     func testYourOwnTaskIsTheCheckbox() {
-        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: me, currentUserId: me),
+        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: me, currentUserId: me, completed: false),
                        .checkbox)
     }
 
@@ -35,25 +35,25 @@ final class TaskLeadingControlTests: XCTestCase {
     /// Mine keeps the checkbox — it is the one case where the leading control is also the thing
     /// you tap to finish the task.
     func testMineIsTheCheckbox() {
-        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: me, currentUserId: me), .checkbox)
+        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: me, currentUserId: me, completed: false), .checkbox)
     }
 
     /// Someone else keeps their photo.
     func testSomeoneElseIsTheirAvatar() {
-        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: "u2", currentUserId: me), .avatar("u2"))
+        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: "u2", currentUserId: me, completed: false), .avatar("u2"))
     }
 
     /// Signed out, an assigned task still shows that person rather than pretending it is yours.
     func testNoCurrentUserStillDistinguishesAssignedFromUnassigned() {
-        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: "u2", currentUserId: nil), .avatar("u2"))
-        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: nil, currentUserId: nil), .unassigned)
+        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: "u2", currentUserId: nil, completed: false), .avatar("u2"))
+        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: nil, currentUserId: nil, completed: false), .unassigned)
     }
 
     /// The three states are mutually exclusive — the whole point is that they stop looking alike.
     func testTheThreeStatesAreDistinct() {
-        let mine = TaskLeadingControl.kind(assigneeId: me, currentUserId: me)
-        let theirs = TaskLeadingControl.kind(assigneeId: "u2", currentUserId: me)
-        let nobody = TaskLeadingControl.kind(assigneeId: nil, currentUserId: me)
+        let mine = TaskLeadingControl.kind(assigneeId: me, currentUserId: me, completed: false)
+        let theirs = TaskLeadingControl.kind(assigneeId: "u2", currentUserId: me, completed: false)
+        let nobody = TaskLeadingControl.kind(assigneeId: nil, currentUserId: me, completed: false)
         XCTAssertNotEqual(mine, theirs)
         XCTAssertNotEqual(mine, nobody)
         XCTAssertNotEqual(theirs, nobody)
@@ -336,5 +336,41 @@ final class TaskLeadingControlUnassignedTapTests: XCTestCase {
     func testNobodysTaskIsStillNotSomebodyElses() {
         XCTAssertFalse(TaskLeadingControl.unassigned.isSomeoneElses(currentUserId: me))
         XCTAssertFalse(TaskLeadingControl.isSomeoneElsesTask(assigneeId: nil, currentUserId: me))
+    }
+
+    // MARK: - ADEV-147: a completed task shows its check mark, whoever holds it
+
+    /// Jon: "It should have completed checkmark next to task title in task details, mode and
+    /// list mode for completed tasks. Same as if completed by current user."
+    func testADEV147_someoneElsesCompletedTaskIsTheCheckbox() {
+        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: "u2", currentUserId: me, completed: true),
+                       .checkbox)
+    }
+
+    func testADEV147_nobodysCompletedTaskIsTheCheckbox() {
+        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: nil, currentUserId: me, completed: true),
+                       .checkbox)
+    }
+
+    func testADEV147_anOpenTaskStillShowsWhoseItIs() {
+        XCTAssertEqual(TaskLeadingControl.kind(assigneeId: "u2", currentUserId: me, completed: false),
+                       .avatar("u2"))
+    }
+
+    /// The mark changes, the action does not: someone else's finished task opens the picker
+    /// on every surface (AITD-375) rather than reopening on a tap.
+    func testADEV147_someoneElsesCompletedTaskStillOpensThePicker() {
+        for surface in [TaskLeadingControlSurface.listRow, .boardCard, .detail] {
+            XCTAssertEqual(TaskLeadingControl.action(surface: surface, assigneeId: "u2",
+                                                     currentUserId: me, completed: true),
+                           .openPicker, "\(surface)")
+        }
+    }
+
+    /// Your own finished task on a list row still reopens on a tap, as before.
+    func testADEV147_yourCompletedTaskStillTogglesOnAListRow() {
+        XCTAssertEqual(TaskLeadingControl.action(surface: .listRow, assigneeId: me,
+                                                 currentUserId: me, completed: true),
+                       .complete)
     }
 }

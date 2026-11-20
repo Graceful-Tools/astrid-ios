@@ -84,19 +84,12 @@ struct MacQuickChanger: View {
                         }
                     })
             } else {
-            Button {
+            MarkDoneQuickSetRow(completed: task.completed) {
                 onDismiss()
                 AppActions.perform("Toggle completion") {
                     try await MacQuickChangerWrite.toggleCompletion.apply(to: taskService, task: task)
                 }
-            } label: {
-                Label(task.completed
-                      ? NSLocalizedString("mac.mark_incomplete", comment: "")
-                      : NSLocalizedString("tasks.complete_task", comment: ""),
-                      systemImage: task.completed ? "arrow.uturn.backward" : "checkmark.circle.fill")
-                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
             .macPointingHand()
             }
         }

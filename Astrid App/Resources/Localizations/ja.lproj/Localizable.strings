@@ -1705,3 +1705,7 @@
 "board.done_since.accessibility" = "%1$d 件完了、%2$@";
 "board.done_since.pick_date" = "日付を選択…";
 "board.done_since.menu_title" = "完了の表示期間";
+
+/* ADEV-146: the quick changer's completion row — same words as web tasks.markAsDone / tasks.markAsTodo */
+"tasks.mark_as_done" = "完了にする";
+"tasks.mark_as_todo" = "やることに戻す";

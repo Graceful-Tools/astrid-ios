@@ -198,21 +198,10 @@ struct TaskDetailLeadingControl: View {
                         onToggleCompletion()
                     })
             } else {
-            Button {
+            MarkDoneQuickSetRow(completed: isCompleted) {
                 showingPicker = false
                 onToggleCompletion()
-            } label: {
-                Label(isCompleted ? NSLocalizedString("mac.mark_incomplete", comment: "")
-                                  : NSLocalizedString("tasks.complete_task", comment: ""),
-                      systemImage: isCompleted ? "arrow.uturn.backward" : "checkmark.circle.fill")
-                    .font(Theme.Typography.body())
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, Theme.spacing12)
-                    .background(Theme.accent)
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
             }
-            .buttonStyle(.plain)
             }
         }
         .padding(Theme.spacing16)
@@ -223,7 +212,8 @@ struct TaskDetailLeadingControl: View {
 
     private var leadingKind: TaskLeadingControl {
         TaskLeadingControl.kind(assigneeId: assigneeId,
-                                currentUserId: AuthManager.shared.currentUser?.id)
+                                currentUserId: AuthManager.shared.currentUser?.id,
+                                completed: isCompleted)
     }
 
     /// What tapping does here: complete, open the picker, or ask first.
@@ -233,8 +223,9 @@ struct TaskDetailLeadingControl: View {
     /// `MacLeadingControlButton`.
     private var leadingControlAction: TaskLeadingControlAction {
         TaskLeadingControl.action(surface: .detail,
-                                  kind: leadingKind,
-                                  currentUserId: AuthManager.shared.currentUser?.id)
+                                  assigneeId: assigneeId,
+                                  currentUserId: AuthManager.shared.currentUser?.id,
+                                  completed: isCompleted)
     }
 
     /// Whether the leading control is a face rather than a checkbox or the unassigned mark.

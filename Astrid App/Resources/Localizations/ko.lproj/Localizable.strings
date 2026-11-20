@@ -1707,3 +1707,7 @@
 "board.done_since.accessibility" = "%1$d개 완료, %2$@";
 "board.done_since.pick_date" = "날짜 선택…";
 "board.done_since.menu_title" = "완료 표시 시작일";
+
+/* ADEV-146: the quick changer's completion row — same words as web tasks.markAsDone / tasks.markAsTodo */
+"tasks.mark_as_done" = "완료로 표시";
+"tasks.mark_as_todo" = "할 일로 표시";

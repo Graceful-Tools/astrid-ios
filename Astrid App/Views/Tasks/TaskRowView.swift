@@ -11,7 +11,8 @@ struct TaskRowView: View {
 
     private var leadingKind: TaskLeadingControl {
         TaskLeadingControl.kind(assigneeId: task.assigneeId,
-                                currentUserId: authManager.currentUser?.id)
+                                currentUserId: authManager.currentUser?.id,
+                                completed: task.completed)
     }
 
     /// Whether the leading control is a face rather than a checkbox or the unassigned mark.
@@ -28,8 +29,9 @@ struct TaskRowView: View {
     /// removed from the board (task f9d7ed42).
     private var opensQuickChanger: Bool {
         TaskLeadingControl.action(surface: surface,
-                                  kind: leadingKind,
-                                  currentUserId: authManager.currentUser?.id) == .openPicker
+                                  assigneeId: task.assigneeId,
+                                  currentUserId: authManager.currentUser?.id,
+                                  completed: task.completed) == .openPicker
     }
 
     @State private var showingQuickChanger = false

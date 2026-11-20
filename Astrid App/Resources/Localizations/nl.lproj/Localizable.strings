@@ -1705,3 +1705,7 @@
 "board.done_since.accessibility" = "%1$d voltooid, %2$@";
 "board.done_since.pick_date" = "Kies een datum…";
 "board.done_since.menu_title" = "Voltooid tonen sinds";
+
+/* ADEV-146: the quick changer's completion row — same words as web tasks.markAsDone / tasks.markAsTodo */
+"tasks.mark_as_done" = "Markeer als klaar";
+"tasks.mark_as_todo" = "Markeer als te doen";

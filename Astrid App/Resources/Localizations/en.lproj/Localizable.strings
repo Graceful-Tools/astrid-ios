@@ -1713,3 +1713,7 @@
 "board.done_since.accessibility" = "%1$d done, %2$@";
 "board.done_since.pick_date" = "Pick a date…";
 "board.done_since.menu_title" = "Show done since";
+
+/* ADEV-146: the quick changer's completion row — same words as web tasks.markAsDone / tasks.markAsTodo */
+"tasks.mark_as_done" = "Mark as done";
+"tasks.mark_as_todo" = "Mark as to-do";
