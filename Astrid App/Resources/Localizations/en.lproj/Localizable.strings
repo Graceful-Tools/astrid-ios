@@ -1623,7 +1623,7 @@
 "tasks.tradeoff_grid.full_screen" = "Full screen";
 
 /* AITD-613: board status pill on list rows */
-"board.status.inbox" = "Ideas";
+"board.status.inbox" = "Ideas/Inbox";
 "board.status.ready" = "Ready";
 "board.status.doing" = "Doing";
 "board.status.waiting" = "Waiting";

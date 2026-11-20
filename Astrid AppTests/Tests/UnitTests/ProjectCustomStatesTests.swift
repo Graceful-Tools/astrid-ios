@@ -59,7 +59,7 @@ final class ProjectCustomStatesTests: XCTestCase {
             customStates: [state("blocked", "Blocked", order: 0)]
         )
 
-        XCTAssertEqual(columns.map(\.name), ["Waiting", "Ideas", "Ready", "Doing", "Blocked", "Done"])
+        XCTAssertEqual(columns.map(\.name), ["Waiting", "Ideas/Inbox", "Ready", "Doing", "Blocked", "Done"])
     }
 
     func testACustomColumnsIdIsItsRole() {
@@ -113,7 +113,7 @@ final class ProjectCustomStatesTests: XCTestCase {
     func testNoCustomStatesMeansJustTheDefaults() {
         XCTAssertEqual(
             CoreBoardFixture.columns([domainList()], customStates: nil).map(\.name),
-            ["Waiting", "Ideas", "Ready", "Doing", "Done"]
+            ["Waiting", "Ideas/Inbox", "Ready", "Doing", "Done"]
         )
     }
 
@@ -128,7 +128,7 @@ final class ProjectCustomStatesTests: XCTestCase {
 
         let columns = CoreBoardFixture.columns([domainList(), blocked], customStates: nil)
 
-        XCTAssertEqual(columns.map(\.name), ["Waiting", "Ideas", "Ready", "Doing", "Done"])
+        XCTAssertEqual(columns.map(\.name), ["Waiting", "Ideas/Inbox", "Ready", "Doing", "Done"])
     }
 
     func testTheBoardIsIdenticalWithAndWithoutStaleRows() {
@@ -200,7 +200,7 @@ final class ProjectCustomStatesTests: XCTestCase {
         ])
 
         XCTAssertEqual(columns.map(\.name),
-                       ["Waiting", "Ideas", "Ready", "Doing", "Blocked", "Shipped", "Done"])
+                       ["Waiting", "Ideas/Inbox", "Ready", "Doing", "Blocked", "Shipped", "Done"])
     }
 
     // MARK: - A default role in customStates is a NAME OVERRIDE, not a column
@@ -212,7 +212,7 @@ final class ProjectCustomStatesTests: XCTestCase {
         let columns = CoreBoardFixture.columns([domainList()],
                                              customStates: [state("ready", "Backlog", order: 0)])
 
-        XCTAssertEqual(columns.map(\.name), ["Waiting", "Ideas", "Backlog", "Doing", "Done"])
+        XCTAssertEqual(columns.map(\.name), ["Waiting", "Ideas/Inbox", "Backlog", "Doing", "Done"])
         XCTAssertEqual(columns.first { $0.name == "Backlog" }?.id, "ready")
     }
 
