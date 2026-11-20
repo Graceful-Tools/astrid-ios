@@ -153,28 +153,22 @@ struct MacLeadingControlButton: View {
                     }
                 case .complete:
                     Divider()
-                    // A task that is not yours — someone else's or nobody's — opens on the question
-                    // itself: the checkbox, then Complete (ADEV-79; ADEV-70, web ADEV-56). Reopening and
-                    // your own tasks never ask.
-                    if TaskLeadingControl.completionNeedsConfirmation(
-                        assigneeId: task.assigneeId,
-                        currentUserId: AuthManager.shared.userId,
-                        completed: task.completed) {
-                        CompletionConfirmationPrompt(
-                            assigneeLabel: CompletionConfirmation.assigneeLabel(for: task),
-                            onCancel: { isPresented = false },
-                            onConfirm: {
-                                isPresented = false
-                                onToggleComplete()
-                            })
-                    } else {
-                    MarkDoneQuickSetRow(completed: task.completed, priority: priority.rawValue,
-                                        repeating: TaskCheckboxAsset.isRepeating(task.repeating)) {
+                    // One row for every task (ADEV-152). A task that is not yours — someone else's
+                    // or nobody's — says whose it is under the label, and the row is the
+                    // confirmation (ADEV-79; ADEV-70, web ADEV-56). Reopening never asks.
+                    MarkDoneQuickSetRow(
+                        completed: task.completed, priority: priority.rawValue,
+                        repeating: TaskCheckboxAsset.isRepeating(task.repeating),
+                        note: MarkDoneQuickSet.note(
+                            needsConfirmation: TaskLeadingControl.completionNeedsConfirmation(
+                                assigneeId: task.assigneeId,
+                                currentUserId: AuthManager.shared.userId,
+                                completed: task.completed),
+                            assigneeLabel: CompletionConfirmation.assigneeLabel(for: task))) {
                         isPresented = false
                         onToggleComplete()
                     }
                     .macPointingHand()
-                    }
                 }
             }
         }

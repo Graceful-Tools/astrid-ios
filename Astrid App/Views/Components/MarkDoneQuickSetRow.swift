@@ -10,6 +10,12 @@
 //
 //  The words are web's (`tasks.markAsDone` / `tasks.markAsTodo`), translated the same way in
 //  all twelve languages.
+//
+//  ADEV-152: the checkbox is the task row's full size, the row sits on the assignee row's surface
+//  so it stands out from the popover, and its ink comes from the theme's palette (the iOS
+//  `Theme` text colour is the light ink in every theme, which drew dark-on-dark). A task that is
+//  not yours no longer swaps the row for a "Complete this task?" block: it is the same row with
+//  one muted line saying whose it is, and tapping the row is the confirmation (ADEV-70, ADEV-79).
 
 import SwiftUI
 
@@ -29,16 +35,30 @@ enum MarkDoneQuickSet {
     static func checkboxAssetName(completed: Bool, priority: Int, repeating: Bool) -> String {
         TaskCheckboxAsset.name(priority: priority, completed: completed, repeating: repeating)
     }
+
+    /// The task row's own checkbox size (ADEV-152: "full size as in rows").
+    #if os(macOS)
+    static let checkboxSize = AstridTokens.Size.Compact.leadingControlDetail
+    #else
+    static let checkboxSize = AstridTokens.Size.Comfortable.leadingControl
+    #endif
+
+    /// The line under the label for a task that is not yours: "Assigned to Ada" or "Not assigned
+    /// to anyone", so the tap is never a blind one (ADEV-70). Nil for your own task.
+    static func note(needsConfirmation: Bool, assigneeLabel: String?) -> String? {
+        needsConfirmation ? CompletionConfirmation.message(assigneeLabel: assigneeLabel) : nil
+    }
 }
 
 struct MarkDoneQuickSetRow: View {
     let completed: Bool
     let priority: Int
     let repeating: Bool
+    /// Whose task it is, when it is not yours — `MarkDoneQuickSet.note`.
+    var note: String? = nil
     let action: () -> Void
 
-    /// The row's checkbox is a little smaller than a task row's 34pt: it labels a menu item.
-    private let checkboxSize = AstridTokens.Space.s24
+    @ThemedPalette private var palette
 
     var body: some View {
         Button(action: action) {
@@ -47,18 +67,29 @@ struct MarkDoneQuickSetRow: View {
                                                          repeating: repeating))
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: checkboxSize, height: checkboxSize)
+                    .frame(width: MarkDoneQuickSet.checkboxSize, height: MarkDoneQuickSet.checkboxSize)
                     .accessibilityHidden(true)
-                Text(MarkDoneQuickSet.label(completed: completed))
-                    .foregroundStyle(Theme.textPrimary)
+                VStack(alignment: .leading, spacing: AstridTokens.Space.s2) {
+                    Text(MarkDoneQuickSet.label(completed: completed))
+                        .font(Theme.Typography.body())
+                        .foregroundStyle(palette.textPrimary)
+                    if let note {
+                        Text(note)
+                            .font(Theme.Typography.caption1())
+                            .foregroundStyle(palette.textSecondary)
+                    }
+                }
                 Spacer(minLength: 0)
             }
-            .font(Theme.Typography.body())
             .padding(.vertical, Theme.spacing8)
+            .padding(.horizontal, Theme.spacing12)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .background(palette.bgSecondary)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSmall))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
         .accessibilityIdentifier("taskOptions.complete")
     }
 }
