@@ -29,10 +29,15 @@ enum TaskLeadingControl: Equatable {
     ///
     /// Asked of astrid-core (`rows::LeadingControl::for_task`, AITD-622), which shares the rule
     /// with web and Windows. The surface does not change the mark, only what tapping it does.
+    ///
+    /// A COMPLETED task is the checked box whoever holds it (ADEV-147, core `rows`): "done" is
+    /// the thing to see on a finished task, and someone else's photo hid it. Only the mark
+    /// changes — what tapping does is still asked by whose it is (`action(surface:assigneeId:…)`).
     static func kind(assigneeId: String?,
-                     currentUserId: String?) -> TaskLeadingControl {
+                     currentUserId: String?,
+                     completed: Bool) -> TaskLeadingControl {
         let answer = CoreRules.leadingControl(assigneeId: assigneeId, currentUserId: currentUserId,
-                                              surface: "listRow")
+                                              surface: "listRow", completed: completed)
         switch answer?.kind {
         case .checkbox: return .checkbox
         case .avatar(let id): return .avatar(id)
@@ -138,6 +143,23 @@ extension TaskLeadingControl {
         let answer = CoreRules.leadingControl(assigneeId: kind.assigneeId(currentUserId: currentUserId),
                                               currentUserId: currentUserId,
                                               surface: surface.wireValue)
+        return answer?.action == .complete ? .complete : .openPicker
+    }
+
+    /// What tapping does, asked of the task itself rather than of its mark (ADEV-147).
+    ///
+    /// Since a completed task draws the checkbox whoever holds it, the mark no longer says whose
+    /// the task is, so it cannot be turned back into an assignee the way the `kind:` overload
+    /// does. The core decides from the assignee before it swaps the mark: someone else's
+    /// finished task still opens the picker (AITD-375) instead of reopening on a tap.
+    static func action(surface: TaskLeadingControlSurface,
+                       assigneeId: String?,
+                       currentUserId: String?,
+                       completed: Bool) -> TaskLeadingControlAction {
+        let answer = CoreRules.leadingControl(assigneeId: assigneeId,
+                                              currentUserId: currentUserId,
+                                              surface: surface.wireValue,
+                                              completed: completed)
         return answer?.action == .complete ? .complete : .openPicker
     }
 

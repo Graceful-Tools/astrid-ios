@@ -6,8 +6,9 @@ import XCTest
 final class LeadingControlRuleTests: XCTestCase {
 
     private func answer(_ assignee: String?, me: String? = "me",
-                        on surface: String = "listRow") -> LeadingControlAnswer? {
-        CoreRules.leadingControl(assigneeId: assignee, currentUserId: me, surface: surface)
+                        on surface: String = "listRow", completed: Bool = false) -> LeadingControlAnswer? {
+        CoreRules.leadingControl(assigneeId: assignee, currentUserId: me, surface: surface,
+                                 completed: completed)
     }
 
     func testAITD622_ADEV72_yourTaskIsACheckboxThatCompletes() {
@@ -33,5 +34,35 @@ final class LeadingControlRuleTests: XCTestCase {
 
     func testAITD375_nobodySignedInMakesEveryAssignedTaskSomeoneElses() {
         XCTAssertEqual(answer("me", me: nil), .init(kind: .avatar("me"), action: .openPicker))
+    }
+
+    // MARK: - ADEV-147: a completed task shows its check mark, whoever holds it
+
+    /// The default completion filter must not drop the one completed row asked about.
+    func testADEV147_aCompletedTaskIsStillAnswered() {
+        XCTAssertNotNil(answer("them", completed: true))
+        XCTAssertNotNil(answer(nil, completed: true))
+    }
+
+    /// Someone else's completed task draws the checked box, but tapping it still opens the
+    /// picker (AITD-375) rather than reopening a task that is not yours.
+    func testADEV147_someoneElsesCompletedTaskIsACheckboxThatOpensThePicker() {
+        for surface in ["listRow", "boardCard", "detail"] {
+            XCTAssertEqual(answer("them", on: surface, completed: true),
+                           .init(kind: .checkbox, action: .openPicker), surface)
+        }
+    }
+
+    func testADEV147_nobodysCompletedTaskIsACheckboxThatOpensThePicker() {
+        XCTAssertEqual(answer(nil, completed: true), .init(kind: .checkbox, action: .openPicker))
+    }
+
+    func testADEV147_yourCompletedTaskIsUnchanged() {
+        XCTAssertEqual(answer("me", completed: true), .init(kind: .checkbox, action: .complete))
+    }
+
+    /// An open task is untouched by ADEV-147.
+    func testADEV147_anOpenTaskStillShowsWhoseItIs() {
+        XCTAssertEqual(answer("them", completed: false), .init(kind: .avatar("them"), action: .openPicker))
     }
 }

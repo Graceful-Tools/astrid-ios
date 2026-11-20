@@ -29,7 +29,8 @@ struct MacLeadingControlButton: View {
 
     private var kind: TaskLeadingControl {
         TaskLeadingControl.kind(assigneeId: task.assigneeId,
-                                currentUserId: AuthManager.shared.userId)
+                                currentUserId: AuthManager.shared.userId,
+                                completed: task.completed)
     }
 
     /// Asked of the SHARED rule rather than spelled here, so the board card, the list row and
@@ -41,8 +42,9 @@ struct MacLeadingControlButton: View {
     /// folded that third one silently back into "open the picker" — the Mac quietly doing
     /// something else than the phone for the same task, which is what sharing the rule prevents.
     private var tapAction: TaskLeadingControlAction {
-        TaskLeadingControl.action(surface: surface, kind: kind,
-                                  currentUserId: AuthManager.shared.userId)
+        TaskLeadingControl.action(surface: surface, assigneeId: task.assigneeId,
+                                  currentUserId: AuthManager.shared.userId,
+                                  completed: task.completed)
     }
 
     /// What the task's lists refuse — a GitHub board with no Priority field (AITD-491). Asked
