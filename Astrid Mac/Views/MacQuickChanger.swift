@@ -29,10 +29,10 @@ struct MacQuickChanger: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text(NSLocalizedString("tasks.priority", comment: ""))
-                    .macFont(MacTypography.label).foregroundStyle(Theme.textMuted)
+        // iOS's frame and section label (ADEV-170): 280 wide, 16 padding. The pickers inside are
+        // the Mac's own.
+        QuickChangerFrame {
+            QuickChangerSection(title: NSLocalizedString("tasks.priority", comment: "")) {
                 // Per-tap callback, NOT `.onChange(of:)`: watching the value swallows a tap
                 // that picks the priority the task already has, and the popover sits there
                 // looking dead (task a6cd1367).
@@ -44,9 +44,7 @@ struct MacQuickChanger: View {
                 })
             }
 
-            VStack(alignment: .leading, spacing: 5) {
-                Text(NSLocalizedString("tasks.assignee", comment: ""))
-                    .macFont(MacTypography.label).foregroundStyle(Theme.textMuted)
+            QuickChangerSection(title: NSLocalizedString("tasks.assignee", comment: "")) {
                 MacAssigneePicker(
                     task: task,
                     priority: priority,
@@ -59,9 +57,7 @@ struct MacQuickChanger: View {
                 )
             }
 
-            VStack(alignment: .leading, spacing: 5) {
-                Text(NSLocalizedString("board.project_state", comment: ""))
-                    .macFont(MacTypography.label).foregroundStyle(Theme.textMuted)
+            QuickChangerSection(title: NSLocalizedString("board.project_state", comment: "")) {
                 MacProjectStateSection(task: task, onMoved: onDismiss)
             }
 
@@ -86,8 +82,6 @@ struct MacQuickChanger: View {
             }
             .macPointingHand()
         }
-        .padding(12)
-        .frame(width: 240)
         .task(id: task.id) {
             guard let listId = task.listIds?.first else { return }
             // Refreshes the roster the core answers the assignee picker from.

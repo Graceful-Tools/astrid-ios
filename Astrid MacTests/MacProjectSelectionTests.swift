@@ -59,7 +59,10 @@ final class MacProjectSidebarSectionsTests: XCTestCase {
     /// another level of hierarchy. Project is like a custom favorites."* Divergences follow iOS.
     func testEachProjectIsItsOwnSectionHeadedByItsName_ADEV51() throws {
         let source = try sectionSource()
-        XCTAssertTrue(source.contains("ForEach(collapse.visibleLists(entry.lists"),
+        // The sections themselves are iOS's, shared since ADEV-170.
+        XCTAssertTrue(source.contains("SidebarProjectSections("))
+        let shared = try RepositoryLocator.source(at: "Astrid App/Views/Components/SidebarProjectSections.swift")
+        XCTAssertTrue(shared.contains("ForEach(collapse.visibleLists(entry.lists"),
                       "its lists are the section's own rows (hidden only when folded, ADEV-57)")
         XCTAssertTrue(source.contains("header:"), "the project's name is the section header")
         XCTAssertFalse(source.contains("project_mode.projects_heading"),
