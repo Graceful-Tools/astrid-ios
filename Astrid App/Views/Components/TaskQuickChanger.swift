@@ -81,26 +81,20 @@ struct TaskQuickChanger: View {
 
             Divider()
 
-            // A task that is not yours — someone else's or nobody's — opens on the question
-            // itself: the checkbox, then Complete (ADEV-79; ADEV-70, web ADEV-56). Reopening and
-            // your own tasks never ask.
-            if TaskLeadingControl.completionNeedsConfirmation(
-                assigneeId: task.assigneeId,
-                currentUserId: AuthManager.shared.currentUser?.id,
-                completed: task.completed) {
-                CompletionConfirmationPrompt(
-                    assigneeLabel: CompletionConfirmation.assigneeLabel(for: task),
-                    onCancel: { onDismiss() },
-                    onConfirm: {
-                        onDismiss()
-                        complete()
-                    })
-            } else {
-            MarkDoneQuickSetRow(completed: task.completed, priority: task.priority.rawValue,
-                                repeating: TaskCheckboxAsset.isRepeating(task.repeating)) {
+            // One row for every task (ADEV-152). A task that is not yours — someone else's or
+            // nobody's — says whose it is under the label, and the row is the confirmation: the
+            // checkbox, then the row (ADEV-79; ADEV-70, web ADEV-56). Reopening never asks.
+            MarkDoneQuickSetRow(
+                completed: task.completed, priority: task.priority.rawValue,
+                repeating: TaskCheckboxAsset.isRepeating(task.repeating),
+                note: MarkDoneQuickSet.note(
+                    needsConfirmation: TaskLeadingControl.completionNeedsConfirmation(
+                        assigneeId: task.assigneeId,
+                        currentUserId: AuthManager.shared.currentUser?.id,
+                        completed: task.completed),
+                    assigneeLabel: CompletionConfirmation.assigneeLabel(for: task))) {
                 onDismiss()
                 complete()
-            }
             }
         }
         .padding(Theme.spacing16)

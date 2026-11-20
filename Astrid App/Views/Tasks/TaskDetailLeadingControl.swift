@@ -180,26 +180,20 @@ struct TaskDetailLeadingControl: View {
 
             Divider()
 
-            // A task that is not yours — someone else's or nobody's — opens on the question
-            // itself: the checkbox, then Complete (ADEV-79; ADEV-70, web ADEV-56). Reopening and
-            // your own tasks never ask.
-            if TaskLeadingControl.completionNeedsConfirmation(
-                assigneeId: assigneeId,
-                currentUserId: AuthManager.shared.currentUser?.id,
-                completed: isCompleted) {
-                CompletionConfirmationPrompt(
-                    assigneeLabel: CompletionConfirmation.assigneeLabel(for: task, assigneeId: assigneeId),
-                    onCancel: { showingPicker = false },
-                    onConfirm: {
-                        showingPicker = false
-                        onToggleCompletion()
-                    })
-            } else {
-            MarkDoneQuickSetRow(completed: isCompleted, priority: priority.rawValue,
-                                repeating: TaskCheckboxAsset.isRepeating(repeating)) {
+            // One row for every task (ADEV-152). A task that is not yours — someone else's or
+            // nobody's — says whose it is under the label, and the row is the confirmation: the
+            // checkbox, then the row (ADEV-79; ADEV-70, web ADEV-56). Reopening never asks.
+            MarkDoneQuickSetRow(
+                completed: isCompleted, priority: priority.rawValue,
+                repeating: TaskCheckboxAsset.isRepeating(repeating),
+                note: MarkDoneQuickSet.note(
+                    needsConfirmation: TaskLeadingControl.completionNeedsConfirmation(
+                        assigneeId: assigneeId,
+                        currentUserId: AuthManager.shared.currentUser?.id,
+                        completed: isCompleted),
+                    assigneeLabel: CompletionConfirmation.assigneeLabel(for: task, assigneeId: assigneeId))) {
                 showingPicker = false
                 onToggleCompletion()
-            }
             }
         }
         .padding(Theme.spacing16)

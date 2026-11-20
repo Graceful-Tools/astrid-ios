@@ -62,4 +62,43 @@ final class MarkDoneQuickSetTests: XCTestCase {
             }
         }
     }
+
+    // MARK: - ADEV-152: full-size checkbox, contrasting row, readable text, one design
+
+    /// "The checkbox should be full size as in rows": the task row's 34pt control, not 24pt.
+    func testADEV152_CheckboxIsTheRowsSize() {
+        XCTAssertEqual(MarkDoneQuickSet.checkboxSize, AstridTokens.Size.Comfortable.leadingControl)
+        XCTAssertEqual(MarkDoneQuickSet.checkboxSize, 34)
+    }
+
+    /// Your own task: no note, just "Mark as done".
+    func testADEV152_YourOwnTaskHasNoNote() {
+        XCTAssertNil(MarkDoneQuickSet.note(needsConfirmation: false, assigneeLabel: nil))
+        XCTAssertNil(MarkDoneQuickSet.note(needsConfirmation: false, assigneeLabel: "Ada"))
+    }
+
+    /// Nobody's task: the same row, saying so under the label, instead of "Complete this task?".
+    func testADEV152_UnassignedTaskSaysSoUnderTheSameRow() {
+        XCTAssertEqual(MarkDoneQuickSet.note(needsConfirmation: true, assigneeLabel: nil),
+                       EnglishStrings.text("tasks.confirm_complete_unassigned"))
+    }
+
+    /// Someone else's task names them, so the tap is never a blind one (ADEV-70).
+    func testADEV152_SomeoneElsesTaskNamesThem() {
+        let note = MarkDoneQuickSet.note(needsConfirmation: true, assigneeLabel: "Ada")
+        XCTAssertEqual(note, CompletionConfirmation.message(assigneeLabel: "Ada"))
+        XCTAssertTrue(note?.contains("Ada") == true)
+    }
+
+    /// The row's text and background come from the theme's palette. iOS `Theme.textPrimary` is
+    /// the light palette's ink whatever the theme, which is why "Mark as done" read dark-on-dark.
+    func testADEV152_RowReadsThePalette() throws {
+        let source = try String(contentsOf: RepositoryLocator.root.appendingPathComponent(
+            "Astrid App/Views/Components/MarkDoneQuickSetRow.swift"), encoding: .utf8)
+        XCTAssertFalse(source.contains("Theme.textPrimary"), "fixed light ink on a dark popover")
+        XCTAssertTrue(source.contains("@ThemedPalette"))
+        XCTAssertTrue(source.contains("palette.textPrimary"))
+        XCTAssertTrue(source.contains("palette.bgSecondary"), "the assignee row's surface, for contrast")
+    }
 }
+

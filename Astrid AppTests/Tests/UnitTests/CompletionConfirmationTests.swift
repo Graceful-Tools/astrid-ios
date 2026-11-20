@@ -86,10 +86,14 @@ final class CompletionConfirmationTests: XCTestCase {
 }
 
 /// ADEV-79: Jon — "Now there is 3 steps: tap on checkbox, tap on complete, confirm. One too
-/// many." A popover for a task that is not yours opens on the question itself, so it is the
-/// checkbox, then Complete. No popover keeps a "has Complete been tapped yet" state to reveal it.
+/// many." A popover for a task that is not yours completes in two taps: the checkbox, then the row.
+///
+/// ADEV-152: Jon — "This should update to be the same as previous comment design when changed to
+/// drive greater consistency and less complexity." The question no longer has a look of its own
+/// (title, Cancel, Complete): every popover ends in the one "Mark as done" row, and a task that is
+/// not yours says whose it is under the label. The row is the confirmation.
 final class CompletionConfirmationStepsTests: XCTestCase {
-    func testThePopoverOpensOnTheQuestion_ADEV79() throws {
+    func testEveryPopoverEndsInTheOneMarkDoneRow_ADEV152() throws {
         for path in [
             "Astrid App/Views/Tasks/TaskDetailLeadingControl.swift",
             "Astrid App/Views/Components/TaskQuickChanger.swift",
@@ -100,7 +104,10 @@ final class CompletionConfirmationStepsTests: XCTestCase {
                                     encoding: .utf8)
             XCTAssertFalse(source.contains("confirmingCompletion"),
                            "\(path): no middle step before the question (ADEV-79)")
-            XCTAssertTrue(source.contains("CompletionConfirmationPrompt("), path)
+            XCTAssertFalse(source.contains("CompletionConfirmationPrompt("),
+                           "\(path): the question is the Mark as done row, not a prompt of its own (ADEV-152)")
+            XCTAssertEqual(source.components(separatedBy: "MarkDoneQuickSetRow(").count - 1, 1,
+                           "\(path): one completion row, whoever holds the task (ADEV-152)")
             XCTAssertTrue(source.contains("completionNeedsConfirmation"), path)
         }
     }
