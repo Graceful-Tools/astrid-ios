@@ -53,8 +53,12 @@ final class LeadingControlRuleTests: XCTestCase {
         }
     }
 
-    func testADEV147_nobodysCompletedTaskIsACheckboxThatOpensThePicker() {
-        XCTAssertEqual(answer(nil, completed: true), .init(kind: .checkbox, action: .openPicker))
+    /// Nobody's finished task is the checked box, and on a list row a tap puts it back: reopening
+    /// takes nothing from anyone, so it never asks (core `contracts/fixtures/leading-control.json`).
+    /// A board card still opens the picker.
+    func testADEV147_nobodysCompletedTaskIsACheckbox() {
+        XCTAssertEqual(answer(nil, completed: true), .init(kind: .checkbox, action: .complete))
+        XCTAssertEqual(answer(nil, on: "boardCard", completed: true), .init(kind: .checkbox, action: .openPicker))
     }
 
     func testADEV147_yourCompletedTaskIsUnchanged() {
