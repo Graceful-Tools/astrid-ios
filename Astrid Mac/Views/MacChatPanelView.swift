@@ -194,7 +194,7 @@ struct MacChatPanelView: View {
 
     private func chatAvatarPlaceholder(_ m: ChatMessage, isAgent: Bool) -> some View {
         ZStack {
-            Circle().fill(isAgent ? Color.purple.opacity(0.8) : Theme.accent)
+            Circle().fill(isAgent ? Theme.palette.agent : Theme.accent)
             if isAgent {
                 Image(systemName: "sparkles").macFont(.system(size: 10, weight: .bold)).foregroundStyle(.white)
             } else {
@@ -221,7 +221,7 @@ struct MacChatPanelView: View {
                             .macOpensProfile(MacProfileLink.userId(authorId: m.authorId, isAgent: agent),
                                              target: $profileTarget)
                         if agent {
-                            Image(systemName: "sparkles").macFont(.caption2).foregroundStyle(.purple)
+                            Image(systemName: "sparkles").macFont(.caption2).foregroundStyle(Theme.palette.agentInk)
                         }
                     }
                     if let d = m.createdAt { Text(d, style: .relative).macFont(.caption2).foregroundStyle(Theme.textMuted) }

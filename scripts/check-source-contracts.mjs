@@ -903,6 +903,16 @@ export const rules = [
         .map((file) => ({ file, line: 0, message: 'is a checkbox PNG set — draw TaskCheckboxArt from the core layers instead' }))
     },
   },  {
+    id: 'agent-colour-is-a-token',
+    why: 'The agent\'s name, icon and bubble read the palette\'s `agentInk` / `agent` / `agentBubble`, and a category tile reads a `category<Hue>` pair (ADEV-165, DS27/DS28). A system `.purple` is a fourth purple beside the three the agent bubble used to be on iOS and Mac (0.2, 0.14 and 0.8 opacity), and follows neither the theme nor a partner\'s tokens.',
+    pattern: /(^|[^A-Za-z0-9_])\.purple\b/,
+    run(ctx) {
+      const roots = ['Astrid App', 'Astrid Mac', 'Shared']
+      return [...missingDirs(ctx, roots), ...eachCodeLine(ctx, ctx.files(roots), (line) => this.pattern.test(line)
+        && 'uses the system .purple — read palette.agentInk / agent / agentBubble (or a category pair) instead')]
+    },
+  },
+  {
     id: 'no-palette-pngs',
     why: 'UIKit cannot decompress an 8-bit colormap PNG for display: it logs "Error -17102 decompressing image -- possibly corrupt" for every row that draws one, on as many threads (AITD-551). Re-encode as RGBA.',
     run(ctx) {

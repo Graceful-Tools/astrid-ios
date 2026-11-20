@@ -1,20 +1,20 @@
 {
   "ios": {
-    "colourLiterals": 27,
-    "namedSystemColours": 92,
+    "colourLiterals": 24,
+    "namedSystemColours": 86,
     "fontSizes": 173,
     "cornerRadii": 63,
     "paddingLiterals": 105,
     "shadowLiterals": 20,
     "durationLiterals": 3,
     "darkSchemeTernaries": 0,
-    "fixedThemePicks": 135,
+    "fixedThemePicks": 133,
     "hardcodedCopy": 84,
     "uniqueHardcodedStrings": 73
   },
   "mac": {
     "colourLiterals": 6,
-    "namedSystemColours": 5,
+    "namedSystemColours": 3,
     "fontSizes": 0,
     "cornerRadii": 43,
     "paddingLiterals": 124,

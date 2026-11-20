@@ -391,10 +391,10 @@ struct ListMembershipTab: View {
                                     } placeholder: {
                                         ZStack {
                                             Circle()
-                                                .fill(Color.purple.opacity(0.2))
+                                                .fill(palette.agentBubble)
                                             Image(systemName: "cpu")
                                                 .font(.system(size: 16))
-                                                .foregroundColor(.purple)
+                                                .foregroundColor(palette.agentInk)
                                         }
                                     }
                                     .frame(width: 40, height: 40)
@@ -451,7 +451,7 @@ struct ListMembershipTab: View {
                 } header: {
                     HStack(spacing: 4) {
                         Image(systemName: "cpu")
-                            .foregroundColor(.purple)
+                            .foregroundColor(palette.agentInk)
                         Text(isGitHubConnected ? NSLocalizedString("lists.ai_coding_agents", comment: "") : NSLocalizedString("lists.ai_agents", comment: ""))
                     }
                 } footer: {

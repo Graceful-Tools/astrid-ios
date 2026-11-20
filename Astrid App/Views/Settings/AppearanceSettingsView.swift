@@ -71,7 +71,7 @@ struct AppearanceSettingsView: View {
 
                         HStack(alignment: .top, spacing: Theme.spacing8) {
                             Text("•")
-                                .foregroundColor(.purple)
+                                .foregroundColor(palette.categoryPurpleInk)
                             Text(NSLocalizedString("settings.appearance.email_to_task_subject", comment: ""))
                                 .font(Theme.Typography.caption1())
                                 .foregroundColor(palette.textSecondary)
@@ -79,7 +79,7 @@ struct AppearanceSettingsView: View {
 
                         HStack(alignment: .top, spacing: Theme.spacing8) {
                             Text("•")
-                                .foregroundColor(.purple)
+                                .foregroundColor(palette.categoryPurpleInk)
                             Text(NSLocalizedString("settings.appearance.email_to_task_body", comment: ""))
                                 .font(Theme.Typography.caption1())
                                 .foregroundColor(palette.textSecondary)
