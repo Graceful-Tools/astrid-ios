@@ -55,7 +55,7 @@ struct TaskDetailViewNew: View {
     /// it. The delay outlasts the keyboardWillShow ↔ focus-report race.
     private func reevaluateCommentBar(after delay: Double = 0.15) {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            withAnimation(.easeOut(duration: 0.2)) {
+            withAnimation(.easeOut(duration: AstridTokens.Motion.mediumDuration)) {
                 hideCommentBar = keyboardVisible && !commentInputFocused
             }
         }
@@ -583,7 +583,7 @@ struct TaskDetailViewNew: View {
                 if focused { editing.begin(Self.commentEditor) } else { editing.end(Self.commentEditor) }
                 // Scroll to bottom when comment input is focused (like messaging apps)
                 if focused {
-                    withAnimation(.easeInOut(duration: 0.3)) {
+                    withAnimation(.easeInOut(duration: AstridTokens.Motion.panelDuration)) {
                         proxy.scrollTo("bottom", anchor: .bottom)
                     }
                 }
@@ -591,12 +591,12 @@ struct TaskDetailViewNew: View {
             .onAppear {
                 // Set scroll actions for use elsewhere
                 scrollToTopAction = {
-                    withAnimation(.easeInOut(duration: 0.3)) {
+                    withAnimation(.easeInOut(duration: AstridTokens.Motion.panelDuration)) {
                         proxy.scrollTo("top", anchor: .top)
                     }
                 }
                 scrollToBottomAction = {
-                    withAnimation(.easeInOut(duration: 0.3)) {
+                    withAnimation(.easeInOut(duration: AstridTokens.Motion.panelDuration)) {
                         proxy.scrollTo("bottom", anchor: .bottom)
                     }
                 }

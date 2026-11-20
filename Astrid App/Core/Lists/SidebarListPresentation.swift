@@ -29,7 +29,7 @@ struct ListPrivacyGlyph: View {
         case .SHARED:
             Image(systemName: "person.2.fill")
                 .font(.caption)
-                .foregroundColor(.green)
+                .foregroundColor(Theme.success)
         case .PRIVATE, .none:
             EmptyView()
         }

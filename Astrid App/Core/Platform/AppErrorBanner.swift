@@ -30,7 +30,7 @@ struct AppErrorBanner: View {
                 .accessibilityIdentifier("error.banner")
             }
         }
-        .animation(ReducedMotion.spring(response: 0.3, dampingFraction: 1), value: center.current)
+        .animation(ReducedMotion.spring(response: AstridTokens.Motion.panelDuration, dampingFraction: 1), value: center.current)
         .allowsHitTesting(center.current != nil)
     }
 }

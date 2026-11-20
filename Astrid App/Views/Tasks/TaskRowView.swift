@@ -35,6 +35,8 @@ struct TaskRowView: View {
     }
 
     @State private var showingQuickChanger = false
+    /// The checkbox pop on the tap that completes (DS16, ADEV-163) — the Mac's, from the same token.
+    @State private var checkPop = false
 
     /// One decision for all three faces. Each branch used to complete the task directly, which
     /// is why "same behavior as task details" could not simply be switched on — the rule was
@@ -67,6 +69,14 @@ struct TaskRowView: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } else {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
+        }
+        // The pop answers the tap even when completing re-sorts the row away. None under Reduce
+        // Motion (AITD-624).
+        if ReducedMotion.allowsPop() {
+            checkPop = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + AstridTokens.Motion.fastDuration) {
+                checkPop = false
+            }
         }
         onToggle()
     }
@@ -122,6 +132,8 @@ struct TaskRowView: View {
             // would mean going above/below (the AITD-391 complaint) or a much narrower popover,
             // which is a design call, not a fix.
             leadingControl
+                .scaleEffect(ReducedMotion.popScale(checkPop))
+                .animation(ReducedMotion.standardSpring(), value: checkPop)
                 .popover(isPresented: $showingQuickChanger,
                          arrowEdge: QuickPickerGeometry.arrowEdge) {
                     TaskQuickChanger(task: task, onDismiss: { showingQuickChanger = false })
@@ -307,15 +319,15 @@ struct TaskRowView: View {
         .overlay(
             // Card border with rounded corners. Suppressed when
             // embedded in a board card so there's just ONE border.
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: AstridTokens.Layout.Comfortable.rowRadius)
                 .stroke(
                     embeddedInCard
                         ? Color.clear
-                        : (isSelected ? Color.accentColor : getBorderColor()),
+                        : (isSelected ? DetailPanelChrome.selectionOutlineColor : getBorderColor()),
                     lineWidth: isSelected ? Self.selectedBorderWidth : 0.5
                 )
         )
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: AstridTokens.Layout.Comfortable.rowRadius))
         // Lets a UI test say "a task row" and mean it (task 44a9cea5).
         //
         // The suite had no way to name one. It asked for `app.cells`, which also returns the

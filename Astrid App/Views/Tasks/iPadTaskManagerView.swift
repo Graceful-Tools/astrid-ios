@@ -618,7 +618,7 @@ struct iPadTaskManagerView: View {
                                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                 }
                             } else {
-                                withAnimation(ReducedMotion.spring(response: 0.2, dampingFraction: 0.9)) {
+                                withAnimation(ReducedMotion.standardSpring()) {
                                     dragOffset = 0
                                 }
                                 shouldScrollSidebarToTop = false
@@ -653,11 +653,11 @@ struct iPadTaskManagerView: View {
             }
             // The details face, the same one the arrow is filled with (AITD-627).
             .background(TaskDetailsSurface(theme: effectiveTheme))  // Inside the clip only
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: AstridTokens.Layout.Comfortable.detailPanelRadius))
             // The SELECTION outline — the one the selected row wears — not a bare card: the panel
             // unfolds out of that row, as on the Mac and web (AITD-607, register DS7).
-            .overlay(RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.accentColor, lineWidth: DetailPanelChrome.selectionOutlineWidth))
+            .overlay(RoundedRectangle(cornerRadius: AstridTokens.Layout.Comfortable.detailPanelRadius)
+                .stroke(DetailPanelChrome.selectionOutlineColor, lineWidth: DetailPanelChrome.selectionOutlineWidth))
             // compositingGroup so the shadow is cached and translated during the
             // slide, not re-rasterized from the clipped alpha every frame.
             .compositingGroup()
@@ -676,7 +676,7 @@ struct iPadTaskManagerView: View {
                         ZStack {
                             DetailPanelChrome.arrowFill(theme: effectiveTheme).clipShape(DetailPanelArrow())
                             DetailPanelArrowEdges()
-                                .stroke(Color.accentColor, lineWidth: DetailPanelChrome.selectionOutlineWidth)
+                                .stroke(DetailPanelChrome.selectionOutlineColor, lineWidth: DetailPanelChrome.selectionOutlineWidth)
                         }
                         .frame(width: DetailPanelChrome.arrowWidth, height: DetailPanelChrome.arrowHeight)
                         // The notch points left at a row; mirrored, it points right at a card.

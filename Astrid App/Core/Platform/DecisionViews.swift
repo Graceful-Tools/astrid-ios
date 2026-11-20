@@ -396,7 +396,7 @@ enum TradeOffPalette {
     static func text(for rating: TradeOffRating?) -> Color {
         switch rating {
         case .veryPoor?, .veryGood?: return .white
-        case .poor?, .mixed?, .good?: return Color.black.opacity(0.87)
+        case .poor?, .mixed?, .good?: return AstridTokens.light.surfaceInverse  // #111827 on a light cell (DS23)
         case nil: return .primary
         }
     }

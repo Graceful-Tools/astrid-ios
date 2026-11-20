@@ -74,9 +74,9 @@ struct MacMarkdownText: View {
     /// text just ends up smaller than the body it introduces.
     static func headingSize(_ level: Int) -> CGFloat {
         switch max(1, level) {
-        case 1: return 17
-        case 2: return 15
-        default: return 13
+        case 1: return AstridTokens.TypeSize.Compact.markdownH1.size
+        case 2: return AstridTokens.TypeSize.Compact.markdownH2.size
+        default: return AstridTokens.TypeSize.Compact.markdownH3.size
         }
     }
 }

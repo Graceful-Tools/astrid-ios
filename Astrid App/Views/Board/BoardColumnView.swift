@@ -77,7 +77,7 @@ private struct BoardColumnDropDelegate: DropDelegate {
     private func track(_ info: DropInfo) {
         let index = boardDropInsertionIndex(dropY: info.location.y, slots: slots)
         if hoveringIndex != index {
-            withAnimation(ReducedMotion.spring(response: 0.2, dampingFraction: 0.85)) {
+            withAnimation(ReducedMotion.standardSpring()) {
                 hoveringIndex = index
             }
         }
@@ -255,9 +255,9 @@ struct BoardColumnView: View {
                 }
                 .padding(.horizontal, 6)
                 .padding(.vertical, 8)
-                .animation(ReducedMotion.spring(response: 0.28, dampingFraction: 0.88),
+                .animation(ReducedMotion.standardSpring(),
                            value: displayedTasks.map { $0.id })
-                .animation(ReducedMotion.spring(response: 0.2, dampingFraction: 0.85),
+                .animation(ReducedMotion.standardSpring(),
                            value: hoveringIndex)
             }
             // The pull lives on the column's own vertical scroll, never the board's page, so the
@@ -290,14 +290,14 @@ struct BoardColumnView: View {
         // The whole column is the white frame; the header, side
         // borders and footer are all this one surface.
         .background(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: AstridTokens.Layout.Comfortable.boardColumnRadius)
                 .fill(frameColor)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: AstridTokens.Layout.Comfortable.boardColumnRadius))
         .overlay(
             // Accent ring only while a drag is hovering — the resting
             // frame is the column background itself, not an overlay.
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: AstridTokens.Layout.Comfortable.boardColumnRadius)
                 .strokeBorder(isTargeted ? Color.accentColor : Color.clear,
                               lineWidth: 3)
         )
@@ -322,7 +322,7 @@ struct BoardColumnView: View {
         .onPreferenceChange(BoardColumnOriginKey.self) { columnOrigin = $0 }
         // ONE drop target for the whole column — header, cards, gaps and
         // footer alike. Every point resolves to a slot.
-        .contentShape(RoundedRectangle(cornerRadius: 12))
+        .contentShape(RoundedRectangle(cornerRadius: AstridTokens.Layout.Comfortable.boardColumnRadius))
         .onDrop(of: [BoardCardPayload.contentType],
                 delegate: BoardColumnDropDelegate(
                     slots: slotFrames,
@@ -381,11 +381,11 @@ struct BoardColumnView: View {
                     .padding(12)
                     .frame(maxWidth: 260, alignment: .leading)
                     .background(
-                        RoundedRectangle(cornerRadius: 8)
+                        RoundedRectangle(cornerRadius: AstridTokens.Layout.Comfortable.boardCardRadius)
                             .fill(Color(.systemBackground))
                     )
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8)
+                        RoundedRectangle(cornerRadius: AstridTokens.Layout.Comfortable.boardCardRadius)
                             .stroke(Color(.separator), lineWidth: 0.5)
                     )
                     .opacity(0.92)
@@ -446,7 +446,7 @@ struct BoardColumnView: View {
         let target = max(0, min(index, newIds.count))
         newIds.insert(taskId, at: target)
 
-        withAnimation(ReducedMotion.spring(response: 0.28, dampingFraction: 0.88)) {
+        withAnimation(ReducedMotion.standardSpring()) {
             pendingTaskOrder = newIds
         }
 

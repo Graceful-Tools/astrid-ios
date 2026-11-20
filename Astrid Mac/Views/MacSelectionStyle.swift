@@ -50,7 +50,7 @@ struct MacHoverHighlight: ViewModifier {
         content
             .background(hovering ? Theme.accent.opacity(0.05) : .clear,
                         in: RoundedRectangle(cornerRadius: cornerRadius))
-            .onHover { h in withAnimation(.easeOut(duration: 0.1)) { hovering = h } }
+            .onHover { h in withAnimation(ReducedMotion.hover) { hovering = h } }
     }
 }
 
