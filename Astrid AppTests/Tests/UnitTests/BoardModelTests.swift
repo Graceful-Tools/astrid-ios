@@ -57,6 +57,34 @@ final class BoardModelTests: XCTestCase {
         XCTAssertEqual(ids(columns, VIRTUAL_DONE_COLUMN_ID), ["recent"])
     }
 
+    /// ADEV-140: "Done · N ✓ This week" counted the period inside the list's window — a day by
+    /// default — so a pull to refresh brought the server's completions in and the count still showed
+    /// only the last day's. The board asks the core for the header's period, which replaces the window.
+    func testADEV140_doneHoldsEveryCardFinishedSinceThePeriod() async throws {
+        let session = try session([task("recent", completed: true),
+                                   task("this-week", completed: true, updatedAgo: 3 * 86_400),
+                                   task("last-month", completed: true, updatedAgo: 40 * 86_400)])
+        let since = Date().addingTimeInterval(-7 * 86_400)
+        let week = await BoardModel.columns(
+            for: BoardModel.Query(listId: "board", doneSince: DoneSince.date(since).wireValue()),
+            session: session)
+        XCTAssertEqual(Set(ids(week ?? [], VIRTUAL_DONE_COLUMN_ID)), ["recent", "this-week"])
+
+        let all = await BoardModel.columns(
+            for: BoardModel.Query(listId: "board", doneSince: DoneSince.all.wireValue()), session: session)
+        XCTAssertEqual(ids(all ?? [], VIRTUAL_DONE_COLUMN_ID).count, 3, "All time is every finished card")
+    }
+
+    /// ADEV-140: a different period is a different question for the same board.
+    func testADEV140_thePeriodIsPartOfTheQuestion() throws {
+        let week = BoardModel.Query(listId: "board", doneSince: "2026-11-16T00:00:00Z")
+        let all = BoardModel.Query(listId: "board", doneSince: "all")
+        XCTAssertNotEqual(week, all)
+        XCTAssertEqual(week.key, all.key, "the same board, so its last answer still draws at once")
+        let sent = String(decoding: try JSONEncoder().encode(BoardModel.command(for: week)), as: UTF8.self)
+        XCTAssertTrue(sent.contains("\"doneSince\":\"2026-11-16T00:00:00Z\""), sent)
+    }
+
     /// D44: a cached status row still names its default column.
     func testAITD461_aCachedStatusRowNamesItsColumn() throws {
         var row = TaskList(id: "row", name: "In flight")

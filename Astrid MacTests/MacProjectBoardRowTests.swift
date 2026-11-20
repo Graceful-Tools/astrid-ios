@@ -35,6 +35,6 @@ final class MacProjectBoardRowTests: XCTestCase {
         let source = try RepositoryLocator.source(at: "Astrid Mac/Views/MacBoardView.swift")
         XCTAssertTrue(source.contains("var rowOfProjectId: String?"))
         XCTAssertTrue(source.contains("var columnHeight: CGFloat?"))
-        XCTAssertTrue(source.contains("BoardModel.Query(listId: listId, rowOfProjectId: rowOfProjectId)"))
+        XCTAssertTrue(source.contains("BoardModel.Query(listId: listId, rowOfProjectId: rowOfProjectId, doneSince:"))
     }
 }

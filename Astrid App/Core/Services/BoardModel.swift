@@ -27,6 +27,9 @@ final class BoardModel: ObservableObject {
         var listId: String?
         var projectId: String?
         var rowOfProjectId: String?
+        /// How far back Done reaches — the period the Done header names, as `DoneSince.wireValue`
+        /// (ADEV-140). nil leaves Done to the list's own window.
+        var doneSince: String?
         /// The Done window reads the clock.
         var minute = Int(Date().timeIntervalSince1970 / 60)
 
@@ -144,6 +147,7 @@ final class BoardModel: ObservableObject {
         command.set("listId", query.listId)
         command.set("projectId", query.rowOfProjectId ?? query.projectId)
         command.set("idsOnly", true)
+        command.set("doneSince", query.doneSince)
         return command
     }
 }

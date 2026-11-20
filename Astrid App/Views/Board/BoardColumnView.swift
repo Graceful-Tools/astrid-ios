@@ -150,11 +150,9 @@ struct BoardColumnView: View {
     /// auto-cleared once the parent's `tasks` prop catches up.
     @State private var pendingTaskOrder: [String] = []
 
-    /// How far back the Done column goes (ADEV-131), per person and list; loaded on appear.
-    @State private var doneSince: DoneSince = .default
-
-    /// What `doneSince` is saved under: the board's list.
-    private var doneSinceListId: String { selectedList?.id ?? column.id }
+    /// How far back the Done column goes (ADEV-131): the board's, which asks the core for exactly
+    /// those cards (ADEV-140) and keeps it per person and list.
+    @Binding var doneSince: DoneSince
 
     /// The column's cards: the core's, and on Done only those finished since `doneSince`.
     private var columnTasks: [Task] {
@@ -509,13 +507,6 @@ struct BoardColumnView: View {
         .padding(.top, 12)
         .padding(.bottom, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .task(id: doneSinceListId) {
-            guard column.kind == .done else { return }
-            doneSince = DoneSince.load(listId: doneSinceListId, userId: AuthManager.shared.userId)
-        }
-        .onChange(of: doneSince) { _, since in
-            since.save(listId: doneSinceListId, userId: AuthManager.shared.userId)
-        }
         // No own background — the header sits directly on the column
         // frame, so it's the same surface as the side borders/footer.
     }
