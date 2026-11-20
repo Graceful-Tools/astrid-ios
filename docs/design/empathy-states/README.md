@@ -28,6 +28,16 @@ line for Ready, and a podium for Done; **Journey became a Hike**, which starts a
 and ends on the summit with the flag planted. The hiker wears boots, so in both sets the
 costume says which metaphor it is before the props do.
 
+Fifth pass (Jon, 2026-11-19): **high fidelity**. The 25 poses were rendered in the icon's soft 3D
+look by an image model (`gpt-image-1.5`, transparent background), with the app icon as the
+character reference and each vector frame as the pose sketch: `hifi/render.mjs`, then
+`hifi/contact.mjs`. These are `hifi/webp/<metaphor>-<state>.webp`, 1024², about 100 KB each.
+They are **optional extras**, not bundled. The app's existing empty-column art stays the
+built-in default. The server hosts the hi-fi set, and clients fetch it when idle, rotating
+each list through the metaphors daily.
+
+![hi-fi contact sheet](hifi/contact-sheet.jpg)
+
 ![contact sheet](contact-sheet.png)
 
 | Metaphor | Inbox | Ready | Doing | Waiting | Done |
@@ -45,5 +55,5 @@ costume says which metaphor it is before the props do.
   `node docs/design/empathy-states/generate.mjs`. It needs `sharp` from the paired astrid-web
   checkout for the contact sheet.
 
-These are exploration art and are not in the app bundle. Once a set is picked, it goes into
-`Assets.xcassets` as its own change.
+The vector set is exploration art and is not in the app bundle. The hi-fi set reaches the apps
+from the server, never from the bundle.
