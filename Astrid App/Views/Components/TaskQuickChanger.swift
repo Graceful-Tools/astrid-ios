@@ -96,17 +96,10 @@ struct TaskQuickChanger: View {
                         complete()
                     })
             } else {
-            Button {
+            MarkDoneQuickSetRow(completed: task.completed) {
                 onDismiss()
                 complete()
-            } label: {
-                Label(task.completed ? NSLocalizedString("mac.mark_incomplete", comment: "")
-                                     : NSLocalizedString("tasks.complete_task", comment: ""),
-                      systemImage: task.completed ? "arrow.uturn.backward" : "checkmark.circle.fill")
-                    .font(Theme.Typography.body())
-                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
             }
         }
         .padding(Theme.spacing16)

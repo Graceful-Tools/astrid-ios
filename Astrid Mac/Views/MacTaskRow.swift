@@ -157,7 +157,7 @@ struct MacTaskRow: View {
                         }
                     }
                     .macPointingHand()
-                    .help(task.completed ? NSLocalizedString("mac.mark_incomplete", comment: "") : NSLocalizedString("mac.mark_complete", comment: ""))
+                    .help(MarkDoneQuickSet.label(completed: task.completed))  // ADEV-146: the quick changer's words
                     .accessibilityElement()
                     .accessibilityAddTraits(.isButton)
                     .accessibilityLabel(task.completed ? NSLocalizedString("mac.a11y_completed_toggle", comment: "")

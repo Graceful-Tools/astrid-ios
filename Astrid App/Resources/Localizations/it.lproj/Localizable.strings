@@ -1705,3 +1705,7 @@
 "board.done_since.accessibility" = "%1$d completate, %2$@";
 "board.done_since.pick_date" = "Scegli una data…";
 "board.done_since.menu_title" = "Mostra completate dal";
+
+/* ADEV-146: the quick changer's completion row — same words as web tasks.markAsDone / tasks.markAsTodo */
+"tasks.mark_as_done" = "Segna come fatta";
+"tasks.mark_as_todo" = "Segna come da fare";

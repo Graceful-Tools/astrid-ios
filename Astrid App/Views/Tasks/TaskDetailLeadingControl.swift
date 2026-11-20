@@ -198,21 +198,10 @@ struct TaskDetailLeadingControl: View {
                         onToggleCompletion()
                     })
             } else {
-            Button {
+            MarkDoneQuickSetRow(completed: isCompleted) {
                 showingPicker = false
                 onToggleCompletion()
-            } label: {
-                Label(isCompleted ? NSLocalizedString("mac.mark_incomplete", comment: "")
-                                  : NSLocalizedString("tasks.complete_task", comment: ""),
-                      systemImage: isCompleted ? "arrow.uturn.backward" : "checkmark.circle.fill")
-                    .font(Theme.Typography.body())
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, Theme.spacing12)
-                    .background(Theme.accent)
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
             }
-            .buttonStyle(.plain)
             }
         }
         .padding(Theme.spacing16)

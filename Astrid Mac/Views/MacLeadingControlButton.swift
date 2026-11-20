@@ -71,9 +71,8 @@ struct MacLeadingControlButton: View {
     private var helpText: String {
         switch tapAction {
         case .complete:
-            return task.completed
-                ? NSLocalizedString("mac.mark_incomplete", comment: "")
-                : NSLocalizedString("tasks.complete_task", comment: "")
+            // The quick changer's own words, so the tooltip and the popover agree (ADEV-146).
+            return MarkDoneQuickSet.label(completed: task.completed)
         case .openPicker:
             return NSLocalizedString("tasks.priority", comment: "")
         }
@@ -167,17 +166,10 @@ struct MacLeadingControlButton: View {
                                 onToggleComplete()
                             })
                     } else {
-                    Button {
+                    MarkDoneQuickSetRow(completed: task.completed) {
                         isPresented = false
                         onToggleComplete()
-                    } label: {
-                        Label(task.completed
-                              ? NSLocalizedString("mac.mark_incomplete", comment: "")
-                              : NSLocalizedString("tasks.complete_task", comment: ""),
-                              systemImage: task.completed ? "arrow.uturn.backward" : "checkmark.circle.fill")
-                            .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
                     .macPointingHand()
                     }
                 }
