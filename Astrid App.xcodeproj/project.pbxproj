@@ -118,7 +118,6 @@
 				Views/Chat/ChatPanelView.swift,
 				Views/Chat/ChatToggleView.swift,
 				Views/Chat/ViewModeRotatorButton.swift,
-				Views/Components/AstridSpeechBubble.swift,
 				Views/Components/AttachmentThumbnail.swift,
 				Views/Components/AutocompleteSupport.swift,
 				Views/Components/CameraCapturePicker.swift,

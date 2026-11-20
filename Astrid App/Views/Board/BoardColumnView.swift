@@ -453,23 +453,11 @@ struct BoardColumnView: View {
         onDropAt(payload, index)
     }
 
-    /// Task-count pill — same treatment as the list count badge in the
-    /// left sidebar (`ListRowView`): caption text in a soft capsule.
+    /// Task-count pill — the shared board header badge (ADEV-166), the same capsule the Mac board
+    /// and the Done menu use.
     @ViewBuilder
     private var countBadge: some View {
-        badge(Text(verbatim: "\(displayedTasks.count)"))
-    }
-
-    private func badge<Content: View>(_ content: Content) -> some View {
-        content
-            .font(Theme.Typography.caption1())
-            .foregroundColor(palette.textSecondary)
-            .padding(.horizontal, Theme.spacing8)
-            .padding(.vertical, Theme.spacing4)
-            .background(
-                Capsule()
-                    .fill(palette.bgTertiary)
-            )
+        BoardHeaderBadge { Text(verbatim: "\(displayedTasks.count)") }
     }
 
     @ViewBuilder
@@ -484,11 +472,12 @@ struct BoardColumnView: View {
                     // sits; a tap picks how far back (ADEV-131, ADEV-134).
                     Spacer()
                     DoneSinceMenu(since: $doneSince, count: displayedTasks.count) { text in
-                        badge(HStack(spacing: Theme.spacing4) {
-                            Text(verbatim: text)
-                            Image(systemName: "chevron.down").imageScale(.small)
-                        })
-                        .contentShape(Capsule())
+                        BoardHeaderBadge {
+                            HStack(spacing: Theme.spacing4) {
+                                Text(verbatim: text)
+                                Image(systemName: "chevron.down").imageScale(.small)
+                            }
+                        }
                     }
                     // The capsule IS the button. The system's own menu-button chrome drew a
                     // second pill inside it (ADEV-134).

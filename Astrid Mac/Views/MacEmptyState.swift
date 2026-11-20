@@ -1,7 +1,7 @@
 //  MacEmptyState.swift
 //  Astrid for Mac — branded empty states (Task 1c3562e9): the Astrid character + a friendly
-//  speech bubble, replacing generic system ContentUnavailableViews (mirrors iOS EmptyStateView /
-//  AstridSpeechBubble, sized for desktop).
+//  speech bubble, replacing generic system ContentUnavailableViews. Since ADEV-166 it IS iOS's
+//  `AstridSpeechBubble`, at the compact density.
 
 #if os(macOS)
 import SwiftUI
@@ -31,33 +31,18 @@ enum MacEmptyCopy {
     }
 }
 
+/// The shared empty state (ADEV-166) at the Mac's density: the same Astrid-and-speech-bubble iOS
+/// draws, with smaller art.
 struct MacEmptyState: View {
     let copy: MacEmptyCopy
 
     var body: some View {
-        VStack(spacing: 14) {
-            if let character = Brand.characterImage {
-                Image(character)
-                    .resizable().aspectRatio(contentMode: .fit)
-                    .frame(width: 72, height: 72)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-            }
-            VStack(spacing: 4) {
-                Text(copy.message)
-                    .macFont(.system(size: 14, weight: .medium))
-                    .foregroundStyle(Theme.textPrimary)
-                    // Which empty state, for the UI suite — the copy is localized (AITD-526).
-                    .accessibilityIdentifier("emptyState.\(copy)")
-                if let d = copy.detail {
-                    Text(d).macFont(.caption).foregroundStyle(Theme.textMuted)
-                }
-            }
-            .padding(.horizontal, 16).padding(.vertical, 10)
-            .background(Theme.bgSecondary, in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.border, lineWidth: 0.5))
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .multilineTextAlignment(.center)
+        AstridSpeechBubble(message: copy.message, detail: copy.detail, density: .compact,
+                           // Which empty state, for the UI suite — the copy is localized (AITD-526).
+                           messageIdentifier: "emptyState.\(copy)")
+            .padding(.horizontal, Theme.spacing24)
+            .frame(maxWidth: 520)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 #endif

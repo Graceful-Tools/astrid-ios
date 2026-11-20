@@ -25,15 +25,7 @@ struct TaskBoardStatusPill: View {
     }
 
     var body: some View {
-        let tint = Self.tint(for: status.kind)
-        Text(verbatim: status.name)
-            .foregroundColor(tint)
-            .lineLimit(1)
-            .fixedSize()
-            .padding(.horizontal, Theme.spacing8)
-            .padding(.vertical, Theme.spacing2)
-            .background(Capsule().fill(tint.opacity(0.15)))
-            .overlay(Capsule().stroke(tint.opacity(0.4), lineWidth: 1))
+        AstridPill(text: status.name, tint: Self.tint(for: status.kind))
             .accessibilityIdentifier("taskRow.boardStatus.\(status.kind.rawValue)")
     }
 }
