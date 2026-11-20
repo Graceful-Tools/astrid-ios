@@ -41,7 +41,8 @@ struct TaskQuickChanger: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.spacing16) {
+        // The frame and the section label are shared with the Mac (ADEV-170).
+        QuickChangerFrame {
             // Each choice dismisses straight away — you came here to set ONE thing, and
             // leaving it open makes you tap outside to confirm nothing happened (42013da7).
             PriorityButtonPicker(priority: $priority, onSave: { newPriority in
@@ -72,10 +73,7 @@ struct TaskQuickChanger: View {
 
             Divider()
 
-            VStack(alignment: .leading, spacing: Theme.spacing8) {
-                Text(NSLocalizedString("board.project_state", comment: ""))
-                    .font(Theme.Typography.caption1())
-                    .foregroundColor(Theme.textMuted)
+            QuickChangerSection(title: NSLocalizedString("board.project_state", comment: "")) {
                 ProjectStateQuickPicker(task: task, onMoved: onDismiss)
             }
 
@@ -97,8 +95,6 @@ struct TaskQuickChanger: View {
                 complete()
             }
         }
-        .padding(Theme.spacing16)
-        .frame(width: 280)
     }
 
     /// Completion goes through `completeTask`, never `updateTask(completed:)` — that is the only

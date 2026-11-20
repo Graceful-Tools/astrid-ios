@@ -30,3 +30,24 @@ final class MacSharedDesignViewsTests: XCTestCase {
         XCTAssertTrue(empty.contains("AstridSpeechBubble("))
     }
 }
+
+/// ADEV-170: the quick changer's frame and the sidebar Projects section, one implementation each.
+final class MacSharedQuickChangerProjectsTests: XCTestCase {
+
+    func testADEV170_theMacQuickChangerTakesIOSsFrame() throws {
+        XCTAssertEqual(QuickChangerLayout.width, 280)
+        XCTAssertEqual(QuickChangerLayout.padding, Theme.spacing16)
+        let source = try RepositoryLocator.source(at: "Astrid Mac/Views/MacQuickChanger.swift")
+        XCTAssertTrue(source.contains("QuickChangerFrame"))
+        XCTAssertTrue(source.contains("QuickChangerSection("))
+        XCTAssertFalse(source.contains(".frame(width: 240)"))
+    }
+
+    func testADEV170_theMacProjectsSectionDrawsThroughTheSharedSectionAndHeader() throws {
+        let source = try RepositoryLocator.source(at: "Astrid Mac/Views/MacProjectSelection.swift")
+        XCTAssertTrue(source.contains("SidebarProjectSections("))
+        XCTAssertTrue(source.contains("SidebarProjectHeaderTitle("))
+        XCTAssertTrue(source.contains("SidebarProjectCollapseToggle("))
+        XCTAssertFalse(source.contains("chevron.right"))
+    }
+}

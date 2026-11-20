@@ -145,8 +145,11 @@ final class ListProjectControlTests: XCTestCase {
     /// project is its own Section headed by its name, its lists the section's rows.
     func testEachProjectIsItsOwnSectionHeadedByItsName_ADEV47() throws {
         let source = try sidebarSectionSource()
-        XCTAssertTrue(source.contains("Section {"), "one Section per project")
-        XCTAssertTrue(source.contains("ForEach(collapse.visibleLists(entry.lists"),
+        // The sections themselves are shared with the Mac since ADEV-170.
+        XCTAssertTrue(source.contains("SidebarProjectSections("))
+        let shared = try RepositoryLocator.source(at: "Astrid App/Views/Components/SidebarProjectSections.swift")
+        XCTAssertTrue(shared.contains("Section {"), "one Section per project")
+        XCTAssertTrue(shared.contains("ForEach(collapse.visibleLists(entry.lists"),
                       "its lists are the section's own rows (hidden only when folded, ADEV-57)")
         XCTAssertFalse(source.contains("project_mode.projects_heading"),
                        "no umbrella Projects heading over the projects")

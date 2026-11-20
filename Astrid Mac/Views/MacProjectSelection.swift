@@ -78,18 +78,15 @@ struct MacProjectsSidebarSection<ListRow: View>: View {
         let entries = SidebarProjects.entries(offered: offered, projects: projectService.projects, lists: lists)
         if MacProjectActions.showsSection(offered: offered) {
             Section { newProjectRow }
-            ForEach(entries) { entry in
-                Section {
-                    ForEach(collapse.visibleLists(entry.lists, in: entry.project.id)) { list in
-                        listRow(list)
-                    }
-                } header: {
-                    HStack(spacing: 0) {
-                        projectHeader(entry.project, name: entry.name)
-                        collapseToggle(entry.project, name: entry.name)
-                    }
+            // The sections, the header's name and its chevron are iOS's (ADEV-170).
+            SidebarProjectSections(entries: entries, collapse: collapse, header: { project, name in
+                HStack(spacing: 0) {
+                    projectHeader(project, name: name)
+                    // Beside the header, not in it: a click on the name still opens the board.
+                    SidebarProjectCollapseToggle(projectId: project.id, name: name, collapse: collapse)
+                        .padding(.trailing, MacLayout.sidebarHeaderAccessoryTrailingInset)   // in the counts' column (ADEV-77)
                 }
-            }
+            }, listRow: listRow)
         }
     }
 
@@ -105,36 +102,12 @@ struct MacProjectsSidebarSection<ListRow: View>: View {
         }
     }
 
-    /// Hide or show this project's lists (ADEV-57). Beside the header, not in it: a click on the
-    /// name still opens the board.
-    private func collapseToggle(_ project: Project, name: String) -> some View {
-        let expanded = !collapse.isCollapsed(project.id)
-        return Button {
-            withAnimation { collapse.toggle(project.id) }
-        } label: {
-            Image(systemName: "chevron.right")
-                .imageScale(.small)
-                .rotationEffect(.degrees(expanded ? 90 : 0))
-                .foregroundStyle(Theme.textSecondary)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .padding(.trailing, MacLayout.sidebarHeaderAccessoryTrailingInset)   // in the counts' column (ADEV-77)
-        .help(collapse.toggleLabel(for: project.id, name: name))
-        .accessibilityLabel(collapse.toggleLabel(for: project.id, name: name))
-        .accessibilityIdentifier("sidebar.project.toggle.\(project.id)")
-    }
-
     private func projectHeader(_ project: Project, name: String) -> some View {
         let tag = MacProjectSelection.tag(projectId: project.id)
         let isOpen = selection == tag
         return Button { selection = tag } label: {
-            HStack {
-                Text(name).lineLimit(1)
-                Spacer(minLength: 0)
-            }
-            .foregroundStyle(isOpen ? Theme.accent : Theme.textSecondary)
-            .contentShape(Rectangle())
+            SidebarProjectHeaderTitle(name: name)
+                .foregroundStyle(isOpen ? Theme.accent : Theme.textSecondary)
         }
         .buttonStyle(.plain)
         .help(String(format: NSLocalizedString("project_mode.open_board", comment: ""), name))
