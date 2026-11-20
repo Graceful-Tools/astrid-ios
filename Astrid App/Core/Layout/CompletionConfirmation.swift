@@ -2,9 +2,9 @@ import Foundation
 
 /// "Complete this task?" — asked before finishing a task that is not yours (ADEV-70, web ADEV-56).
 ///
-/// WHEN is `TaskLeadingControl.completionNeedsConfirmation`. This is WHAT it says, shared by the
-/// phone's popovers, the Mac's popovers and the Mac's complete shortcut so the question reads the
-/// same everywhere. Mirrors web's `components/completion-confirmation.tsx`.
+/// WHEN is `TaskLeadingControl.completionNeedsConfirmation`. This is WHAT it says: the popovers'
+/// "Mark as done" row shows `message` under its label (ADEV-152), and the Mac's complete shortcut
+/// asks the whole question in an alert. Mirrors web's `components/completion-confirmation.tsx`.
 ///
 /// It names the assignee: a question about "this task" over an unlabelled photo is the blind
 /// confirmation that trains people to accept without reading. With nobody assigned it says so.
