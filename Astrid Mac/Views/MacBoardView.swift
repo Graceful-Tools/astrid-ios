@@ -253,7 +253,7 @@ struct MacBoardView: View {
         // the pop-out beside the card — never inline in the column (AITD-679). The control
         // takes its own clicks first.
         .modifier(MacBoardCardAnchor(isSelected: selected) { onOpenCard(t.id, $0) })
-        .onHover { h in withAnimation(.easeOut(duration: 0.1)) { hoveredCardId = h ? t.id : (hoveredCardId == t.id ? nil : hoveredCardId) } }
+        .onHover { h in withAnimation(ReducedMotion.hover) { hoveredCardId = h ? t.id : (hoveredCardId == t.id ? nil : hoveredCardId) } }
         // Right-click gets the SAME actions as a list row (AITD-372). Rendered from the shared
         // model rather than restated here, so the board cannot fall behind the row: a card had no
         // context menu at all while the row had nine actions.

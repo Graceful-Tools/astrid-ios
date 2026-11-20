@@ -494,7 +494,7 @@ struct TaskListView: View {
                 // picker for no reason.
                 if messagesArePinnedBeside, iPadPaneLayout.offersFullScreen(viewMode: taskViewMode) {
                     Button {
-                        withAnimation(.easeInOut(duration: 0.2)) { boardFullScreen.toggle() }
+                        withAnimation(.easeInOut(duration: AstridTokens.Motion.mediumDuration)) { boardFullScreen.toggle() }
                     } label: {
                         Image(systemName: boardFullScreen
                               ? "arrow.down.right.and.arrow.up.left"
@@ -632,7 +632,7 @@ struct TaskListView: View {
                             onTaskCreated: { task in
                                 // iPad: Show in side panel (replacing any existing), iPhone/forcePush: Push navigation
                                 if usesSplitLayout && !forcePushNavigation {
-                                    withAnimation(.easeInOut(duration: 0.25)) {
+                                    withAnimation(.easeInOut(duration: AstridTokens.Motion.mediumDuration)) {
                                         selectedTaskForPanel = task
                                     }
                                 } else {

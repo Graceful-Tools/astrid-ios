@@ -189,7 +189,7 @@ struct ReminderTriageView: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
         onDecide(task, action)
-        withAnimation(.easeOut(duration: 0.2)) {
+        withAnimation(.easeOut(duration: AstridTokens.Motion.mediumDuration)) {
             drag = .zero
             index += 1
         }

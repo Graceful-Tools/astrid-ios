@@ -13,7 +13,7 @@ struct CompletionStreakRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.spacing4) {
             Button {
-                withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() }
+                withAnimation(.easeInOut(duration: AstridTokens.Motion.mediumDuration)) { isExpanded.toggle() }
             } label: {
                 HStack(spacing: Theme.spacing8) {
                     Image(systemName: "flame.fill")

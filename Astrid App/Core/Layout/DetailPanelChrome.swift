@@ -12,12 +12,16 @@ import SwiftUI
 
 enum DetailPanelChrome {
     /// `size.comfortable.selection-outline`. The selected iPad row strokes the same width.
-    static let selectionOutlineWidth: CGFloat = 2.5
+    static let selectionOutlineWidth: CGFloat = AstridTokens.Size.Comfortable.selectionOutline
+    /// `state.selection-outline-opacity` — the outline is the accent at 55%, not solid (DS5, ADEV-163).
+    static let selectionOutlineOpacity: Double = AstridTokens.State.selectionOutlineOpacity
+    /// What the selected row and the panel stroke.
+    static var selectionOutlineColor: Color { Color.accentColor.opacity(selectionOutlineOpacity) }
 
     /// `motion.panel` — the panel opening out of the row, and closing back into it.
-    static let panelDuration: Double = 0.30
+    static let panelDuration: Double = AstridTokens.Motion.panelDuration
     /// `motion.fast` — the arrow following the row as the list scrolls or the selection moves.
-    static let arrowFollowDuration: Double = 0.15
+    static let arrowFollowDuration: Double = AstridTokens.Motion.fastDuration
 
     static var panelAnimation: Animation { .easeOut(duration: panelDuration) }
     static var arrowFollowAnimation: Animation { .easeOut(duration: arrowFollowDuration) }

@@ -65,7 +65,7 @@ struct ChatMessageListView: View {
             .withReferenceNavigation()
             .scrollDismissesKeyboard(.interactively)
             .onChange(of: messages.count) { _, _ in
-                withAnimation(.easeOut(duration: 0.2)) {
+                withAnimation(.easeOut(duration: AstridTokens.Motion.mediumDuration)) {
                     proxy.scrollTo("bottom", anchor: .bottom)
                 }
             }

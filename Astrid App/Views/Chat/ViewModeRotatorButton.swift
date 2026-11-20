@@ -21,7 +21,7 @@ struct ViewModeRotatorButton: View {
 
     var body: some View {
         Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.easeInOut(duration: AstridTokens.Motion.mediumDuration)) {
                 mode = next(after: mode)
             }
         } label: {

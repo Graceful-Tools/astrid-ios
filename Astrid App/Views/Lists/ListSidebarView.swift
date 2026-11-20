@@ -125,7 +125,7 @@ struct ListSidebarView: View {
                 // Scroll to top when triggered (e.g., sidebar closing)
                 // Quick animation (0.2s) so it's visible but completes before close animation
                 if shouldScroll {
-                    withAnimation(.easeOut(duration: 0.2)) {
+                    withAnimation(.easeOut(duration: AstridTokens.Motion.mediumDuration)) {
                         proxy.scrollTo("top", anchor: .top)
                     }
                 }

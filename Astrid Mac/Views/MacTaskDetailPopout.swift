@@ -52,12 +52,12 @@ struct MacTaskDetailPopout: View {
             .frame(width: panelWidth, alignment: .top)
             .frame(maxHeight: .infinity, alignment: .top)
             .background(MacDetailChrome.background)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .clipShape(RoundedRectangle(cornerRadius: AstridTokens.Layout.Compact.detailPanelRadius))
             // The SELECTION outline, not a neutral hairline (AITD-302). The panel unfolds out of
             // the selected row, so it wears the same border that row wears — the same call, so
             // the two cannot drift, and every theme follows Theme.accent for free. In the grey
             // hairline it read as an unrelated card resting against the row.
-            .overlay(RoundedRectangle(cornerRadius: 14)
+            .overlay(RoundedRectangle(cornerRadius: AstridTokens.Layout.Compact.detailPanelRadius)
                 .stroke(MacSelectionStyle.borderColor(isSelected: true),
                         lineWidth: MacSelectionStyle.selectedWidth))
             .shadow(color: .black.opacity(0.18), radius: 16, x: side == .trailing ? -2 : 2, y: 4)

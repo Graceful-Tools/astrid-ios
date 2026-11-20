@@ -39,6 +39,29 @@ enum ReducedMotion {
                reduceMotion: reduceMotion)
     }
 
+    /// `motion.spring` — the ordinary state-change spring (expand, collapse, select). ADEV-163.
+    static func standardSpring(reduceMotion: Bool = isEnabled) -> Animation? {
+        spring(response: AstridTokens.Motion.springDuration,
+               dampingFraction: AstridTokens.Motion.springDamping,
+               reduceMotion: reduceMotion)
+    }
+
+    /// `motion.panel-spring` — a details panel opening beside the list.
+    static func panelSpring(reduceMotion: Bool = isEnabled) -> Animation? {
+        spring(response: AstridTokens.Motion.panelSpringDuration,
+               dampingFraction: AstridTokens.Motion.panelSpringDamping,
+               reduceMotion: reduceMotion)
+    }
+
+    /// `motion.hover` — a short ease, so it plays under Reduce Motion too (see above). ADEV-163.
+    static var hover: Animation { .easeOut(duration: AstridTokens.Motion.hoverDuration) }
+
     /// Whether a decorative pop (a scale bump on tap) should play.
     static func allowsPop(reduceMotion: Bool = isEnabled) -> Bool { !reduceMotion }
+
+    /// The checkbox pop's scale (`state.complete-pop-scale`, register DS16): iOS and Mac bump the
+    /// control by the same amount on the tap that completes it. ADEV-163.
+    static func popScale(_ popping: Bool) -> CGFloat {
+        popping ? CGFloat(AstridTokens.State.completePopScale) : 1
+    }
 }

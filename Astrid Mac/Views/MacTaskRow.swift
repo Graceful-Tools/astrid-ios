@@ -133,7 +133,7 @@ struct MacTaskRow: View {
                                   repeating: MacCheckboxAsset.isRepeating(task.repeating))
                     .strikethrough(task.completed)
                     .opacity(task.completed ? 0.5 : 1)
-                    .scaleEffect(checkPop ? 1.28 : 1)
+                    .scaleEffect(ReducedMotion.popScale(checkPop))
                     .animation(MacMotion.spring, value: checkPop)
                     .contentShape(Rectangle())
                     .onTapGesture { handleLeadingTap() }
@@ -149,7 +149,7 @@ struct MacTaskRow: View {
                 MacTaskCheckbox(completed: task.completed, priority: task.priority,
                                 size: MacTaskVisuals.rowCheckboxSize,
                                 repeating: MacCheckboxAsset.isRepeating(task.repeating))
-                    .scaleEffect(checkPop ? 1.28 : 1)
+                    .scaleEffect(ReducedMotion.popScale(checkPop))
                     .animation(MacMotion.spring, value: checkPop)
                     .contentShape(Rectangle())
                     .onTapGesture {
@@ -271,11 +271,11 @@ struct MacTaskRow: View {
         // Themed card so the row surface reflects the theme (Ocean = light card on cyan, Dark = raised
         // card on dark). Selection is a SUBTLE thin accent (b8d1ec16); hover a lighter wash (77225941).
         .background(MacSelectionStyle.fill(isSelected: isSelected, hovering: hovering),
-                    in: RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8)
+                    in: RoundedRectangle(cornerRadius: AstridTokens.Layout.Compact.rowRadius))
+        .overlay(RoundedRectangle(cornerRadius: AstridTokens.Layout.Compact.rowRadius)
             .stroke(MacSelectionStyle.borderColor(isSelected: isSelected, hovering: hovering),
                     lineWidth: MacSelectionStyle.borderWidth(isSelected: isSelected)))
-        .onHover { h in withAnimation(.easeOut(duration: 0.1)) { hovering = h } }
+        .onHover { h in withAnimation(ReducedMotion.hover) { hovering = h } }
         .padding(.leading, 8 + MacRowHitArea.indent(level: indent))   // per-level indent, capped at 4
         .padding(.trailing, trailingInset)
         .padding(.vertical, 3)
