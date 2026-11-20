@@ -47,6 +47,14 @@ enum DoneSince: Equatable, Hashable {
         }
     }
 
+    /// What the board asks astrid-core for (ADEV-140): `"all"`, or the period's start as an
+    /// RFC 3339 instant. The core then holds every card finished since it, in place of the list's
+    /// recently-completed window — a day by default, which capped every period at the last day.
+    func wireValue(now: Date = Date(), calendar: Calendar = .current) -> String {
+        guard let start = start(now: now, calendar: calendar) else { return "all" }
+        return start.formatted(.iso8601)
+    }
+
     /// The Done cards finished since the start, in their order. Open tasks never count.
     func filter(_ tasks: [Task], now: Date = Date(), calendar: Calendar = .current) -> [Task] {
         let start = start(now: now, calendar: calendar)

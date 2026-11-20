@@ -92,8 +92,16 @@ struct ProjectStatusBoardView: View {
     /// What the core is asked for: the board's list, whose manual order and Done window arrange
     /// the cards, or the project alone when this client has no list of it yet.
     private var boardQuery: BoardModel.Query {
-        BoardModel.Query(listId: projectDomainList?.id, projectId: projectId)
+        BoardModel.Query(listId: projectDomainList?.id, projectId: projectId,
+                         doneSince: doneSince.wireValue())
     }
+
+    /// How far back Done goes — the period its header names (ADEV-131). Part of what the core is
+    /// asked, so Done holds every card finished since it rather than the list's window (ADEV-140).
+    @State private var doneSince: DoneSince = .default
+
+    /// What `doneSince` is saved under: the board's list, else the project.
+    private var doneSinceKey: String { projectDomainList?.id ?? projectId }
 
     private var columns: [ProjectBoardColumn] {
         board.columns.map(\.column)
@@ -161,7 +169,8 @@ struct ProjectStatusBoardView: View {
                                                 boardFrame: geo.frame(in: .global),
                                                 proxy: proxy)
                             },
-                            onRefresh: onRefresh
+                            onRefresh: onRefresh,
+                            doneSince: $doneSince
                         )
                         // Match the floating header's `.padding(.horizontal, 8)`
                         // so the column's border lines up under the header
@@ -196,6 +205,12 @@ struct ProjectStatusBoardView: View {
                 if visibleColumnId == nil {
                     visibleColumnId = initialBoardColumnId(columns, multiColumn: multiColumn)
                 }
+            }
+            .task(id: doneSinceKey) {
+                doneSince = DoneSince.load(listId: doneSinceKey, userId: AuthManager.shared.userId)
+            }
+            .onChange(of: doneSince) { _, since in
+                since.save(listId: doneSinceKey, userId: AuthManager.shared.userId)
             }
             .task(id: boardQuery) { board.update(boardQuery) }
             .onDisappear {

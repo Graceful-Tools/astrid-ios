@@ -67,7 +67,11 @@ struct MacBoardView: View {
     /// How far back Done goes on this list's board, per person (ADEV-131).
     @State private var doneSince: DoneSince = .default
 
-    private var query: BoardModel.Query { BoardModel.Query(listId: listId, rowOfProjectId: rowOfProjectId) }
+    /// The period Done's header names is part of the question, so Done holds every card finished
+    /// since it rather than the list's window (ADEV-140).
+    private var query: BoardModel.Query {
+        BoardModel.Query(listId: listId, rowOfProjectId: rowOfProjectId, doneSince: doneSince.wireValue())
+    }
 
     /// Each column's cards, from the core's ids: the service's own tasks.
     private func cardsByColumn() -> [String: [Task]] {
