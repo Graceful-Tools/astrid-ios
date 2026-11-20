@@ -167,7 +167,7 @@ final class EmpathyArtTests: XCTestCase {
     // MARK: - Who may show it
 
     func testADEV127OnlyAstridsOwnCharacterGetsTheOctopusArt() {
-        XCTAssertTrue(EmpathyArt.brandMayShow(characterImage: "AstridCharacter"))
+        XCTAssertTrue(EmpathyArt.brandMayShow(characterImage: Brand.astridCharacterAsset))
         XCTAssertFalse(EmpathyArt.brandMayShow(characterImage: "whitelabel-logo"),
                        "a partner brand must never show Astrid's mascot")
         XCTAssertFalse(EmpathyArt.brandMayShow(characterImage: nil))

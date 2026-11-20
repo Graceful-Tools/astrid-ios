@@ -74,7 +74,7 @@ nonisolated enum EmpathyArt {
     /// The art is Astrid's octopus, so only a build showing Astrid's own character may draw it —
     /// a partner's board showing our mascot is the leak `Brand.characterImage` exists to stop.
     static func brandMayShow(characterImage: String?) -> Bool {
-        characterImage == "AstridCharacter"
+        characterImage == Brand.astridCharacterAsset
     }
 
     /// "Downtime": Wi-Fi or Ethernet, and not Low Data Mode. Never spend someone's cellular plan
