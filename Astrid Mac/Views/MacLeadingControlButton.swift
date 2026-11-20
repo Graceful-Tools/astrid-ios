@@ -168,7 +168,8 @@ struct MacLeadingControlButton: View {
                                 onToggleComplete()
                             })
                     } else {
-                    MarkDoneQuickSetRow(completed: task.completed) {
+                    MarkDoneQuickSetRow(completed: task.completed, priority: priority.rawValue,
+                                        repeating: TaskCheckboxAsset.isRepeating(task.repeating)) {
                         isPresented = false
                         onToggleComplete()
                     }

@@ -545,20 +545,10 @@ struct TaskRowView: View {
 
     /// Custom checkbox image matching mobile web design
     private var checkboxImage: some View {
-        let priorityValue = task.priority.rawValue
-        let isRepeating = task.repeating != nil && task.repeating != .never
-        let isChecked = task.completed
-
-        // Build image name: check_box[_repeat][_checked]_<priority>
-        var imageName = "check_box"
-        if isRepeating {
-            imageName += "_repeat"
-        }
-        if isChecked {
-            imageName += "_checked"
-        }
-        imageName += "_\(priorityValue)"
-
+        // check_box[_repeat][_checked]_<priority>, the shared rule (ADEV-148).
+        let imageName = TaskCheckboxAsset.name(priority: task.priority.rawValue,
+                                               completed: task.completed,
+                                               repeating: TaskCheckboxAsset.isRepeating(task.repeating))
         return Image(imageName)
             .resizable()
             .aspectRatio(contentMode: .fit)
