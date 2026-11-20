@@ -67,6 +67,11 @@ class SyncManager: ObservableObject {
             await UserImageCache.shared.cacheFromLists(lists)
             await UserImageCache.shared.cacheFromTasks(tasks)
         }
+        // The hi-fi board art, in downtime only: it decides for itself whether the network is
+        // unmetered and a check is due, and does nothing otherwise (ADEV-127).
+        _Concurrency.Task(priority: .background) {
+            await EmpathyArtService.shared.prefetchIfIdle()
+        }
 
         let syncTime = Date()
         lastSyncDate = syncTime

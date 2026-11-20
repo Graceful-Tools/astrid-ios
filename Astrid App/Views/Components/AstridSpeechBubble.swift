@@ -8,11 +8,20 @@ struct AstridSpeechBubble: View {
     @AppStorage("themeMode") private var themeMode: String = "ocean"
 
     let message: String
+    /// Art to draw in place of the brand character — a board column's cached hi-fi empathy
+    /// frame (ADEV-127). Nil draws the built-in character, as always.
+    var character: PlatformImage? = nil
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
+            if let character {
+                Image(platformImage: character)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 160, height: 160)
+                    .accessibilityHidden(true)
+            } else if let character = Brand.characterImage {
             // Astrid character (2x size for better visibility in reminders)
-            if let character = Brand.characterImage {
                 Image(character)
                     .resizable()
                     .aspectRatio(contentMode: .fit)

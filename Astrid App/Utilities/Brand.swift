@@ -91,8 +91,12 @@ enum Brand {
     /// shows its own character and a partner shows none — Astrid's mascot on a partner's
     /// sign-in screen is exactly the leak this exists to stop. Art the build does not carry
     /// is hidden rather than drawn as an empty frame.
+    /// Astrid's own character asset — what `characterImage` is when this build is Astrid's,
+    /// and how art drawn of that character (the hi-fi board frames, ADEV-127) knows it may show.
+    nonisolated static let astridCharacterAsset = "AstridCharacter"
+
     static func resolveCharacterImage(_ configured: String?, appName: String, exists: (String) -> Bool) -> String? {
-        let astrid = "AstridCharacter"
+        let astrid = astridCharacterAsset
         guard let configured else { return appName == "Astrid" ? astrid : nil }
         let name = ((configured as NSString).lastPathComponent as NSString).deletingPathExtension
         if name == "astrid-character" { return astrid }

@@ -11,7 +11,7 @@ This page is the policy a partner can review, and `npm run check:contracts` enfo
 | What | When | Who receives it |
 |---|---|---|
 | **The server in use** | Everything: sign-in, tasks, lists, comments, chat, sync, live updates, attachments, agent work. The `x-platform` analytics header goes only here. | Your server |
-| **Addresses your server returns** | Images and files whose URLs come from your server's data: profile photos, attachments, list images. | Wherever those URLs point: your storage, or a photo host a user's sign-in provider gave |
+| **Addresses your server returns** | Images and files whose URLs come from your server's data: profile photos, attachments, list images, and the optional board art (`/api/v1/empathy-art`, fetched only on Wi-Fi/Ethernet outside Low Data Mode). | Wherever those URLs point: your storage, or a photo host a user's sign-in provider gave |
 | **Pages the person opens** | Links they tap: a help page for AI keys, a task link opened in the browser, your server's sign-in page. | That site, from the browser |
 | **Apple** | The operating system: App Store installs and updates, and the crash reports and usage statistics the person chose to share with app developers. | Apple, then the app's publisher. See below. |
 | **Google / Apple sign-in** | **Only on Astrid's own server.** On your server these buttons are hidden, and sign-in happens on your server's page. | Google or Apple |
