@@ -758,6 +758,7 @@ class AuthManager: ObservableObject {
         SelfProfileOverride.shared.clear()
         ImageCache.shared.clearCache()
         AIAgentCache.shared.clear()
+        EmpathyArtService.shared.clear()
 
         AppLog.debug("✅ [AuthManager] All user data cleared successfully")
 

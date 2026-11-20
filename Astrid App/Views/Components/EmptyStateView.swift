@@ -7,6 +7,8 @@ struct EmptyStateView: View {
     let message: String
     let buttonTitle: String?
     let buttonAction: (() -> Void)?
+    /// Hi-fi art to show instead of the brand character (ADEV-127); nil keeps the character.
+    let character: PlatformImage?
 
     /// Create an empty state view with Astrid character
     /// - Parameters:
@@ -16,8 +18,10 @@ struct EmptyStateView: View {
     init(
         message: String,
         buttonTitle: String? = nil,
-        buttonAction: (() -> Void)? = nil
+        buttonAction: (() -> Void)? = nil,
+        character: PlatformImage? = nil
     ) {
+        self.character = character
         self.message = message
         self.buttonTitle = buttonTitle
         self.buttonAction = buttonAction
@@ -29,7 +33,7 @@ struct EmptyStateView: View {
 
             VStack(spacing: Theme.spacing24) {
                 // Astrid with speech bubble (reusable component)
-                AstridSpeechBubble(message: message)
+                AstridSpeechBubble(message: message, character: character)
                     .padding(.horizontal, Theme.spacing24)
 
                 // Optional action button

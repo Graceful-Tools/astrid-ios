@@ -114,6 +114,8 @@ struct BoardColumnView: View {
     @Environment(\.colorScheme) var colorScheme
     @ThemedPalette private var palette
     @AppStorage("themeMode") private var themeMode: String = "ocean"
+    /// The cached hi-fi empathy frame, when there is one (ADEV-127).
+    @ObservedObject private var empathyArt = EmpathyArtService.shared
 
     let column: ProjectBoardColumn
     let tasks: [Task]
@@ -417,7 +419,8 @@ struct BoardColumnView: View {
                 // Same EmptyStateView (Astrid + speech bubble) the flat
                 // list view uses — board columns get the same friendly
                 // empty state instead of a bare "No tasks" label.
-                EmptyStateView(message: emptyColumnMessage)
+                EmptyStateView(message: emptyColumnMessage,
+                               character: empathyArt.frame(listId: selectedList?.id, column: column))
                     .padding(.vertical, 8)
             }
         }

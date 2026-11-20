@@ -33,6 +33,8 @@ struct MacBoardView: View {
     @AppStorage("macDetailFullScreen") private var detailFullScreen = false
     @State private var hoveredCardId: String?    // Mac hover affordance (77225941)
     @StateObject private var memberService = ListMemberService.shared
+    /// The cached hi-fi empathy frame for an empty column (ADEV-127).
+    @ObservedObject private var empathyArt = EmpathyArtService.shared
     /// Priority being picked on a card, before the save lands (task 9be8cb1b).
     ///
     /// `MacPriorityPicker` WRITES its binding as well as calling `onSelect`, so a read-only
@@ -140,6 +142,15 @@ struct MacBoardView: View {
                 }
                 // An empty column says something about its own state, as on iOS (ADEV-81).
                 if items.isEmpty {
+                    // The hi-fi art, once today's set is cached; a project's short rows skip it so
+                    // one board never shows a different metaphor per row (ADEV-127).
+                    if rowOfProjectId == nil, let frame = empathyArt.frame(listId: listId, column: col) {
+                        Image(platformImage: frame)
+                            .resizable().aspectRatio(contentMode: .fit)
+                            .frame(width: 120, height: 120)
+                            .frame(maxWidth: .infinity)
+                            .accessibilityHidden(true)
+                    }
                     Text(BoardColumnEmptyMessage.decide(col).text)
                         .macFont(.caption).foregroundStyle(Theme.textMuted)
                         .multilineTextAlignment(.center)

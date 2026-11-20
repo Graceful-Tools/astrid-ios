@@ -10,6 +10,8 @@ class NetworkMonitor: ObservableObject {
     @Published var isConnected = false
     @Published var connectionType: ConnectionType = .unknown
     @Published var connectionQuality: ConnectionQuality = .unknown
+    /// Low Data Mode (or another constrained path). Optional downloads wait it out (ADEV-127).
+    @Published var isConstrained = false
 
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "NetworkMonitor")
@@ -19,7 +21,7 @@ class NetworkMonitor: ObservableObject {
     private let flakyWindowSeconds: TimeInterval = 300  // 5 minutes
     private let flakyThreshold = 3  // 3+ disconnects = flaky
 
-    enum ConnectionType {
+    nonisolated enum ConnectionType: Sendable {
         case wifi
         case cellular
         case ethernet
@@ -60,6 +62,7 @@ class NetworkMonitor: ObservableObject {
                 strongSelf.isConnected = path.status == .satisfied
                 strongSelf.updateConnectionType(path)
                 strongSelf.updateConnectionQuality(path)
+                strongSelf.isConstrained = path.isConstrained
 
                 if path.status == .satisfied {
                     AppLog.debug("🌐 [NetworkMonitor] Network connection restored (quality: \(strongSelf.connectionQuality))")

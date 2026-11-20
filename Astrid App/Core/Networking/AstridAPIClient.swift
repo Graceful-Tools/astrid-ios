@@ -257,6 +257,12 @@ class AstridAPIClient {
         )
     }
 
+    /// The hi-fi empathy-state art manifest (ADEV-127; served since astrid-web ADEV-142).
+    /// Public and cacheable; the frames it names are fetched by `EmpathyArtService`.
+    func getEmpathyArtManifest() async throws -> EmpathyArtManifest {
+        return try await request(method: "GET", path: "/api/v1/empathy-art")
+    }
+
     // MARK: - Task Operations
 
     // A public list's tasks were the last read of `/api/v1/tasks`; they come from the core's

@@ -30,7 +30,7 @@ run's own session, to check what a journey persisted (AITD-527, AITD-528). That 
 not the app, so those paths are named here rather than listed below.
 
 
-## `AstridAPIClient` — the only client (17 paths)
+## `AstridAPIClient` — the only client (18 paths)
 
 
 ### `/api/v1/app-version`
@@ -45,6 +45,10 @@ not the app, so those paths are named here rather than listed below.
 - `/api/v1/auth/mobile-session`
 - `/api/v1/auth/mobile-signup`
 - `/api/v1/auth/signout`
+
+### `/api/v1/empathy-art`
+
+- `/api/v1/empathy-art`
 
 ### `/api/v1/github`
 
