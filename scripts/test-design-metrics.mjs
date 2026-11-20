@@ -11,13 +11,15 @@ import os from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { BUDGET_FILE, METRICS, count, isCopy, lowered, measure, overBudget, withoutComments } from './report-design-metrics.mjs'
+import { BUDGET_FILE, METRICS, TOKENS_FILE, count, isCopy, lowered, measure, overBudget, tokenEqualPattern, tokenValues, withoutComments } from './report-design-metrics.mjs'
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const script = path.join(repo, 'scripts/report-design-metrics.mjs')
 const metric = (id) => METRICS.find((m) => m.id === id)
 const source = (text, rel = 'Astrid App/Views/Example.swift') => [{ path: rel, source: text }]
-const n = (id, text, rel) => count(metric(id), source(text, rel))
+const TOKENS = 'enum AstridTokens {\n  enum Radius {\n    static let lg: CGFloat = 12\n  }\n  static let detailPanelRadius: CGFloat = 14\n  static let completePopScale: Double = 1.28\n  static let disabledOpacity: Double = 0.5\n}'
+const withTokens = (m) => (m.id === 'tokenEqualLiterals' ? { ...m, pattern: tokenEqualPattern(TOKENS) } : m)
+const n = (id, text, rel) => count(withTokens(metric(id)), source(text, rel))
 
 const made = []
 process.on('exit', () => { for (const dir of made) fs.rmSync(dir, { recursive: true, force: true }) })
@@ -35,7 +37,14 @@ test('every metric has a fixture that trips it', () => {
   const tripped = {
     colourLiterals: 'let a = Color(red: 0.1, green: 0.2, blue: 0.3); let b = Color(hex: "#fff"); let c = NSColor(red: 1, green: 0, blue: 0, alpha: 1)',
     namedSystemColours: '.foregroundColor(Color.blue); let x = UIColor.systemRed; let y = NSColor.white',
-    fontSizes: '.font(.system(size: 14, weight: .bold))',
+    shorthandSystemColours: '.foregroundColor(.green); .fill(.white.opacity(0.2)); .shadow(color: .black, radius: 2)',
+    fontSizes: '.font(.system(size: 14, weight: .bold)); .macFont(.system(size: 13))',
+    spacingLiterals: 'VStack(spacing: 8) {}; HStack(alignment: .top, spacing: 4) {}',
+    opacityLiterals: '.opacity(0.6); .opacity(.5)',
+    lineWidthLiterals: '.stroke(Theme.border, lineWidth: 1)',
+    frameLiterals: '.frame(width: 24, height: 24); .frame(maxWidth: .infinity, minHeight: 44)',
+    tokenEqualLiterals: 'RoundedRectangle(cornerRadius: 14); .scaleEffect(1.28)',
+    staticThemeText: '.foregroundColor(Theme.textSecondary)',
     cornerRadii: 'RoundedRectangle(cornerRadius: 8); view.cornerRadius(12)',
     paddingLiterals: '.padding(8).padding(.horizontal, 12).padding([.top, .leading], 4)',
     shadowLiterals: '.shadow(color: .black.opacity(0.1), radius: 4, y: 2)',
@@ -57,6 +66,53 @@ test('every metric has a fixture that trips it', () => {
   assert.equal(n('hardcodedCopy', tripped.hardcodedCopy), 3)
   assert.equal(n('uniqueHardcodedStrings', tripped.uniqueHardcodedStrings), 1)
   assert.equal(n('fixedThemePicks', tripped.fixedThemePicks), 4, 'two string comparisons, two fixed palette reads')
+  assert.equal(n('shorthandSystemColours', tripped.shorthandSystemColours), 3)
+  assert.equal(n('fontSizes', tripped.fontSizes), 2)
+  assert.equal(n('spacingLiterals', tripped.spacingLiterals), 2)
+  assert.equal(n('opacityLiterals', tripped.opacityLiterals), 2)
+  assert.equal(n('frameLiterals', tripped.frameLiterals), 2)
+  assert.equal(n('tokenEqualLiterals', tripped.tokenEqualLiterals), 2)
+})
+
+test('ADEV-167: a shorthand colour outside a colour argument is not counted', () => {
+  assert.equal(n('shorthandSystemColours', '.foregroundColor(.primary); .fill(Theme.accent); .tint(.accentColor); case .blue: break; .foregroundStyle(.secondary)'), 0)
+  assert.equal(n('frameLiterals', '.frame(maxWidth: .infinity); .frame(width: Theme.size.icon)'), 0)
+  assert.equal(n('spacingLiterals', 'VStack(spacing: AstridTokens.Space.s8) {}'), 0)
+})
+
+test('ADEV-167: token-equal literals follow the register, and only its distinctive values', () => {
+  assert.deepEqual(tokenValues(TOKENS), { radii: ['14', '12'], fractions: ['1.28'] })
+  assert.equal(n('tokenEqualLiterals', 'RoundedRectangle(cornerRadius: 12); .cornerRadius(14)'), 2)
+  assert.equal(n('tokenEqualLiterals', 'RoundedRectangle(cornerRadius: 13); .opacity(0.5); x = 11.28; y = 1.285; cornerRadius: 120'), 0)
+  assert.equal(tokenEqualPattern(null), null, 'no register, no pattern')
+})
+
+test('ADEV-167: staticThemeText is an iOS count; the Mac reads a themed Theme.text*', () => {
+  const root = fixture({
+    'Astrid App/Views/A.swift': 'Text("x").foregroundColor(Theme.textPrimary)',
+    'Astrid Mac/Views/B.swift': 'Text("x").foregroundColor(Theme.textPrimary)',
+  })
+  const counts = measure(root)
+  assert.equal(counts.ios.staticThemeText, 1)
+  assert.equal('staticThemeText' in counts.mac, false)
+  assert.equal(counts.ios.tokenEqualLiterals, 0, 'no AstridTokens.swift in the fixture')
+})
+
+test('ADEV-167 done-when: one more .foregroundColor(.green) or Mac .macFont(.system(size: fails the check', () => {
+  const root = fixture({
+    'Astrid App/Views/A.swift': 'Text("x").foregroundColor(.red)',
+    'Astrid Mac/Views/B.swift': 'Text("x").macFont(.system(size: 12))',
+    [TOKENS_FILE]: TOKENS,
+  })
+  const run = (...args) => spawnSync(process.execPath, [script, '--root', root, ...args], { encoding: 'utf8' })
+  assert.equal(run('--update').status, 0)
+  assert.equal(run('--check').status, 0)
+  fs.appendFileSync(path.join(root, 'Astrid App/Views/A.swift'), '\nText("y").foregroundColor(.green)')
+  fs.appendFileSync(path.join(root, 'Astrid Mac/Views/B.swift'), '\nText("y").macFont(.system(size: 13))')
+  const failed = run('--check')
+  assert.equal(failed.status, 1)
+  assert.match(failed.stdout, /ios\.shorthandSystemColours rose to 2 \(budget 1\)/)
+  assert.match(failed.stdout, /mac\.fontSizes rose to 2 \(budget 1\)/)
 })
 
 test('AITD-623: a theme resolved once is not a fixed pick', () => {

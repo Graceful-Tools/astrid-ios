@@ -3,7 +3,7 @@
 // asked of the design system and the string catalog (AITD-608).
 //
 //   npm run design:metrics                 # print the counts, iOS and Mac
-//   npm run check:design                   # fail if any count rose above its budget (predeploy)
+//   npm run check:design                   # fail if any count rose above its budget (predeploy, CI)
 //   npm run design:metrics -- --update     # lower the budgets to today's counts (never raises)
 //   npm run design:metrics -- --json       # machine-readable counts
 //   npm run design:metrics -- --root <dir> # count another checkout
@@ -38,13 +38,52 @@ export const TARGETS = {
 
 /**
  * The shared homes: where a literal value is the DEFINITION, so it is not counted.
- * Theme.swift holds the palette until AITD-605 moves it onto the vendored AstridTokens.swift;
- * Brand.swift holds the brand defaults (check-brand.sh polices those).
+ * AstridTokens.swift is the vendored astrid-core register (AITD-605); Theme.swift maps it onto
+ * the themes; Brand.swift holds the brand defaults (check-brand.sh polices those).
  */
 export const EXEMPT = /(^|\/)(Theme|Brand|AstridTokens)\.swift$/
 
 const SYSTEM_COLOURS =
   'red|orange|yellow|green|mint|teal|cyan|blue|indigo|purple|pink|brown|gray|grey|black|white'
+
+/** Calls whose first argument is a colour, so `.green` there is `Color.green` (ADEV-167). */
+const COLOUR_CALLS =
+  'foregroundColor|foregroundStyle|tint|accentColor|fill|stroke|strokeBorder|background|' +
+  'listRowBackground|border|overlay|backgroundStyle'
+
+/** Dimension labels of a `.frame(…)`. */
+const FRAME_DIMENSIONS = '(?:min|max|ideal)?(?:[Ww]idth|[Hh]eight)'
+
+/**
+ * Values of the vendored register that are distinctive enough to recognise when retyped: the
+ * radii, and every fractional value with two significant decimals (1.28, 0.85, 0.22…). A plain
+ * `8` or `0.5` is too common to attribute to one token; `cornerRadius: 14` or `1.28` is not.
+ */
+export function tokenValues(tokensSource) {
+  const radii = new Set()
+  const fractions = new Set()
+  for (const [, name, value] of tokensSource.matchAll(/static let (\w+):\s*(?:CGFloat|Double)\s*=\s*(\d+(?:\.\d+)?)\b/g)) {
+    if (/[Rr]adius$/.test(name)) radii.add(value)
+    if (/^\d+\.\d[1-9]$/.test(value)) fractions.add(value)
+  }
+  const radiusBlock = tokensSource.match(/enum Radius \{([^}]*)\}/)
+  for (const [, value] of radiusBlock?.[1].matchAll(/=\s*(\d+(?:\.\d+)?)/g) ?? []) radii.add(value)
+  return { radii: [...radii], fractions: [...fractions] }
+}
+
+const esc = (value) => value.replace('.', '\\.')
+
+/** The pattern for `tokenEqualLiterals`, built from the register in `root` (null: no register). */
+export function tokenEqualPattern(tokensSource) {
+  if (!tokensSource) return null
+  const { radii, fractions } = tokenValues(tokensSource)
+  const parts = []
+  if (radii.length) parts.push(`cornerRadius(?::\\s*|\\(\\s*)(?:${radii.map(esc).join('|')})(?![\\d.])`)
+  if (fractions.length) parts.push(`(?<![\\w.])(?:${fractions.map(esc).join('|')})(?![\\d])`)
+  return parts.length ? new RegExp(parts.join('|'), 'g') : null
+}
+
+export const TOKENS_FILE = 'Astrid App/Utilities/AstridTokens.swift'
 
 /**
  * The SwiftUI and AppKit calls whose first string argument is shown to a person. In SwiftUI a
@@ -71,7 +110,7 @@ export const METRICS = [
   {
     id: 'colourLiterals',
     what: 'colours written out: Color(red:…), Color(hex…), UIColor/NSColor(red:…)',
-    instead: 'a Theme colour (AstridTokens once AITD-605 lands); Brand.* for the brand',
+    instead: 'a Theme colour (AstridTokens); Brand.* for the brand',
     pattern: /\b(?:Color|UIColor|NSColor)\(\s*(?:red:|hex|\.sRGB|white:\s*[\d.])/g,
   },
   {
@@ -84,10 +123,22 @@ export const METRICS = [
     ),
   },
   {
+    // ADEV-167: `.foregroundColor(.green)` is Color.green without the prefix, and the pattern
+    // above needs the prefix, so ~160 sites passed uncounted.
+    id: 'shorthandSystemColours',
+    what: 'shorthand system colours in a colour argument (.foregroundColor(.green), color: .black)',
+    instead: 'a Theme colour, a status or priority token',
+    pattern: new RegExp(
+      `(?:\\.(?:${COLOUR_CALLS})\\(\\s*|\\bcolor:\\s*)\\.(?:${SYSTEM_COLOURS})\\b`,
+      'g',
+    ),
+  },
+  {
+    // ADEV-167: the Mac writes `.macFont(.system(size: 13))`, which `.font(` never matched.
     id: 'fontSizes',
-    what: '.font(.system(size: N…)',
+    what: '.font(.system(size: N…) and .macFont(.system(size: N…)',
     instead: 'a text style, or the type scale (TypeSize)',
-    pattern: /\.font\(\s*\.system\(\s*size:\s*\d/g,
+    pattern: /\.(?:font|macFont)\(\s*\.system\(\s*size:\s*\d/g,
   },
   {
     id: 'cornerRadii',
@@ -100,6 +151,38 @@ export const METRICS = [
     what: '.padding( with a number',
     instead: 'the spacing scale',
     pattern: /\.padding\(\s*(?:(?:\.[A-Za-z]+|\[[^\]\n]*\])\s*,\s*)?\d/g,
+  },
+  {
+    id: 'spacingLiterals',
+    what: 'stack and grid spacing: N',
+    instead: 'the spacing scale (AstridTokens.Space)',
+    pattern: /\bspacing:\s*\d/g,
+  },
+  {
+    id: 'opacityLiterals',
+    what: '.opacity( with a number',
+    instead: 'a state token (disabledOpacity, completedMarkOpacity, …) or a palette colour',
+    pattern: /\.opacity\(\s*\.?\d/g,
+  },
+  {
+    id: 'lineWidthLiterals',
+    what: 'lineWidth: N',
+    instead: 'a size token (hairline, selectionOutline)',
+    pattern: /\blineWidth:\s*\.?\d/g,
+  },
+  {
+    id: 'frameLiterals',
+    what: '.frame( with a literal width or height',
+    instead: 'a size or layout token',
+    pattern: new RegExp(`\\.frame\\([^)\\n]*?\\b${FRAME_DIMENSIONS}:\\s*\\d`, 'g'),
+  },
+  {
+    // ADEV-167: a value the register already names, typed out again (1.28, cornerRadius: 14).
+    // Built from AstridTokens.swift by `measure`, so it follows the register.
+    id: 'tokenEqualLiterals',
+    what: 'literals equal to a register value (cornerRadius: 14, 1.28, 0.85)',
+    instead: 'the token that holds that value',
+    pattern: null,
   },
   {
     id: 'shadowLiterals',
@@ -127,6 +210,16 @@ export const METRICS = [
     what: 'fixed Theme.Dark.* / Theme.Ocean.* reads and `== "dark"` theme-string comparisons',
     instead: 'the resolved palette for the current theme (register DS8)',
     pattern: /\bTheme\.(?:Dark|Ocean)\.|[!=]=\s*"(?:dark|ocean|light)"/g,
+  },
+  {
+    // ADEV-167 (register DS1, DS8). On iOS `Theme.textPrimary` is `light.textPrimary`, fixed, so
+    // a view reading it shows light-theme text on Dark and Ocean. The Mac's is themed, so this
+    // counts iOS only.
+    id: 'staticThemeText',
+    what: 'static Theme.text* reads (fixed to the light palette on iOS)',
+    instead: 'the resolved palette for the current theme (register DS8)',
+    pattern: /\bTheme\.text[A-Z]\w*/g,
+    targets: ['ios'],
   },
   {
     id: 'hardcodedCopy',
@@ -190,6 +283,7 @@ export function withoutComments(source) {
 
 /** How many times `metric` fires across `files` ([{ path, source }]). */
 export function count(metric, files) {
+  if (!metric.pattern) return 0
   const seen = new Set()
   let total = 0
   for (const { path: rel, source } of files) {
@@ -224,10 +318,16 @@ function swiftFiles(root, dir) {
 
 /** { ios: { metricId: n }, mac: { … } } for the checkout at `root`. */
 export function measure(root) {
+  const tokensPath = path.join(root, TOKENS_FILE)
+  const tokensSource = fs.existsSync(tokensPath) ? fs.readFileSync(tokensPath, 'utf8') : null
+  const metrics = METRICS.map((m) =>
+    m.id === 'tokenEqualLiterals' ? { ...m, pattern: tokenEqualPattern(tokensSource) } : m)
   const result = {}
   for (const [target, dirs] of Object.entries(TARGETS)) {
     const files = dirs.flatMap((dir) => swiftFiles(root, dir))
-    result[target] = Object.fromEntries(METRICS.map((m) => [m.id, count(m, files)]))
+    result[target] = Object.fromEntries(metrics
+      .filter((m) => !m.targets || m.targets.includes(target))
+      .map((m) => [m.id, count(m, files)]))
   }
   return result
 }
@@ -288,6 +388,7 @@ function main(argv) {
   console.log(`${'metric'.padEnd(width)}   ${'iOS'.padStart(11)}   ${'Mac'.padStart(11)}`)
   const cell = (target, id) => {
     const n = counts[target][id]
+    if (n === undefined) return '–'.padStart(11)
     const limit = budget?.[target]?.[id]
     return (limit === undefined ? `${n}` : `${n}/${limit}`).padStart(11)
   }

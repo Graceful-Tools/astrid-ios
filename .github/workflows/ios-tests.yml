@@ -31,6 +31,28 @@ concurrency:
 # automatic failover. Use a manual dispatch with macos-latest for the hosted backup.
 
 jobs:
+  # The design ratchet (AITD-608, ADEV-167): hand-written colours, sizes, spacing, opacity and copy,
+  # counted per target against scripts/design-metrics.budget.json; a count may only fall. Node
+  # built-ins only, so it runs on a hosted runner in seconds instead of queueing behind the
+  # simulator jobs on the dedicated one. predeploy runs the same check locally.
+  design-ratchet:
+    name: 'Design ratchet'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Self-test the counts
+        run: node --test scripts/test-design-metrics.mjs
+
+      - name: Check the counts against their budgets
+        run: node scripts/report-design-metrics.mjs --check
+
   unit-tests:
     name: 'Unit Tests'
     runs-on: ${{ fromJSON(inputs.runner == 'macos-latest' && '["macos-latest"]' || '["self-hosted","astrid-ios"]') }}
