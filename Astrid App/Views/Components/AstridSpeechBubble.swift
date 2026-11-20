@@ -1,104 +1,142 @@
 import SwiftUI
 
-/// Reusable Astrid character with speech bubble
-/// Used in EmptyStateView and ReminderView
+/// How much room an empty state's art gets (ADEV-166): iOS's full 160 pt, the Mac's denser
+/// window, where a pane or a board column is smaller and read at desk distance, or none at all —
+/// a project's short board rows, which skip the art so one board never shows a different metaphor
+/// per row (ADEV-127).
+enum EmptyStateDensity {
+    case regular, compact, textOnly
+
+    var artSize: CGFloat {
+        switch self {
+        case .regular: return 160
+        case .compact: return 96
+        case .textOnly: return 0
+        }
+    }
+}
+
+/// The one empty state (ADEV-166): Astrid — or a board column's hi-fi art — beside a speech
+/// bubble. iOS's `EmptyStateView`, `ReminderView`, the Mac's `MacEmptyState` and an empty Mac board
+/// column all draw through it; only the art size (`density`) differs.
 struct AstridSpeechBubble: View {
-    @Environment(\.colorScheme) var colorScheme
     @ThemedPalette private var palette
     @AppStorage("themeMode") private var themeMode: String = "ocean"
 
     let message: String
+    /// A muted second line under the message (the Mac's search hint, "clear the filter"…).
+    var detail: String? = nil
     /// Art to draw in place of the brand character — a board column's cached hi-fi empathy
     /// frame (ADEV-127). Nil draws the built-in character, as always.
     var character: PlatformImage? = nil
+    var density: EmptyStateDensity = .regular
+    /// Names the message for the UI suite when the copy is localized (AITD-526).
+    var messageIdentifier: String? = nil
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            if let character {
+            if density == .textOnly {
+                EmptyView()
+            } else if let character {
                 Image(platformImage: character)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 160, height: 160)
+                    .frame(width: density.artSize, height: density.artSize)
                     .accessibilityHidden(true)
             } else if let character = Brand.characterImage {
-            // Astrid character (2x size for better visibility in reminders)
                 Image(character)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 160, height: 160)
+                    .frame(width: density.artSize, height: density.artSize)
             }
 
             // Speech bubble (flexible width)
             ZStack(alignment: .leading) {
                 // Bubble content
-                Text(message)
-                    .font(Theme.Typography.body())
-                    .fontWeight(.semibold)
-                    .foregroundColor(getTextColor())
-                    .padding(Theme.spacing16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(getBubbleBackground())
-                    .cornerRadius(16)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(getBubbleBorder(), lineWidth: 2)
-                    )
+                VStack(alignment: .leading, spacing: Theme.spacing4) {
+                    messageText
+                    if let detail {
+                        detailText(detail)
+                    }
+                }
+                .padding(density == .regular ? Theme.spacing16 : Theme.spacing12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(getBubbleBackground())
+                .cornerRadius(16)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(getBubbleBorder(), lineWidth: 2)
+                )
 
                 // Speech bubble pointer (comic-style arrow pointing left to Astrid)
                 // Matches web design: layered triangles for border effect
-                GeometryReader { geometry in
-                    let centerY = geometry.size.height / 2
+                if density != .textOnly {
+                    GeometryReader { geometry in
+                        let centerY = geometry.size.height / 2
 
-                    ZStack {
-                        // Outer triangle (border) - 16px wide total, extends 3px into bubble
-                        Path { path in
-                            path.move(to: CGPoint(x: -16, y: centerY))           // Left point (centered)
-                            path.addLine(to: CGPoint(x: 3, y: centerY - 12))    // Top right (16px wide + 3px overlap)
-                            path.addLine(to: CGPoint(x: 3, y: centerY + 12))    // Bottom right
-                            path.closeSubpath()
-                        }
-                        .fill(getPointerBorderColor())
+                        ZStack {
+                            // Outer triangle (border) - 16px wide total, extends 3px into bubble
+                            Path { path in
+                                path.move(to: CGPoint(x: -16, y: centerY))           // Left point (centered)
+                                path.addLine(to: CGPoint(x: 3, y: centerY - 12))    // Top right (16px wide + 3px overlap)
+                                path.addLine(to: CGPoint(x: 3, y: centerY + 12))    // Bottom right
+                                path.closeSubpath()
+                            }
+                            .fill(getPointerBorderColor())
 
-                        // Inner triangle (fill) - 13px wide total, extends 3px into bubble
-                        Path { path in
-                            path.move(to: CGPoint(x: -13, y: centerY))           // Left point (3px inset)
-                            path.addLine(to: CGPoint(x: 3, y: centerY - 9.5))   // Top right (13px wide + 3px overlap)
-                            path.addLine(to: CGPoint(x: 3, y: centerY + 9.5))   // Bottom right
-                            path.closeSubpath()
+                            // Inner triangle (fill) - 13px wide total, extends 3px into bubble
+                            Path { path in
+                                path.move(to: CGPoint(x: -13, y: centerY))           // Left point (3px inset)
+                                path.addLine(to: CGPoint(x: 3, y: centerY - 9.5))   // Top right (13px wide + 3px overlap)
+                                path.addLine(to: CGPoint(x: 3, y: centerY + 9.5))   // Bottom right
+                                path.closeSubpath()
+                            }
+                            .fill(getBubbleBackground())
                         }
-                        .fill(getBubbleBackground())
+                        .offset(x: 0, y: 0)  // Positioned at bubble edge
                     }
-                    .offset(x: 0, y: 0)  // Positioned at bubble edge
                 }
             }
         }
     }
 
+    // MARK: - Text
+
+    @ViewBuilder
+    private var messageText: some View {
+        let text = Text(message)
+            #if os(macOS)
+            .macFont(.body.weight(.semibold))
+            #else
+            .font(Theme.Typography.body())
+            .fontWeight(.semibold)
+            #endif
+            .foregroundColor(palette.textPrimary)
+        if let messageIdentifier {
+            text.accessibilityIdentifier(messageIdentifier)
+        } else {
+            text
+        }
+    }
+
+    private func detailText(_ detail: String) -> some View {
+        Text(detail)
+            #if os(macOS)
+            .macFont(.caption)
+            #else
+            .font(Theme.Typography.caption1())
+            #endif
+            .foregroundColor(palette.textMuted)
+    }
+
     // MARK: - Theme Helpers
+    //
+    // The palette already resolves Ocean (black text on a white bubble with a cyan border), so the
+    // fixed `Theme.Ocean.*` reads these used to make are the palette's own values.
 
-    /// Get text color for speech bubble - black on Ocean theme
-    private func getTextColor() -> Color {
-        if themeMode == "ocean" {
-            return Theme.Ocean.textPrimary  // Black text on Ocean theme
-        }
-        return palette.textPrimary
-    }
+    private func getBubbleBackground() -> Color { palette.bgSecondary }
 
-    /// Get bubble background color - white on all themes
-    private func getBubbleBackground() -> Color {
-        if themeMode == "ocean" {
-            return Theme.Ocean.bgSecondary  // White bubble on cyan background
-        }
-        return palette.bgSecondary
-    }
-
-    /// Get bubble border color - cyan on Ocean theme
-    private func getBubbleBorder() -> Color {
-        if themeMode == "ocean" {
-            return Theme.Ocean.border  // Cyan border on Ocean theme
-        }
-        return palette.border
-    }
+    private func getBubbleBorder() -> Color { palette.border }
 
     /// Get pointer border color - cyan on Ocean theme
     private func getPointerBorderColor() -> Color {
@@ -122,6 +160,6 @@ struct AstridSpeechBubble: View {
         AstridSpeechBubble(message: "Time to work! I promise you'll feel better if you finish this!")
             .padding()
     }
-    .background(Theme.Dark.bgPrimary)
+    .background(Theme.bgPrimary)
     .preferredColorScheme(.dark)
 }

@@ -117,16 +117,20 @@ struct MacBoardView: View {
                     // "Done … 15 ✓ This week", on the right — a click picks how far back
                     // (ADEV-131, ADEV-134).
                     Spacer()
+                    // iOS's capsule (ADEV-166): the shared header badge IS the button.
                     DoneSinceMenu(since: $doneSince, count: items.count) { text in
-                        HStack(spacing: Theme.spacing4) {
-                            Text(verbatim: text)
-                            Image(systemName: "chevron.down").imageScale(.small)
+                        BoardHeaderBadge {
+                            HStack(spacing: Theme.spacing4) {
+                                Text(verbatim: text)
+                                Image(systemName: "chevron.down").imageScale(.small)
+                            }
                         }
-                        .macFont(.caption).foregroundStyle(Theme.textMuted)
                     }
-                    .menuStyle(.borderlessButton)
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
                 } else {
-                    Text("\(items.count)").macFont(.caption).foregroundStyle(Theme.textMuted)
+                    Spacer()
+                    BoardHeaderBadge { Text(verbatim: "\(items.count)") }
                 }
             }
             .help(col.description)
@@ -142,20 +146,16 @@ struct MacBoardView: View {
                 }
                 // An empty column says something about its own state, as on iOS (ADEV-81).
                 if items.isEmpty {
-                    // The hi-fi art, once today's set is cached; a project's short rows skip it so
-                    // one board never shows a different metaphor per row (ADEV-127).
-                    if rowOfProjectId == nil, let frame = empathyArt.frame(listId: listId, column: col) {
-                        Image(platformImage: frame)
-                            .resizable().aspectRatio(contentMode: .fit)
-                            .frame(width: 120, height: 120)
-                            .frame(maxWidth: .infinity)
-                            .accessibilityHidden(true)
-                    }
-                    Text(BoardColumnEmptyMessage.decide(col).text)
-                        .macFont(.caption).foregroundStyle(Theme.textMuted)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                        .accessibilityIdentifier("board.column.empty.\(col.id)")
+                    // The shared empty state at the Mac's density, as on iOS (ADEV-166). The hi-fi
+                    // art, once today's set is cached; a project's short rows skip it so one board
+                    // never shows a different metaphor per row (ADEV-127).
+                    AstridSpeechBubble(
+                        message: BoardColumnEmptyMessage.decide(col).text,
+                        character: rowOfProjectId == nil ? empathyArt.frame(listId: listId, column: col) : nil,
+                        density: rowOfProjectId == nil ? .compact : .textOnly,
+                        messageIdentifier: "board.column.empty.\(col.id)")
+                        .padding(.leading, rowOfProjectId == nil ? Theme.spacing16 : 0)
+                        .padding(.vertical, Theme.spacing8)
                 }
             }
             .macScrollBars(showScrollBars)
