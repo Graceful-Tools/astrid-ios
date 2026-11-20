@@ -12,9 +12,9 @@ enum MacChatBubbleStyle {
         return authorId == currentUserId
     }
 
-    /// Bubble fill: mine = accent tint; agent = purple tint; others = theme card.
+    /// Bubble fill: mine = accent tint; agent = the palette's agentBubble (ADEV-165); others = theme card.
     static func fill(isMine: Bool, isAgent: Bool) -> Color {
-        if isAgent { return Color.purple.opacity(0.14) }
+        if isAgent { return Theme.palette.agentBubble }
         if isMine { return Theme.accent.opacity(0.16) }
         return Theme.bgSecondary
     }

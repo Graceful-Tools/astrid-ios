@@ -69,6 +69,22 @@ struct Theme {
         }
     }
 
+    /// The whole selected palette, for the tokens Theme does not mirror one by one — the agent
+    /// colours, the `category<Hue>` pairs and `surfaceInverse` (ADEV-165, DS27–DS29). iOS reads the
+    /// same palette through `@ThemedPalette`.
+    static var palette: AstridTokens.Palette { palette(mode: currentThemeMode) }
+
+    static func palette(mode: String) -> AstridTokens.Palette {
+        switch mode {
+        case "dark":  return AstridTokens.dark
+        case "ocean": return AstridTokens.ocean
+        case "light": return AstridTokens.light
+        default:
+            let isDark = NSApp?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return isDark ? AstridTokens.dark : AstridTokens.light
+        }
+    }
+
     // MARK: - Background Colors
     static var bgPrimary: Color { themed(light: light.bgPrimary, dark: Dark.bgPrimary, ocean: Ocean.bgPrimary) }
     static var bgSecondary: Color { themed(light: light.bgSecondary, dark: Dark.bgSecondary, ocean: Ocean.bgSecondary) }

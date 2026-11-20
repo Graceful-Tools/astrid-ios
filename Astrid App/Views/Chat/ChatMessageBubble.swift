@@ -43,15 +43,8 @@ struct ChatMessageBubble: View {
         }
     }
 
-    private var agentBubbleBackground: Color {
-        if effectiveTheme == "ocean" {
-            return Color(red: 237/255, green: 233/255, blue: 254/255)  // Light purple
-        } else if effectiveTheme == "dark" {
-            return Color(red: 55/255, green: 48/255, blue: 83/255)    // Dark purple
-        } else {
-            return Color(red: 243/255, green: 240/255, blue: 255/255) // Very light purple
-        }
-    }
+    /// The palette's agent bubble — the same token the Mac bubble reads (ADEV-165).
+    private var agentBubbleBackground: Color { palette.agentBubble }
 
     private var contextMenu: some View {
         Group {
@@ -144,13 +137,13 @@ struct ChatMessageBubble: View {
                 if message.isFromAgent {
                     Image(systemName: "sparkles")
                         .font(.system(size: 10))
-                        .foregroundColor(.purple)
+                        .foregroundColor(palette.agentInk)
                 }
 
                 Text(isCurrentUser ? NSLocalizedString("assignee.you", comment: "You") : (message.author?.displayName ?? "Unknown"))
                     .font(Theme.Typography.caption2())
                     .fontWeight(.medium)
-                    .foregroundColor(message.isFromAgent ? .purple : (palette.textMuted))
+                    .foregroundColor(message.isFromAgent ? palette.agentInk : (palette.textMuted))
 
                 if let createdAt = message.createdAt {
                     Text("·")
@@ -227,13 +220,13 @@ struct ChatMessageBubble: View {
                     .clipShape(Circle())
             } else {
                 Circle()
-                    .fill(message.isFromAgent ? Color.purple.opacity(0.2) : Theme.accent.opacity(0.2))
+                    .fill(message.isFromAgent ? palette.agentBubble : Theme.accent.opacity(0.2))
                     .frame(width: 32, height: 32)
 
                 if message.isFromAgent {
                     Image(systemName: "sparkles")
                         .font(.system(size: 14))
-                        .foregroundColor(.purple)
+                        .foregroundColor(palette.agentInk)
                 } else {
                     Text(message.author?.initials ?? "?")
                         .font(.system(size: 13, weight: .semibold))

@@ -98,11 +98,11 @@ struct ListAgentSettingsView: View {
                                     } else {
                                         ZStack {
                                             Circle()
-                                                .fill(Color.purple.opacity(0.15))
+                                                .fill(palette.agentBubble)
                                                 .frame(width: 32, height: 32)
                                             Image(systemName: "sparkles")
                                                 .font(.system(size: 14))
-                                                .foregroundColor(.purple)
+                                                .foregroundColor(palette.agentInk)
                                         }
                                     }
 
@@ -112,7 +112,7 @@ struct ListAgentSettingsView: View {
                                             .foregroundColor(palette.textPrimary)
                                         Text(agent.serviceDisplayName)
                                             .font(Theme.Typography.caption2())
-                                            .foregroundColor(.purple)
+                                            .foregroundColor(palette.agentInk)
                                     }
 
                                     Spacer()

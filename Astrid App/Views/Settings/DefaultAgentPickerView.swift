@@ -67,7 +67,7 @@ struct DefaultAgentPickerView: View {
                                     Circle()
                                         .fill(
                                             LinearGradient(
-                                                colors: [.blue, .purple, .pink],
+                                                colors: [palette.categoryBlue, palette.categoryPurple, palette.categoryPink],
                                                 startPoint: .topLeading,
                                                 endPoint: .bottomTrailing
                                             )
@@ -111,7 +111,7 @@ struct DefaultAgentPickerView: View {
                                         .foregroundColor(palette.textPrimary)
                                     Text(agent.serviceDisplayName)
                                         .font(Theme.Typography.caption2())
-                                        .foregroundColor(.purple)
+                                        .foregroundColor(palette.agentInk)
                                 }
 
                                 Spacer()
@@ -230,11 +230,11 @@ struct DefaultAgentPickerView: View {
         } else {
             ZStack {
                 Circle()
-                    .fill(Color.purple.opacity(0.15))
+                    .fill(palette.agentBubble)
                     .frame(width: 36, height: 36)
                 Image(systemName: "sparkles")
                     .font(.system(size: 16))
-                    .foregroundColor(.purple)
+                    .foregroundColor(palette.agentInk)
             }
         }
     }

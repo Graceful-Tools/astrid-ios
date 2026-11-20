@@ -3,6 +3,7 @@ import AVFoundation
 import AudioToolbox
 
 struct TaskTimerView: View {
+    @ThemedPalette private var palette
     @Binding var task: Task
     var onUpdate: (Task) -> Void
     @Environment(\.dismiss) var dismiss
@@ -32,7 +33,8 @@ struct TaskTimerView: View {
     
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            // An always-dark surface reads the inverse surface token (ADEV-165, DS29).
+            palette.surfaceInverse.ignoresSafeArea()
             
             VStack(spacing: 48) {
                 HStack {

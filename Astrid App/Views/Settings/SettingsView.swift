@@ -101,7 +101,7 @@ struct SettingsView: View {
                         NavigationLink(destination: LazyView { GitHubSyncSettingsView() }) {
                             HStack {
                                 Image(systemName: "chevron.left.forwardslash.chevron.right")
-                                    .foregroundColor(.purple)
+                                    .foregroundColor(palette.categoryPurpleInk)
                                 Text("GitHub Issues")
                             }
                         }

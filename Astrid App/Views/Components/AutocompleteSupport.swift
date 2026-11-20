@@ -35,9 +35,10 @@ struct AutocompleteItem: Identifiable {
         }
     }
 
-    var iconColor: Color {
+    /// The icon's colour in a theme — an agent mention reads the palette's agent ink (ADEV-165).
+    func iconColor(in palette: AstridTokens.Palette) -> Color {
         switch type {
-        case .mention: return isAIAgent ? .purple : Theme.accent
+        case .mention: return isAIAgent ? palette.agentInk : Theme.accent
         case .list: return .green
         case .task: return completed ? .green : Theme.textMuted
         }
@@ -237,6 +238,7 @@ func coloredAttributedString(text: String, references: [InsertedReference], defa
 
 /// Reusable autocomplete popup for @mentions, #lists, !tasks
 struct AutocompletePopupView: View {
+    @ThemedPalette private var palette
     let items: [AutocompleteItem]
     let activeTrigger: AutocompleteItem.AutocompleteType?
     let textColor: Color
@@ -289,10 +291,10 @@ struct AutocompletePopupView: View {
                                 if item.isAIAgent {
                                     Text("AI")
                                         .font(Theme.Typography.caption2())
-                                        .foregroundColor(.purple)
+                                        .foregroundColor(palette.agentInk)
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 2)
-                                        .background(Color.purple.opacity(0.1))
+                                        .background(palette.agentBubble)
                                         .clipShape(RoundedRectangle(cornerRadius: 4))
                                 }
                                 if item.type == .task && item.completed {
@@ -364,11 +366,11 @@ struct AutocompletePopupView: View {
     private func fallbackIcon(_ item: AutocompleteItem) -> some View {
         ZStack {
             Circle()
-                .fill(item.iconColor.opacity(0.15))
+                .fill(item.iconColor(in: palette).opacity(0.15))
                 .frame(width: 24, height: 24)
             Image(systemName: item.icon)
                 .font(.system(size: 11))
-                .foregroundColor(item.iconColor)
+                .foregroundColor(item.iconColor(in: palette))
         }
     }
 }

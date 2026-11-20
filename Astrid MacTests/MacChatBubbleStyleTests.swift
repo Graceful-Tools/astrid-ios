@@ -26,6 +26,14 @@ final class MacChatBubbleStyleTests: XCTestCase {
         XCTAssertEqual(MacChatBubbleStyle.fill(isMine: true, isAgent: true), agent)
     }
 
+    /// ADEV-165: the agent bubble is the palette's `agentBubble`, the same token iOS reads —
+    /// not a third opacity of the system purple.
+    func testAgentBubbleIsThePaletteToken_ADEV165() {
+        XCTAssertEqual(MacChatBubbleStyle.fill(isMine: false, isAgent: true), Theme.palette.agentBubble)
+        XCTAssertEqual(Theme.palette(mode: "dark").agentBubble, AstridTokens.dark.agentBubble)
+        XCTAssertEqual(Theme.palette(mode: "ocean").agentBubble, AstridTokens.ocean.agentBubble)
+    }
+
     func testAlignmentAndAvatars() {
         XCTAssertEqual(MacChatBubbleStyle.alignment(isMine: true), .trailing)
         XCTAssertEqual(MacChatBubbleStyle.alignment(isMine: false), .leading)
