@@ -67,9 +67,7 @@ struct SplashView: View {
     private var bottomBar: some View {
         HStack(alignment: .center, spacing: Theme.spacing12) {
             // Checkbox (neutral/gray)
-            Image("check_box_0")
-                .resizable()
-                .frame(width: 34, height: 34)
+            TaskCheckboxArt(priority: 0, completed: false, repeating: false)
 
             // Empty text input field (no placeholder)
             Rectangle()

@@ -28,39 +28,66 @@ final class MarkDoneQuickSetTests: XCTestCase {
     }
 
     // MARK: - ADEV-148: the task row's own checkbox, unchecked or checked
+    // ADEV-164: drawn from astrid-core's layers, so these ask for the layers, not a PNG name.
 
-    /// An open task's row shows the unchecked box in its priority colour, beside "Mark as done".
+    /// An open task's row shows the unchecked box, beside "Mark as done".
     func testADEV148_OpenTaskShowsTheUncheckedRowCheckbox() {
-        XCTAssertEqual(MarkDoneQuickSet.checkboxAssetName(completed: false, priority: 2, repeating: false),
-                       "check_box_2")
+        XCTAssertEqual(TaskCheckboxAsset.layers(completed: false, repeating: false), ["checkbox-box"])
     }
 
     /// A done task's row shows the checked box, beside "Mark as to-do".
     func testADEV148_DoneTaskShowsTheCheckedRowCheckbox() {
-        XCTAssertEqual(MarkDoneQuickSet.checkboxAssetName(completed: true, priority: 3, repeating: false),
-                       "check_box_checked_3")
+        XCTAssertEqual(TaskCheckboxAsset.layers(completed: true, repeating: false),
+                       ["checkbox-box", "checkbox-check"])
     }
 
     /// A repeating task's box keeps its arrows, as in the task row.
     func testADEV148_RepeatingTaskKeepsTheRepeatBox() {
-        XCTAssertEqual(MarkDoneQuickSet.checkboxAssetName(completed: false, priority: 0, repeating: true),
-                       "check_box_repeat_0")
+        XCTAssertEqual(TaskCheckboxAsset.layers(completed: false, repeating: true), ["checkbox-repeat"])
+        XCTAssertEqual(TaskCheckboxAsset.layers(completed: true, repeating: true),
+                       ["checkbox-repeat", "checkbox-check"])
     }
 
-    /// The row and the task row cannot spell the box differently: both use one rule.
-    func testADEV148_SameAssetAsTheTaskRow() {
+    /// The row draws the task row's own art: one view, so it cannot spell the box differently.
+    func testADEV148_SameArtAsTheTaskRow() throws {
+        let source = try String(contentsOf: RepositoryLocator.root.appendingPathComponent(
+            "Astrid App/Views/Components/MarkDoneQuickSetRow.swift"), encoding: .utf8)
+        XCTAssertTrue(source.contains("TaskCheckboxArt("))
+    }
+
+    // MARK: - ADEV-164: the checkbox is core's art, tinted with the priority tokens (DS21)
+
+    /// ADEV-164: the three layers are vendored from astrid-core and resolve in the app bundle.
+    func testADEV164_CoreLayersResolveInTheBundle() {
+        for name in ["checkbox-box", "checkbox-repeat", "checkbox-check"] {
+            XCTAssertNotNil(UIImage(named: name), "\(name) is missing — vendor AstridDesign.xcassets")
+        }
+    }
+
+    /// ADEV-164: none of the 32 fixed-colour PNGs is left to fall back on.
+    func testADEV164_NoCheckboxPNGsRemain() {
         for priority in 0...3 {
             for completed in [false, true] {
                 for repeating in [false, true] {
-                    XCTAssertEqual(
-                        MarkDoneQuickSet.checkboxAssetName(completed: completed, priority: priority,
-                                                           repeating: repeating),
-                        TaskCheckboxAsset.name(priority: priority, completed: completed, repeating: repeating))
-                    XCTAssertNotNil(UIImage(named: TaskCheckboxAsset.name(priority: priority, completed: completed,
-                                                                          repeating: repeating)))
+                    let old = TaskCheckboxAsset.name(priority: priority, completed: completed, repeating: repeating)
+                    XCTAssertNil(UIImage(named: old), "\(old) is still in a catalog")
                 }
             }
         }
+    }
+
+    /// ADEV-164: the box takes the palette's priority colour — low is the accent, or its dark ink
+    /// in Dark — and no priority is the muted text, as on web (`priority-text-none`).
+    func testADEV164_TintIsThePalettesPriorityColour() {
+        for palette in [AstridTokens.light, AstridTokens.dark, AstridTokens.ocean] {
+            XCTAssertEqual(TaskCheckboxAsset.tint(priority: 0, palette: palette), palette.textMuted)
+            XCTAssertEqual(TaskCheckboxAsset.tint(priority: 1, palette: palette), palette.priorityLow)
+            XCTAssertEqual(TaskCheckboxAsset.tint(priority: 2, palette: palette), palette.priorityMedium)
+            XCTAssertEqual(TaskCheckboxAsset.tint(priority: 3, palette: palette), palette.priorityHigh)
+            XCTAssertEqual(TaskCheckboxAsset.tint(priority: 9, palette: palette), palette.textMuted)
+        }
+        XCTAssertNotEqual(TaskCheckboxAsset.tint(priority: 1, palette: AstridTokens.dark),
+                          TaskCheckboxAsset.tint(priority: 1, palette: AstridTokens.light))
     }
 
     // MARK: - ADEV-152: full-size checkbox, contrasting row, readable text, one design

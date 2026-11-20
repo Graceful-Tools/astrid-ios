@@ -30,12 +30,6 @@ enum MarkDoneQuickSet {
         NSLocalizedString(labelKey(completed: completed), comment: "")
     }
 
-    /// The task row's own checkbox (ADEV-148): unchecked beside "Mark as done", checked beside
-    /// "Mark as to-do", in the task's priority colour, so the row looks like the task itself.
-    static func checkboxAssetName(completed: Bool, priority: Int, repeating: Bool) -> String {
-        TaskCheckboxAsset.name(priority: priority, completed: completed, repeating: repeating)
-    }
-
     /// The task row's own checkbox size (ADEV-152: "full size as in rows").
     #if os(macOS)
     static let checkboxSize = AstridTokens.Size.Compact.leadingControlDetail
@@ -63,11 +57,10 @@ struct MarkDoneQuickSetRow: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: Theme.spacing12) {
-                Image(MarkDoneQuickSet.checkboxAssetName(completed: completed, priority: priority,
-                                                         repeating: repeating))
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: MarkDoneQuickSet.checkboxSize, height: MarkDoneQuickSet.checkboxSize)
+                // The task row's own checkbox (ADEV-148): unchecked beside "Mark as done", checked
+                // beside "Mark as to-do", in the task's priority colour (ADEV-164).
+                TaskCheckboxArt(priority: priority, completed: completed, repeating: repeating,
+                                size: MarkDoneQuickSet.checkboxSize)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: AstridTokens.Space.s2) {
                     Text(MarkDoneQuickSet.label(completed: completed))

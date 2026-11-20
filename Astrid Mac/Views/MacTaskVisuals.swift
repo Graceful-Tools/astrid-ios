@@ -1,26 +1,16 @@
 //  MacTaskVisuals.swift
 //  Astrid for Mac — shared task visual language mirroring iOS (Task: Mac UI mapping):
-//  priority symbols/colors, the priority-ringed completion checkbox, and the 4-button priority
-//  picker. Pure mappings are testable; the checkbox is drawn natively (green check in a
-//  priority-colored rounded square) instead of shipping the iOS PNG set.
+//  priority symbols/colors, the completion checkbox, and the 4-button priority picker. Pure
+//  mappings are testable; the checkbox is the shared `TaskCheckboxArt` (ADEV-164).
 
 #if os(macOS)
 import SwiftUI
 
 enum MacTaskVisuals {
-    // Checkbox proportions. iOS draws its checkbox from a designed ASSET (check_box_checked_*)
-    // where the mark fills most of the box; Mac draws it from a shape + SF Symbol, and at 0.62 the
-    // mark read small inside a chunky 2pt box (task: "checkbox size should be smaller relative to
-    // checkmark"). The mark now takes most of the box, and the stroke scales with the size rather
-    // than staying 2pt at every size.
     /// Checkbox sizes. 20/22 read chunky next to macOS's 13pt body text — the box should sit with
     /// the type, not dominate the row.
     static let rowCheckboxSize = AstridTokens.Size.Compact.leadingControl   // 17 (AITD-610: core tokens)
     static let detailCheckboxSize = AstridTokens.Size.Compact.leadingControlDetail   // 19
-
-    static let checkmarkRatio: CGFloat = 0.78
-    static let checkboxCornerRatio: CGFloat = 0.28
-    static func checkboxStroke(size: CGFloat) -> CGFloat { max(1.5, size * 0.075) }
 
     /// Priority glyphs, matching iOS PriorityButton (○ / ! / !! / !!!).
     /// Deferred to the shared glyphs (task c8a1ff51). The "!"/"!!"/"!!!" convention was written
@@ -49,8 +39,7 @@ enum MacTaskVisuals {
     static let allPriorities: [Task.Priority] = [.none, .low, .medium, .high]
 }
 
-/// Completion checkbox: a priority-colored rounded-square ring; a green check when complete
-/// (mirrors the iOS check_box asset set, drawn natively).
+/// Completion checkbox: the shared art iOS and web draw, from astrid-core's layers (ADEV-164).
 struct MacTaskCheckbox: View {
     let completed: Bool
     let priority: Task.Priority
@@ -59,38 +48,7 @@ struct MacTaskCheckbox: View {
     var repeating: Bool = false
 
     var body: some View {
-        // The shared artwork first, so all three platforms show the same checkbox; the drawn shape
-        // below stays as a fallback for a missing asset rather than rendering nothing.
-        if let image = NSImage(named: MacCheckboxAsset.name(priority: priority.rawValue,
-                                                            completed: completed,
-                                                            repeating: repeating)) {
-            Image(nsImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: size, height: size)
-                .animation(MacMotion.spring, value: completed)
-                .accessibilityLabel(completed ? NSLocalizedString("tasks.completed", comment: "") : NSLocalizedString("mac.not_completed", comment: ""))
-        } else {
-            drawnFallback
-        }
-    }
-
-    private var drawnFallback: some View {
-        RoundedRectangle(cornerRadius: size * MacTaskVisuals.checkboxCornerRatio)
-            .stroke(MacTaskVisuals.priorityColor(priority), lineWidth: MacTaskVisuals.checkboxStroke(size: size))
-            .frame(width: size, height: size)
-            .background(
-                RoundedRectangle(cornerRadius: size * MacTaskVisuals.checkboxCornerRatio)
-                    .fill(completed ? Theme.success.opacity(0.12) : Color.clear)
-            )
-            .overlay {
-                if completed {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: size * MacTaskVisuals.checkmarkRatio, weight: .bold))
-                        .foregroundStyle(Theme.success)
-                        .transition(.scale.combined(with: .opacity))
-                }
-            }
+        TaskCheckboxArt(priority: priority.rawValue, completed: completed, repeating: repeating, size: size)
             // Spring, not a linear fade: the check should pop in when the row DOES stay in place.
             .animation(MacMotion.spring, value: completed)
             .accessibilityLabel(completed ? NSLocalizedString("tasks.completed", comment: "") : NSLocalizedString("mac.not_completed", comment: ""))

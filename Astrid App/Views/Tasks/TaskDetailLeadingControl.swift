@@ -123,14 +123,10 @@ struct TaskDetailLeadingControl: View {
         }
     }
 
+    /// The shared checkbox art (ADEV-148), drawn from astrid-core's layers (ADEV-164).
     private var checkboxImage: some View {
-        // check_box[_repeat][_checked]_<priority>, the shared rule (ADEV-148).
-        let imageName = TaskCheckboxAsset.name(priority: priority.rawValue, completed: isCompleted,
-                                               repeating: TaskCheckboxAsset.isRepeating(repeating))
-        return Image(imageName)
-            .resizable()
-            .aspectRatio(contentMode: .fit)
-            .frame(width: 34, height: 34)
+        TaskCheckboxArt(priority: priority.rawValue, completed: isCompleted,
+                        repeating: TaskCheckboxAsset.isRepeating(repeating))
     }
 
     // MARK: - What it holds
