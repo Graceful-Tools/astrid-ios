@@ -12,19 +12,14 @@ import SwiftUI
 
 enum MacCheckboxAsset {
     /// `check_box[_repeat][_checked]_<priority>` — token order matches iOS and web exactly.
+    /// The shared rule (`TaskCheckboxAsset`, ADEV-148), so the Mac cannot spell it differently.
     static func name(priority: Int, completed: Bool, repeating: Bool) -> String {
-        // Only 0…3 exist as assets; anything else would resolve to nothing at all.
-        let safe = (0...3).contains(priority) ? priority : 0
-        var name = "check_box"
-        if repeating { name += "_repeat" }
-        if completed { name += "_checked" }
-        return name + "_\(safe)"
+        TaskCheckboxAsset.name(priority: priority, completed: completed, repeating: repeating)
     }
 
     /// The predicate iOS uses: a task is repeating unless it is nil or `.never`.
     static func isRepeating(_ repeating: Task.Repeating?) -> Bool {
-        guard let repeating else { return false }
-        return repeating != .never
+        TaskCheckboxAsset.isRepeating(repeating)
     }
 }
 #endif

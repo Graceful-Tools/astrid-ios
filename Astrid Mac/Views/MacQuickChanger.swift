@@ -84,7 +84,8 @@ struct MacQuickChanger: View {
                         }
                     })
             } else {
-            MarkDoneQuickSetRow(completed: task.completed) {
+            MarkDoneQuickSetRow(completed: task.completed, priority: task.priority.rawValue,
+                                repeating: TaskCheckboxAsset.isRepeating(task.repeating)) {
                 onDismiss()
                 AppActions.perform("Toggle completion") {
                     try await MacQuickChangerWrite.toggleCompletion.apply(to: taskService, task: task)

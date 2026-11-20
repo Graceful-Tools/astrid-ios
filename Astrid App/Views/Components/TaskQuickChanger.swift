@@ -96,7 +96,8 @@ struct TaskQuickChanger: View {
                         complete()
                     })
             } else {
-            MarkDoneQuickSetRow(completed: task.completed) {
+            MarkDoneQuickSetRow(completed: task.completed, priority: task.priority.rawValue,
+                                repeating: TaskCheckboxAsset.isRepeating(task.repeating)) {
                 onDismiss()
                 complete()
             }

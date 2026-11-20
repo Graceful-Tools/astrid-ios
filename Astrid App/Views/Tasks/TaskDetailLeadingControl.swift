@@ -124,12 +124,9 @@ struct TaskDetailLeadingControl: View {
     }
 
     private var checkboxImage: some View {
-        // check_box[_repeat][_checked]_<priority>
-        var imageName = "check_box"
-        if repeating != nil && repeating != .never { imageName += "_repeat" }
-        if isCompleted { imageName += "_checked" }
-        imageName += "_\(priority.rawValue)"
-
+        // check_box[_repeat][_checked]_<priority>, the shared rule (ADEV-148).
+        let imageName = TaskCheckboxAsset.name(priority: priority.rawValue, completed: isCompleted,
+                                               repeating: TaskCheckboxAsset.isRepeating(repeating))
         return Image(imageName)
             .resizable()
             .aspectRatio(contentMode: .fit)
@@ -198,7 +195,8 @@ struct TaskDetailLeadingControl: View {
                         onToggleCompletion()
                     })
             } else {
-            MarkDoneQuickSetRow(completed: isCompleted) {
+            MarkDoneQuickSetRow(completed: isCompleted, priority: priority.rawValue,
+                                repeating: TaskCheckboxAsset.isRepeating(repeating)) {
                 showingPicker = false
                 onToggleCompletion()
             }
