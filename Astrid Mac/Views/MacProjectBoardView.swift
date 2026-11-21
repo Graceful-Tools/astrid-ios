@@ -25,6 +25,7 @@ struct MacProjectBoardView: View {
     @AppStorage(MacScrollBars.defaultsKey) private var showScrollBars = false
     @StateObject private var listService = ListService.shared
     @StateObject private var rows = ProjectBoardRowsService.shared
+    @StateObject private var goalsService = ProjectGoalsService.shared
     @State private var isDropTarget = false
     /// New List… from Add list (AITD-681): a list born in this project, then a row here.
     @State private var creatingList = false
@@ -41,6 +42,10 @@ struct MacProjectBoardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             toolbar
+            // The project's goals and guardrails, folded; nothing when it has none (ADEV-183).
+            if ProjectGoalsStrip.shows(goalsService.goals(projectId: projectId)) {
+                ProjectGoalsStrip(projectId: projectId, horizontalPadding: MacLayout.boardPadding)
+            }
             // Rows stack and scroll down; each row's columns scroll across on their own, as the
             // list's board does, and its cards scroll inside the fixed-height column (ADEV-59).
             ScrollView(.vertical) {
@@ -69,6 +74,7 @@ struct MacProjectBoardView: View {
             return true
         } isTargeted: { isDropTarget = $0 }
         .task(id: projectId) { await rows.load(projectId: projectId) }
+        .task(id: projectId) { await goalsService.load(projectId: projectId) }
         .accessibilityIdentifier("projectBoard")
     }
 

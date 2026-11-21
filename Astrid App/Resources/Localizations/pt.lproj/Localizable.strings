@@ -1606,11 +1606,11 @@
 
 /* Decisions and trade-off grids (AITD-579, AITD-578) */
 "decision.recommended" = "Recomendada";
-"tradeoff.very_poor" = "Muito ruim";
+"tradeoff.very_poor" = "Desqualificante";
 "tradeoff.poor" = "Ruim";
 "tradeoff.mixed" = "Misto";
 "tradeoff.good" = "Bom";
-"tradeoff.very_good" = "Muito bom";
+"tradeoff.very_good" = "Decisivo";
 "tradeoff.unrated" = "Sem avaliação";
 "tasks.tradeoff_grid.full_screen" = "Tela cheia";
 
@@ -1709,3 +1709,25 @@
 /* ADEV-146: the quick changer's completion row — same words as web tasks.markAsDone / tasks.markAsTodo */
 "tasks.mark_as_done" = "Marcar como feita";
 "tasks.mark_as_todo" = "Marcar como a fazer";
+
+/* Project goals and guardrails (ADEV-183, web ADEV-179) */
+"project_goals.title" = "Objetivos e limites";
+"project_goals.intro" = "Para que serve este projeto e o que ele não deve fazer. Todos que trabalham aqui, pessoas e agentes, leem os dois, para que as instruções possam ser curtas.";
+"project_goals.goals_heading" = "Objetivos";
+"project_goals.guardrails_heading" = "Limites";
+"project_goals.goal_placeholder" = "Um objetivo, ex. Maximizar o retorno de longo prazo";
+"project_goals.measure_placeholder" = "Medida";
+"project_goals.target_placeholder" = "Meta";
+"project_goals.current_placeholder" = "Atual";
+"project_goals.guardrail_placeholder" = "Um limite, ex. Não violar nenhuma lei aplicável";
+"project_goals.kind_label" = "Como é verificado";
+"project_goals.kind_hint" = "Declarado: pessoas e agentes avaliam. Aplicado: um programa verifica.";
+"project_goals.kind_stated" = "Declarado";
+"project_goals.kind_enforced" = "Aplicado";
+"project_goals.add_goal" = "Adicionar objetivo";
+"project_goals.add_guardrail" = "Adicionar limite";
+"project_goals.remove" = "Remover";
+"project_goals.save_failed" = "Não foi possível salvar os objetivos e limites. Tente novamente.";
+"project_goals.counts" = "Objetivos: %1$d · Limites: %2$d";
+"project_goals.target_value" = "Meta: %@";
+"project_goals.current_value" = "Agora: %@";

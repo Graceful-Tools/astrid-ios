@@ -263,6 +263,19 @@ class AstridAPIClient {
         return try await request(method: "GET", path: "/api/v1/empathy-art")
     }
 
+    // MARK: - Project goals and guardrails (ADEV-183, web ADEV-179)
+
+    /// A project's goals and guardrails, and whether this person may edit them. Called only by
+    /// `ProjectGoalsService`.
+    func getProjectGoals(projectId: String) async throws -> ProjectGoals {
+        try await request(method: "GET", path: "/api/v1/projects/\(projectId)/goals")
+    }
+
+    /// Replace a project's goals and guardrails (owner or admin). The server normalises.
+    func putProjectGoals(projectId: String, _ update: ProjectGoalsUpdate) async throws -> ProjectGoals {
+        try await request(method: "PUT", path: "/api/v1/projects/\(projectId)/goals", body: update)
+    }
+
     // MARK: - Task Operations
 
     // A public list's tasks were the last read of `/api/v1/tasks`; they come from the core's

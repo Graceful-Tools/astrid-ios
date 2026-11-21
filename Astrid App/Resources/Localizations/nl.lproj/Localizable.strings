@@ -1606,11 +1606,11 @@
 
 /* Decisions and trade-off grids (AITD-579, AITD-578) */
 "decision.recommended" = "Aanbevolen";
-"tradeoff.very_poor" = "Zeer slecht";
+"tradeoff.very_poor" = "Diskwalificerend";
 "tradeoff.poor" = "Slecht";
 "tradeoff.mixed" = "Gemengd";
 "tradeoff.good" = "Goed";
-"tradeoff.very_good" = "Zeer goed";
+"tradeoff.very_good" = "Doorslaggevend";
 "tradeoff.unrated" = "Niet beoordeeld";
 "tasks.tradeoff_grid.full_screen" = "Volledig scherm";
 
@@ -1709,3 +1709,25 @@
 /* ADEV-146: the quick changer's completion row — same words as web tasks.markAsDone / tasks.markAsTodo */
 "tasks.mark_as_done" = "Markeer als klaar";
 "tasks.mark_as_todo" = "Markeer als te doen";
+
+/* Project goals and guardrails (ADEV-183, web ADEV-179) */
+"project_goals.title" = "Doelen en vangrails";
+"project_goals.intro" = "Waar dit project voor is en wat het niet mag doen. Iedereen die hier werkt, mensen en agents, leest beide, zodat instructies kort kunnen blijven.";
+"project_goals.goals_heading" = "Doelen";
+"project_goals.guardrails_heading" = "Vangrails";
+"project_goals.goal_placeholder" = "Een doel, bijv. Langetermijnrendement maximaliseren";
+"project_goals.measure_placeholder" = "Meetwaarde";
+"project_goals.target_placeholder" = "Streefwaarde";
+"project_goals.current_placeholder" = "Huidig";
+"project_goals.guardrail_placeholder" = "Een vangrail, bijv. Geen toepasselijke wetten overtreden";
+"project_goals.kind_label" = "Hoe het wordt gecontroleerd";
+"project_goals.kind_hint" = "Vastgelegd: mensen en agents beoordelen het. Afgedwongen: een programma controleert het.";
+"project_goals.kind_stated" = "Vastgelegd";
+"project_goals.kind_enforced" = "Afgedwongen";
+"project_goals.add_goal" = "Doel toevoegen";
+"project_goals.add_guardrail" = "Vangrail toevoegen";
+"project_goals.remove" = "Verwijderen";
+"project_goals.save_failed" = "Doelen en vangrails konden niet worden opgeslagen. Probeer het opnieuw.";
+"project_goals.counts" = "Doelen: %1$d · Vangrails: %2$d";
+"project_goals.target_value" = "Streefwaarde: %@";
+"project_goals.current_value" = "Nu: %@";

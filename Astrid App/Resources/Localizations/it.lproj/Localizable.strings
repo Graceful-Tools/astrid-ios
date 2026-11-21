@@ -1606,11 +1606,11 @@
 
 /* Decisions and trade-off grids (AITD-579, AITD-578) */
 "decision.recommended" = "Consigliata";
-"tradeoff.very_poor" = "Pessimo";
+"tradeoff.very_poor" = "Escludente";
 "tradeoff.poor" = "Scarso";
 "tradeoff.mixed" = "Misto";
 "tradeoff.good" = "Buono";
-"tradeoff.very_good" = "Ottimo";
+"tradeoff.very_good" = "Decisivo";
 "tradeoff.unrated" = "Non valutato";
 "tasks.tradeoff_grid.full_screen" = "Schermo intero";
 
@@ -1709,3 +1709,25 @@
 /* ADEV-146: the quick changer's completion row — same words as web tasks.markAsDone / tasks.markAsTodo */
 "tasks.mark_as_done" = "Segna come fatta";
 "tasks.mark_as_todo" = "Segna come da fare";
+
+/* Project goals and guardrails (ADEV-183, web ADEV-179) */
+"project_goals.title" = "Obiettivi e vincoli";
+"project_goals.intro" = "A cosa serve questo progetto e cosa non deve fare. Chi lavora qui, persone e agenti, legge entrambi, così le istruzioni possono restare brevi.";
+"project_goals.goals_heading" = "Obiettivi";
+"project_goals.guardrails_heading" = "Vincoli";
+"project_goals.goal_placeholder" = "Un obiettivo, ad es. Massimizzare il rendimento a lungo termine";
+"project_goals.measure_placeholder" = "Misura";
+"project_goals.target_placeholder" = "Traguardo";
+"project_goals.current_placeholder" = "Attuale";
+"project_goals.guardrail_placeholder" = "Un vincolo, ad es. Non violare alcuna legge applicabile";
+"project_goals.kind_label" = "Come viene verificato";
+"project_goals.kind_hint" = "Dichiarato: lo valutano persone e agenti. Applicato: lo verifica un programma.";
+"project_goals.kind_stated" = "Dichiarato";
+"project_goals.kind_enforced" = "Applicato";
+"project_goals.add_goal" = "Aggiungi obiettivo";
+"project_goals.add_guardrail" = "Aggiungi vincolo";
+"project_goals.remove" = "Rimuovi";
+"project_goals.save_failed" = "Impossibile salvare obiettivi e vincoli. Riprova.";
+"project_goals.counts" = "Obiettivi: %1$d · Vincoli: %2$d";
+"project_goals.target_value" = "Traguardo: %@";
+"project_goals.current_value" = "Ora: %@";

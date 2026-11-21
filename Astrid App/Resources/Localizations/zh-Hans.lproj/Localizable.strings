@@ -1606,11 +1606,11 @@
 
 /* Decisions and trade-off grids (AITD-579, AITD-578) */
 "decision.recommended" = "推荐";
-"tradeoff.very_poor" = "很差";
+"tradeoff.very_poor" = "一票否决";
 "tradeoff.poor" = "差";
 "tradeoff.mixed" = "一般";
 "tradeoff.good" = "好";
-"tradeoff.very_good" = "很好";
+"tradeoff.very_good" = "决定性";
 "tradeoff.unrated" = "未评分";
 "tasks.tradeoff_grid.full_screen" = "全屏";
 
@@ -1709,3 +1709,25 @@
 /* ADEV-146: the quick changer's completion row — same words as web tasks.markAsDone / tasks.markAsTodo */
 "tasks.mark_as_done" = "标记为已完成";
 "tasks.mark_as_todo" = "标记为待办";
+
+/* Project goals and guardrails (ADEV-183, web ADEV-179) */
+"project_goals.title" = "目标与护栏";
+"project_goals.intro" = "这个项目要实现什么,以及不能做什么。在这里工作的人和智能体都会阅读两者,因此指令可以保持简短。";
+"project_goals.goals_heading" = "目标";
+"project_goals.guardrails_heading" = "护栏";
+"project_goals.goal_placeholder" = "一个目标,例如:最大化长期回报";
+"project_goals.measure_placeholder" = "衡量指标";
+"project_goals.target_placeholder" = "目标值";
+"project_goals.current_placeholder" = "当前";
+"project_goals.guardrail_placeholder" = "一条护栏,例如:不违反任何适用法律";
+"project_goals.kind_label" = "检查方式";
+"project_goals.kind_hint" = "声明:由人和智能体判断。强制:由程序检查。";
+"project_goals.kind_stated" = "声明";
+"project_goals.kind_enforced" = "强制";
+"project_goals.add_goal" = "添加目标";
+"project_goals.add_guardrail" = "添加护栏";
+"project_goals.remove" = "移除";
+"project_goals.save_failed" = "无法保存目标与护栏。请重试。";
+"project_goals.counts" = "目标:%1$d · 护栏:%2$d";
+"project_goals.target_value" = "目标值:%@";
+"project_goals.current_value" = "当前:%@";

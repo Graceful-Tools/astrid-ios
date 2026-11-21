@@ -1608,11 +1608,11 @@
 
 /* Decisions and trade-off grids (AITD-579, AITD-578) */
 "decision.recommended" = "추천";
-"tradeoff.very_poor" = "매우 나쁨";
+"tradeoff.very_poor" = "탈락";
 "tradeoff.poor" = "나쁨";
 "tradeoff.mixed" = "보통";
 "tradeoff.good" = "좋음";
-"tradeoff.very_good" = "매우 좋음";
+"tradeoff.very_good" = "결정적";
 "tradeoff.unrated" = "평가 없음";
 "tasks.tradeoff_grid.full_screen" = "전체 화면";
 
@@ -1711,3 +1711,25 @@
 /* ADEV-146: the quick changer's completion row — same words as web tasks.markAsDone / tasks.markAsTodo */
 "tasks.mark_as_done" = "완료로 표시";
 "tasks.mark_as_todo" = "할 일로 표시";
+
+/* Project goals and guardrails (ADEV-183, web ADEV-179) */
+"project_goals.title" = "목표와 가드레일";
+"project_goals.intro" = "이 프로젝트의 목적과 해서는 안 되는 일입니다. 여기서 일하는 사람과 에이전트 모두 둘 다 읽으므로 지침은 짧게 유지할 수 있습니다.";
+"project_goals.goals_heading" = "목표";
+"project_goals.guardrails_heading" = "가드레일";
+"project_goals.goal_placeholder" = "목표 (예: 장기 수익 극대화)";
+"project_goals.measure_placeholder" = "지표";
+"project_goals.target_placeholder" = "목표치";
+"project_goals.current_placeholder" = "현재";
+"project_goals.guardrail_placeholder" = "가드레일 (예: 관련 법률을 위반하지 않기)";
+"project_goals.kind_label" = "확인 방식";
+"project_goals.kind_hint" = "명시: 사람과 에이전트가 판단합니다. 강제: 프로그램이 확인합니다.";
+"project_goals.kind_stated" = "명시";
+"project_goals.kind_enforced" = "강제";
+"project_goals.add_goal" = "목표 추가";
+"project_goals.add_guardrail" = "가드레일 추가";
+"project_goals.remove" = "제거";
+"project_goals.save_failed" = "목표와 가드레일을 저장하지 못했습니다. 다시 시도하세요.";
+"project_goals.counts" = "목표: %1$d · 가드레일: %2$d";
+"project_goals.target_value" = "목표치: %@";
+"project_goals.current_value" = "현재: %@";

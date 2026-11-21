@@ -1622,11 +1622,11 @@
 
 /* Decisions and trade-off grids (AITD-579, AITD-578) */
 "decision.recommended" = "Recommandée";
-"tradeoff.very_poor" = "Très mauvais";
+"tradeoff.very_poor" = "Rédhibitoire";
 "tradeoff.poor" = "Mauvais";
 "tradeoff.mixed" = "Mitigé";
 "tradeoff.good" = "Bon";
-"tradeoff.very_good" = "Très bon";
+"tradeoff.very_good" = "Décisif";
 "tradeoff.unrated" = "Non évalué";
 "tasks.tradeoff_grid.full_screen" = "Plein écran";
 
@@ -1725,3 +1725,25 @@
 /* ADEV-146: the quick changer's completion row — same words as web tasks.markAsDone / tasks.markAsTodo */
 "tasks.mark_as_done" = "Marquer comme faite";
 "tasks.mark_as_todo" = "Marquer comme à faire";
+
+/* Project goals and guardrails (ADEV-183, web ADEV-179) */
+"project_goals.title" = "Objectifs et garde-fous";
+"project_goals.intro" = "À quoi sert ce projet, et ce qu'il ne doit pas faire. Toutes les personnes et tous les agents qui y travaillent lisent les deux, pour que les instructions restent courtes.";
+"project_goals.goals_heading" = "Objectifs";
+"project_goals.guardrails_heading" = "Garde-fous";
+"project_goals.goal_placeholder" = "Un objectif, p. ex. Maximiser le rendement à long terme";
+"project_goals.measure_placeholder" = "Mesure";
+"project_goals.target_placeholder" = "Cible";
+"project_goals.current_placeholder" = "Actuel";
+"project_goals.guardrail_placeholder" = "Un garde-fou, p. ex. N'enfreindre aucune loi applicable";
+"project_goals.kind_label" = "Comment il est vérifié";
+"project_goals.kind_hint" = "Énoncé : les personnes et les agents en jugent. Appliqué : un programme le vérifie.";
+"project_goals.kind_stated" = "Énoncé";
+"project_goals.kind_enforced" = "Appliqué";
+"project_goals.add_goal" = "Ajouter un objectif";
+"project_goals.add_guardrail" = "Ajouter un garde-fou";
+"project_goals.remove" = "Retirer";
+"project_goals.save_failed" = "Impossible d'enregistrer les objectifs et garde-fous. Réessayez.";
+"project_goals.counts" = "Objectifs: %1$d · Garde-fous: %2$d";
+"project_goals.target_value" = "Cible : %@";
+"project_goals.current_value" = "Actuel : %@";

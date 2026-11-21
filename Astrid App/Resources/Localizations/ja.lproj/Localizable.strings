@@ -1606,11 +1606,11 @@
 
 /* Decisions and trade-off grids (AITD-579, AITD-578) */
 "decision.recommended" = "おすすめ";
-"tradeoff.very_poor" = "非常に悪い";
+"tradeoff.very_poor" = "除外";
 "tradeoff.poor" = "悪い";
 "tradeoff.mixed" = "どちらとも言えない";
 "tradeoff.good" = "良い";
-"tradeoff.very_good" = "非常に良い";
+"tradeoff.very_good" = "決め手";
 "tradeoff.unrated" = "未評価";
 "tasks.tradeoff_grid.full_screen" = "全画面表示";
 
@@ -1709,3 +1709,25 @@
 /* ADEV-146: the quick changer's completion row — same words as web tasks.markAsDone / tasks.markAsTodo */
 "tasks.mark_as_done" = "完了にする";
 "tasks.mark_as_todo" = "やることに戻す";
+
+/* Project goals and guardrails (ADEV-183, web ADEV-179) */
+"project_goals.title" = "目標とガードレール";
+"project_goals.intro" = "このプロジェクトの目的と、してはいけないこと。ここで働く人もエージェントも両方を読むので、指示は短くできます。";
+"project_goals.goals_heading" = "目標";
+"project_goals.guardrails_heading" = "ガードレール";
+"project_goals.goal_placeholder" = "目標(例: 長期的なリターンを最大化する)";
+"project_goals.measure_placeholder" = "指標";
+"project_goals.target_placeholder" = "目標値";
+"project_goals.current_placeholder" = "現在";
+"project_goals.guardrail_placeholder" = "ガードレール(例: 適用される法律に違反しない)";
+"project_goals.kind_label" = "確認方法";
+"project_goals.kind_hint" = "明示: 人とエージェントが判断します。強制: プログラムが確認します。";
+"project_goals.kind_stated" = "明示";
+"project_goals.kind_enforced" = "強制";
+"project_goals.add_goal" = "目標を追加";
+"project_goals.add_guardrail" = "ガードレールを追加";
+"project_goals.remove" = "削除";
+"project_goals.save_failed" = "目標とガードレールを保存できませんでした。もう一度お試しください。";
+"project_goals.counts" = "目標: %1$d · ガードレール: %2$d";
+"project_goals.target_value" = "目標値: %@";
+"project_goals.current_value" = "現在: %@";

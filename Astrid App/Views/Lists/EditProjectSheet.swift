@@ -11,7 +11,8 @@ import SwiftUI
 
 // Shared with the Mac target.
 
-/// Edit Project…: the name, description and colour, saved together as one edit.
+/// Edit Project…: the name, description and colour, saved together as one edit — and, for whoever
+/// the server lets edit them, the project's goals and guardrails (ADEV-183), PUT as a whole.
 struct EditProjectSheet: View {
     let project: Project
     @Environment(\.dismiss) private var dismiss
@@ -19,6 +20,13 @@ struct EditProjectSheet: View {
     @State private var description: String
     @State private var color: String
     @FocusState private var nameFocused: Bool
+    @StateObject private var goalsService = ProjectGoalsService.shared
+    /// The goals being edited, and what they were when read; nil until read, or when this person
+    /// may not edit them.
+    @State private var goalsDraft: ProjectGoalsDraft?
+    @State private var goalsLoaded: ProjectGoalsDraft?
+    @State private var goalsSaveFailed = false
+    @State private var saving = false
 
     init(project: Project) {
         self.project = project
@@ -41,6 +49,13 @@ struct EditProjectSheet: View {
                 Section(NSLocalizedString("projects.color", comment: "")) {
                     ListColorSwatches(color: color) { color = $0 }
                 }
+                if let draft = goalsDraft {
+                    ProjectGoalsEditor(draft: Binding(get: { draft }, set: { goalsDraft = $0 }))
+                }
+                if goalsSaveFailed {
+                    Text(NSLocalizedString("project_goals.save_failed", comment: ""))
+                        .foregroundStyle(Theme.errorInk)
+                }
             }
             .formStyle(.grouped)
             .navigationTitle(NSLocalizedString("projects.edit_title", comment: ""))
@@ -53,11 +68,12 @@ struct EditProjectSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(NSLocalizedString("actions.save", comment: ""), action: save)
-                        .disabled(edit == nil)
+                        .disabled((edit == nil && !goalsChanged) || saving)
                         .accessibilityIdentifier("projects.editSave")
                 }
             }
             .onAppear { nameFocused = true }
+            .task(id: project.id) { await loadGoals() }
         }
         #if os(iOS)
         .presentationDetents([.medium, .large])
@@ -70,10 +86,27 @@ struct EditProjectSheet: View {
         ListProjectControl.edit(of: project, name: name, description: description, color: color)
     }
 
+    private var goalsChanged: Bool { goalsDraft != nil && goalsDraft != goalsLoaded }
+
+    private func loadGoals() async {
+        await goalsService.load(projectId: project.id)
+        guard goalsDraft == nil, let goals = goalsService.goals(projectId: project.id), goals.canEdit else { return }
+        let draft = ProjectGoalsDraft(goals)
+        goalsDraft = draft
+        goalsLoaded = draft
+    }
+
     private func save() {
-        guard let edit else { return }
-        ListProjectControl.updateProject(id: project.id, edit: edit)
-        dismiss()
+        if let edit { ListProjectControl.updateProject(id: project.id, edit: edit) }
+        guard goalsChanged, let update = goalsDraft?.update else { return dismiss() }
+        // The goals are online only: stay open and say so if the server refuses them.
+        saving = true
+        goalsSaveFailed = false
+        _Concurrency.Task {
+            let saved = await goalsService.save(projectId: project.id, update)
+            saving = false
+            if saved { dismiss() } else { goalsSaveFailed = true }
+        }
     }
 }
 
