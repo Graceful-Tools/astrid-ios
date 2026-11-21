@@ -290,8 +290,8 @@ struct TaskRowView: View {
         // inset is cut by the same amount the card's outer margin grew
         // (LazyVStack padding in BoardColumnView) so the checkbox stays
         // put while the card itself gets narrower. List view: 14 / 16.
-        .padding(.vertical, embeddedInCard ? 12 : 14)
-        .padding(.horizontal, embeddedInCard ? 10 : Theme.spacing16)
+        .padding(.vertical, embeddedInCard ? AstridTokens.Layout.Comfortable.boardCardPaddingY : 14)
+        .padding(.horizontal, embeddedInCard ? AstridTokens.Layout.Comfortable.boardCardPaddingX : Theme.spacing16)
         .frame(minHeight: 76)  // Min height: title(~22pt) + spacing(6pt) + metadata(~18pt) + padding(28pt)
         .background(
             // Main card background. Suppressed when embedded in a board card — the host

@@ -149,12 +149,12 @@ enum MacLayout {
     /// A board column's floor. It was a fixed `.frame(width: 250)`, so three columns in a 1600pt
     /// window left half the board empty; it is the MINIMUM now, and the columns share what is
     /// there.
-    static let boardColumnMinWidth: CGFloat = 250
+    static let boardColumnMinWidth: CGFloat = AstridTokens.Layout.Compact.boardColumnMinWidth
     /// The gap between columns, and the board's own inset. Named rather than left to `.padding()`'s
     /// platform default because the fill arithmetic below has to subtract exactly what the layout
     /// spends — a guess here shows up as a column clipped at the trailing edge.
-    static let boardColumnSpacing: CGFloat = 12
-    static let boardPadding: CGFloat = 16
+    static let boardColumnSpacing: CGFloat = AstridTokens.Layout.Compact.boardColumnGap
+    static let boardPadding: CGFloat = AstridTokens.Layout.Compact.boardPadding
     /// A list's row on a project board (ADEV-59): its columns' height — the header, three or four
     /// cards, and the Add a task bar, the list board's own column made shorter; more cards scroll
     /// inside the column.

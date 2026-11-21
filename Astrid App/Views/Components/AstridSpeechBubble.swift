@@ -9,8 +9,8 @@ enum EmptyStateDensity {
 
     var artSize: CGFloat {
         switch self {
-        case .regular: return 160
-        case .compact: return 96
+        case .regular: return AstridTokens.Layout.Comfortable.emptyArt
+        case .compact: return AstridTokens.Layout.Compact.emptyArt
         case .textOnly: return 0
         }
     }

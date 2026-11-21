@@ -76,15 +76,15 @@ struct BoardTaskCardView: View {
             surface: .boardCard
         )
         .background(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: AstridTokens.Layout.Comfortable.boardCardRadius)
                 .fill(cardBackgroundColor)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: AstridTokens.Layout.Comfortable.boardCardRadius)
                 .stroke(isSelected ? Color.accentColor : Color(.separator),
                         lineWidth: isSelected ? 2.5 : 0.5)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: AstridTokens.Layout.Comfortable.boardCardRadius))
         // Selection highlight is instant even though the board's scroll room
         // animates when the container animates on selection.
         .animation(nil, value: isSelected)

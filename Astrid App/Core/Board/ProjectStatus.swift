@@ -112,10 +112,10 @@ func isTaskInProject(_ task: Task, lists: [TaskList]) -> Bool {
 /// landscape".
 ///
 /// `targetMinColumnWidth` is the smallest width we want any single
-/// column to be (defaults to 300pt — comfortable for two task chips
+/// column to be (defaults to core's `board-column-min-width`, 300pt — comfortable for two task chips
 /// plus a margin). The result is clamped to [1, 5].
 func boardColumnsVisible(availableWidth: CGFloat,
-                         targetMinColumnWidth: CGFloat = 300) -> Int {
+                         targetMinColumnWidth: CGFloat = AstridTokens.Layout.Comfortable.boardColumnMinWidth) -> Int {
     guard availableWidth > 0, targetMinColumnWidth > 0 else { return 1 }
     let raw = Int((availableWidth / targetMinColumnWidth).rounded(.down))
     return max(1, min(5, raw))

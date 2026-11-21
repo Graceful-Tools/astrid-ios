@@ -110,7 +110,7 @@ struct MacBoardView: View {
     }
 
     private func columnView(_ col: ProjectBoardColumn, items: [Task]) -> some View {
-        return VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: AstridTokens.Layout.Compact.boardColumnHeaderPaddingBottom) {
             HStack {
                 Text(col.name).macFont(.headline).foregroundStyle(Theme.textSecondary)
                 if col.kind == .done {
@@ -141,7 +141,7 @@ struct MacBoardView: View {
             //
             // Lazy, because a column is exactly the place a list gets long.
             ScrollView(.vertical) {
-                LazyVStack(alignment: .leading, spacing: 8) {
+                LazyVStack(alignment: .leading, spacing: AstridTokens.Layout.Compact.boardCardGap) {
                     ForEach(items) { t in card(t) }
                 }
                 // An empty column says something about its own state, as on iOS (ADEV-81).
@@ -167,10 +167,10 @@ struct MacBoardView: View {
             // (`BoardColumnView.shouldShowFooter`): a card is not born finished (ADEV-60).
             if col.kind != .done { addCardField(col) }
         }
-        .padding(10)
+        .padding(AstridTokens.Layout.Compact.boardColumnBodyPaddingX)
         .frame(width: columnWidth, alignment: .leading)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(RoundedRectangle(cornerRadius: 8)
+        .background(RoundedRectangle(cornerRadius: AstridTokens.Layout.Compact.boardColumnRadius)
             .fill(dropTargetColumnId == col.id ? Theme.accent.opacity(0.15) : Theme.bgTertiary.opacity(0.4)))
         .animation(MacMotion.fast, value: dropTargetColumnId)   // drop-target highlight eases (4c7b9f08)
         .dropDestination(for: String.self) { items, _ in
@@ -241,12 +241,12 @@ struct MacBoardView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(8)
+        .padding(AstridTokens.Layout.Compact.boardCardPaddingX)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(MacSelectionStyle.fill(isSelected: false, hovering: hoveredCardId == t.id))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .clipShape(RoundedRectangle(cornerRadius: AstridTokens.Layout.Compact.boardCardRadius))
         // The selection outline the pop-out wears too (b8d1ec16, AITD-302), hover-hairline otherwise.
-        .overlay(RoundedRectangle(cornerRadius: 6)
+        .overlay(RoundedRectangle(cornerRadius: AstridTokens.Layout.Compact.boardCardRadius)
             .stroke(MacSelectionStyle.borderColor(isSelected: selected, hovering: hoveredCardId == t.id),
                     lineWidth: MacSelectionStyle.borderWidth(isSelected: selected)))
         // A click anywhere but the leading control opens the details the way a list row does —

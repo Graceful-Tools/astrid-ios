@@ -176,7 +176,7 @@ struct ProjectStatusBoardView: View {
                         // so the column's border lines up under the header
                         // chrome's edges. In multi-column mode the same 8pt
                         // padding gives a uniform 16pt gutter between columns.
-                        .padding(.horizontal, 8)
+                        .padding(.horizontal, AstridTokens.Layout.Comfortable.boardColumnGap / 2)
                         .frame(width: columnWidth)
                         .id(column.id)
                     }
