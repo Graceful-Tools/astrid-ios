@@ -89,8 +89,8 @@
 "board.project_state" = "Состояние проекта";
 "tasks.assignee" = "Кто";
 "mac.you" = "(вы)";
-"tasks.completed" = "Завершено";
-"tasks.incomplete" = "Не завершено";
+"tasks.completed" = "Сделано";
+"tasks.incomplete" = "К выполнению";
 "tasks.overdue" = "Просрочено";
 "tasks.no_due_date" = "Без срока";
 "tasks.no_reminder" = "Без напоминания";
@@ -420,7 +420,7 @@
 "lists.due_date" = "Срок выполнения";
 "lists.created_date" = "Дата создания";
 "lists.task_completion" = "Завершение задачи";
-"lists.incomplete_completed_recently" = "Незавершённые + Недавно завершённые";
+"lists.incomplete_completed_recently" = "К выполнению + Недавно сделанные";
 "lists.all" = "Все";
 "lists.me" = "Я";
 "lists.not_me" = "Не я (Другие)";
@@ -1416,8 +1416,8 @@
 // Everything else those screens say now reuses the existing filters.* / time.* keys.
 "filters.name" = "Название";
 "filters.active_filters" = "Активные фильтры";
-"filters.sort_completed_first" = "Сначала выполненные";
-"filters.sort_incomplete_first" = "Сначала невыполненные";
+"filters.sort_completed_first" = "Сначала сделанные";
+"filters.sort_incomplete_first" = "Сначала к выполнению";
 "filters.save_failed" = "Не удалось сохранить: %@";
 "share.link_failed" = "Не удалось создать ссылку для общего доступа. Попробуйте ещё раз.";
 

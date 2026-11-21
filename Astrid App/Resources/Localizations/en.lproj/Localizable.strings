@@ -113,8 +113,8 @@
 "board.project_state" = "Project state";
 "tasks.assignee" = "Who";
 "mac.you" = "(you)";
-"tasks.completed" = "Completed";
-"tasks.incomplete" = "Incomplete";
+"tasks.completed" = "Done";
+"tasks.incomplete" = "To-do";
 "tasks.overdue" = "Overdue";
 "tasks.no_due_date" = "No due date";
 "tasks.no_reminder" = "No reminder";
@@ -163,7 +163,7 @@
 "lists.due_date" = "Due Date";
 "lists.created_date" = "Created Date";
 "lists.task_completion" = "Task Completion";
-"lists.incomplete_completed_recently" = "Incomplete + Completed recently";
+"lists.incomplete_completed_recently" = "To-do + Done recently";
 "lists.all" = "All";
 "lists.me" = "Me";
 "lists.not_me" = "Not Me (Others)";
@@ -1424,8 +1424,8 @@
 // Everything else those screens say now reuses the existing filters.* / time.* keys.
 "filters.name" = "Name";
 "filters.active_filters" = "Active Filters";
-"filters.sort_completed_first" = "Completed First";
-"filters.sort_incomplete_first" = "Incomplete First";
+"filters.sort_completed_first" = "Done First";
+"filters.sort_incomplete_first" = "To-do First";
 "filters.save_failed" = "Failed to save: %@";
 "share.link_failed" = "Failed to generate share link. Please try again.";
 

@@ -89,8 +89,8 @@
 "board.project_state" = "프로젝트 상태";
 "tasks.assignee" = "누구";
 "mac.you" = "(나)";
-"tasks.completed" = "완료됨";
-"tasks.incomplete" = "미완료";
+"tasks.completed" = "완료";
+"tasks.incomplete" = "할 일";
 "tasks.overdue" = "기한 지남";
 "tasks.no_due_date" = "기한 없음";
 "tasks.no_reminder" = "알림 없음";
@@ -420,7 +420,7 @@
 "lists.due_date" = "마감일";
 "lists.created_date" = "생성일";
 "lists.task_completion" = "작업 완료";
-"lists.incomplete_completed_recently" = "미완료 + 최근 완료";
+"lists.incomplete_completed_recently" = "할 일 + 최근 완료";
 "lists.all" = "모두";
 "lists.me" = "나";
 "lists.not_me" = "나 외 (다른 사람)";
@@ -1418,8 +1418,8 @@
 // Everything else those screens say now reuses the existing filters.* / time.* keys.
 "filters.name" = "이름";
 "filters.active_filters" = "적용된 필터";
-"filters.sort_completed_first" = "완료된 항목 먼저";
-"filters.sort_incomplete_first" = "미완료 항목 먼저";
+"filters.sort_completed_first" = "완료 먼저";
+"filters.sort_incomplete_first" = "할 일 먼저";
 "filters.save_failed" = "저장하지 못했습니다: %@";
 "share.link_failed" = "공유 링크를 만들지 못했습니다. 다시 시도해 주세요.";
 

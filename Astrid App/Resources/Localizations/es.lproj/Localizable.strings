@@ -100,8 +100,8 @@
 "board.project_state" = "Estado del proyecto";
 "tasks.assignee" = "Quién";
 "mac.you" = "(tú)";
-"tasks.completed" = "Completada";
-"tasks.incomplete" = "Incompleta";
+"tasks.completed" = "Hecha";
+"tasks.incomplete" = "Por hacer";
 "tasks.overdue" = "Atrasada";
 "tasks.no_due_date" = "Sin fecha límite";
 "tasks.no_reminder" = "Sin recordatorio";
@@ -461,7 +461,7 @@
 "lists.due_date" = "Fecha de vencimiento";
 "lists.created_date" = "Fecha de creación";
 "lists.task_completion" = "Finalización de tarea";
-"lists.incomplete_completed_recently" = "Incompletas + Completadas recientemente";
+"lists.incomplete_completed_recently" = "Por hacer + Hechas recientemente";
 "lists.all" = "Todas";
 "lists.me" = "Yo";
 "lists.not_me" = "No yo (Otros)";
@@ -1432,8 +1432,8 @@
 // Everything else those screens say now reuses the existing filters.* / time.* keys.
 "filters.name" = "Nombre";
 "filters.active_filters" = "Filtros activos";
-"filters.sort_completed_first" = "Completadas primero";
-"filters.sort_incomplete_first" = "Sin completar primero";
+"filters.sort_completed_first" = "Hechas primero";
+"filters.sort_incomplete_first" = "Por hacer primero";
 "filters.save_failed" = "No se pudo guardar: %@";
 "share.link_failed" = "No se pudo generar el enlace para compartir. Inténtalo de nuevo.";
 
