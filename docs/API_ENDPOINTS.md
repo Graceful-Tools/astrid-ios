@@ -63,6 +63,7 @@ not the app, so those paths are named here rather than listed below.
 
 ### `/api/v1/projects`
 
+- `/api/v1/projects/{id}/goals`
 
 ### `/api/v1/public`
 

@@ -1614,11 +1614,11 @@
 
 /* Decisions and trade-off grids (AITD-579, AITD-578) */
 "decision.recommended" = "Recommended";
-"tradeoff.very_poor" = "Very poor";
+"tradeoff.very_poor" = "Disqualifying";
 "tradeoff.poor" = "Poor";
 "tradeoff.mixed" = "Mixed";
 "tradeoff.good" = "Good";
-"tradeoff.very_good" = "Very good";
+"tradeoff.very_good" = "Decisive";
 "tradeoff.unrated" = "Not rated";
 "tasks.tradeoff_grid.full_screen" = "Full screen";
 
@@ -1717,3 +1717,25 @@
 /* ADEV-146: the quick changer's completion row — same words as web tasks.markAsDone / tasks.markAsTodo */
 "tasks.mark_as_done" = "Mark as done";
 "tasks.mark_as_todo" = "Mark as to-do";
+
+/* Project goals and guardrails (ADEV-183, web ADEV-179) */
+"project_goals.title" = "Goals & guardrails";
+"project_goals.intro" = "What this project is for, and what it must not do. Everyone working here, people and agents, reads both, so instructions can stay short.";
+"project_goals.goals_heading" = "Goals";
+"project_goals.guardrails_heading" = "Guardrails";
+"project_goals.goal_placeholder" = "A goal, e.g. Maximise long-term returns";
+"project_goals.measure_placeholder" = "Measure";
+"project_goals.target_placeholder" = "Target";
+"project_goals.current_placeholder" = "Current";
+"project_goals.guardrail_placeholder" = "A guardrail, e.g. Break no applicable laws";
+"project_goals.kind_label" = "How it is checked";
+"project_goals.kind_hint" = "Stated: people and agents judge it. Enforced: a program checks it.";
+"project_goals.kind_stated" = "Stated";
+"project_goals.kind_enforced" = "Enforced";
+"project_goals.add_goal" = "Add goal";
+"project_goals.add_guardrail" = "Add guardrail";
+"project_goals.remove" = "Remove";
+"project_goals.save_failed" = "Could not save the goals and guardrails. Try again.";
+"project_goals.counts" = "Goals: %1$d · Guardrails: %2$d";
+"project_goals.target_value" = "Target: %@";
+"project_goals.current_value" = "Now: %@";

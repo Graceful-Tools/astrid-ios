@@ -62,6 +62,7 @@ struct ProjectStatusBoardView: View {
 
     @StateObject private var taskService = TaskService.shared
     @StateObject private var listService = ListService.shared
+    @StateObject private var goalsService = ProjectGoalsService.shared
     /// The columns and their cards, as astrid-core draws them (AITD-461): asked off the main
     /// thread, re-asked when tasks, lists or projects change, the last answer kept on screen.
     @StateObject private var board = BoardModel()
@@ -144,6 +145,11 @@ struct ProjectStatusBoardView: View {
     }
 
     var body: some View {
+        VStack {
+        // The project's goals and guardrails, folded; nothing when it has none (ADEV-183).
+        if ProjectGoalsStrip.shows(goalsService.goals(projectId: projectId)) {
+            ProjectGoalsStrip(projectId: projectId)
+        }
         GeometryReader { geo in
             // Phone-narrow widths: one full-screen paged column (existing
             // behavior). Wider iPad layouts: fan out to multiple columns
@@ -284,6 +290,8 @@ struct ProjectStatusBoardView: View {
             )
             } // ScrollViewReader
         }
+        }
+        .task(id: projectId) { await goalsService.load(projectId: projectId) }
         .alert("Couldn't move task", isPresented: .constant(dropError != nil), presenting: dropError) { _ in
             Button("OK") { dropError = nil }
         } message: { error in

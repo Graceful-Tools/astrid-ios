@@ -746,6 +746,7 @@ class AuthManager: ObservableObject {
         GoogleTasksSyncService.shared.resetForSignOut()
         FeatureFlagService.shared.clearCache(userId: departingUserId)
         ProjectBoardRowsService.shared.clear()
+        ProjectGoalsService.shared.clear()
 
         // Clear user preferences and settings
         MyTasksPreferencesService.shared.clearData()

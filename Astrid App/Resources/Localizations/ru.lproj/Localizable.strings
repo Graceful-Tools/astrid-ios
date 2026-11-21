@@ -1606,11 +1606,11 @@
 
 /* Decisions and trade-off grids (AITD-579, AITD-578) */
 "decision.recommended" = "Рекомендуется";
-"tradeoff.very_poor" = "Очень плохо";
+"tradeoff.very_poor" = "Исключающее";
 "tradeoff.poor" = "Плохо";
 "tradeoff.mixed" = "Неоднозначно";
 "tradeoff.good" = "Хорошо";
-"tradeoff.very_good" = "Очень хорошо";
+"tradeoff.very_good" = "Решающее";
 "tradeoff.unrated" = "Без оценки";
 "tasks.tradeoff_grid.full_screen" = "Во весь экран";
 
@@ -1709,3 +1709,25 @@
 /* ADEV-146: the quick changer's completion row — same words as web tasks.markAsDone / tasks.markAsTodo */
 "tasks.mark_as_done" = "Отметить сделанной";
 "tasks.mark_as_todo" = "Вернуть в список дел";
+
+/* Project goals and guardrails (ADEV-183, web ADEV-179) */
+"project_goals.title" = "Цели и ограничения";
+"project_goals.intro" = "Зачем нужен этот проект и чего он не должен делать. Все, кто здесь работает, люди и агенты, читают и то и другое, поэтому инструкции могут быть краткими.";
+"project_goals.goals_heading" = "Цели";
+"project_goals.guardrails_heading" = "Ограничения";
+"project_goals.goal_placeholder" = "Цель, например: Максимизировать долгосрочную доходность";
+"project_goals.measure_placeholder" = "Показатель";
+"project_goals.target_placeholder" = "Целевое значение";
+"project_goals.current_placeholder" = "Сейчас";
+"project_goals.guardrail_placeholder" = "Ограничение, например: Не нарушать применимые законы";
+"project_goals.kind_label" = "Как проверяется";
+"project_goals.kind_hint" = "Заявленное: оценивают люди и агенты. Принудительное: проверяет программа.";
+"project_goals.kind_stated" = "Заявленное";
+"project_goals.kind_enforced" = "Принудительное";
+"project_goals.add_goal" = "Добавить цель";
+"project_goals.add_guardrail" = "Добавить ограничение";
+"project_goals.remove" = "Удалить";
+"project_goals.save_failed" = "Не удалось сохранить цели и ограничения. Попробуйте ещё раз.";
+"project_goals.counts" = "Цели: %1$d · Ограничения: %2$d";
+"project_goals.target_value" = "Цель: %@";
+"project_goals.current_value" = "Сейчас: %@";

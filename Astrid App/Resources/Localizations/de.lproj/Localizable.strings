@@ -1606,11 +1606,11 @@
 
 /* Decisions and trade-off grids (AITD-579, AITD-578) */
 "decision.recommended" = "Empfohlen";
-"tradeoff.very_poor" = "Sehr schlecht";
+"tradeoff.very_poor" = "Ausschlusskriterium";
 "tradeoff.poor" = "Schlecht";
 "tradeoff.mixed" = "Gemischt";
 "tradeoff.good" = "Gut";
-"tradeoff.very_good" = "Sehr gut";
+"tradeoff.very_good" = "Entscheidend";
 "tradeoff.unrated" = "Nicht bewertet";
 "tasks.tradeoff_grid.full_screen" = "Vollbild";
 
@@ -1709,3 +1709,25 @@
 /* ADEV-146: the quick changer's completion row — same words as web tasks.markAsDone / tasks.markAsTodo */
 "tasks.mark_as_done" = "Als erledigt markieren";
 "tasks.mark_as_todo" = "Als To-do markieren";
+
+/* Project goals and guardrails (ADEV-183, web ADEV-179) */
+"project_goals.title" = "Ziele & Leitplanken";
+"project_goals.intro" = "Wofür dieses Projekt da ist und was es nicht tun darf. Alle, die hier arbeiten, Menschen wie Agenten, lesen beides, damit Anweisungen kurz bleiben können.";
+"project_goals.goals_heading" = "Ziele";
+"project_goals.guardrails_heading" = "Leitplanken";
+"project_goals.goal_placeholder" = "Ein Ziel, z. B. Langfristige Rendite maximieren";
+"project_goals.measure_placeholder" = "Kennzahl";
+"project_goals.target_placeholder" = "Zielwert";
+"project_goals.current_placeholder" = "Aktuell";
+"project_goals.guardrail_placeholder" = "Eine Leitplanke, z. B. Keine geltenden Gesetze brechen";
+"project_goals.kind_label" = "Wie sie geprüft wird";
+"project_goals.kind_hint" = "Formuliert: Menschen und Agenten beurteilen sie. Erzwungen: ein Programm prüft sie.";
+"project_goals.kind_stated" = "Formuliert";
+"project_goals.kind_enforced" = "Erzwungen";
+"project_goals.add_goal" = "Ziel hinzufügen";
+"project_goals.add_guardrail" = "Leitplanke hinzufügen";
+"project_goals.remove" = "Entfernen";
+"project_goals.save_failed" = "Ziele und Leitplanken konnten nicht gespeichert werden. Bitte erneut versuchen.";
+"project_goals.counts" = "Ziele: %1$d · Leitplanken: %2$d";
+"project_goals.target_value" = "Zielwert: %@";
+"project_goals.current_value" = "Aktuell: %@";
