@@ -89,8 +89,8 @@
 "board.project_state" = "プロジェクトの状態";
 "tasks.assignee" = "誰";
 "mac.you" = "（自分）";
-"tasks.completed" = "完了済み";
-"tasks.incomplete" = "未完了";
+"tasks.completed" = "完了";
+"tasks.incomplete" = "やること";
 "tasks.overdue" = "期限切れ";
 "tasks.no_due_date" = "期限なし";
 "tasks.no_reminder" = "リマインダーなし";
@@ -420,7 +420,7 @@
 "lists.due_date" = "期限日";
 "lists.created_date" = "作成日";
 "lists.task_completion" = "タスク完了";
-"lists.incomplete_completed_recently" = "未完了 + 最近完了";
+"lists.incomplete_completed_recently" = "やること + 最近完了";
 "lists.all" = "すべて";
 "lists.me" = "自分";
 "lists.not_me" = "自分以外（他のユーザー）";
@@ -1416,8 +1416,8 @@
 // Everything else those screens say now reuses the existing filters.* / time.* keys.
 "filters.name" = "名前";
 "filters.active_filters" = "適用中のフィルタ";
-"filters.sort_completed_first" = "完了したものを先に";
-"filters.sort_incomplete_first" = "未完了のものを先に";
+"filters.sort_completed_first" = "完了を先に";
+"filters.sort_incomplete_first" = "やることを先に";
 "filters.save_failed" = "保存できませんでした: %@";
 "share.link_failed" = "共有リンクを作成できませんでした。もう一度お試しください。";
 

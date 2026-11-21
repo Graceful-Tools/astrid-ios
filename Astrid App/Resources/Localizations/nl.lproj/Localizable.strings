@@ -89,8 +89,8 @@
 "board.project_state" = "Projectstatus";
 "tasks.assignee" = "Wie";
 "mac.you" = "(jij)";
-"tasks.completed" = "Voltooid";
-"tasks.incomplete" = "Onvoltooid";
+"tasks.completed" = "Gedaan";
+"tasks.incomplete" = "Te doen";
 "tasks.overdue" = "Verlopen";
 "tasks.no_due_date" = "Geen vervaldatum";
 "tasks.no_reminder" = "Geen herinnering";
@@ -420,7 +420,7 @@
 "lists.due_date" = "Vervaldatum";
 "lists.created_date" = "Aanmaakdatum";
 "lists.task_completion" = "Taakvoltooiing";
-"lists.incomplete_completed_recently" = "Onvolledig + Recent voltooid";
+"lists.incomplete_completed_recently" = "Te doen + Recent gedaan";
 "lists.all" = "Alle";
 "lists.me" = "Ik";
 "lists.not_me" = "Niet ik (Anderen)";
@@ -1416,8 +1416,8 @@
 // Everything else those screens say now reuses the existing filters.* / time.* keys.
 "filters.name" = "Naam";
 "filters.active_filters" = "Actieve filters";
-"filters.sort_completed_first" = "Voltooide eerst";
-"filters.sort_incomplete_first" = "Niet-voltooide eerst";
+"filters.sort_completed_first" = "Gedaan eerst";
+"filters.sort_incomplete_first" = "Te doen eerst";
 "filters.save_failed" = "Opslaan mislukt: %@";
 "share.link_failed" = "Kan geen deellink maken. Probeer het opnieuw.";
 

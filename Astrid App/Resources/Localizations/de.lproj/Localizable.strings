@@ -98,8 +98,8 @@
 "board.project_state" = "Projektstatus";
 "tasks.assignee" = "Wer";
 "mac.you" = "(du)";
-"tasks.completed" = "Abgeschlossen";
-"tasks.incomplete" = "Unvollständig";
+"tasks.completed" = "Erledigt";
+"tasks.incomplete" = "Zu erledigen";
 "tasks.overdue" = "Überfällig";
 "tasks.no_due_date" = "Kein Fälligkeitsdatum";
 "tasks.no_reminder" = "Keine Erinnerung";
@@ -150,7 +150,7 @@
 "lists.due_date" = "Fälligkeitsdatum";
 "lists.created_date" = "Erstellungsdatum";
 "lists.task_completion" = "Aufgabenabschluss";
-"lists.incomplete_completed_recently" = "Unvollständig + Kürzlich abgeschlossen";
+"lists.incomplete_completed_recently" = "Zu erledigen + Kürzlich erledigt";
 "lists.all" = "Alle";
 "lists.me" = "Ich";
 "lists.not_me" = "Nicht ich (Andere)";
@@ -1417,7 +1417,7 @@
 "filters.name" = "Name";
 "filters.active_filters" = "Aktive Filter";
 "filters.sort_completed_first" = "Erledigte zuerst";
-"filters.sort_incomplete_first" = "Offene zuerst";
+"filters.sort_incomplete_first" = "Zu erledigende zuerst";
 "filters.save_failed" = "Speichern fehlgeschlagen: %@";
 "share.link_failed" = "Freigabelink konnte nicht erstellt werden. Bitte erneut versuchen.";
 

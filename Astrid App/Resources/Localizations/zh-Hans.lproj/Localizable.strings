@@ -90,7 +90,7 @@
 "tasks.assignee" = "谁";
 "mac.you" = "（我）";
 "tasks.completed" = "已完成";
-"tasks.incomplete" = "未完成";
+"tasks.incomplete" = "待办";
 "tasks.overdue" = "已逾期";
 "tasks.no_due_date" = "无截止日期";
 "tasks.no_reminder" = "无提醒";
@@ -420,7 +420,7 @@
 "lists.due_date" = "截止日期";
 "lists.created_date" = "创建日期";
 "lists.task_completion" = "任务完成";
-"lists.incomplete_completed_recently" = "未完成 + 最近完成";
+"lists.incomplete_completed_recently" = "待办 + 最近完成";
 "lists.all" = "全部";
 "lists.me" = "我";
 "lists.not_me" = "非我（其他人）";
@@ -1417,7 +1417,7 @@
 "filters.name" = "名称";
 "filters.active_filters" = "已启用的筛选条件";
 "filters.sort_completed_first" = "已完成的优先";
-"filters.sort_incomplete_first" = "未完成的优先";
+"filters.sort_incomplete_first" = "待办优先";
 "filters.save_failed" = "保存失败：%@";
 "share.link_failed" = "无法生成分享链接，请重试。";
 

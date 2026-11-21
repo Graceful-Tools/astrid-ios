@@ -86,7 +86,7 @@
 "tasks.assignee" = "Qui";
 "mac.you" = "(vous)";
 "tasks.completed" = "Terminée";
-"tasks.incomplete" = "Incomplète";
+"tasks.incomplete" = "À faire";
 "tasks.overdue" = "En retard";
 "tasks.no_due_date" = "Pas de date limite";
 "tasks.no_reminder" = "Pas de rappel";
@@ -447,7 +447,7 @@
 "lists.due_date" = "Date d'échéance";
 "lists.created_date" = "Date de création";
 "lists.task_completion" = "Achèvement de tâche";
-"lists.incomplete_completed_recently" = "Incomplètes + Récemment terminées";
+"lists.incomplete_completed_recently" = "À faire + Récemment terminées";
 "lists.all" = "Toutes";
 "lists.me" = "Moi";
 "lists.not_me" = "Pas moi (Autres)";
@@ -1433,7 +1433,7 @@
 "filters.name" = "Nom";
 "filters.active_filters" = "Filtres actifs";
 "filters.sort_completed_first" = "Terminées d’abord";
-"filters.sort_incomplete_first" = "Non terminées d’abord";
+"filters.sort_incomplete_first" = "À faire d’abord";
 "filters.save_failed" = "Échec de l’enregistrement : %@";
 "share.link_failed" = "Impossible de générer le lien de partage. Réessayez.";
 
