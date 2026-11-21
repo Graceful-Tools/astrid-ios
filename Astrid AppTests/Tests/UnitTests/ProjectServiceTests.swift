@@ -30,3 +30,23 @@ final class ProjectServiceTests: XCTestCase {
         XCTAssertEqual(service.project(id: "test-p1")?.name, "Test Project")
     }
 }
+
+/// ADEV-176: a manual refresh (⌘R, the toolbar, pull-to-refresh) has to bring the sidebar's
+/// projects up to date. The user-initiated sync command publishes no change event, so the
+/// projects were re-read only by a background pass that happened to move a task or list — a
+/// project consolidated on the web stayed in the Mac sidebar under its old name indefinitely.
+@MainActor
+final class RefreshReloadsProjectsTests: XCTestCase {
+    func testTheReadBackAfterASyncPassReloadsTheProjects_ADEV176() async {
+        let service = ProjectService.shared
+        let original = service.projects
+        defer { service.projects = original }
+        // What the sidebar still shows: a board the core's cache (what the pass wrote) does not hold.
+        service.projects = [Project(id: "adev176-stale-board", name: "Astrid Android To-do", ownerId: "u1")]
+
+        await SyncManager.shared.reloadAfterPass()
+
+        XCTAssertNil(service.project(id: "adev176-stale-board"),
+                     "a refresh must replace the projects on screen with what the pass brought")
+    }
+}
