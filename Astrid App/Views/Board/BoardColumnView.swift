@@ -197,7 +197,7 @@ struct BoardColumnView: View {
 
     /// Width of the white side border between the column edge and the
     /// cyan interior — roughly double the previous 3pt stroke.
-    private let columnBorderWidth: CGFloat = 6
+    private let columnBorderWidth: CGFloat = AstridTokens.Layout.Comfortable.boardColumnWall
 
     /// The column's own coordinate space. Card frames and the drag location are
     /// both measured in it, so they can be compared directly — and because it
@@ -247,14 +247,14 @@ struct BoardColumnView: View {
         VStack(alignment: .leading, spacing: 0) {
             header
             ScrollView {
-                LazyVStack(spacing: 6) {
+                LazyVStack(spacing: AstridTokens.Layout.Comfortable.boardCardGap) {
                     ForEach(Array(displayedTasks.enumerated()), id: \.element.id) { index, task in
                         cardSlot(for: task, at: index)
                     }
                     appendSlot
                 }
-                .padding(.horizontal, 6)
-                .padding(.vertical, 8)
+                .padding(.horizontal, AstridTokens.Layout.Comfortable.boardColumnBodyPaddingX)
+                .padding(.vertical, AstridTokens.Layout.Comfortable.boardColumnBodyPaddingY)
                 .animation(ReducedMotion.standardSpring(),
                            value: displayedTasks.map { $0.id })
                 .animation(ReducedMotion.standardSpring(),
@@ -424,7 +424,7 @@ struct BoardColumnView: View {
                     .padding(.vertical, 8)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: displayedTasks.isEmpty ? 260 : 24)
+        .frame(maxWidth: .infinity, minHeight: displayedTasks.isEmpty ? AstridTokens.Layout.Comfortable.emptyColumnMinHeight : 24)
         .allowsHitTesting(false)
     }
 
@@ -495,9 +495,9 @@ struct BoardColumnView: View {
                     .lineLimit(2)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.top, 12)
-        .padding(.bottom, 8)
+        .padding(.horizontal, AstridTokens.Layout.Comfortable.boardColumnHeaderPaddingX)
+        .padding(.top, AstridTokens.Layout.Comfortable.boardColumnHeaderPaddingTop)
+        .padding(.bottom, AstridTokens.Layout.Comfortable.boardColumnHeaderPaddingBottom)
         .frame(maxWidth: .infinity, alignment: .leading)
         // No own background — the header sits directly on the column
         // frame, so it's the same surface as the side borders/footer.
