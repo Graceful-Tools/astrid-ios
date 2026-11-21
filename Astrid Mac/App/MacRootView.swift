@@ -97,14 +97,6 @@ struct MacRootView: View {
         selectedTaskIds = [taskId]
     }
 
-    /// The open card moved column and the board scrolled it into view: the pop-out docks beside
-    /// it there, its side decided again (ADEV-175). The arrow already follows the live frame.
-    private func reanchorBoardCard(_ taskId: String) {
-        guard selectedTaskIds == [taskId], openedBoardCard?.taskId == taskId,
-              let frame = selectedCardFrame else { return }
-        openedBoardCard = (taskId, frame)
-    }
-
     /// Cached once: `ProcessInfo.arguments` allocates on every read.
     // Cached: read once, not on every scroll event. Goes through MacUITestArgs so it matches the
     // single-token `-uiTestSelectRow=<n>` form the hook actually supports (69ff12e7) — a raw
@@ -520,16 +512,14 @@ struct MacRootView: View {
     /// The board. One definition, because it is drawn in two places — with the chat column and
     /// without it.
     ///
-    /// It used to carry the list's floating quick-add pinned under the whole board (e466eab8),
-    /// on top of the "+ Add task" at the foot of every column — two boxes for one job, and they
-    /// disagreed about what a new task would be. Each column now draws the list's own bar
-    /// (`MacQuickAddBar`), so the central one is gone (AITD-431).
+    /// No floating quick-add under the whole board (e466eab8): each column draws the list's own
+    /// bar (`MacQuickAddBar`), so two boxes no longer disagree about a new task (AITD-431).
     @ViewBuilder private func boardColumn(_ listId: String) -> some View {
         MacBoardView(listId: listId,
                      selectedTaskId: selectedTaskIds.count == 1 ? selectedTaskIds.first : nil,
-                     onOpenCard: { openBoardCard($0, frame: $1) },
-                     openedCardFrame: openedBoardCard?.frame,
-                     onCardMoved: { reanchorBoardCard($0) })
+                     onOpenCard: { openBoardCard($0, frame: $1) }, openedCardFrame: openedBoardCard?.frame,
+                     onCardMoved: { openedBoardCard = MacTaskDetailPopout.reanchored(openedBoardCard, movedTaskId: $0,
+                         selectedTaskIds: selectedTaskIds, cardFrame: selectedCardFrame) })
     }
 
     /// A virtual/saved-filter list can't take a quick-add or a New Task (it owns no real tasks).

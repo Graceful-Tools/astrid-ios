@@ -35,6 +35,15 @@ struct MacTaskDetailPopout: View {
         return BoardCardCallout.placement(card: card, viewport: viewport, panelWidth: panelWidth + arrowRoom)
     }
 
+    /// The open card moved column and the board scrolled it into view: the pop-out docks beside
+    /// it there, its side decided again (ADEV-175). Anything else keeps the dock it had — the
+    /// arrow already follows the live frame, and a dock that chased a scroll would never settle.
+    static func reanchored(_ opened: (taskId: String, frame: CGRect)?, movedTaskId: String,
+                           selectedTaskIds: Set<String>, cardFrame: CGRect?) -> (taskId: String, frame: CGRect)? {
+        guard selectedTaskIds == [movedTaskId], opened?.taskId == movedTaskId, let cardFrame else { return opened }
+        return (movedTaskId, cardFrame)
+    }
+
     var body: some View {
         if let placed {
             popout
