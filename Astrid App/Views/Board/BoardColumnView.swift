@@ -243,9 +243,17 @@ struct BoardColumnView: View {
         return result
     }
 
+    /// The open task, and whether its card is in this column (`column.id`) or elsewhere ("").
+    private var selectedCardSpot: BoardCardCallout.Spot? {
+        guard let selectedTaskId else { return nil }
+        return .init(taskId: selectedTaskId,
+                     columnId: tasks.contains { $0.id == selectedTaskId } ? column.id : "")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
+            ScrollViewReader { cardsProxy in
             ScrollView {
                 LazyVStack(spacing: AstridTokens.Layout.Comfortable.boardCardGap) {
                     ForEach(Array(displayedTasks.enumerated()), id: \.element.id) { index, task in
@@ -260,6 +268,16 @@ struct BoardColumnView: View {
                 .animation(ReducedMotion.standardSpring(),
                            value: hoveringIndex)
             }
+            // The open card arriving in this column — completed into Done, marked to-do out of it
+            // — scrolls into view, so the panel's arrow has a card to point at (ADEV-175).
+            .onChange(of: selectedCardSpot) { old, new in
+                guard let moved = BoardCardCallout.moved(from: old, to: new),
+                      moved.columnId == column.id else { return }
+                withAnimation(ReducedMotion.standardSpring()) {
+                    cardsProxy.scrollTo(moved.taskId, anchor: .center)
+                }
+            }
+            } // ScrollViewReader
             // The pull lives on the column's own vertical scroll, never the board's page, so the
             // carousel cannot bounce on a refresh control while swiping columns (AITD-670).
             .modifier(ConditionalRefreshable(action: onRefresh))
@@ -514,19 +532,23 @@ private struct BoardCardCalloutAnchor: ViewModifier {
     let onTap: () -> Void
     @Environment(\.selectedRowReporter) private var reporter
     @State private var frame: CGRect = .zero
+    /// This card view. A task moving column is drawn by a new view in its new column, which
+    /// reports before this one disappears; naming the view keeps that disappearance from erasing
+    /// where the card went (ADEV-175).
+    @State private var source = UUID().uuidString
 
     func body(content: Content) -> some View {
         content
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { newFrame in
                 frame = newFrame
-                if isSelected { reporter?.reportCard(taskId: taskId, frame: newFrame) }
+                if isSelected { reporter?.reportCard(taskId: taskId, frame: newFrame, source: source) }
             }
             .onChange(of: isSelected) { _, selected in
-                if selected { reporter?.reportCard(taskId: taskId, frame: frame) }
+                if selected { reporter?.reportCard(taskId: taskId, frame: frame, source: source) }
             }
-            .onDisappear { reporter?.clear(taskId: taskId) }
+            .onDisappear { reporter?.clear(taskId: taskId, source: source) }
             .onTapGesture {
-                reporter?.openCard(taskId: taskId, frame: frame)
+                reporter?.openCard(taskId: taskId, frame: frame, source: source)
                 onTap()
             }
     }

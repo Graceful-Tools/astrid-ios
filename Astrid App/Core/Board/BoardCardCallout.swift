@@ -84,6 +84,32 @@ enum BoardCardCallout {
         return CGFloat(placed.top + placed.arrowOffset) - panel.minY
     }
 
+    // MARK: - The open card moving column — ADEV-175
+
+    /// Where the open task's card is: the task and the column holding it.
+    struct Spot: Equatable {
+        let taskId: String
+        let columnId: String
+    }
+
+    /// The open card moved to another column — completed into Done, marked to-do out of it, or
+    /// set to another status from its details (ADEV-175, Jon: "update where the arrow on the task
+    /// details points so it points to the moved task item"). Another task opening, the panel
+    /// opening or closing, and the card staying put are not moves. The new spot, or nil.
+    static func moved(from old: Spot?, to new: Spot?) -> Spot? {
+        guard let old, let new, old.taskId == new.taskId, old.columnId != new.columnId else { return nil }
+        return new
+    }
+
+    /// Which edge of the board the column a card moved into scrolls to: the edge the card was
+    /// opened on, so it lands on the same side it left and the panel — docked on the other side —
+    /// does not cover it. No opened card (a panel opened from elsewhere): the leading edge, as a
+    /// selection's column always scrolled.
+    static func scrollEdge(openedCard: CGRect?, board: CGRect) -> Side {
+        guard let openedCard, board.width > 0 else { return .leading }
+        return openedCard.midX > board.midX ? .trailing : .leading
+    }
+
     /// astrid-core's `rows::callout::GUTTER`, published in its fixture.
     static let gutter: CGFloat = 8
 }

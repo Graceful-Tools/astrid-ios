@@ -137,6 +137,12 @@ struct ProjectStatusBoardView: View {
     /// the header and the first task row.
     private let boardTopInset: CGFloat = 8
 
+    /// The open task and the column its card is in (ADEV-175).
+    private var selectedSpot: BoardCardCallout.Spot? {
+        guard let selectedTaskId, let columnId = board.columnId(of: selectedTaskId) else { return nil }
+        return .init(taskId: selectedTaskId, columnId: columnId)
+    }
+
     var body: some View {
         GeometryReader { geo in
             // Phone-narrow widths: one full-screen paged column (existing
@@ -238,6 +244,19 @@ struct ProjectStatusBoardView: View {
                 // first tap and every tap after.
                 withAnimation(ReducedMotion.standardSpring()) {
                     proxy.scrollTo(columnId, anchor: .leading)
+                }
+            }
+            // The open card moved column — completed into Done, marked to-do out of it: scroll
+            // the column it went to into view on the side it was opened on, clear of the panel,
+            // then dock the panel beside it there so the arrow points at it (ADEV-175).
+            .onChange(of: selectedSpot) { old, new in
+                guard let moved = BoardCardCallout.moved(from: old, to: new) else { return }
+                let edge = BoardCardCallout.scrollEdge(openedCard: selectedRowReporter?.openedCard?.frame,
+                                                       board: geo.frame(in: .global))
+                withAnimation(ReducedMotion.standardSpring(), completionCriteria: .logicallyComplete) {
+                    proxy.scrollTo(moved.columnId, anchor: edge == .leading ? .leading : .trailing)
+                } completion: {
+                    selectedRowReporter?.reanchorOpenedCard(taskId: moved.taskId)
                 }
             }
             // At the left-most column a left-to-right swipe can't scroll further,

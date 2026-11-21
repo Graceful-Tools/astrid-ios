@@ -15,6 +15,12 @@ struct MacBoardView: View {
     /// side of the card with more room (AITD-679). The frame is the card's, in the global space;
     /// nil when there is no card to stand beside (a card just added).
     var onOpenCard: (String, CGRect?) -> Void = { _, _ in }
+    /// Where the open card was when it was clicked (global), for which edge a column it moves
+    /// into scrolls to (ADEV-175). Nil scrolls to the leading edge.
+    var openedCardFrame: CGRect? = nil
+    /// The open card moved column and the board has scrolled it into view: dock the pop-out
+    /// beside it there (ADEV-175).
+    var onCardMoved: (String) -> Void = { _ in }
     /// Draw this list as its row of a project's board: the project's columns, the list's cards
     /// (core `projectBoardRow`, D67). Nil is the list's own board (ADEV-59).
     var rowOfProjectId: String? = nil
@@ -47,6 +53,14 @@ struct MacBoardView: View {
 
     /// The board's own width, measured — the columns divide it (AITD-330).
     @State private var boardWidth: CGFloat = 0
+    /// The board's frame in the global space — which half the open card was in (ADEV-175).
+    @State private var boardFrame: CGRect = .zero
+
+    /// The open task and the column its card is in (ADEV-175).
+    private var selectedSpot: BoardCardCallout.Spot? {
+        guard let selectedTaskId, let columnId = board.columnId(of: selectedTaskId) else { return nil }
+        return .init(taskId: selectedTaskId, columnId: columnId)
+    }
 
     /// For the card menu's "Open in new window" — the same action the list row offers (AITD-372).
     @Environment(\.openWindow) private var openWindow
@@ -85,17 +99,32 @@ struct MacBoardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            ScrollViewReader { proxy in
             ScrollView(.horizontal) {
                 HStack(alignment: .top, spacing: MacLayout.boardColumnSpacing) {
                     let buckets = cardsByColumn()
-                    ForEach(columns) { col in columnView(col, items: buckets[col.id] ?? []) }
+                    ForEach(columns) { col in columnView(col, items: buckets[col.id] ?? []).id(col.id) }
                 }
                 .frame(height: columnHeight)
                 .padding(MacLayout.boardPadding)
             }
+            // The open card moved column — completed into Done, marked to-do out of it: scroll the
+            // column it went to into view on the side it was opened on, clear of the pop-out, then
+            // dock the pop-out beside it so the arrow points at it (ADEV-175).
+            .onChange(of: selectedSpot) { old, new in
+                guard let moved = BoardCardCallout.moved(from: old, to: new) else { return }
+                let edge = BoardCardCallout.scrollEdge(openedCard: openedCardFrame, board: boardFrame)
+                withAnimation(MacMotion.medium, completionCriteria: .logicallyComplete) {
+                    proxy.scrollTo(moved.columnId, anchor: edge == .leading ? .leading : .trailing)
+                } completion: {
+                    onCardMoved(moved.taskId)
+                }
+            }
+            } // ScrollViewReader
             // The columns share whatever room the board has, down to their minimum — below that
             // this still scrolls, exactly as it did when the width was fixed (AITD-330).
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { boardWidth = $0 }
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { boardFrame = $0 }
             .macScrollBars(showScrollBars)
             .scrollContentBackground(.hidden)
         }
@@ -140,9 +169,10 @@ struct MacBoardView: View {
             // there was no way to reach them (task e508ae5b).
             //
             // Lazy, because a column is exactly the place a list gets long.
+            ScrollViewReader { cardsProxy in
             ScrollView(.vertical) {
                 LazyVStack(alignment: .leading, spacing: AstridTokens.Layout.Compact.boardCardGap) {
-                    ForEach(items) { t in card(t) }
+                    ForEach(items) { t in card(t).id(t.id) }
                 }
                 // An empty column says something about its own state, as on iOS (ADEV-81).
                 if items.isEmpty {
@@ -160,6 +190,14 @@ struct MacBoardView: View {
             }
             .macScrollBars(showScrollBars)
             .scrollContentBackground(.hidden)
+            // The open card arriving in this column scrolls into view, so the pop-out's arrow has
+            // a card to point at (ADEV-175).
+            .onChange(of: selectedSpot) { old, new in
+                guard let moved = BoardCardCallout.moved(from: old, to: new), moved.columnId == col.id
+                else { return }
+                withAnimation(MacMotion.medium) { cardsProxy.scrollTo(moved.taskId, anchor: .center) }
+            }
+            } // ScrollViewReader
             // Takes the room left over between the header and the add field, so those two
             // stay put at the top and bottom of the column instead of scrolling away.
             .frame(maxHeight: .infinity)
