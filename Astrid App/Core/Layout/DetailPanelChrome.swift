@@ -109,21 +109,35 @@ final class SelectedRowReporter: ObservableObject {
 
     func report(taskId: String, midY: CGFloat) {
         self.taskId = taskId
+        source = nil
         if cardFrame != nil { cardFrame = nil }
         if self.midY != midY { self.midY = midY }
     }
 
-    /// A board card's frame, while it is the panel's task.
-    func reportCard(taskId: String, frame: CGRect) {
+    /// Which card view holds the position — a task's card is a NEW view in the column it moves
+    /// to, and the one it left disappears after the new one has reported (ADEV-175).
+    private var source: String?
+
+    /// A board card's frame, while it is the panel's task. `source` names the card view reporting.
+    func reportCard(taskId: String, frame: CGRect, source: String? = nil) {
         self.taskId = taskId
+        self.source = source
         if cardFrame != frame { cardFrame = frame }
         if midY != frame.midY { midY = frame.midY }
     }
 
     /// A tap on a board card, just before it opens the panel.
-    func openCard(taskId: String, frame: CGRect) {
+    func openCard(taskId: String, frame: CGRect, source: String? = nil) {
         openedCard = OpenedCard(taskId: taskId, frame: frame)
-        reportCard(taskId: taskId, frame: frame)
+        reportCard(taskId: taskId, frame: frame, source: source)
+    }
+
+    /// The open card moved to another column and the board has scrolled it into view: dock the
+    /// panel beside it there, its side decided again from where it is now (ADEV-175). Scrolling
+    /// alone never does this — the panel would chase the card (AITD-679).
+    func reanchorOpenedCard(taskId: String) {
+        guard openedCard?.taskId == taskId, self.taskId == taskId, let cardFrame else { return }
+        openedCard = OpenedCard(taskId: taskId, frame: cardFrame)
     }
 
     /// The panel closed: the next task it opens may come from somewhere other than a card.
@@ -133,9 +147,13 @@ final class SelectedRowReporter: ObservableObject {
 
     /// Forget the row — only if it is still the one held, so a row disappearing after the next one
     /// was selected does not erase the new row's position.
-    func clear(taskId: String) {
+    /// A card view passes its `source`: the card a task moved OUT of a column must not erase the
+    /// card it moved into, which reported first (ADEV-175).
+    func clear(taskId: String, source: String? = nil) {
         guard self.taskId == taskId else { return }
+        if let source, let held = self.source, held != source { return }
         self.taskId = nil
+        self.source = nil
         midY = nil
         cardFrame = nil
     }

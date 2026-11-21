@@ -97,6 +97,14 @@ struct MacRootView: View {
         selectedTaskIds = [taskId]
     }
 
+    /// The open card moved column and the board scrolled it into view: the pop-out docks beside
+    /// it there, its side decided again (ADEV-175). The arrow already follows the live frame.
+    private func reanchorBoardCard(_ taskId: String) {
+        guard selectedTaskIds == [taskId], openedBoardCard?.taskId == taskId,
+              let frame = selectedCardFrame else { return }
+        openedBoardCard = (taskId, frame)
+    }
+
     /// Cached once: `ProcessInfo.arguments` allocates on every read.
     // Cached: read once, not on every scroll event. Goes through MacUITestArgs so it matches the
     // single-token `-uiTestSelectRow=<n>` form the hook actually supports (69ff12e7) — a raw
@@ -519,7 +527,9 @@ struct MacRootView: View {
     @ViewBuilder private func boardColumn(_ listId: String) -> some View {
         MacBoardView(listId: listId,
                      selectedTaskId: selectedTaskIds.count == 1 ? selectedTaskIds.first : nil,
-                     onOpenCard: { openBoardCard($0, frame: $1) })
+                     onOpenCard: { openBoardCard($0, frame: $1) },
+                     openedCardFrame: openedBoardCard?.frame,
+                     onCardMoved: { reanchorBoardCard($0) })
     }
 
     /// A virtual/saved-filter list can't take a quick-add or a New Task (it owns no real tasks).
