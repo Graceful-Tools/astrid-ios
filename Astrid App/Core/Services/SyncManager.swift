@@ -56,8 +56,7 @@ class SyncManager: ObservableObject {
             return
         }
 
-        await ListService.shared.reload()
-        await TaskService.shared.reloadAll()
+        await reloadAfterPass()
         guardDataIsolation()
 
         // Pictures for the people on screen, off the critical path.
@@ -76,6 +75,17 @@ class SyncManager: ObservableObject {
         let syncTime = Date()
         lastSyncDate = syncTime
         UserDefaults.standard.set(syncTime, forKey: lastSyncKey)
+    }
+
+    /// Read back everything a pass can move. A user-initiated pass publishes no change event
+    /// (the core answers the command instead), so whatever this leaves out stays as it was on
+    /// screen until something else happens to re-read it.
+    func reloadAfterPass() async {
+        await ListService.shared.reload()
+        await TaskService.shared.reloadAll()
+        // The sidebar's projects too (ADEV-176): the pass syncs the boards, but nothing re-read
+        // them after a refresh, so a project made, renamed or merged elsewhere stayed as it was.
+        await ProjectService.shared.reload()
     }
 
     /// Push what is waiting in the journal now, without pulling — to get local changes out at
