@@ -38,6 +38,11 @@ else
 fi
 
 xcrun simctl bootstatus "${UDID}" -b
+
+# A remembered hardware keyboard hides the on-screen one in every later run (ADEV-214).
+source "$(dirname "${BASH_SOURCE[0]}")/lib/sim-keyboard.sh"
+ensure_software_keyboard "${UDID}" >&2
+
 DESTINATION="platform=iOS Simulator,id=${UDID}"
 
 if [[ -n "${GITHUB_ENV:-}" ]]; then
