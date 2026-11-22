@@ -33,18 +33,10 @@ struct BoardTaskCardView: View {
         ThemeMode.resolvedName(themeMode, colorScheme: colorScheme)
     }
 
-    /// Card fill. Dark mode uses the mid `bgSecondary` tier — darker
-    /// than the board frame (`bgTertiary`) so the card recedes against
-    /// the chrome, still above the deep `bgPrimary` interior well. The
-    /// card's own separator stroke carries the edge definition.
+    /// Card fill — the list row's too: `surface`, `surface-hover` when selected (ADEV-194).
+    /// The card's own separator stroke carries the edge definition.
     private var cardBackgroundColor: Color {
-        switch effectiveTheme {
-        // Selected card reads as a solid surface (ocean: solid white vs the
-        // translucent 0.8 of the rest) so the open task stands out.
-        case "ocean": return Color.white.opacity(isSelected ? 1.0 : 0.8)
-        case "dark":  return isSelected ? Theme.Dark.bgTertiary : Theme.Dark.bgSecondary
-        default:      return Theme.bgPrimary
-        }
+        TaskCardFill.color(theme: effectiveTheme, isSelected: isSelected)
     }
 
     var body: some View {
