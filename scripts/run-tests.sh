@@ -166,6 +166,11 @@ if [[ "$RUN_UI_TESTS" == "true" ]]; then
     write_uitest_session
     echo ""
 
+    # Keyboard tests need the on-screen keyboard; a ⌘A in an earlier run leaves the simulator
+    # remembering a hardware one, which hides it for good (ADEV-214).
+    source "$SCRIPT_DIR/lib/sim-keyboard.sh"
+    ensure_software_keyboard "$(sim_udid_for_destination "$DESTINATION")"
+
     UI_MONKEY_RESULT="$RESULTS_DIR/ui-monkey-$RESULTS_SUFFIX.xcresult"
     UI_FUNCTIONAL_RESULT="$RESULTS_DIR/ui-functional-$RESULTS_SUFFIX.xcresult"
     : > /tmp/ui_monkey_tests.log

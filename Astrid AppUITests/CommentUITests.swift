@@ -85,6 +85,25 @@ final class CommentUITests: XCTestCase {
         guard keyboard.waitForExistence(timeout: 10) else {
             throw UITestFailure("Keyboard did not appear")
         }
+        // The on-screen keyboard, not just a keyboard element (ADEV-214). A simulator that
+        // remembers a hardware keyboard — any earlier run's ⌘A — keeps `app.keyboards`
+        // reporting one while drawing nothing, so the comment bar stays at the bottom edge,
+        // where the drag below ends in the home-indicator zone and does nothing. That failed as
+        // "should put the keyboard away", which blamed the app for the simulator's state.
+        //
+        // Measured by where the bar sits rather than by the keyboard's keys: a real keyboard
+        // lifts the bar off the bottom, which is the geometry the drag needs, and XCUITest
+        // never reports the keys as hittable on iOS 27. Polled: the lift is animated.
+        let screenHeight = app.windows.firstMatch.frame.height
+        let lifted = Date().addingTimeInterval(5)
+        while commentField.frame.maxY > screenHeight * 0.75 && Date() < lifted {
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        guard commentField.frame.maxY <= screenHeight * 0.75 else {
+            throw UITestFailure(
+                "No on-screen keyboard: the simulator remembers a hardware keyboard. "
+                + "run-tests.sh / prepare-ios-simulator.sh reset it (scripts/lib/sim-keyboard.sh)")
+        }
 
         // A real downward drag from the comment bar — the gesture the bar listens for
         // (`DragGesture` where translation.height > 10).
