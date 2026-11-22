@@ -145,6 +145,9 @@ import Foundation
         static let userEmail = "user_email"
         static let userName = "user_name"
         static let userImage = "user_image"
+        /// SHA-256 of the UI-test session that wrote the cached user (ADEV-213). Never set
+        /// outside a run that was handed a session.
+        static let uiTestSessionFingerprint = "uitest_session_fingerprint"
     }
     
     // `enum UI` lived here: hex copies of the theme palette, commented "Match web app
