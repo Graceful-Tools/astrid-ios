@@ -72,6 +72,8 @@ struct ProjectStatusBoardView: View {
     @Environment(\.selectedRowReporter) private var selectedRowReporter
     /// Tracks the currently-snapped column for haptic feedback on change.
     @State private var visibleColumnId: String?
+    /// Whether the board has scrolled to its opening column yet (ADEV-212).
+    @State private var opening = BoardOpening()
 
     // MARK: Edge auto-advance while dragging a card (task 233ec244)
 
@@ -212,11 +214,14 @@ struct ProjectStatusBoardView: View {
             // container's panel slide, the scroll view would re-snap and the board
             // would flash/jump as the detail slides out.
             .animation(nil, value: selectedTaskId)
-            .onAppear {
-                // Open on Inbox, even with Waiting to its left (ADEV-128).
-                if visibleColumnId == nil {
-                    visibleColumnId = initialBoardColumnId(columns, multiColumn: multiColumn)
-                }
+            // Open on Inbox, even with Waiting to its left (ADEV-128) — once the columns are
+            // there: the core's first answer arrives after this appears, and a position set
+            // before its column exists is never scrolled to (ADEV-212). Imperative, because the
+            // binding no-ops when it already holds that id.
+            .onChange(of: columns.map(\.id), initial: true) { _, _ in
+                guard let id = opening.columnToOpen(columns: columns, multiColumn: multiColumn) else { return }
+                visibleColumnId = id
+                proxy.scrollTo(id, anchor: .leading)
             }
             .task(id: doneSinceKey) {
                 doneSince = DoneSince.load(listId: doneSinceKey, userId: AuthManager.shared.userId)
@@ -271,7 +276,7 @@ struct ProjectStatusBoardView: View {
                 DragGesture(minimumDistance: 20)
                     .onEnded { value in
                         let atLeftmost = visibleColumnId == columns.first?.id
-                            || (visibleColumnId == nil)  // not yet snapped → defaults to Inbox
+                            || (visibleColumnId == nil)  // no columns yet, so nothing to its left
                         let decision = BoardSidebarSwipeState(
                             // Fire whenever there's a sidebar this swipe can open
                             // (a drawer): iPhone, and iPad portrait / 2-column. In
