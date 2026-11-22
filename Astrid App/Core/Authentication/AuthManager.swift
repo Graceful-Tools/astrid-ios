@@ -1,4 +1,5 @@
 import AstridCore
+import CryptoKit
 import Foundation
 import AuthenticationServices
 import Combine
@@ -79,14 +80,33 @@ class AuthManager: ObservableObject {
     /// between runs while each run mints a new account, so restoring the old user made every sync
     /// pass fail the isolation check and the shell stayed empty. Such a run asks the server who
     /// it is, the way a first launch does.
-    nonisolated static func trustsCachedIdentity(injectedCookie: String?) -> Bool {
-        injectedCookie == nil
+    ///
+    /// ADEV-213: unless the cached user was written by THIS session. Refusing the cache outright
+    /// also signed out a relaunch that was handed the same cookie, and the Outbox journey
+    /// relaunches offline, where the server cannot answer, so it landed on the welcome screen.
+    /// A matching fingerprint means the same account, so offline-first applies as it does for a
+    /// person.
+    nonisolated static func trustsCachedIdentity(injectedCookie: String?,
+                                                 cachedSessionFingerprint: String?) -> Bool {
+        guard let injectedCookie else { return true }
+        return cachedSessionFingerprint == sessionFingerprint(injectedCookie)
+    }
+
+    /// Names a session without storing it: UserDefaults is a plist on disk, so it holds a hash,
+    /// not the credential (ADEV-213).
+    nonisolated static func sessionFingerprint(_ cookie: String) -> String {
+        SHA256.hash(data: Data(cookie.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
     private func checkLocalAuthentication() -> Bool {
-        guard Self.trustsCachedIdentity(injectedCookie: UITestSession.injectedCookie) else {
+        let injectedCookie = UITestSession.injectedCookie
+        guard Self.trustsCachedIdentity(
+            injectedCookie: injectedCookie,
+            cachedSessionFingerprint: defaults.string(forKey: Constants.UserDefaults.uiTestSessionFingerprint)
+        ) else {
             for key in [Constants.UserDefaults.userId, Constants.UserDefaults.userEmail,
-                        Constants.UserDefaults.userName, Constants.UserDefaults.userImage] {
+                        Constants.UserDefaults.userName, Constants.UserDefaults.userImage,
+                        Constants.UserDefaults.uiTestSessionFingerprint] {
                 defaults.removeObject(forKey: key)
             }
             return false
@@ -190,6 +210,12 @@ class AuthManager: ObservableObject {
                 }
                 if let image = response.user.image {
                     defaults.set(image, forKey: Constants.UserDefaults.userImage)
+                }
+                // Marks the cached user as this session's, so a relaunch handed the same
+                // cookie may restore it offline-first (ADEV-213).
+                if let injectedCookie = UITestSession.injectedCookie {
+                    defaults.set(Self.sessionFingerprint(injectedCookie),
+                                 forKey: Constants.UserDefaults.uiTestSessionFingerprint)
                 }
 
                 // Set authenticated (session-based auth, no token needed)
