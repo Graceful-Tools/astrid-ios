@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__astrid__get_agent_queue",
+      "mcp__astrid__get_lists",
+      "mcp__astrid__get_tasks",
+      "mcp__astrid__get_task",
+      "mcp__astrid__get_task_comments",
+      "mcp__astrid__get_list_messages",
+      "mcp__astrid__add_comment",
+      "mcp__astrid__update_task",
+      "mcp__astrid__create_task",
+      "Bash(xcodebuild:*)",
+      "Bash(xcrun:*)",
+      "Bash(./scripts/appstore-release.sh:*)",
+      "Bash(npm run:*)",
+      "Bash(npm test:*)",
+      "Bash(npx:*)",
+      "Bash(swift:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git show:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(git merge-base:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git branch:*)",
+      "Bash(git worktree:*)",
+      "Bash(git -C ../astrid-core:*)",
+      "Bash(gh pr:*)",
+      "Bash(gh issue:*)",
+      "Bash(gh run:*)"
+    ]
+  }
+}

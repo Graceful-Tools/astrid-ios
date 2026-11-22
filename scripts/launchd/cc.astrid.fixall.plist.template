@@ -37,15 +37,18 @@
     <dict>
         <!--
           An unattended run cannot answer a permission prompt: a prompt in `claude -p`
-          is a denial, and the run stalls on its first build. This is the same mode the
-          astrid-web weekly hygiene review has run under since 2026-09-06.
+          is a denial. acceptEdits auto-approves file edits; every Bash command the loop
+          needs must be allowlisted in .claude/settings.json (permissions.allow), which
+          is what bounds what a hijacked run can do. Changed from bypassPermissions on
+          2026-11-22 (security review): bypass gave a run driven by a malicious issue or
+          PR on this public repo unrestricted shell access as this user.
 
           It is set HERE rather than defaulted in fixall-loop.sh on purpose, so that
-          granting it is a visible line in the file you install, and so `npm run
+          the mode is a visible line in the file you install, and so `npm run
           fixall:loop` by hand still prompts like an ordinary session.
         -->
         <key>FIXALL_PERMISSION_MODE</key>
-        <string>bypassPermissions</string>
+        <string>acceptEdits</string>
     </dict>
 
     <!--
