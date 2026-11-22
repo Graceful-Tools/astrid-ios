@@ -513,11 +513,8 @@ struct TaskRowView: View {
 
     /// Get card background color (20% transparent white on Ocean theme for subtle cyan show-through)
     private func getCardBackground() -> Color {
-        if effectiveTheme == "ocean" {
-            // Selected row is solid white; the rest are 20% translucent.
-            return Color.white.opacity(isSelected ? 1.0 : 0.8)
-        }
-        return effectiveTheme == "dark" ? Theme.Dark.bgPrimary : Theme.bgPrimary
+        // The board card's fill too: `surface`, `surface-hover` when selected (ADEV-194).
+        TaskCardFill.color(theme: effectiveTheme, isSelected: isSelected)
     }
 
     /// Get border color based on current theme
