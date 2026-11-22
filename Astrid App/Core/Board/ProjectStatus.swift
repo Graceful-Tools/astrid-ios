@@ -76,10 +76,26 @@ nonisolated struct ProjectBoardColumn: Equatable, Identifiable, Sendable {
 /// The column a board opens on (ADEV-128). Waiting sits to the LEFT of Inbox on every platform,
 /// but a phone still opens on Inbox — Waiting is what a right swipe passes on its way back to the
 /// sidebar. A multi-column board starts at its leading edge so nothing is hidden off to the left.
-/// Before the columns load, aim at Inbox; `scrollPosition` keeps that id once they arrive.
+/// With no columns yet it names Inbox; the board itself waits for them (`BoardOpening`).
 func initialBoardColumnId(_ columns: [ProjectBoardColumn], multiColumn: Bool) -> String {
     if !multiColumn, let inbox = columns.first(where: { $0.kind == .inbox }) { return inbox.id }
     return columns.first?.id ?? VIRTUAL_INBOX_COLUMN_ID
+}
+
+/// When a board scrolls to its opening column: once, the first time it has columns (ADEV-212).
+///
+/// The core answers the board asynchronously, so a first open draws no columns. Aiming
+/// `scrollPosition` at Inbox before they existed did nothing once they landed — the binding never
+/// changed — and the phone opened on Waiting. After that one scroll it answers nil for good, so a
+/// later answer (a task moved, a column renamed) never pulls the board back from where it was swiped.
+nonisolated struct BoardOpening: Equatable, Sendable {
+    private(set) var opened = false
+
+    mutating func columnToOpen(columns: [ProjectBoardColumn], multiColumn: Bool) -> String? {
+        guard !opened, !columns.isEmpty else { return nil }
+        opened = true
+        return initialBoardColumnId(columns, multiColumn: multiColumn)
+    }
 }
 
 // MARK: - Which board a task is on

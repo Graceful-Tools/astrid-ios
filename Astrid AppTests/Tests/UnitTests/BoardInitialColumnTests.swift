@@ -31,4 +31,34 @@ final class BoardInitialColumnTests: XCTestCase {
     func testADEV128_aBoardWithNoInboxColumnOpensOnItsFirst() {
         XCTAssertEqual(initialBoardColumnId([column("ready"), column("doing")], multiColumn: false), "ready")
     }
+
+    // MARK: - ADEV-212: the opening column is chosen when the columns ARRIVE
+
+    /// The core answers the board asynchronously, so a first open draws no columns. Aiming
+    /// `scrollPosition` at Inbox then did nothing once they landed — the binding never changed —
+    /// and the phone opened on Waiting, hiding the Inbox card the quick-changer UI test taps.
+    func testADEV212_noColumnsYetMeansNoOpeningScroll() {
+        var opening = BoardOpening()
+        XCTAssertNil(opening.columnToOpen(columns: [], multiColumn: false))
+    }
+
+    func testADEV212_columnsArrivingLaterStillOpenOnInbox() {
+        var opening = BoardOpening()
+        _ = opening.columnToOpen(columns: [], multiColumn: false)
+        XCTAssertEqual(opening.columnToOpen(columns: waitingFirst, multiColumn: false),
+                       VIRTUAL_INBOX_COLUMN_ID)
+    }
+
+    func testADEV212_theBoardOpensOnceAndThenLeavesTheUserWhereTheySwiped() {
+        var opening = BoardOpening()
+        XCTAssertEqual(opening.columnToOpen(columns: waitingFirst, multiColumn: false),
+                       VIRTUAL_INBOX_COLUMN_ID)
+        // A later answer (a task moved, a column renamed) must not yank the board back.
+        XCTAssertNil(opening.columnToOpen(columns: waitingFirst, multiColumn: false))
+    }
+
+    func testADEV212_multiColumnOpensOnTheLeadingColumn() {
+        var opening = BoardOpening()
+        XCTAssertEqual(opening.columnToOpen(columns: waitingFirst, multiColumn: true), "waiting")
+    }
 }
