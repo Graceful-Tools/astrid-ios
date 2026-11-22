@@ -180,7 +180,14 @@ xcrun simctl install "$UDID" "$APP" || die "simctl install failed"
 LAUNCHED="$(xcrun simctl launch "$UDID" "$SMOKE_BUNDLE_ID" 2>&1)" || { echo "$LAUNCHED"; die "simctl launch failed"; }
 PID="${LAUNCHED##*: }"
 sleep "${SMOKE_ALIVE_SECONDS:-8}"
-if xcrun simctl spawn "$UDID" launchctl list 2>/dev/null | grep -q "UIKitApplication:$SMOKE_BUNDLE_ID"; then
+# A simulator app is a host process, so its pid answers directly. The launchctl listing is the
+# fallback, read into a variable first: piped into `grep -q` under `pipefail`, an early match
+# closed the pipe on a still-writing launchctl and read as "exited" — on a loaded runner the app
+# was alive until this script terminated it (runningboardd: terminate_with_reason 9s after launch,
+# no crash report), and the job went red in about half the runs of 2026-11-19..22.
+LAUNCHCTL="$(xcrun simctl spawn "$UDID" launchctl list 2>/dev/null || true)"
+if { [[ "$PID" =~ ^[0-9]+$ ]] && kill -0 "$PID" 2>/dev/null; } \
+        || [[ "$LAUNCHCTL" == *"UIKitApplication:$SMOKE_BUNDLE_ID"* ]]; then
     pass "still running ${SMOKE_ALIVE_SECONDS:-8}s after launch (pid $PID)"
 else
     fail "exited within ${SMOKE_ALIVE_SECONDS:-8}s of launch"
