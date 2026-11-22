@@ -24,6 +24,17 @@ enum DescriptionReader {
         var id: String { rawValue }
     }
 
+    /// Which end of the reader's top bar a button sits on.
+    enum ToolbarSide: Equatable {
+        case leading
+        case trailing
+    }
+
+    /// Done closes the reader from the left, in both modes (ADEV-199)…
+    static let doneSide: ToolbarSide = .leading
+    /// …and the Edit ⇄ Preview toggle takes the right.
+    static let modeToggleSide: ToolbarSide = .trailing
+
     /// Is the expand button shown beside the Description label?
     ///
     /// Always when you can edit — writing a long description is what the room is for — and,
