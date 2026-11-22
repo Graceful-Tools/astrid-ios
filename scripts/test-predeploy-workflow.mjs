@@ -30,7 +30,7 @@ test('AITD-447: CI uses its pinned web checkout for all standard-gate checks', (
   const job = workflow.jobs.predeploy
   const web = job.steps.find((step) => step.with?.repository === 'Graceful-Tools/astrid-web')
   assert.equal(web?.with?.path, 'astrid-web')
-  assert.equal(web?.with?.ref, 'uitest-run-accounts-v1')
+  assert.equal(web?.with?.ref, 'uitest-run-accounts-v2')
   assert.match(job.env?.ASTRID_WEB_DIR ?? '', /github\.workspace.*astrid-web/)
   assert.match(job.env?.APP_VERSION_TABLE_FILE ?? '', /github\.workspace.*astrid-web\/lib\/app-version\.ts/)
 })

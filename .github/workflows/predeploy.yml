@@ -34,14 +34,14 @@ jobs:
           repository: Graceful-Tools/astrid-web
           # A tag astrid-web moves when the UI-test seeder's shape changes (AITD-527), not a
           # bare sha that silently drifts from what run-tests.sh expects.
-          ref: uitest-run-accounts-v1
+          ref: uitest-run-accounts-v2
           path: astrid-web
           persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: astrid-web/.nvmrc
           cache: 'npm'
           cache-dependency-path: |
             package-lock.json
