@@ -58,4 +58,14 @@ final class DescriptionReaderTests: XCTestCase {
         XCTAssertEqual(DescriptionReader.textToSave(edited: "", original: "old"), "",
                        "clearing the description is a change, and it is saved")
     }
+
+    // MARK: - Where the buttons sit (ADEV-199)
+
+    /// ADEV-199 — Done is on the left in both views, reading and editing; the Edit ⇄ Preview
+    /// toggle takes the right. They used to sit the other way round.
+    func testADEV199_doneSitsOnTheLeftInBothViews_andTheModeToggleOnTheRight() {
+        XCTAssertEqual(DescriptionReader.doneSide, .leading)
+        XCTAssertEqual(DescriptionReader.modeToggleSide, .trailing)
+        XCTAssertNotEqual(DescriptionReader.doneSide, DescriptionReader.modeToggleSide)
+    }
 }

@@ -111,7 +111,7 @@ struct DescriptionReaderView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if !isReadOnly {
-                    ToolbarItem(placement: .topBarLeading) {
+                    ToolbarItem(placement: Self.placement(DescriptionReader.modeToggleSide)) {
                         Button(mode == .reading
                                ? NSLocalizedString("actions.edit", comment: "Edit")
                                : NSLocalizedString("task_detail.description.preview", comment: "Show the description as it reads")) {
@@ -120,13 +120,17 @@ struct DescriptionReaderView: View {
                         .accessibilityIdentifier("descriptionReader.toggleMode")
                     }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: Self.placement(DescriptionReader.doneSide)) {
                     Button(NSLocalizedString("actions.done", comment: "Done")) { close() }
                         .fontWeight(.semibold)
                         .accessibilityIdentifier("descriptionReader.done")
                 }
             }
         }
+    }
+
+    private static func placement(_ side: DescriptionReader.ToolbarSide) -> ToolbarItemPlacement {
+        side == .leading ? .topBarLeading : .topBarTrailing
     }
 
     private func close() {
