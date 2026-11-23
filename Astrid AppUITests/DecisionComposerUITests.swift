@@ -99,10 +99,18 @@ final class DecisionComposerUITests: XCTestCase {
         // One set of lights per option; the first may be scrolled away, so take one on screen.
         let lights = app.buttons.matching(identifier: "decisionComposer.light.4")
         XCTAssertTrue(lights.firstMatch.waitForExistence(timeout: 5), "each option is rated with traffic lights")
-        let veryGood = try XCTUnwrap(lights.allElementsBoundByIndex.first(where: \.isHittable),
-                                     "a traffic light on screen")
-        veryGood.tap()
-        XCTAssertTrue(veryGood.isSelected, "the tapped light is picked")
+        let picked = app.buttons.matching(
+            NSPredicate(format: "identifier == 'decisionComposer.light.4' AND selected == true")).firstMatch
+        for _ in 0..<2 where !picked.exists {
+            // Below the sheet's toolbar: a light scrolled under it reports hittable, but the
+            // toolbar takes the tap.
+            let onScreen = try XCTUnwrap(lights.allElementsBoundByIndex.first {
+                $0.isHittable && $0.frame.minY > app.navigationBars.firstMatch.frame.maxY
+            }, "a traffic light on screen")
+            onScreen.tap()
+            _ = picked.waitForExistence(timeout: 3)
+        }
+        XCTAssertTrue(picked.exists, "the tapped light is picked")
         attach("Decision with trade-offs")
         element("decisionComposer.done").tap()
 

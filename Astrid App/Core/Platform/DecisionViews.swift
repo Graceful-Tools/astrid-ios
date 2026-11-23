@@ -48,11 +48,7 @@ struct DecisionCardsView: View {
         let dimmed = !chosen && state != .open && state != .readOnly
         return Button { response?.tap(option, in: decision) } label: {
             HStack(alignment: .firstTextBaseline, spacing: style.markerSpacing * 1.5) {
-                Text(verbatim: "\(option.number)")
-                    .font(style.body.bold())
-                    .foregroundColor(chosen ? .white : Theme.accent)
-                    .frame(minWidth: 24, minHeight: 24)
-                    .background(Circle().fill(chosen ? Theme.accent : Theme.accent.opacity(0.14)))
+                DecisionNumberBadge(number: option.number, chosen: chosen, font: style.body.bold())
                 VStack(alignment: .leading, spacing: 4) {
                     inline(option.label).font(style.body)
                     if option.recommended {
@@ -66,7 +62,7 @@ struct DecisionCardsView: View {
                     Image(systemName: "checkmark.circle.fill").foregroundColor(Theme.accent)
                 }
             }
-            .padding(.horizontal, 12).padding(.vertical, 10)
+            .padding(.horizontal, DecisionChoiceMetrics.paddingX).padding(.vertical, DecisionChoiceMetrics.paddingY)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: 10).fill(style.text.opacity(0.05)))
             .overlay(RoundedRectangle(cornerRadius: 10)
@@ -79,6 +75,28 @@ struct DecisionCardsView: View {
         .allowsHitTesting(state == .open)
         .accessibilityIdentifier("decision.option.\(option.number)")
         .accessibilityValue(Text(verbatim: "card"))
+    }
+}
+
+/// What an option you tap measures, as a card or as a grid row (ADEV-229): one size for both.
+enum DecisionChoiceMetrics {
+    static let paddingX: CGFloat = 12
+    static let paddingY: CGFloat = 10
+    static let badge: CGFloat = 24
+}
+
+/// An option's number in its circle, filled once chosen.
+struct DecisionNumberBadge: View {
+    let number: Int
+    let chosen: Bool
+    let font: Font
+
+    var body: some View {
+        Text(verbatim: "\(number)")
+            .font(font)
+            .foregroundColor(chosen ? .white : Theme.accent)
+            .frame(minWidth: DecisionChoiceMetrics.badge, minHeight: DecisionChoiceMetrics.badge)
+            .background(Circle().fill(chosen ? Theme.accent : Theme.accent.opacity(0.14)))
     }
 }
 
@@ -224,23 +242,35 @@ struct TradeOffGridView: View {
     private func option(_ row: TradeOffRow, number: Int, recommended: Bool = false) -> some View {
         let chosen = choiceState == .chosen(number)
         return VStack(alignment: .leading, spacing: AstridTokens.Space.s2) {
-            HStack(alignment: .firstTextBaseline, spacing: AstridTokens.Space.s4) {
-                (Text(verbatim: "\(number). ") + inline(row.name)).font(style.small.bold())
-                if chosen { Image(systemName: "checkmark.circle.fill").foregroundColor(Theme.accent) }
+            if isChoice {
+                // The size the option cards had, now that the row is what is tapped (ADEV-229).
+                HStack(alignment: .firstTextBaseline, spacing: AstridTokens.Space.s8) {
+                    DecisionNumberBadge(number: number, chosen: chosen, font: style.body.bold())
+                    inline(row.name).font(style.body)
+                }
+            } else {
+                HStack(alignment: .firstTextBaseline, spacing: AstridTokens.Space.s4) {
+                    (Text(verbatim: "\(number). ") + inline(row.name)).font(style.small.bold())
+                }
             }
             if recommended {
                 Text(NSLocalizedString("decision.recommended", comment: "Badge on the option the asker recommends"))
-                    .font(style.small.weight(.semibold))
+                    .font(.caption.weight(.semibold))
                     .foregroundColor(Theme.accent)
             }
         }
-        .padding(.horizontal, 6).padding(.vertical, 6)
+        .padding(.horizontal, isChoice ? DecisionChoiceMetrics.paddingX : 6)
+        .padding(.vertical, isChoice ? DecisionChoiceMetrics.paddingY : 6)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: AstridTokens.Radius.sm)
             .strokeBorder(Theme.accent, lineWidth: chosen ? AstridTokens.Size.Comfortable.selectionOutline : 0))
+        .accessibilityElement(children: .combine)  // one option, read and found as one
     }
 
     // MARK: Choosing a row (ADEV-229)
+
+    /// The rows are a decision's options: drawn at the cards' size, in the thread and its preview.
+    private var isChoice: Bool { decision != nil && !fullScreen }
 
     private var choiceState: DecisionResponse.State? {
         guard let decision, !fullScreen else { return nil }
@@ -278,9 +308,9 @@ struct TradeOffGridView: View {
     private func ratedCell(_ cell: TradeOffCell?) -> some View {
         Text(MarkdownRendering.attributed(cell?.reason ?? [], defaultColor: TradeOffPalette.text(for: cell?.rating),
                                           referenceFont: nil))
-            .font(style.small)
+            .font(isChoice ? style.body : style.small)
             .multilineTextAlignment(.center)
-            .padding(.horizontal, 6).padding(.vertical, 6)
+            .padding(.horizontal, 6).padding(.vertical, isChoice ? DecisionChoiceMetrics.paddingY : 6)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .background(RoundedRectangle(cornerRadius: 4)
                 .fill(cell?.rating.map(TradeOffPalette.fill) ?? style.text.opacity(0.05)))
