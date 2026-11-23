@@ -146,6 +146,7 @@ const trips = {
   }),
   'mac-hardcoded-strings': () => fixture({ 'Astrid Mac/V.swift': view('Text("Save changes")') }),
   'springs-honour-reduce-motion': () => fixture({ 'Astrid App/Views/Drawer.swift': 'withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) { open = true }\n', 'Astrid Mac/Views/x.swift': '', 'Shared/x.swift': '' }),
+  'ios-ui-tests-send-no-hardware-keys': () => fixture({ 'Astrid AppUITests/Journey.swift': 'field.typeKey("a", modifierFlags: .command)\n' }),
   'photo-library-uses-system-picker': () => fixture({
     'Astrid App/Views/Profile.swift': 'picker.sourceType = .photoLibrary\n',
     'Astrid App/Views/Components/CameraCapturePicker.swift': 'picker.sourceType = available ? .camera : .photoLibrary\n',

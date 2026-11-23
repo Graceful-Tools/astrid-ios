@@ -135,11 +135,15 @@ final class E2EJourneyUITests: XCTestCase {
         let titleField = try element("taskDetail.title")
         titleField.tap()
         try waitFor("the keyboard for the title") { self.app.keyboards.count > 0 }
-        // Replace the whole title: where a tap leaves the caret depends on how the title wraps.
-        // Select-all can land before the field has settled its focus, and then the new title is
-        // typed into the middle of the old one — so check, and select again if it did.
+        // Replace the whole title. Never with ⌘A: a modifier key makes the simulator remember a
+        // hardware keyboard, which hides the on-screen one for every later test on the device,
+        // in this run and the next (ADEV-214). Instead put the caret at the end — a tap past the
+        // last line's end, wherever the title wraps — and delete back with the on-screen keyboard.
+        // Check, and go again if the caret landed short of the end.
         for _ in 0..<3 where (titleField.value as? String) != newTitle {
-            titleField.typeKey("a", modifierFlags: .command)
+            titleField.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.9)).tap()
+            let current = (titleField.value as? String) ?? ""
+            titleField.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count + 2))
             titleField.typeText(newTitle)
         }
         XCTAssertEqual(titleField.value as? String, newTitle, "the title field holds the new title")
