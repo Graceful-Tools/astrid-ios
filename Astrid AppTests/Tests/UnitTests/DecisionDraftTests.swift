@@ -93,6 +93,51 @@ final class DecisionDraftTests: XCTestCase {
     }
 }
 
+/// ADEV-231 — Jon, 2026-11-23: "users and agent should be able to add text to the criteria per
+/// option. This can be optional but will help." Each rated cell already carried a reason; a
+/// criterion may now also say what it means, written as the key list under the grid that
+/// `docs/DECISIONS.md` asks agents for.
+final class DecisionDraftCriterionKeyTests: XCTestCase {
+
+    private func rated() -> DecisionDraft {
+        var d = DecisionDraft()
+        d.question = "Where?"
+        d.options = [.init(text: "Lisbon"), .init(text: "Cabin")]
+        d.criteria = [.init(name: "Cost"), .init(name: "Fun")]
+        d.set(.init(rating: "+", text: "cheap flights"), option: d.options[0].id, criterion: d.criteria[0].id)
+        return d
+    }
+
+    func testADEV231_aCriterionsMeaningIsTheKeyUnderTheGrid() {
+        var d = rated()
+        d.criteria[0].detail = "what the company pays,\nall in"
+        XCTAssertTrue(d.markdown.hasSuffix("""
+        | 2. Cabin |  |  |
+
+        - **Cost:** what the company pays, all in
+        """), d.markdown)
+    }
+
+    func testADEV231_noMeaningsNoKey() {
+        XCTAssertTrue(rated().markdown.hasSuffix("| 2. Cabin |  |  |"), rated().markdown)
+    }
+
+    func testADEV231_noGridNoKey() {
+        var d = rated()
+        d.set(.init(rating: nil, text: ""), option: d.options[0].id, criterion: d.criteria[0].id)
+        d.criteria[0].detail = "what the company pays"
+        XCTAssertFalse(d.markdown.contains("Cost"), "a key with no grid explains nothing")
+    }
+
+    /// The note in a cell is what the grid draws on its colour.
+    func testADEV231_aCellsNoteIsDrawnInTheGrid() {
+        let blocks = Decisions.blocks(source: rated().markdown)
+        guard case .tradeOff(let grid)? = blocks.first(where: { if case .tradeOff = $0 { true } else { false } })
+        else { return XCTFail("no grid: \(blocks)") }
+        XCTAssertEqual(Decisions.plainText(grid.rows[0].cells[0].reason), "cheap flights")
+    }
+}
+
 /// ADEV-228: the preview sits in a system Form, whose rows follow the system appearance, not the
 /// app's theme. Coloured from `Theme.textPrimary` it went white-on-white (or dark-on-dark) when
 /// the two disagreed, so it takes the Form's own text colour.

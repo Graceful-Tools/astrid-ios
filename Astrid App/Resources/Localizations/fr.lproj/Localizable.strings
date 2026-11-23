@@ -1760,9 +1760,10 @@
 "decision_composer.recommend_hint" = "Touchez l’étoile pour en recommander une.";
 "decision_composer.criteria" = "Compromis (facultatif)";
 "decision_composer.criterion_placeholder" = "Critère, p. ex. Coût";
+"decision_composer.criterion_detail_placeholder" = "Ce que cela signifie (facultatif)";
 "decision_composer.add_criterion" = "Ajouter un critère";
 "decision_composer.criteria_hint" = "Notez chaque option du rouge au vert pour chaque critère. Pas de score : c’est vous qui décidez.";
-"decision_composer.reason_placeholder" = "Raison";
+"decision_composer.reason_placeholder" = "Note (facultatif), p. ex. 2 jours de travail";
 "decision_composer.reason_needs_colour" = "Choisissez une couleur pour chaque raison écrite.";
 "decision_composer.post_to" = "Publier dans";
 "decision_composer.as_comment" = "Commentaire";

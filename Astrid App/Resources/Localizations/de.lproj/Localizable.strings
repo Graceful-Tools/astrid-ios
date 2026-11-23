@@ -1744,9 +1744,10 @@
 "decision_composer.recommend_hint" = "Tippe auf den Stern, um eine zu empfehlen.";
 "decision_composer.criteria" = "Abwägungen (optional)";
 "decision_composer.criterion_placeholder" = "Kriterium, z. B. Kosten";
+"decision_composer.criterion_detail_placeholder" = "Was es bedeutet (optional)";
 "decision_composer.add_criterion" = "Kriterium hinzufügen";
 "decision_composer.criteria_hint" = "Bewerte jede Option je Kriterium von Rot bis Grün. Es gibt keine Punktzahl: Du entscheidest.";
-"decision_composer.reason_placeholder" = "Begründung";
+"decision_composer.reason_placeholder" = "Notiz (optional), z. B. 2 Tage Arbeit";
 "decision_composer.reason_needs_colour" = "Wähle für jede Begründung eine Farbe.";
 "decision_composer.post_to" = "Posten in";
 "decision_composer.as_comment" = "Kommentar";

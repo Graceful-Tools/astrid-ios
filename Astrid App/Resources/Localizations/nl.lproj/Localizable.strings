@@ -1744,9 +1744,10 @@
 "decision_composer.recommend_hint" = "Tik op de ster om er één aan te bevelen.";
 "decision_composer.criteria" = "Afwegingen (optioneel)";
 "decision_composer.criterion_placeholder" = "Criterium, bijv. Kosten";
+"decision_composer.criterion_detail_placeholder" = "Wat het betekent (optioneel)";
 "decision_composer.add_criterion" = "Criterium toevoegen";
 "decision_composer.criteria_hint" = "Beoordeel elke optie per criterium van rood tot groen. Er is geen score: jij beslist.";
-"decision_composer.reason_placeholder" = "Reden";
+"decision_composer.reason_placeholder" = "Notitie (optioneel), bijv. 2 dagen werk";
 "decision_composer.reason_needs_colour" = "Kies een kleur voor elke reden die je schrijft.";
 "decision_composer.post_to" = "Plaatsen in";
 "decision_composer.as_comment" = "Opmerking";

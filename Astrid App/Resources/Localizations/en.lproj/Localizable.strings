@@ -1752,9 +1752,10 @@
 "decision_composer.recommend_hint" = "Tap the star to recommend one.";
 "decision_composer.criteria" = "Trade-offs (optional)";
 "decision_composer.criterion_placeholder" = "Criterion, e.g. Cost";
+"decision_composer.criterion_detail_placeholder" = "What it means (optional)";
 "decision_composer.add_criterion" = "Add criterion";
 "decision_composer.criteria_hint" = "Rate each option from red to green on each criterion. There is no score: you decide.";
-"decision_composer.reason_placeholder" = "Reason";
+"decision_composer.reason_placeholder" = "Note (optional), e.g. 2 days of work";
 "decision_composer.reason_needs_colour" = "Pick a colour for every reason you write.";
 "decision_composer.post_to" = "Post to";
 "decision_composer.as_comment" = "Comment";
