@@ -1608,6 +1608,9 @@
 
 /* Decisions and trade-off grids (AITD-579, AITD-578) */
 "decision.recommended" = "추천";
+"decision.tap_row_hint" = "선택지를 탭해 고르세요.";
+"decision.confirm_title" = "선택을 게시할까요?";
+"decision.choose_option" = "%@ 선택";
 "tradeoff.very_poor" = "탈락";
 "tradeoff.poor" = "나쁨";
 "tradeoff.mixed" = "보통";

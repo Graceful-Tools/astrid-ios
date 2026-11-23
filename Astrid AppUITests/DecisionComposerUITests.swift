@@ -30,6 +30,11 @@ final class DecisionComposerUITests: XCTestCase {
     }
 
     @MainActor
+    private func optionOneCount() -> Int {
+        app.descendants(matching: .any).matching(identifier: "decision.option.1").count
+    }
+
+    @MainActor
     func testADEV189_aDecisionWrittenInTaskDetailsPostsAsCards() throws {
         app.launch()
         try UITestLaunch.skipUnlessSignedIn(app)
@@ -60,5 +65,54 @@ final class DecisionComposerUITests: XCTestCase {
         XCTAssertTrue(asked.waitForExistence(timeout: 15), "the decision is in the thread")
         XCTAssertTrue(element("decision.option.2").waitForExistence(timeout: 5), "its options draw as cards")
         attach("Decision in the thread")
+    }
+
+    /// With a rated criterion the decision posts as one grid whose rows are the options (ADEV-229):
+    /// no cards above it, and the composer's preview draws it the same way.
+    @MainActor
+    func testADEV229_aDecisionWithTradeOffsPostsAsOneGrid() throws {
+        app.launch()
+        try UITestLaunch.skipUnlessSignedIn(app)
+        _ = try UITestLaunch.openFirstTaskComment(app)
+        // Counted before the composer opens: its preview draws the grid too, and an earlier test's
+        // decision may already be on this task.
+        let before = optionOneCount()
+        let cardsBefore = app.descendants(matching: .any).matching(NSPredicate(format: "value == 'card'")).count
+        element("comment.attachMenu").tap()
+        element("taskDetail.askForDecision").tap()
+
+        let question = "Which grid \(UUID().uuidString.prefix(6))?"
+        let questionField = element("decisionComposer.question")
+        XCTAssertTrue(questionField.waitForExistence(timeout: 5))
+        questionField.tap()
+        questionField.typeText(question)
+        let options = app.descendants(matching: .any).matching(identifier: "decisionComposer.option")
+        for (i, text) in ["Left", "Right"].enumerated() {
+            options.element(boundBy: i).tap()
+            options.element(boundBy: i).typeText(text)
+        }
+        element("decisionComposer.addCriterion").tap()
+        let criterion = element("decisionComposer.criterion")
+        criterion.tap()
+        criterion.typeText("Cost")
+        app.swipeUp()
+        // One set of lights per option; the first may be scrolled away, so take one on screen.
+        let lights = app.buttons.matching(identifier: "decisionComposer.light.4")
+        XCTAssertTrue(lights.firstMatch.waitForExistence(timeout: 5), "each option is rated with traffic lights")
+        let veryGood = try XCTUnwrap(lights.allElementsBoundByIndex.first(where: \.isHittable),
+                                     "a traffic light on screen")
+        veryGood.tap()
+        XCTAssertTrue(veryGood.isSelected, "the tapped light is picked")
+        attach("Decision with trade-offs")
+        element("decisionComposer.done").tap()
+
+        let asked = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", question)).firstMatch
+        XCTAssertTrue(asked.waitForExistence(timeout: 15), "the decision is in the thread")
+        XCTAssertTrue(element("decision.choosableGrid").waitForExistence(timeout: 5),
+                      "a decision with trade-offs draws as one grid")
+        XCTAssertEqual(app.descendants(matching: .any).matching(NSPredicate(format: "value == 'card'")).count,
+                       cardsBefore, "and adds no cards above it")
+        XCTAssertEqual(optionOneCount() - before, 1, "the option is drawn once, as a row")
+        attach("Decision grid in the thread")
     }
 }

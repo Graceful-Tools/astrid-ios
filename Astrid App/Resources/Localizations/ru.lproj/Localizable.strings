@@ -1606,6 +1606,9 @@
 
 /* Decisions and trade-off grids (AITD-579, AITD-578) */
 "decision.recommended" = "Рекомендуется";
+"decision.tap_row_hint" = "Нажмите на вариант, чтобы выбрать его.";
+"decision.confirm_title" = "Опубликовать ваш выбор?";
+"decision.choose_option" = "Выбрать %@";
 "tradeoff.very_poor" = "Исключающее";
 "tradeoff.poor" = "Плохо";
 "tradeoff.mixed" = "Неоднозначно";

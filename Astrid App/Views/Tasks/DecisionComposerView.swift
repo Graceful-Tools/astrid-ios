@@ -119,6 +119,7 @@ struct DecisionComposerView: View {
             ForEach($draft.criteria) { $criterion in
                 TextField(NSLocalizedString("decision_composer.criterion_placeholder", comment: ""),
                           text: $criterion.name)
+                    .accessibilityIdentifier("decisionComposer.criterion")
             }
             .onDelete { draft.criteria.remove(atOffsets: $0) }
             if draft.criteria.count < DecisionDraft.maxCriteria {
@@ -127,6 +128,7 @@ struct DecisionComposerView: View {
                 } label: {
                     Label(NSLocalizedString("decision_composer.add_criterion", comment: ""), systemImage: "plus")
                 }
+                .accessibilityIdentifier("decisionComposer.addCriterion")
             }
         } header: {
             Text(NSLocalizedString("decision_composer.criteria", comment: ""))
@@ -185,6 +187,7 @@ struct DecisionComposerView: View {
         }
         .buttonStyle(.borderless)
         .accessibilityLabel(Text(TradeOffPalette.label(for: rating)))
+        .accessibilityIdentifier("decisionComposer.light.\(DecisionGrid.rank(of: token) ?? 0)")
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
