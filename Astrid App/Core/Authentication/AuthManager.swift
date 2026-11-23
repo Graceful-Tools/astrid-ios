@@ -773,7 +773,6 @@ class AuthManager: ObservableObject {
         FeatureFlagService.shared.clearCache(userId: departingUserId)
         ProjectBoardRowsService.shared.clear()
         ProjectGoalsService.shared.clear()
-        ProjectDecisionsService.shared.clear()
 
         // Clear user preferences and settings
         MyTasksPreferencesService.shared.clearData()

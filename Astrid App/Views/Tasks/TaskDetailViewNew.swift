@@ -91,6 +91,7 @@ struct TaskDetailViewNew: View {
     @State private var showingPhotoPicker = false
     @State private var showingDocumentPicker = false
     @State private var showingCamera = false
+    @State private var showingDecisionComposer = false // ADEV-189
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var uploadError: String?
 
@@ -619,8 +620,12 @@ struct TaskDetailViewNew: View {
                             _Concurrency.Task { await submitCommentFromRichInput(content: content, type: type, fileIds: fileIds) }
                         },
                         onTimerTap: { showTimer = true },
+                        onAskForDecision: isReadOnly ? nil : { showingDecisionComposer = true }, // ADEV-189
                         focusReport: $commentInputFocused
                     )
+                        .sheet(isPresented: $showingDecisionComposer) {
+                            DecisionComposerView { md, to in _Concurrency.Task { await addDecision(md, to: to) } }
+                        }
                         .frame(height: hideCommentBar ? 0 : nil)
                         .clipped()
                         .opacity(hideCommentBar ? 0 : 1)
@@ -1048,6 +1053,17 @@ struct TaskDetailViewNew: View {
         }
 
         isSubmittingComment = false
+    }
+
+    /// A decision from the composer (ADEV-189): a comment, or after the description.
+    private func addDecision(_ markdown: String, to destination: DecisionComposerView.Destination) async {
+        guard destination == .comment else {
+            editedDescription = DecisionDraft.append(markdown, to: editedDescription)
+            return saveDescription()
+        }
+        await DecisionComposerView.post(markdown, taskId: task.id)
+        try? await _Concurrency.Task.sleep(nanoseconds: 200_000_000)
+        scrollToBottomAction?()
     }
 
     // MARK: - File Upload Helpers

@@ -23,6 +23,8 @@ struct RichTextInput: View {
     /// to spend them — for comments that is one comment per file, via CommentAttachmentBatch.
     var onSend: ((_ content: String, _ type: Comment.CommentType, _ fileIds: [String]) -> Void)?
     var onTimerTap: (() -> Void)? = nil    // Task detail only: timer in the send slot while input is empty
+    /// Task detail only: the paperclip menu also offers to write a decision (ADEV-189).
+    var onAskForDecision: (() -> Void)? = nil
     var focusReport: Binding<Bool>? = nil  // Reports the text field's focus to the host view
 
     // Text state (can be bound externally or managed internally)
@@ -167,6 +169,9 @@ struct RichTextInput: View {
                             Label(NSLocalizedString("attachments.from_camera", comment: "From Camera"), systemImage: "camera")
                         }
                     }
+                    if let onAskForDecision {
+                        DecisionComposerView.menuItem { isFocused = false; onAskForDecision() }
+                    }
                 } label: {
                     Image(systemName: isUploadingFile ? "arrow.up.circle" : "paperclip")
                         .font(.system(size: 16))
@@ -177,6 +182,7 @@ struct RichTextInput: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(isUploadingFile || isSubmitting)
+                .accessibilityIdentifier("comment.attachMenu")
 
                 // Send — or timer while the input is empty (task detail)
                 if let onTimerTap, !canSend {
