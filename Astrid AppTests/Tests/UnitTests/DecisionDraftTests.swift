@@ -4,6 +4,7 @@
 //  (`docs/DECISIONS.md` in astrid-web) that every app draws as cards and a coloured grid.
 
 import AstridCore
+import SwiftUI
 import XCTest
 @testable import Astrid_App
 
@@ -89,5 +90,14 @@ final class DecisionDraftTests: XCTestCase {
         let d = draft("Which?", ["A", "B"])
         XCTAssertEqual(d.appended(to: ""), d.markdown)
         XCTAssertEqual(d.appended(to: "Notes.\n\n"), "Notes.\n\n" + d.markdown)
+    }
+}
+
+/// ADEV-228: the preview sits in a system Form, whose rows follow the system appearance, not the
+/// app's theme. Coloured from `Theme.textPrimary` it went white-on-white (or dark-on-dark) when
+/// the two disagreed, so it takes the Form's own text colour.
+final class DecisionComposerPreviewTests: XCTestCase {
+    func testADEV228_thePreviewTakesTheFormsTextColourNotTheAppTheme() {
+        XCTAssertEqual(DecisionComposerView.previewTextColor, .primary)
     }
 }

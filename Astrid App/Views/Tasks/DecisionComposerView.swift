@@ -14,9 +14,12 @@ struct DecisionComposerView: View {
     let onDone: (_ markdown: String, _ destination: Destination) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @ThemedPalette private var palette
     @State private var draft = DecisionDraft()
     @State private var destination: Destination = .comment
+
+    /// The Form's own text colour (ADEV-228), for the preview and the rating rows. Its rows follow
+    /// the system appearance, so the app theme's colours vanished whenever the two disagreed.
+    static let previewTextColor: Color = .primary
 
     var body: some View {
         NavigationStack {
@@ -46,7 +49,7 @@ struct DecisionComposerView: View {
                 }
                 if draft.problem == nil {
                     Section(NSLocalizedString("decision_composer.preview", comment: "")) {
-                        MarkdownText(source: draft.markdown)
+                        MarkdownText(source: draft.markdown, defaultColor: Self.previewTextColor)
                     }
                 }
             }
@@ -150,7 +153,7 @@ struct DecisionComposerView: View {
         let cell = draft.cell(option: option, criterion: criterion.id)
         return VStack(alignment: .leading, spacing: Theme.spacing8) {
             HStack {
-                Text(verbatim: criterion.name).foregroundColor(palette.textPrimary)
+                Text(verbatim: criterion.name).foregroundColor(Self.previewTextColor)
                 Spacer()
                 ForEach(DecisionGrid.ratingTokens, id: \.self) { token in
                     lightButton(token, selected: cell.rating == token) {
@@ -174,9 +177,9 @@ struct DecisionComposerView: View {
         let rating = DecisionGrid.rank(of: token).flatMap(TradeOffRating.init(rawValue:))
         return Button(action: action) {
             Circle()
-                .fill(rating.map(TradeOffPalette.fill) ?? palette.border)
+                .fill(rating.map(TradeOffPalette.fill) ?? Color.secondary)
                 .frame(width: Theme.spacing24, height: Theme.spacing24)
-                .overlay(Circle().strokeBorder(palette.textPrimary,
+                .overlay(Circle().strokeBorder(Self.previewTextColor,
                                                lineWidth: selected ? AstridTokens.Size.Comfortable.selectionOutline : 0))
                 .opacity(selected ? 1 : AstridTokens.State.disabledOpacity)
         }
