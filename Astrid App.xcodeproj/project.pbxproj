@@ -110,6 +110,7 @@
 				Views/Authentication/SignInPromptView.swift,
 				Views/Board/BoardColumnView.swift,
 				Views/Board/BoardTaskCardView.swift,
+				Views/Board/ProjectDecisionsView.swift,
 				Views/Board/ProjectStatusBoardView.swift,
 				Views/Chat/AgentTypingIndicator.swift,
 				Views/Chat/ChatInputView.swift,

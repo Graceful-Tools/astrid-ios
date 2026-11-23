@@ -1,7 +1,7 @@
 {
   "ios": {
     "colourLiterals": 24,
-    "namedSystemColours": 86,
+    "namedSystemColours": 84,
     "shorthandSystemColours": 153,
     "fontSizes": 173,
     "cornerRadii": 60,
@@ -14,7 +14,7 @@
     "shadowLiterals": 20,
     "durationLiterals": 3,
     "darkSchemeTernaries": 0,
-    "fixedThemePicks": 133,
+    "fixedThemePicks": 128,
     "staticThemeText": 39,
     "hardcodedCopy": 84,
     "uniqueHardcodedStrings": 73

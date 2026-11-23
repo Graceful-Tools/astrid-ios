@@ -30,7 +30,7 @@ run's own session, to check what a journey persisted (AITD-527, AITD-528). That 
 not the app, so those paths are named here rather than listed below.
 
 
-## `AstridAPIClient` — the only client (18 paths)
+## `AstridAPIClient` — the only client (20 paths)
 
 
 ### `/api/v1/app-version`
@@ -63,6 +63,8 @@ not the app, so those paths are named here rather than listed below.
 
 ### `/api/v1/projects`
 
+- `/api/v1/projects/{id}/decisions`
+- `/api/v1/projects/{id}/decisions/{id}/decide`
 - `/api/v1/projects/{id}/goals`
 
 ### `/api/v1/public`
