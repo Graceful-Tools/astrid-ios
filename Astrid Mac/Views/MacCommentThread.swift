@@ -410,7 +410,7 @@ struct MacCommentThreadList: View {
                         // bubble stays the size of what was said.
                         MacMarkdownText(source: c.content, fillsWidth: false)
                             .environment(\.taskIdentifierLinks, identifierLinks)
-                            .environment(\.decisionResponse, mine ? nil : decisionResponse(to: c))
+                            .environment(\.decisionResponse, decisionResponse(to: c))  // your own too (ADEV-232)
                     }
                 }
                 .padding(.horizontal, 12).padding(.vertical, 8)

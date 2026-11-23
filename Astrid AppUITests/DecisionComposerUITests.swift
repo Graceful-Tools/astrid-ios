@@ -122,5 +122,17 @@ final class DecisionComposerUITests: XCTestCase {
                        cardsBefore, "and adds no cards above it")
         XCTAssertEqual(optionOneCount() - before, 1, "the option is drawn once, as a row")
         attach("Decision grid in the thread")
+
+        // ADEV-232: the asker can choose on their own trade-off — tap a row, confirm, and the
+        // choice is posted as the reply. The newest grid is the last one on the task.
+        let rowTwo = app.descendants(matching: .any).matching(identifier: "decision.option.2")
+            .allElementsBoundByIndex.last { $0.label.contains("Right") }
+        try XCTUnwrap(rowTwo, "the posted grid's second row").tap()
+        let choose = app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "2 — Right")).firstMatch
+        XCTAssertTrue(choose.waitForExistence(timeout: 5), "the choice is confirmed before it is posted")
+        choose.tap()
+        let reply = app.staticTexts.matching(NSPredicate(format: "label == %@", "2 — Right")).firstMatch
+        XCTAssertTrue(reply.waitForExistence(timeout: 15), "your own choice is posted as the reply")
+        attach("Own decision chosen")
     }
 }
