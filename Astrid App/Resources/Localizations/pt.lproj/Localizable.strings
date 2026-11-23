@@ -1744,9 +1744,10 @@
 "decision_composer.recommend_hint" = "Toque na estrela para recomendar uma.";
 "decision_composer.criteria" = "Prós e contras (opcional)";
 "decision_composer.criterion_placeholder" = "Critério, ex.: Custo";
+"decision_composer.criterion_detail_placeholder" = "O que significa (opcional)";
 "decision_composer.add_criterion" = "Adicionar critério";
 "decision_composer.criteria_hint" = "Avalie cada opção de vermelho a verde em cada critério. Não há pontuação: você decide.";
-"decision_composer.reason_placeholder" = "Motivo";
+"decision_composer.reason_placeholder" = "Nota (opcional), ex.: 2 dias de trabalho";
 "decision_composer.reason_needs_colour" = "Escolha uma cor para cada motivo que escrever.";
 "decision_composer.post_to" = "Publicar em";
 "decision_composer.as_comment" = "Comentário";

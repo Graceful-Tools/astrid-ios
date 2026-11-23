@@ -1746,9 +1746,10 @@
 "decision_composer.recommend_hint" = "點一下星號推薦一個。";
 "decision_composer.criteria" = "權衡（選填）";
 "decision_composer.criterion_placeholder" = "標準，例如：成本";
+"decision_composer.criterion_detail_placeholder" = "含義（選填）";
 "decision_composer.add_criterion" = "新增標準";
 "decision_composer.criteria_hint" = "依每個標準將每個選項從紅到綠評級。沒有分數：由你決定。";
-"decision_composer.reason_placeholder" = "理由";
+"decision_composer.reason_placeholder" = "備註（選填），如：2 天工作量";
 "decision_composer.reason_needs_colour" = "請為每條理由選擇顏色。";
 "decision_composer.post_to" = "發佈到";
 "decision_composer.as_comment" = "留言";

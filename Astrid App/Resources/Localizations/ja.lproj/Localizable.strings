@@ -1744,9 +1744,10 @@
 "decision_composer.recommend_hint" = "星をタップしておすすめを1つ選びます。";
 "decision_composer.criteria" = "比較（任意）";
 "decision_composer.criterion_placeholder" = "基準（例：費用）";
+"decision_composer.criterion_detail_placeholder" = "意味（任意）";
 "decision_composer.add_criterion" = "基準を追加";
 "decision_composer.criteria_hint" = "各基準で各選択肢を赤から緑で評価します。点数はありません。決めるのはあなたです。";
-"decision_composer.reason_placeholder" = "理由";
+"decision_composer.reason_placeholder" = "メモ（任意）例：作業2日";
 "decision_composer.reason_needs_colour" = "入力した理由ごとに色を選んでください。";
 "decision_composer.post_to" = "投稿先";
 "decision_composer.as_comment" = "コメント";

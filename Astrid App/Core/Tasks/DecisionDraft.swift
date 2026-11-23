@@ -17,6 +17,8 @@ struct DecisionDraft: Equatable {
     struct Criterion: Equatable, Identifiable {
         let id = UUID()
         var name = ""
+        /// What it means, optional (ADEV-231): one line of the key under the grid.
+        var detail = ""
     }
 
     struct CellKey: Hashable {
@@ -86,7 +88,12 @@ struct DecisionDraft: Equatable {
             let mark = option.id == recommended ? " (recommended)" : ""
             lines.append("- **\(i + 1).** \(Self.line(option.text))\(mark)")
         }
-        if let grid { lines += ["", grid.markdown] }
+        if let grid {
+            lines += ["", grid.markdown]
+            let key = namedCriteria.filter { !Self.line($0.detail).isEmpty }
+                .map { "- **\(Self.line($0.name)):** \(Self.line($0.detail))" }
+            if !key.isEmpty { lines += [""] + key }
+        }
         return lines.joined(separator: "\n")
     }
 

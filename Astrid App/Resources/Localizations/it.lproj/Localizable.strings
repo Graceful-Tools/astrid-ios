@@ -1744,9 +1744,10 @@
 "decision_composer.recommend_hint" = "Tocca la stella per consigliarne una.";
 "decision_composer.criteria" = "Pro e contro (facoltativo)";
 "decision_composer.criterion_placeholder" = "Criterio, ad es. Costo";
+"decision_composer.criterion_detail_placeholder" = "Cosa significa (facoltativo)";
 "decision_composer.add_criterion" = "Aggiungi criterio";
 "decision_composer.criteria_hint" = "Valuta ogni opzione dal rosso al verde per ogni criterio. Nessun punteggio: decidi tu.";
-"decision_composer.reason_placeholder" = "Motivo";
+"decision_composer.reason_placeholder" = "Nota (facoltativa), es. 2 giorni di lavoro";
 "decision_composer.reason_needs_colour" = "Scegli un colore per ogni motivo che scrivi.";
 "decision_composer.post_to" = "Pubblica in";
 "decision_composer.as_comment" = "Commento";

@@ -117,9 +117,17 @@ struct DecisionComposerView: View {
     private var criteriaSection: some View {
         Section {
             ForEach($draft.criteria) { $criterion in
-                TextField(NSLocalizedString("decision_composer.criterion_placeholder", comment: ""),
-                          text: $criterion.name)
-                    .accessibilityIdentifier("decisionComposer.criterion")
+                VStack(alignment: .leading, spacing: Theme.spacing8) {
+                    TextField(NSLocalizedString("decision_composer.criterion_placeholder", comment: ""),
+                              text: $criterion.name)
+                        .accessibilityIdentifier("decisionComposer.criterion")
+                    if !criterion.name.isEmpty {
+                        TextField(NSLocalizedString("decision_composer.criterion_detail_placeholder", comment: ""),
+                                  text: $criterion.detail, axis: .vertical)
+                            .font(Theme.Typography.callout())
+                            .accessibilityIdentifier("decisionComposer.criterionDetail")
+                    }
+                }
             }
             .onDelete { draft.criteria.remove(atOffsets: $0) }
             if draft.criteria.count < DecisionDraft.maxCriteria {
@@ -170,6 +178,7 @@ struct DecisionComposerView: View {
                                     option: option, criterion: criterion.id)
                       }))
                 .font(Theme.Typography.callout())
+                .accessibilityIdentifier("decisionComposer.note")
         }
     }
 

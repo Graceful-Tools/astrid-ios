@@ -1744,9 +1744,10 @@
 "decision_composer.recommend_hint" = "点按星标推荐一个。";
 "decision_composer.criteria" = "权衡（可选）";
 "decision_composer.criterion_placeholder" = "标准，例如：成本";
+"decision_composer.criterion_detail_placeholder" = "含义（可选）";
 "decision_composer.add_criterion" = "添加标准";
 "decision_composer.criteria_hint" = "按每个标准将每个选项从红到绿评级。没有分数：由你决定。";
-"decision_composer.reason_placeholder" = "理由";
+"decision_composer.reason_placeholder" = "备注（可选），如：2 天工作量";
 "decision_composer.reason_needs_colour" = "请为每条理由选择颜色。";
 "decision_composer.post_to" = "发布到";
 "decision_composer.as_comment" = "评论";

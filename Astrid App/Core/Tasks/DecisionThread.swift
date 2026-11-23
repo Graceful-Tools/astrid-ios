@@ -11,14 +11,23 @@ import Foundation
 
 enum DecisionThread {
 
-    /// The first comment after `asked` from someone other than its author, or `nil` while
-    /// nobody has replied. A system line and the asker's own follow-up are not answers.
+    /// The first comment after `asked` that answers it, or `nil` while nobody has: a reply from
+    /// someone else, or the asker's own reply choosing one of its options (ADEV-232 — someone
+    /// weighing their own trade-off chooses too). A system line and the asker's follow-up in
+    /// words are not answers.
     static func answer(to asked: Comment, in comments: [Comment]) -> Comment? {
         guard let position = comments.firstIndex(where: { $0.id == asked.id }) else { return nil }
+        let askedOptions = Decisions.blocks(source: asked.content).compactMap { block -> [DecisionOption]? in
+            if case .decision(let decision) = block { return decision.options }
+            return nil
+        }
         return comments[comments.index(after: position)...]
             .filter { isLater($0, than: asked) }
             .first { reply in
-                !CommentVisibility.isSystem(reply, isOffline: false) && reply.authorId != asked.authorId
+                guard !CommentVisibility.isSystem(reply, isOffline: false) else { return false }
+                return reply.authorId != asked.authorId || askedOptions.contains {
+                    Decisions.chosenNumber(in: reply.content, options: $0) != nil
+                }
             }
     }
 
@@ -36,7 +45,7 @@ struct DecisionResponse {
     let choose: (DecisionOption) -> Void
 
     enum State: Equatable {
-        /// No thread to answer in, or the viewer asked the question.
+        /// No thread to answer in: a description.
         case readOnly
         case open
         /// The chosen option's number (AITD-585).

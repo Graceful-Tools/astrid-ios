@@ -147,7 +147,9 @@ struct TradeOffGridView: View {
     @State private var contentWidth: CGFloat?
     @State private var showsFullScreen = false
     private var available: CGFloat? { availableWidth ?? measured }
-    private var optionWidth: ClosedRange<CGFloat> { TradeOffGridMetrics.optionWidth(available: available) }
+    private var optionWidth: ClosedRange<CGFloat> {
+        TradeOffGridMetrics.optionWidth(available: available, choice: isChoice)
+    }
     /// Is there anything to scroll? Only then does a sideways drag belong to the grid (AITD-595).
     private var scrollsSideways: Bool {
         guard let contentWidth, let measured else { return false }
@@ -395,10 +397,15 @@ struct TradeOffGridMetrics: Equatable {
         fullScreen ? 144...240 : 84...150
     }
 
-    static func optionWidth(available: CGFloat?) -> ClosedRange<CGFloat> {
-        let floor: CGFloat = 96
-        guard let available, available > 0 else { return floor...192 }
-        return floor...max(floor, min(192, (available / 3).rounded(.down)))
+    /// A row that is a decision's option to tap (ADEV-229) carries a number badge at body size, so
+    /// its column runs 150-280 and up to half the width (ADEV-231): a third of a phone left about
+    /// 60pt of text, and any word longer than that broke mid-word.
+    static func optionWidth(available: CGFloat?, choice: Bool = false) -> ClosedRange<CGFloat> {
+        let floor: CGFloat = choice ? 150 : 96
+        let ceiling: CGFloat = choice ? 280 : 192
+        let share: CGFloat = choice ? 2 : 3
+        guard let available, available > 0 else { return floor...ceiling }
+        return floor...max(floor, min(ceiling, (available / share).rounded(.down)))
     }
 
     init(columns: Int, rows: Int, optionWidth: ClosedRange<CGFloat>, cellWidth: ClosedRange<CGFloat>,

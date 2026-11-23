@@ -1744,9 +1744,10 @@
 "decision_composer.recommend_hint" = "Нажмите на звезду, чтобы рекомендовать один.";
 "decision_composer.criteria" = "Плюсы и минусы (необязательно)";
 "decision_composer.criterion_placeholder" = "Критерий, напр. Стоимость";
+"decision_composer.criterion_detail_placeholder" = "Что это значит (необязательно)";
 "decision_composer.add_criterion" = "Добавить критерий";
 "decision_composer.criteria_hint" = "Оцените каждый вариант по каждому критерию от красного до зелёного. Баллов нет: решаете вы.";
-"decision_composer.reason_placeholder" = "Причина";
+"decision_composer.reason_placeholder" = "Заметка (необязательно), напр. 2 дня работы";
 "decision_composer.reason_needs_colour" = "Выберите цвет для каждой указанной причины.";
 "decision_composer.post_to" = "Опубликовать в";
 "decision_composer.as_comment" = "Комментарий";

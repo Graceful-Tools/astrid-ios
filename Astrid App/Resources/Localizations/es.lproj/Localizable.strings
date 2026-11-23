@@ -1760,9 +1760,10 @@
 "decision_composer.recommend_hint" = "Toca la estrella para recomendar una.";
 "decision_composer.criteria" = "Ventajas e inconvenientes (opcional)";
 "decision_composer.criterion_placeholder" = "Criterio, p. ej. Coste";
+"decision_composer.criterion_detail_placeholder" = "Qué significa (opcional)";
 "decision_composer.add_criterion" = "Añadir criterio";
 "decision_composer.criteria_hint" = "Valora cada opción de rojo a verde en cada criterio. No hay puntuación: tú decides.";
-"decision_composer.reason_placeholder" = "Motivo";
+"decision_composer.reason_placeholder" = "Nota (opcional), p. ej. 2 días de trabajo";
 "decision_composer.reason_needs_colour" = "Elige un color para cada motivo que escribas.";
 "decision_composer.post_to" = "Publicar en";
 "decision_composer.as_comment" = "Comentario";

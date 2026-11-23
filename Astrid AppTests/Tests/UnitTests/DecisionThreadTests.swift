@@ -89,4 +89,20 @@ final class DecisionThreadTests: XCTestCase {
         response.tap(decision.options[1], in: decision)
         XCTAssertEqual(sent, [])
     }
+    // MARK: ADEV-232 — Jon, 2026-11-23: "A user should be able to select the option either on
+    // their own trade-off." Someone weighing their own options answers their own question.
+
+    func testADEV232_theAskerChoosingAnOptionAnswersTheirOwnQuestion() {
+        let asked = comment("q", question, by: jon, at: 1)
+        let thread = [asked, comment("r", "2 — Wait", by: jon, at: 2)]
+        let response = DecisionResponse(answer: DecisionThread.answer(to: asked, in: thread), choose: { _ in })
+        XCTAssertEqual(response.state(for: decision), .chosen(2))
+    }
+
+    func testADEV232_theAskersFollowUpInWordsLeavesItOpen() {
+        let asked = comment("q", question, by: jon, at: 1)
+        let thread = [asked, comment("r", "Leaning towards going, thoughts?", by: jon, at: 2)]
+        XCTAssertNil(DecisionThread.answer(to: asked, in: thread))
+    }
 }
+

@@ -132,6 +132,25 @@ final class TradeOffGridOptionWidthTests: XCTestCase {
     }
 }
 
+// MARK: - Task ADEV-231 — a choosable grid's option names run wider, so they wrap between words
+//
+// Jon, 2026-11-23: "the option description should wrap at word and can be wider". A row you tap
+// carries a number badge at body size, which left a phone's third of the width about 60pt of
+// text: anything longer than "Lisbon" broke mid-word.
+
+final class TradeOffGridChoiceOptionWidthTests: XCTestCase {
+
+    func testADEV231_aChoosableRowsOptionColumnMayTakeHalfTheWidth() {
+        XCTAssertEqual(TradeOffGridMetrics.optionWidth(available: 390, choice: true), 150...195)
+        XCTAssertEqual(TradeOffGridMetrics.optionWidth(available: 1000, choice: true), 150...280)
+        XCTAssertEqual(TradeOffGridMetrics.optionWidth(available: 240, choice: true), 150...150, "never below the floor")
+    }
+
+    func testADEV231_aGridThatIsNotAChoiceKeepsItsThird() {
+        XCTAssertEqual(TradeOffGridMetrics.optionWidth(available: 390, choice: false), 96...130)
+    }
+}
+
 // MARK: - Task AITD-595 — "Trade-off grid: a sideways drag scrolls the grid instead of closing the
 // task, and the grid opens full screen (iOS half of web AWTD-1534)"
 //

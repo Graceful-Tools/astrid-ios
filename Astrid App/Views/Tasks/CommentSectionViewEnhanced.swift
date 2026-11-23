@@ -417,8 +417,7 @@ struct CommentSectionViewEnhanced: View {
                     )
                     // A question's cards answer in this thread (AITD-579). Your own question's
                     // cards only show the options.
-                    .environment(\.decisionResponse,
-                                 comment.authorId == AuthManager.shared.userId ? nil : decisionResponse(to: comment))
+                    .environment(\.decisionResponse, decisionResponse(to: comment))  // your own too (ADEV-232)
                     }
                 }
             }
