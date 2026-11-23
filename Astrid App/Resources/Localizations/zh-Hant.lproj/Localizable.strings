@@ -1608,6 +1608,9 @@
 
 /* Decisions and trade-off grids (AITD-579, AITD-578) */
 "decision.recommended" = "推薦";
+"decision.tap_row_hint" = "點一下選項即可選擇。";
+"decision.confirm_title" = "發佈你的選擇？";
+"decision.choose_option" = "選擇 %@";
 "tradeoff.very_poor" = "一票否決";
 "tradeoff.poor" = "差";
 "tradeoff.mixed" = "普通";

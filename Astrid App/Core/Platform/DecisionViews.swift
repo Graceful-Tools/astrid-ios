@@ -48,11 +48,7 @@ struct DecisionCardsView: View {
         let dimmed = !chosen && state != .open && state != .readOnly
         return Button { response?.tap(option, in: decision) } label: {
             HStack(alignment: .firstTextBaseline, spacing: style.markerSpacing * 1.5) {
-                Text(verbatim: "\(option.number)")
-                    .font(style.body.bold())
-                    .foregroundColor(chosen ? .white : Theme.accent)
-                    .frame(minWidth: 24, minHeight: 24)
-                    .background(Circle().fill(chosen ? Theme.accent : Theme.accent.opacity(0.14)))
+                DecisionNumberBadge(number: option.number, chosen: chosen, font: style.body.bold())
                 VStack(alignment: .leading, spacing: 4) {
                     inline(option.label).font(style.body)
                     if option.recommended {
@@ -66,7 +62,7 @@ struct DecisionCardsView: View {
                     Image(systemName: "checkmark.circle.fill").foregroundColor(Theme.accent)
                 }
             }
-            .padding(.horizontal, 12).padding(.vertical, 10)
+            .padding(.horizontal, DecisionChoiceMetrics.paddingX).padding(.vertical, DecisionChoiceMetrics.paddingY)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: 10).fill(style.text.opacity(0.05)))
             .overlay(RoundedRectangle(cornerRadius: 10)
@@ -78,6 +74,29 @@ struct DecisionCardsView: View {
         // Not `.disabled`: that greys the chosen card too, the one that should stand out.
         .allowsHitTesting(state == .open)
         .accessibilityIdentifier("decision.option.\(option.number)")
+        .accessibilityValue(Text(verbatim: "card"))
+    }
+}
+
+/// What an option you tap measures, as a card or as a grid row (ADEV-229): one size for both.
+enum DecisionChoiceMetrics {
+    static let paddingX: CGFloat = 12
+    static let paddingY: CGFloat = 10
+    static let badge: CGFloat = 24
+}
+
+/// An option's number in its circle, filled once chosen.
+struct DecisionNumberBadge: View {
+    let number: Int
+    let chosen: Bool
+    let font: Font
+
+    var body: some View {
+        Text(verbatim: "\(number)")
+            .font(font)
+            .foregroundColor(chosen ? .white : Theme.accent)
+            .frame(minWidth: DecisionChoiceMetrics.badge, minHeight: DecisionChoiceMetrics.badge)
+            .background(Circle().fill(chosen ? Theme.accent : Theme.accent.opacity(0.14)))
     }
 }
 
@@ -112,6 +131,13 @@ struct TradeOffGridView: View {
     /// The width the grid is shown in, when the caller knows it better than the grid can: inside
     /// the full-screen view's two-way scroller the grid's own width is its content's.
     var availableWidth: CGFloat?
+    /// The decision whose options are this grid's rows (ADEV-229): a row is then the option to
+    /// choose, tapped and confirmed, and the cards are not drawn. Not in the full-screen view.
+    var decision: Decision?
+
+    @Environment(\.decisionResponse) private var response
+    /// The row tapped, waiting for the confirmation that sends it.
+    @State private var pending: DecisionOption?
 
     /// A cell wraps within these before the grid grows sideways and scrolls (AITD-585), so a
     /// word is never broken across lines to squeeze one more column onto a phone. The options
@@ -136,6 +162,11 @@ struct TradeOffGridView: View {
             if fullScreen {
                 table
             } else {
+                if choiceState == .open {
+                    Text(NSLocalizedString("decision.tap_row_hint", comment: "Above a decision grid whose rows can be chosen"))
+                        .font(style.small)
+                        .foregroundColor(style.muted)
+                }
                 fullScreenButton
                 ScrollView(.horizontal, showsIndicators: false) {
                     table.onGeometryChange(for: CGFloat.self) { $0.size.width } action: { contentWidth = $0 }
@@ -145,6 +176,15 @@ struct TradeOffGridView: View {
             legend
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { measured = $0 }
+        .confirmationDialog(NSLocalizedString("decision.confirm_title", comment: "Asks before a chosen row is posted"),
+                            isPresented: Binding(get: { pending != nil }, set: { if !$0 { pending = nil } }),
+                            titleVisibility: .visible, presenting: pending) { option in
+            Button(String(format: NSLocalizedString("decision.choose_option", comment: "Choose <2 — Cabin>"), option.reply)) {
+                if let decision { response?.tap(option, in: decision) }
+                pending = nil
+            }
+            Button(NSLocalizedString("actions.cancel", comment: ""), role: .cancel) { pending = nil }
+        }
         #if os(iOS)
         .fullScreenCover(isPresented: $showsFullScreen) {
             TradeOffGridFullScreenView(grid: grid, style: style)
@@ -164,9 +204,10 @@ struct TradeOffGridView: View {
                 header(column < grid.header.count ? grid.header[column] : [], column: column)
             }
             ForEach(Array(grid.rows.enumerated()), id: \.offset) { index, row in
-                option(row, number: index + 1)
+                choosable(row: index, option(row, number: index + 1, recommended: choice(row: index)?.recommended == true))
+                    .accessibilityIdentifier(choice(row: index) == nil ? "" : "decision.option.\(index + 1)")
                 ForEach(0..<columns - 1, id: \.self) { column in
-                    ratedCell(column < row.cells.count ? row.cells[column] : nil)
+                    choosable(row: index, ratedCell(column < row.cells.count ? row.cells[column] : nil))
                 }
             }
         }
@@ -196,20 +237,80 @@ struct TradeOffGridView: View {
                    alignment: column == 0 ? .leading : .center)
     }
 
-    /// Numbered like the cards, whatever marker the row was written with.
-    private func option(_ row: TradeOffRow, number: Int) -> some View {
-        (Text(verbatim: "\(number). ") + inline(row.name)).font(style.small.bold())
-            .padding(.horizontal, 6).padding(.vertical, 6)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    /// Numbered like the cards, whatever marker the row was written with; the chosen row of a
+    /// decision ringed and ticked, like its card was.
+    private func option(_ row: TradeOffRow, number: Int, recommended: Bool = false) -> some View {
+        let chosen = choiceState == .chosen(number)
+        return VStack(alignment: .leading, spacing: AstridTokens.Space.s2) {
+            if isChoice {
+                // The size the option cards had, now that the row is what is tapped (ADEV-229).
+                HStack(alignment: .firstTextBaseline, spacing: AstridTokens.Space.s8) {
+                    DecisionNumberBadge(number: number, chosen: chosen, font: style.body.bold())
+                    inline(row.name).font(style.body)
+                }
+            } else {
+                HStack(alignment: .firstTextBaseline, spacing: AstridTokens.Space.s4) {
+                    (Text(verbatim: "\(number). ") + inline(row.name)).font(style.small.bold())
+                }
+            }
+            if recommended {
+                Text(NSLocalizedString("decision.recommended", comment: "Badge on the option the asker recommends"))
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(Theme.accent)
+            }
+        }
+        .padding(.horizontal, isChoice ? DecisionChoiceMetrics.paddingX : 6)
+        .padding(.vertical, isChoice ? DecisionChoiceMetrics.paddingY : 6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: AstridTokens.Radius.sm)
+            .strokeBorder(Theme.accent, lineWidth: chosen ? AstridTokens.Size.Comfortable.selectionOutline : 0))
+        .accessibilityElement(children: .combine)  // one option, read and found as one
+    }
+
+    // MARK: Choosing a row (ADEV-229)
+
+    /// The rows are a decision's options: drawn at the cards' size, in the thread and its preview.
+    private var isChoice: Bool { decision != nil && !fullScreen }
+
+    private var choiceState: DecisionResponse.State? {
+        guard let decision, !fullScreen else { return nil }
+        return DecisionResponse.state(response, for: decision)
+    }
+
+    private func choice(row: Int) -> DecisionOption? {
+        guard let options = decision?.options, options.indices.contains(row) else { return nil }
+        return options[row]
+    }
+
+    /// A cell of row `row`: a button that asks to confirm its option while the decision is open,
+    /// dimmed once another row was chosen. A sideways scroll can land a tap, hence the confirmation.
+    @ViewBuilder
+    private func choosable<Cell: View>(row: Int, _ cell: Cell) -> some View {
+        let state = choiceState
+        if let option = choice(row: row), state == .open {
+            Button { pending = option } label: { cell.contentShape(Rectangle()) }
+                .buttonStyle(.plain)
+        } else {
+            cell.opacity(Self.dimmed(row: row, in: state) ? AstridTokens.State.disabledOpacity : 1)
+        }
+    }
+
+    /// A row other than the chosen one, once the decision is answered.
+    static func dimmed(row: Int, in state: DecisionResponse.State?) -> Bool {
+        switch state {
+        case .chosen(let number): return number != row + 1
+        case .answeredInWords: return true
+        default: return false
+        }
     }
 
     /// `nil` past the end of a row written with fewer cells than the header, drawn as an empty one.
     private func ratedCell(_ cell: TradeOffCell?) -> some View {
         Text(MarkdownRendering.attributed(cell?.reason ?? [], defaultColor: TradeOffPalette.text(for: cell?.rating),
                                           referenceFont: nil))
-            .font(style.small)
+            .font(isChoice ? style.body : style.small)
             .multilineTextAlignment(.center)
-            .padding(.horizontal, 6).padding(.vertical, 6)
+            .padding(.horizontal, 6).padding(.vertical, isChoice ? DecisionChoiceMetrics.paddingY : 6)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .background(RoundedRectangle(cornerRadius: 4)
                 .fill(cell?.rating.map(TradeOffPalette.fill) ?? style.text.opacity(0.05)))

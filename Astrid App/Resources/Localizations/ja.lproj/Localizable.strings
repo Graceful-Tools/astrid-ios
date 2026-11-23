@@ -1606,6 +1606,9 @@
 
 /* Decisions and trade-off grids (AITD-579, AITD-578) */
 "decision.recommended" = "おすすめ";
+"decision.tap_row_hint" = "選択肢をタップして選びます。";
+"decision.confirm_title" = "選択を投稿しますか？";
+"decision.choose_option" = "%@ を選ぶ";
 "tradeoff.very_poor" = "除外";
 "tradeoff.poor" = "悪い";
 "tradeoff.mixed" = "どちらとも言えない";

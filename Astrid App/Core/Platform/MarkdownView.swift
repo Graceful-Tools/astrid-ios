@@ -59,14 +59,25 @@ struct MarkdownView: View {
         VStack(alignment: .leading, spacing: style.blockSpacing) {
             // A decision's options and a trade-off grid are markdown too, drawn richer
             // (AITD-579, AITD-578); everything else is the block as rendered.
-            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
-                switch block {
-                case .markdown(let block):
+            // A decision with a grid of its options draws as the grid alone, rows to choose
+            // (ADEV-229); one without keeps its cards.
+            ForEach(Array(DecisionDisplay.arrange(blocks).enumerated()), id: \.offset) { _, shown in
+                switch shown {
+                case .block(.markdown(let block)):
                     self.block(block)
-                case .decision(let decision):
+                case .block(.decision(let decision)):
                     DecisionCardsView(decision: decision, style: style, inline: inline)
-                case .tradeOff(let grid):
+                case .block(.tradeOff(let grid)):
                     TradeOffGridView(grid: grid, style: style, inline: inline)
+                case .choosableGrid(let decision, let grid):
+                    VStack(alignment: .leading, spacing: style.blockSpacing * 2) {
+                        if !decision.question.isEmpty {
+                            inline(decision.question).font(style.body.bold())
+                        }
+                        TradeOffGridView(grid: grid, style: style, inline: inline, decision: decision)
+                    }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("decision.choosableGrid")
                 }
             }
         }

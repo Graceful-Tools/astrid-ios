@@ -1606,6 +1606,9 @@
 
 /* Decisions and trade-off grids (AITD-579, AITD-578) */
 "decision.recommended" = "Consigliata";
+"decision.tap_row_hint" = "Tocca un’opzione per sceglierla.";
+"decision.confirm_title" = "Pubblicare la tua scelta?";
+"decision.choose_option" = "Scegli %@";
 "tradeoff.very_poor" = "Escludente";
 "tradeoff.poor" = "Scarso";
 "tradeoff.mixed" = "Misto";
