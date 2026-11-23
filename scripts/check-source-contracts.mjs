@@ -543,6 +543,16 @@ export const rules = [
     },
   },
   {
+    id: 'ios-ui-tests-send-no-hardware-keys',
+    why: 'A modifier key sent from an iOS UI test (`typeKey(_:modifierFlags:)`, e.g. ⌘A) makes the simulator remember a hardware keyboard, and the on-screen keyboard then stays hidden for every later test on that device, in that run and the next — CommentUITests failed in CI that way while passing locally (ADEV-214). Type with `typeText`, delete with `XCUIKeyboardKey.delete`. Mac UI tests are not affected.',
+    run(ctx) {
+      const dirs = ['Astrid AppUITests']
+      return [...missingDirs(ctx, dirs), ...eachCodeLine(ctx, ctx.files(dirs), (line) =>
+        /\.typeKey\s*\(/.test(line) &&
+        'sends a hardware key from an iOS UI test — it hides the simulator\'s on-screen keyboard for later tests; use typeText')]
+    },
+  },
+  {
     id: 'photo-library-uses-system-picker',
     why: 'Choosing a photo goes through the system Photos picker (`.photosPicker` / `PHPickerViewController`), which runs out of process and opens at once. `UIImagePickerController` with `.photoLibrary` loads the library in process inside a sheet, so tapping the profile-photo button showed a blank screen for seconds (AITD-675). The camera (`CameraCapturePicker`) is the one legitimate `UIImagePickerController`.',
     pattern: /sourceType\s*=\s*\.photoLibrary\b|sourceType\s*=\s*\.savedPhotosAlbum\b/,
