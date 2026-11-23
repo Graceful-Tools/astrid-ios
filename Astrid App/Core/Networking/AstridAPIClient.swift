@@ -276,6 +276,24 @@ class AstridAPIClient {
         try await request(method: "PUT", path: "/api/v1/projects/\(projectId)/goals", body: update)
     }
 
+    // MARK: - Project decisions (ADEV-189, web ADEV-180)
+
+    /// A project's decisions, open first. Called only by `ProjectDecisionsService`.
+    func getProjectDecisions(projectId: String) async throws -> ProjectDecisionsResponse {
+        try await request(method: "GET", path: "/api/v1/projects/\(projectId)/decisions")
+    }
+
+    /// Start a decision from the project's goals: the server writes the task and its grid.
+    func createProjectDecision(projectId: String, _ body: NewProjectDecisionRequest) async throws -> NewProjectDecisionResponse {
+        try await request(method: "POST", path: "/api/v1/projects/\(projectId)/decisions", body: body)
+    }
+
+    /// Record the chosen option (the number the cards show) on the decision's description.
+    func decideProjectDecision(projectId: String, taskId: String, option: Int) async throws -> DecideProjectDecisionResponse {
+        try await request(method: "POST", path: "/api/v1/projects/\(projectId)/decisions/\(taskId)/decide",
+                          body: DecideProjectDecisionRequest(option: option))
+    }
+
     // MARK: - Task Operations
 
     // A public list's tasks were the last read of `/api/v1/tasks`; they come from the core's

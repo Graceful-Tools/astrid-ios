@@ -67,6 +67,8 @@ struct ProjectStatusBoardView: View {
     /// thread, re-asked when tasks, lists or projects change, the last answer kept on screen.
     @StateObject private var board = BoardModel()
     @State private var dropError: String? = nil
+    /// The project's decisions, as a sheet (ADEV-189).
+    @State private var showingDecisions = false
     /// Which card a tap opened the panel from — that card is already beside its panel, so the
     /// board does not scroll it anywhere (AITD-679).
     @Environment(\.selectedRowReporter) private var selectedRowReporter
@@ -148,9 +150,26 @@ struct ProjectStatusBoardView: View {
 
     var body: some View {
         VStack {
-        // The project's goals and guardrails, folded; nothing when it has none (ADEV-183).
-        if ProjectGoalsStrip.shows(goalsService.goals(projectId: projectId)) {
-            ProjectGoalsStrip(projectId: projectId)
+        // The project's goals and guardrails, folded; nothing when it has none (ADEV-183). Its
+        // decisions sit beside them, open with or without goals (ADEV-189).
+        HStack(alignment: .firstTextBaseline) {
+            if ProjectGoalsStrip.shows(goalsService.goals(projectId: projectId)) {
+                ProjectGoalsStrip(projectId: projectId)
+            }
+            Spacer(minLength: Theme.spacing8)
+            Button {
+                showingDecisions = true
+            } label: {
+                Label(NSLocalizedString("project_decisions.title", comment: "Decisions"),
+                      systemImage: "checklist")
+                    .font(Theme.Typography.caption1())
+            }
+            .padding(.horizontal, Theme.spacing16)
+            .padding(.vertical, Theme.spacing8)
+            .accessibilityIdentifier("projectDecisions.open")
+        }
+        .sheet(isPresented: $showingDecisions) {
+            ProjectDecisionsView(projectId: projectId)
         }
         GeometryReader { geo in
             // Phone-narrow widths: one full-screen paged column (existing
