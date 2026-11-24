@@ -17,7 +17,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  AGENT_ID, decisionComment, hookOutput, nextStep, requestSignature, taskFromClaims, timeoutMessage,
+  AGENT_ID, approversOf, decisionComment, hookOutput, nextStep, requestSignature, taskFromClaims, timeoutMessage,
 } from './lib/permission-decision.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -76,15 +76,19 @@ try {
   };
 
   // The claims file may name the task by identifier; comments are posted by uuid.
-  const task = await astrid(`/api/v1/tasks/${encodeURIComponent(claimed)}`);
-  const taskId = task.task?.id ?? task.id;
+  const fetched = await astrid(`/api/v1/tasks/${encodeURIComponent(claimed)}`);
+  const task = fetched.task ?? fetched;
+  const taskId = task.id;
+  // Only the list's owner and admins answer; another member's reply is ignored.
+  const approvers = approversOf(task);
+  if (approvers.size === 0) throw new Error('no owner or admin on the task\'s lists to answer');
   const comments = async () => (await astrid(`/api/v1/tasks/${taskId}/comments`)).comments ?? [];
   const used = () => {
     try { return new Set(fs.readFileSync(USED, 'utf8').split('\n').filter(Boolean)); } catch { return new Set(); }
   };
 
   const deadline = Date.now() + WAIT * 1000;
-  let step = nextStep(request, await comments(), used());
+  let step = nextStep(request, await comments(), used(), approvers);
   if (step.step === 'ask') {
     await astrid(`/api/v1/tasks/${taskId}/comments`, {
       method: 'POST',
@@ -95,7 +99,7 @@ try {
   }
   while (step.step === 'wait' && Date.now() < deadline) {
     await new Promise(r => setTimeout(r, POLL * 1000));
-    step = nextStep(request, await comments(), used());
+    step = nextStep(request, await comments(), used(), approvers);
     if (step.step === 'ask') step = { step: 'wait' };  // our question is not visible yet
   }
   if (step.step === 'allow') {

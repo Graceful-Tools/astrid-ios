@@ -47,19 +47,34 @@ export function readAnswer(content) {
 }
 
 const isPerson = c => c.authorId !== AGENT_ID && !c.author?.isAIAgent;
+const isApprover = approvers => c => isPerson(c) && approvers.has(c.authorId);
+
+/** Who may answer: the task's lists' owners and admins. A list can have other members, and a
+ *  member must not be able to approve a command on this Mac. */
+export function approversOf(task) {
+  const ids = new Set();
+  for (const list of task?.lists ?? []) {
+    if (list.ownerId) ids.add(list.ownerId);
+    for (const m of list.listMembers ?? []) if (m.role === 'admin' || m.role === 'owner') ids.add(m.userId);
+  }
+  ids.delete(AGENT_ID);
+  return ids;
+}
 const signatureIn = c => (String(c.content ?? '').match(/Request `([0-9a-f]{8})`/) || [])[1];
 const time = c => Date.parse(c.createdAt);
 
 /**
- * Given the task's comments and the answers already used up (Allow once is good for one call),
- * what to do with this request: `ask`, `wait` on the question already posted, `allow`, or `deny`.
+ * Given the task's comments, the answers already used up (Allow once is good for one call) and
+ * who may answer, what to do with this request: `ask`, `wait` on the question already posted,
+ * `allow`, or `deny`. Anyone else's reply is ignored.
  */
-export function nextStep(request, comments, consumed) {
+export function nextStep(request, comments, consumed, approvers) {
   const sig = requestSignature(request);
   const sorted = [...comments].sort((a, b) => time(a) - time(b));
-  const questions = sorted.filter(c => !isPerson(c) && signatureIn(c) === sig);
+  const questions = sorted.filter(c => c.authorId === AGENT_ID && signatureIn(c) === sig);
   if (questions.length === 0) return { step: 'ask' };
-  const answerTo = q => sorted.find(c => isPerson(c) && time(c) > time(q));
+  const answers = isApprover(approvers);
+  const answerTo = q => sorted.find(c => answers(c) && time(c) > time(q));
 
   if (questions.some(q => { const a = answerTo(q); return a && readAnswer(a.content).choice === 2; })) {
     return { step: 'allow' };

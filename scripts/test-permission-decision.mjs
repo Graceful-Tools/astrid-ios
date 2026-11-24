@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  requestSignature, decisionComment, readAnswer, nextStep, hookOutput, taskFromClaims, AGENT_ID,
+  requestSignature, decisionComment, readAnswer, nextStep, hookOutput, taskFromClaims, approversOf, AGENT_ID,
 } from './lib/permission-decision.mjs';
 
 const bash = { tool_name: 'Bash', tool_input: { command: 'curl -s https://example.com', description: 'Fetch it' } };
@@ -10,6 +10,7 @@ const sig = requestSignature(bash);
 const asked = (id = 'c1', at = '2026-11-24T10:00:00Z') => ({
   id, authorId: AGENT_ID, author: { isAIAgent: true }, createdAt: at, content: decisionComment(bash),
 });
+const ok = new Set(['jon']);
 const reply = (content, at = '2026-11-24T10:01:00Z', id = 'r1') => ({
   id, authorId: 'jon', author: { isAIAgent: false }, createdAt: at, content,
 });
@@ -43,28 +44,28 @@ test('ADEV-249 a tapped card or a typed number is the answer; words are passed o
 });
 
 test('ADEV-249 with nothing asked yet, it asks', () => {
-  assert.deepEqual(nextStep(bash, [], new Set()), { step: 'ask' });
+  assert.deepEqual(nextStep(bash, [], new Set(), ok), { step: 'ask' });
 });
 
 test('ADEV-249 an unanswered question is waited on, not asked twice', () => {
-  assert.deepEqual(nextStep(bash, [asked()], new Set()), { step: 'wait', commentId: 'c1' });
+  assert.deepEqual(nextStep(bash, [asked()], new Set(), ok), { step: 'wait', commentId: 'c1' });
 });
 
 test('ADEV-249 Allow once allows once, then the next identical request asks again', () => {
   const comments = [asked(), reply('1 — Allow once')];
-  assert.deepEqual(nextStep(bash, comments, new Set()), { step: 'allow', consume: 'r1' });
-  assert.deepEqual(nextStep(bash, comments, new Set(['r1'])), { step: 'ask' });
+  assert.deepEqual(nextStep(bash, comments, new Set(), ok), { step: 'allow', consume: 'r1' });
+  assert.deepEqual(nextStep(bash, comments, new Set(['r1']), ok), { step: 'ask' });
 });
 
 test('ADEV-249 Allow for this task keeps allowing the same request', () => {
   const comments = [asked(), reply('2 — Allow for this task')];
-  assert.deepEqual(nextStep(bash, comments, new Set()), { step: 'allow' });
-  assert.deepEqual(nextStep(bash, comments, new Set(['r1'])), { step: 'allow' });
+  assert.deepEqual(nextStep(bash, comments, new Set(), ok), { step: 'allow' });
+  assert.deepEqual(nextStep(bash, comments, new Set(['r1']), ok), { step: 'allow' });
 });
 
 test('ADEV-249 Deny and a reply in words both deny; words send the agent to the comment', () => {
-  assert.equal(nextStep(bash, [asked(), reply('3 — Deny')], new Set()).step, 'deny');
-  const words = nextStep(bash, [asked(), reply('use the API script instead')], new Set());
+  assert.equal(nextStep(bash, [asked(), reply('3 — Deny')], new Set(), ok).step, 'deny');
+  const words = nextStep(bash, [asked(), reply('use the API script instead')], new Set(), ok);
   assert.equal(words.step, 'deny');
   // The words are not relayed through the tool result, which the model rightly distrusts; the
   // agent is sent to the comment, read as any instruction on the task.
@@ -75,15 +76,26 @@ test('ADEV-249 Deny and a reply in words both deny; words send the agent to the 
 
 test('ADEV-249 only a person answers: the agent\'s own comments and earlier replies do not count', () => {
   const agentReply = { ...reply('1'), authorId: AGENT_ID, author: { isAIAgent: true } };
-  assert.equal(nextStep(bash, [asked(), agentReply], new Set()).step, 'wait');
+  assert.equal(nextStep(bash, [asked(), agentReply], new Set(), ok).step, 'wait');
   const before = reply('1', '2026-11-24T09:00:00Z');
-  assert.equal(nextStep(bash, [before, asked()], new Set()).step, 'wait');
+  assert.equal(nextStep(bash, [before, asked()], new Set(), ok).step, 'wait');
 });
 
 test('ADEV-249 another request\'s question does not answer this one', () => {
   const other = { tool_name: 'Bash', tool_input: { command: 'rm -rf build' } };
   const comments = [{ ...asked(), content: decisionComment(other) }, reply('2')];
-  assert.deepEqual(nextStep(bash, comments, new Set()), { step: 'ask' });
+  assert.deepEqual(nextStep(bash, comments, new Set(), ok), { step: 'ask' });
+});
+
+test('ADEV-249 only the list\'s owner or an admin can answer; another member cannot approve', () => {
+  const member = { ...reply('2 — Allow for this task'), authorId: 'member' };
+  assert.equal(nextStep(bash, [asked(), member], new Set(), ok).step, 'wait');
+  assert.equal(nextStep(bash, [asked(), reply('2')], new Set(), new Set()).step, 'wait');
+  const task = { lists: [{ ownerId: 'jon', listMembers: [
+    { userId: 'jon', role: 'admin' }, { userId: 'member', role: 'member' }, { userId: AGENT_ID, role: 'admin' },
+    { userId: 'other-admin', role: 'admin' },
+  ] }] };
+  assert.deepEqual([...approversOf(task)].sort(), ['jon', 'other-admin']);
 });
 
 test('ADEV-249 the hook prints the PermissionRequest decision shape', () => {
