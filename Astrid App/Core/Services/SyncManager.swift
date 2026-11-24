@@ -52,7 +52,18 @@ class SyncManager: ObservableObject {
         do {
             try await core.run(CoreCommand(kind: "sync"))
         } catch {
-            AppLog.debug("⚠️ [SyncManager] Sync pass failed (offline?): \(error)")
+            switch SyncPassPolicy.outcome(of: error) {
+            case .offline:
+                AppLog.debug("ℹ️ [SyncManager] Sync pass skipped: offline")
+            case .sessionRejected:
+                // Not "offline" (ADEV-250): a rejected session never fetches anything again. Ask
+                // /session to confirm; a real rejection sends the person to sign in, and a stray
+                // 401 from one endpoint signs no one out.
+                AppLog.debug("🔒 [SyncManager] Sync pass refused the session; re-checking it")
+                await AuthManager.shared.validateSessionInBackground()
+            case .failed:
+                AppLog.debug("⚠️ [SyncManager] Sync pass failed: \(error)")
+            }
             return
         }
 
