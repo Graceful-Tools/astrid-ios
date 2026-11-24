@@ -241,7 +241,7 @@ $(echo "$pr_out" | grep 'PR: FAILED')"
   rm -f "$ACTIVE_RUN/claims" "$ACTIVE_RUN/keys" "$ACTIVE_RUN/outcome" "$ACTIVE_RUN/run.out" \
     "$ACTIVE_RUN/child.pid" "$ACTIVE_RUN/child.started" "$ACTIVE_RUN/guard-clean" "$ACTIVE_RUN/prs-done" \
     "$ACTIVE_RUN/claims-released" "$ACTIVE_RUN/wake-recorded" "$ACTIVE_RUN/watchdog-fired" \
-    "$ACTIVE_RUN/saved-branch" || return 1
+    "$ACTIVE_RUN/saved-branch" "$ACTIVE_RUN/permission-settings.json" || return 1
   rmdir "$ACTIVE_RUN"
 }
 
@@ -489,11 +489,28 @@ interrupt_run() {
   [ -z "$CLAUDE_PID" ] || stop_run
 }
 
+# A command the allowlist does not cover is ASKED, not refused (ADEV-249): Claude Code's
+# PermissionRequest hook posts it as a decision on the claimed task — Allow once / Allow for
+# this task / Deny — and waits for the answer, tapped on the phone, web or Mac. No answer in
+# FIXALL_APPROVAL_WAIT_SECONDS (20 min) denies it with instructions to hand the task back.
+# Only this run gets the hook; interactive sessions keep their own prompts.
+# FIXALL_APPROVALS=0 turns it off (every such request is refused, as before).
+SETTINGS_ARGS=()
+if [ "${FIXALL_APPROVALS:-1}" != "0" ]; then
+  APPROVAL_WAIT="${FIXALL_APPROVAL_WAIT_SECONDS:-1200}"
+  export FIXALL_APPROVAL_WAIT_SECONDS="$APPROVAL_WAIT"
+  if printf '{"hooks":{"PermissionRequest":[{"matcher":"*","hooks":[{"type":"command","command":"node \\"%s/scripts/fixall-permission-hook.mjs\\"","timeout":%d}]}]}}\n' \
+       "$REPO" "$((APPROVAL_WAIT + 120))" > "$ACTIVE_RUN/permission-settings.json"; then
+    SETTINGS_ARGS=(--settings "$ACTIVE_RUN/permission-settings.json")
+  fi
+fi
+
 echo "→ /fixall ($MODEL, watchdog ${MAX_MINUTES}m${MAX_USD:+, cap \$$MAX_USD})"
 trap interrupt_run INT TERM
 "$CLAUDE" -p "/fixall" \
   --model "$MODEL" \
   --permission-mode "${FIXALL_PERMISSION_MODE:-acceptEdits}" \
+  "${SETTINGS_ARGS[@]}" \
   "${BUDGET_ARGS[@]}" > "$RUN_OUT" 2>&1 &
 CLAUDE_PID=$!
 if ! printf '%s\n' "$CLAUDE_PID" > "$ACTIVE_RUN/child.pid" \

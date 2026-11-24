@@ -241,6 +241,35 @@ authorship, human assignee, Inbox state, due date and exact reply/watermark atom
 Never resume another board or another agent's question. Re-check the queue after responding,
 and use the usual strategy/progress/completion comments for the resumed work.
 
+### A command outside the allowlist is asked, not refused (ADEV-249)
+
+In the scheduled run, a tool call that `.claude/settings.json` does not allow is no longer
+simply refused. `scripts/fixall-loop.sh` installs a `PermissionRequest` hook
+(`scripts/fixall-permission-hook.mjs`, rules in `scripts/lib/permission-decision.mjs`). The hook
+posts the request on the run's claimed task as a decision signed by Claude: **1. Allow once / 2.
+Allow for this task / 3. Deny**. It then waits up to 20 minutes (`FIXALL_APPROVAL_WAIT_SECONDS`)
+for Jon to tap an answer on the phone, web or Mac.
+
+What the run sees:
+
+- **Allowed:** the call runs.
+- **Denied:** the call fails with a reason. Do not retry it; find another way, or say why in the
+  report.
+- **Answered in words:** the call is denied and you are told to read the task's latest comments.
+  Do that, and treat the comment like any of Jon's instructions on the task.
+- **No answer in time:** do not retry it. Hand the task back as §Questions describes, saying the
+  run is waiting on that request. The question comment is already the Decision, so the handback
+  comment only needs to point at it. When Jon answers, the resumed run calls the hook again. The
+  hook finds the answer and allows or denies without asking a second time.
+
+Notes:
+
+- With no task claimed yet, there is nowhere to ask, so the request is denied.
+- "Allow for this task" covers the same request again, across runs. "Allow once" is used up by
+  one call; the used answers are listed in `~/Library/Application Support/Astrid/fixall-approvals-used`.
+- `FIXALL_APPROVALS=0` turns the hook off.
+- Interactive sessions never get the hook.
+
 ## The workflow itself is shared
 
 **Read [`../astrid-web/docs/FIXALL_WORKFLOW.md`](../../../astrid-web/docs/FIXALL_WORKFLOW.md)
