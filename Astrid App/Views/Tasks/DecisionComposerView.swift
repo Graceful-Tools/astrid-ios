@@ -22,6 +22,10 @@ struct DecisionComposerView: View {
     /// the system appearance, so the app theme's colours vanished whenever the two disagreed.
     static let previewTextColor: Color = .primary
 
+    /// The Mac sheet's least size (ADEV-243): room for the question, two options, a criterion and
+    /// its lights without scrolling.
+    static let macSheetSize = CGSize(width: 520, height: 560)
+
     var body: some View {
         NavigationStack {
             Form {
@@ -60,7 +64,7 @@ struct DecisionComposerView: View {
             #else
             // A sheet on the Mac (ADEV-243): grouped, so its sections read as the iOS form does.
             .formStyle(.grouped)
-            .frame(minWidth: 520, minHeight: 560)
+            .frame(minWidth: Self.macSheetSize.width, minHeight: Self.macSheetSize.height)
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
