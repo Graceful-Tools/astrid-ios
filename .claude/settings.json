@@ -35,7 +35,18 @@
       "Bash(git -C ../astrid-core:*)",
       "Bash(gh pr:*)",
       "Bash(gh issue:*)",
-      "Bash(gh run:*)"
+      "Bash(gh run:*)",
+      "Bash(cd ../astrid-web && npx tsx scripts/claim-fixall-task.ts:*)",
+      "Bash(cd ../astrid-web && npx tsx scripts/set-task-status.ts:*)",
+      "Bash(cd ../astrid-web && npx tsx scripts/assign-task.ts:*)",
+      "Bash(cd ../astrid-web && npx tsx scripts/post-list-message.ts:*)",
+      "Bash(cd ../astrid-web && npx tsx scripts/file-ios-task.ts:*)",
+      "Bash(cd ../astrid-web && npx tsx scripts/create-task.ts:*)",
+      "Bash(../astrid-web/node_modules/.bin/tsx ../astrid-web/scripts/fixall-session.ts:*)",
+      "Bash(printenv ASTRID_FIXALL_LOCK_HELD)",
+      "Bash(node scripts/asc-appstore.mjs:*)",
+      "Bash(scripts/core/release-xcframework.sh:*)",
+      "Bash(cargo:*)"
     ]
   }
 }

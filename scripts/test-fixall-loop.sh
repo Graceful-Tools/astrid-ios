@@ -759,6 +759,10 @@ else bad "the hook's settings file is cleaned up with the run state"; fi
 FIXALL_APPROVALS=0 run 0 0
 called "FIXALL_APPROVALS=0 runs without the hook" "claude -p" "!--settings"
 
+# --- ADEV-225: the run can reach astrid-web, where the claim and board helpers run ---------
+run 0 0
+called "the run gets astrid-web as an added directory (ADEV-225)" "claude -p" "--add-dir" "astrid-web"
+
 echo ""
 if [ "$FAIL" = 0 ]; then echo "✓ fixall-loop: $PASS checks passed"; exit 0; fi
 echo "✗ fixall-loop: $FAIL failed, $PASS passed"; exit 1

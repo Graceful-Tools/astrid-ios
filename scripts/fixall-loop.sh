@@ -505,12 +505,23 @@ if [ "${FIXALL_APPROVALS:-1}" != "0" ]; then
   fi
 fi
 
+# The board helpers live in astrid-web and run from there (`cd ../astrid-web && npx tsx
+# scripts/claim-fixall-task.ts …`: loadScriptEnv() reads its .env.local), and core work happens
+# in astrid-core. Without these directories the session may only `cd` inside astrid-ios, so every
+# scheduled run since d7a183f9 stopped before its claim (ADEV-224, ADEV-225). Adding a directory
+# lets the session reach it; which commands may run there is still .claude/settings.json's call.
+ADD_DIR_ARGS=()
+for dir in "$WEB" "${ASTRID_CORE_DIR:-$REPO/../astrid-core}"; do
+  [ -d "$dir" ] && ADD_DIR_ARGS+=(--add-dir "${dir:A}")
+done
+
 echo "→ /fixall ($MODEL, watchdog ${MAX_MINUTES}m${MAX_USD:+, cap \$$MAX_USD})"
 trap interrupt_run INT TERM
 "$CLAUDE" -p "/fixall" \
   --model "$MODEL" \
   --permission-mode "${FIXALL_PERMISSION_MODE:-acceptEdits}" \
   "${SETTINGS_ARGS[@]}" \
+  "${ADD_DIR_ARGS[@]}" \
   "${BUDGET_ARGS[@]}" > "$RUN_OUT" 2>&1 &
 CLAUDE_PID=$!
 if ! printf '%s\n' "$CLAUDE_PID" > "$ACTIVE_RUN/child.pid" \
