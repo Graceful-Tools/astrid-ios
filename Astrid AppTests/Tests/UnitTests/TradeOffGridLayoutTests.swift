@@ -168,3 +168,30 @@ final class TradeOffGridFullScreenTests: XCTestCase {
         XCTAssertGreaterThan(full.upperBound, TradeOffGridMetrics.cellWidth(fullScreen: false).upperBound)
     }
 }
+
+// MARK: - Task ADEV-234 — the full-screen grid sits centred and pinches to zoom
+//
+// Jon, 2026-11-23: "make it so the traffic light can be centered on the screen and allows pinch
+// to zoom in (or zoom out)".
+
+final class TradeOffGridZoomTests: XCTestCase {
+
+    func testADEV234_aPinchZoomsBetweenHalfAndFourTimes() {
+        XCTAssertEqual(TradeOffGridZoom.clamped(1), 1)
+        XCTAssertEqual(TradeOffGridZoom.clamped(0.1), 0.5, "never smaller than half")
+        XCTAssertEqual(TradeOffGridZoom.clamped(9), 4, "never larger than four times")
+    }
+
+    func testADEV234_theZoomedGridTakesItsScaledSizeSoItScrolls() {
+        XCTAssertEqual(TradeOffGridZoom.size(of: CGSize(width: 300, height: 120), at: 2),
+                       CGSize(width: 600, height: 240))
+    }
+
+    func testADEV234_aGridSmallerThanTheScreenIsCentred() {
+        let screen = CGSize(width: 400, height: 800)
+        XCTAssertEqual(TradeOffGridZoom.canvas(for: CGSize(width: 300, height: 120), in: screen), screen)
+        XCTAssertEqual(TradeOffGridZoom.canvas(for: CGSize(width: 900, height: 120), in: screen),
+                       CGSize(width: 900, height: 800), "wider than the screen: it scrolls sideways")
+    }
+}
+

@@ -350,8 +350,13 @@ struct TradeOffGridFullScreenView: View {
     let style: MarkdownStyle
     @Environment(\.dismiss) private var dismiss
     @Environment(\.taskIdentifierLinks) private var identifiers
-    @State private var width: CGFloat?
+    @State private var viewport: CGSize = .zero
     @State private var landscape = false
+    /// The grid's own size, unzoomed, and the zoom a pinch settled on (ADEV-234).
+    @State private var natural: CGSize = .zero
+    @State private var zoom: CGFloat = 1
+    @GestureState private var pinch: CGFloat = 1
+    private var scale: CGFloat { TradeOffGridZoom.clamped(zoom * pinch) }
 
     private var plain: MarkdownStyle {
         var plain = style
@@ -363,11 +368,13 @@ struct TradeOffGridFullScreenView: View {
     var body: some View {
         NavigationStack {
             ScrollView([.horizontal, .vertical]) {
-                TradeOffGridView(grid: grid, style: plain, inline: inline, fullScreen: true,
-                                 availableWidth: width)
-                    .padding()
+                zoomableGrid
             }
-            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }
+            .simultaneousGesture(
+                MagnifyGesture()
+                    .updating($pinch) { value, pinch, _ in pinch = value.magnification }
+                    .onEnded { zoom = TradeOffGridZoom.clamped(zoom * $0.magnification) })
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button { dismiss() } label: { Image(systemName: "xmark") }
@@ -383,6 +390,28 @@ struct TradeOffGridFullScreenView: View {
         #if os(iOS)
         .onDisappear { OrientationLock.setLandscape(false) }  // the rest of the app stays upright
         #endif
+    }
+
+    /// The grid at its pinched size (ADEV-234), laid out at that size so the scroller reaches every
+    /// edge, and centred on a canvas at least the screen's size while it is smaller. A double tap
+    /// puts it back to its own size.
+    private var zoomableGrid: some View {
+        let scaled = TradeOffGridZoom.size(of: natural, at: scale)
+        let canvas = TradeOffGridZoom.canvas(for: scaled, in: viewport)
+        return TradeOffGridView(grid: grid, style: plain, inline: inline, fullScreen: true,
+                                availableWidth: viewport.width > 0 ? viewport.width : nil)
+            .padding()
+            .fixedSize()
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { natural = $0 }
+            .scaleEffect(scale, anchor: .topLeading)
+            .frame(width: natural == .zero ? nil : scaled.width,
+                   height: natural == .zero ? nil : scaled.height, alignment: .topLeading)
+            .frame(width: natural == .zero ? nil : canvas.width,
+                   height: natural == .zero ? nil : canvas.height)
+            .contentShape(Rectangle())
+            .onTapGesture(count: 2) { withAnimation { zoom = 1 } }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("tradeOffGrid.zoomable")
     }
 
     #if os(iOS)
@@ -404,6 +433,22 @@ struct TradeOffGridFullScreenView: View {
     private func inline(_ inlines: [MarkdownInline]) -> Text {
         Text(MarkdownRendering.attributed(inlines, defaultColor: .primary, referenceFont: nil,
                                           identifiers: identifiers))
+    }
+}
+
+/// The full-screen grid's pinch zoom (ADEV-234): half to four times its own size, laid out at the
+/// zoomed size so it scrolls, and centred on a canvas at least as large as the screen.
+enum TradeOffGridZoom {
+    static let range: ClosedRange<CGFloat> = 0.5...4
+
+    static func clamped(_ scale: CGFloat) -> CGFloat { scale.clamped(to: range) }
+
+    static func size(of natural: CGSize, at scale: CGFloat) -> CGSize {
+        CGSize(width: natural.width * scale, height: natural.height * scale)
+    }
+
+    static func canvas(for content: CGSize, in screen: CGSize) -> CGSize {
+        CGSize(width: max(content.width, screen.width), height: max(content.height, screen.height))
     }
 }
 

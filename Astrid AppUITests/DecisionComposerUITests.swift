@@ -146,6 +146,20 @@ final class DecisionComposerUITests: XCTestCase {
             app.swipeDown()  // the reply may have scrolled the grid's top away
         }
         try XCTUnwrap(fullScreen.allElementsBoundByIndex.last, "the posted grid's Full screen").tap()
+        // ADEV-234: centred, and a pinch zooms it.
+        let zoomable = element("tradeOffGrid.zoomable")
+        XCTAssertTrue(zoomable.waitForExistence(timeout: 5), "the full-screen grid can be zoomed")
+        let option = zoomable.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Left")).firstMatch
+        XCTAssertTrue(option.waitForExistence(timeout: 5))
+        let unzoomed = option.frame
+        XCTAssertEqual(unzoomed.midX, window.frame.midX, accuracy: window.frame.width / 3,
+                       "a small grid sits towards the middle of the screen")
+        zoomable.pinch(withScale: 2, velocity: 1)
+        XCTAssertTrue(waitUntil(timeout: 3) { option.frame.height > unzoomed.height * 1.3 }, "pinching out zooms in")
+        attach("Grid zoomed in")
+        zoomable.doubleTap()
+        XCTAssertTrue(waitUntil(timeout: 3) { abs(option.frame.height - unzoomed.height) < 2 }, "a double tap resets it")
+
         let rotate = element("tradeOffGrid.rotate")
         XCTAssertTrue(rotate.waitForExistence(timeout: 5), "the full-screen grid offers to turn")
         rotate.tap()
