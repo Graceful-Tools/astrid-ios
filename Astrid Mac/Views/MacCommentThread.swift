@@ -197,6 +197,9 @@ struct MacCommentComposerBar<Accessory: View, Idle: View>: View {
     let members: [ListMember]
     var focus: FocusState<Bool>.Binding
     let onPosted: @MainActor () async -> Void
+    /// Task details only: write a decision with traffic lights (ADEV-243, iOS's ADEV-189), handed
+    /// back as markdown and where it goes. Nil hides the button.
+    var onDecision: ((_ markdown: String, _ destination: DecisionComposerView.Destination) -> Void)? = nil
     @ViewBuilder var accessory: () -> Accessory
     @ViewBuilder var idle: () -> Idle
 
@@ -205,6 +208,7 @@ struct MacCommentComposerBar<Accessory: View, Idle: View>: View {
     /// swallows `paste:` whether or not it found a string to insert — so an image paste never
     /// reached a SwiftUI paste modifier at all.
     @State private var pasteMonitor: Any?
+    @State private var composingDecision = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -227,6 +231,13 @@ struct MacCommentComposerBar<Accessory: View, Idle: View>: View {
                 Button { draft.attachComment(taskId: taskId) } label: { Image(systemName: "paperclip") }
                     .buttonStyle(.borderless).help(NSLocalizedString("mac.attach_file", comment: ""))
                     .disabled(AttachmentQueue.isFull(draft.stagedFiles))
+                if onDecision != nil {
+                    Button { composingDecision = true } label: { Image(systemName: "checklist") }
+                        .buttonStyle(.borderless)
+                        .help(NSLocalizedString("decision_composer.title", comment: "Ask for a decision"))
+                        .accessibilityLabel(Text(NSLocalizedString("decision_composer.title", comment: "Ask for a decision")))
+                        .accessibilityIdentifier("taskDetail.askForDecision")
+                }
                 TextField(NSLocalizedString("comments.add_placeholder", comment: ""), text: $draft.text)
                     .textFieldStyle(.plain)
                     .focused(focus)
@@ -252,6 +263,9 @@ struct MacCommentComposerBar<Accessory: View, Idle: View>: View {
         }
         .onAppear(perform: installPasteMonitor)
         .onDisappear(perform: removePasteMonitor)
+        .sheet(isPresented: $composingDecision) {
+            DecisionComposerView { markdown, destination in onDecision?(markdown, destination) }
+        }
     }
 
     private func addComment() {

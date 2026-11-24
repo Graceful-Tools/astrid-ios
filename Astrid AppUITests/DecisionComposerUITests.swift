@@ -78,39 +78,8 @@ final class DecisionComposerUITests: XCTestCase {
         // decision may already be on this task.
         let before = optionOneCount()
         let cardsBefore = app.descendants(matching: .any).matching(NSPredicate(format: "value == 'card'")).count
-        element("comment.attachMenu").tap()
-        element("taskDetail.askForDecision").tap()
-
         let question = "Which grid \(UUID().uuidString.prefix(6))?"
-        let questionField = element("decisionComposer.question")
-        XCTAssertTrue(questionField.waitForExistence(timeout: 5))
-        questionField.tap()
-        questionField.typeText(question)
-        let options = app.descendants(matching: .any).matching(identifier: "decisionComposer.option")
-        for (i, text) in ["Left", "Right"].enumerated() {
-            options.element(boundBy: i).tap()
-            options.element(boundBy: i).typeText(text)
-        }
-        element("decisionComposer.addCriterion").tap()
-        let criterion = element("decisionComposer.criterion")
-        criterion.tap()
-        criterion.typeText("Cost")
-        app.swipeUp()
-        // One set of lights per option; the first may be scrolled away, so take one on screen.
-        let lights = app.buttons.matching(identifier: "decisionComposer.light.4")
-        XCTAssertTrue(lights.firstMatch.waitForExistence(timeout: 5), "each option is rated with traffic lights")
-        let picked = app.buttons.matching(
-            NSPredicate(format: "identifier == 'decisionComposer.light.4' AND selected == true")).firstMatch
-        for _ in 0..<2 where !picked.exists {
-            // Below the sheet's toolbar: a light scrolled under it reports hittable, but the
-            // toolbar takes the tap.
-            let onScreen = try XCTUnwrap(lights.allElementsBoundByIndex.first {
-                $0.isHittable && $0.frame.minY > app.navigationBars.firstMatch.frame.maxY
-            }, "a traffic light on screen")
-            onScreen.tap()
-            _ = picked.waitForExistence(timeout: 3)
-        }
-        XCTAssertTrue(picked.exists, "the tapped light is picked")
+        try composeDecisionWithTradeOff(question)
         attach("Decision with trade-offs")
         element("decisionComposer.done").tap()
 
@@ -146,6 +115,52 @@ final class DecisionComposerUITests: XCTestCase {
             app.swipeDown()  // the reply may have scrolled the grid's top away
         }
         try XCTUnwrap(fullScreen.allElementsBoundByIndex.last, "the posted grid's Full screen").tap()
+        try zoomAndTurnTheOpenGrid()
+    }
+
+    /// The ADEV-229 test's question: two options, one criterion, and a light picked.
+    @MainActor
+    private func composeDecisionWithTradeOff(_ question: String) throws {
+        element("comment.attachMenu").tap()
+        element("taskDetail.askForDecision").tap()
+
+        let questionField = element("decisionComposer.question")
+        XCTAssertTrue(questionField.waitForExistence(timeout: 5))
+        questionField.tap()
+        questionField.typeText(question)
+        let options = app.descendants(matching: .any).matching(identifier: "decisionComposer.option")
+        for (i, text) in ["Left", "Right"].enumerated() {
+            options.element(boundBy: i).tap()
+            options.element(boundBy: i).typeText(text)
+        }
+        element("decisionComposer.addCriterion").tap()
+        let criterion = element("decisionComposer.criterion")
+        criterion.tap()
+        criterion.typeText("Cost")
+        app.swipeUp()
+        // One set of lights per option; the first may be scrolled away, so take one on screen.
+        let lights = app.buttons.matching(identifier: "decisionComposer.light.4")
+        XCTAssertTrue(lights.firstMatch.waitForExistence(timeout: 5), "each option is rated with traffic lights")
+        let picked = app.buttons.matching(
+            NSPredicate(format: "identifier == 'decisionComposer.light.4' AND selected == true")).firstMatch
+        for _ in 0..<2 where !picked.exists {
+            // Below the sheet's toolbar: a light scrolled under it reports hittable, but the
+            // toolbar takes the tap.
+            let onScreen = try XCTUnwrap(lights.allElementsBoundByIndex.first {
+                $0.isHittable && $0.frame.minY > app.navigationBars.firstMatch.frame.maxY
+            }, "a traffic light on screen")
+            onScreen.tap()
+            _ = picked.waitForExistence(timeout: 3)
+        }
+        XCTAssertTrue(picked.exists, "the tapped light is picked")
+    }
+
+    /// In a full-screen grid already open: centred, pinch zooms, double tap resets (ADEV-234),
+    /// then it turns sideways and comes back upright when closed (ADEV-233).
+    @MainActor
+    private func zoomAndTurnTheOpenGrid() throws {
+        let window = app.windows.firstMatch
+        func isLandscape() -> Bool { window.frame.width > window.frame.height }
         // ADEV-234: centred, and a pinch zooms it.
         let zoomable = element("tradeOffGrid.zoomable")
         XCTAssertTrue(zoomable.waitForExistence(timeout: 5), "the full-screen grid can be zoomed")
@@ -172,6 +187,30 @@ final class DecisionComposerUITests: XCTestCase {
         attach("Grid in landscape")
         app.buttons["Close"].firstMatch.tap()
         XCTAssertTrue(waitUntil(timeout: 5) { !isLandscape() }, "closing it turns the app upright again")
+    }
+
+    /// ADEV-243: a grid in the description opens full screen, zooms and turns, as one in a
+    /// comment does.
+    @MainActor
+    func testADEV243_aGridInTheDescriptionZoomsAndTurns() throws {
+        app.launch()
+        try UITestLaunch.skipUnlessSignedIn(app)
+        _ = try UITestLaunch.openFirstTaskComment(app)
+        try composeDecisionWithTradeOff("Which way up \(UUID().uuidString.prefix(6))?")
+        let toDescription = app.segmentedControls.buttons["Description"]
+        for _ in 0..<3 where !toDescription.isHittable { app.swipeUp() }
+        toDescription.tap()
+        attach("Decision for the description")
+        element("decisionComposer.done").tap()
+
+        let fullScreen = app.buttons.matching(identifier: "tradeOffGrid.fullScreen")
+        for _ in 0..<4 where !(fullScreen.firstMatch.exists && fullScreen.firstMatch.isHittable) {
+            app.swipeDown()  // the description is at the top of the details
+        }
+        XCTAssertTrue(fullScreen.firstMatch.waitForExistence(timeout: 10), "the description draws the grid")
+        attach("Grid in the description")
+        fullScreen.firstMatch.tap()
+        try zoomAndTurnTheOpenGrid()
     }
 
     private func waitUntil(timeout: TimeInterval, _ condition: () -> Bool) -> Bool {

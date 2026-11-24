@@ -154,6 +154,50 @@ final class MacE2EJourneyUITests: XCTestCase {
                       "the server has the comment (had \(before), now \(comments.count))")
     }
 
+    // MARK: - 6b. A decision with traffic lights
+
+    /// The comment bar writes a decision rated in traffic lights, as on iOS (ADEV-243), and the
+    /// server has it as the decision markdown with its grid.
+    @MainActor
+    func test06b_ADecisionWithTrafficLightsReachesTheServer() throws {
+        let fixture = try named("withComment")
+        let app = try launchSignedIn(selecting: fixture.id)
+        try openMyTasks(app)
+
+        _ = try element(app, "comment.input", timeout: 30)
+        try element(app, "taskDetail.askForDecision").click()
+        let question = "Mac decision \(tag)?"
+        let questionField = try element(app, "decisionComposer.question")
+        questionField.click()
+        questionField.typeText(question)
+        let options = app.descendants(matching: .any).matching(identifier: "decisionComposer.option")
+        for (i, text) in ["Left", "Right"].enumerated() {
+            options.element(boundBy: i).click()
+            options.element(boundBy: i).typeText(text)
+        }
+        try element(app, "decisionComposer.addCriterion").click()
+        let criterion = try element(app, "decisionComposer.criterion")
+        criterion.click()
+        criterion.typeText("Cost")
+        try element(app, "decisionComposer.light.4").click()
+        attachScreenshot(app, "Mac decision composer")
+        try element(app, "decisionComposer.done").click()
+
+        let deadline = Date().addingTimeInterval(20)
+        var posted: String?
+        repeat {
+            posted = try UITestAPI.comments(taskId: fixture.id)
+                .compactMap { $0["content"] as? String }
+                .first { $0.contains(question) }
+            if posted != nil { break }
+            Thread.sleep(forTimeInterval: 1)
+        } while Date() < deadline
+        let markdown = try XCTUnwrap(posted, "the server has the decision")
+        XCTAssertTrue(markdown.contains("**Decision:**"), markdown)
+        XCTAssertTrue(markdown.contains("++"), "the picked light is in its grid: \(markdown)")
+        attachScreenshot(app, "Mac decision posted")
+    }
+
     // MARK: - 7. A change made elsewhere
 
     /// A task added on another device appears in the list on screen with no click, no ⌘R and no

@@ -175,7 +175,6 @@
 				Views/Settings/ServerSettingsView.swift,
 				Views/Settings/SettingsView.swift,
 				Views/Tasks/CommentSectionViewEnhanced.swift,
-				Views/Tasks/DecisionComposerView.swift,
 				Views/Tasks/iPadTaskManagerView.swift,
 				Views/Tasks/MyTasksFilterSheet.swift,
 				Views/Tasks/QuickAddPickerSheet.swift,
