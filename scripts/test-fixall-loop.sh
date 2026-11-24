@@ -751,6 +751,14 @@ else bad "bookkeeping retry does not scoop later human edits into WIP" "$OUT"; f
 not_called "^claude " "later human edits still trigger the dirty-tree guard"
 clean_sandbox
 
+# --- ADEV-249: a command outside the allowlist is asked on the task, not refused ----------
+run 0 0
+called "the run gets the PermissionRequest hook (ADEV-249)" "claude -p" "--settings" "permission-settings.json"
+if [ ! -e "$TMP/run-state/active/permission-settings.json" ]; then ok
+else bad "the hook's settings file is cleaned up with the run state"; fi
+FIXALL_APPROVALS=0 run 0 0
+called "FIXALL_APPROVALS=0 runs without the hook" "claude -p" "!--settings"
+
 echo ""
 if [ "$FAIL" = 0 ]; then echo "✓ fixall-loop: $PASS checks passed"; exit 0; fi
 echo "✗ fixall-loop: $FAIL failed, $PASS passed"; exit 1
