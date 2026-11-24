@@ -289,6 +289,11 @@ with when it comes due). It answers `empty: true` when there is nothing to do.
   assigns the task and moves it to `Doing` atomically, so `CLAIM_CONFLICT` means a peer loop
   took it first. A task assigned to a person or another agent is never in the queue.
 - **`Doing` is ignored.** It never queues: another agent or a person is already working it.
+- **Inbox ideas come back too, as `inbox.ideas`** (with `includeUnassigned: true`, ADEV-227).
+  After the queue and your attention items, clarify them per
+  [FIXALL_WORKFLOW.md → *Clarifying Inbox ideas*](../../../astrid-web/docs/FIXALL_WORKFLOW.md):
+  promote a clear note to Ready, or post one Decision and hand it back to its creator. The
+  scripts run from astrid-web with `--agent claude`, as the claim does.
 - **A queue held up by the clock is not an idle one.** If `empty` but `held.scheduled` is
   non-empty, say when the next task comes due rather than just "empty".
 - **Re-check after every task with the same call** — never work from the opening snapshot. New
