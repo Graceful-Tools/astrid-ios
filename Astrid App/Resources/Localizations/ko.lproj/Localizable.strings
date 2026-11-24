@@ -1618,6 +1618,8 @@
 "tradeoff.very_good" = "결정적";
 "tradeoff.unrated" = "평가 없음";
 "tasks.tradeoff_grid.full_screen" = "전체 화면";
+"tasks.tradeoff_grid.rotate_landscape" = "가로로 돌리기";
+"tasks.tradeoff_grid.rotate_upright" = "세로로 돌리기";
 
 /* AITD-613: board status pill on list rows */
 "board.status.inbox" = "아이디어/받은 편지함";

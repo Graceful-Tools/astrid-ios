@@ -1616,6 +1616,8 @@
 "tradeoff.very_good" = "決め手";
 "tradeoff.unrated" = "未評価";
 "tasks.tradeoff_grid.full_screen" = "全画面表示";
+"tasks.tradeoff_grid.rotate_landscape" = "横向きにする";
+"tasks.tradeoff_grid.rotate_upright" = "縦向きにする";
 
 /* AITD-613: board status pill on list rows */
 "board.status.inbox" = "アイデア/受信箱";

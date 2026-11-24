@@ -134,5 +134,38 @@ final class DecisionComposerUITests: XCTestCase {
         let reply = app.staticTexts.matching(NSPredicate(format: "label == %@", "2 — Right")).firstMatch
         XCTAssertTrue(reply.waitForExistence(timeout: 15), "your own choice is posted as the reply")
         attach("Own decision chosen")
+
+        // ADEV-233: the iPhone stays upright, but a full-screen grid turns sideways on request
+        // and comes back upright when closed.
+        let window = app.windows.firstMatch
+        func isLandscape() -> Bool { window.frame.width > window.frame.height }
+        XCTAssertFalse(isLandscape(), "the app is upright")
+        let fullScreen = app.buttons.matching(identifier: "tradeOffGrid.fullScreen")
+        XCTAssertTrue(fullScreen.firstMatch.waitForExistence(timeout: 5), "every grid has Full screen")
+        for _ in 0..<3 where !(fullScreen.allElementsBoundByIndex.last?.isHittable ?? false) {
+            app.swipeDown()  // the reply may have scrolled the grid's top away
+        }
+        try XCTUnwrap(fullScreen.allElementsBoundByIndex.last, "the posted grid's Full screen").tap()
+        let rotate = element("tradeOffGrid.rotate")
+        XCTAssertTrue(rotate.waitForExistence(timeout: 5), "the full-screen grid offers to turn")
+        rotate.tap()
+        XCTAssertTrue(waitUntil(timeout: 5, isLandscape), "the grid turns sideways")
+        // Held sideways, as a person turns the phone to follow it (device left = interface right).
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        RunLoop.current.run(until: Date().addingTimeInterval(1.5))  // past the turn's animation
+        XCTAssertTrue(element("tradeOffGrid.rotate").isHittable, "and offers to turn back")
+        attach("Grid in landscape")
+        app.buttons["Close"].firstMatch.tap()
+        XCTAssertTrue(waitUntil(timeout: 5) { !isLandscape() }, "closing it turns the app upright again")
+    }
+
+    private func waitUntil(timeout: TimeInterval, _ condition: () -> Bool) -> Bool {
+        let end = Date().addingTimeInterval(timeout)
+        while Date() < end {
+            if condition() { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        }
+        return condition()
     }
 }

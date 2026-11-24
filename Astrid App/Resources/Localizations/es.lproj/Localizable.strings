@@ -1632,6 +1632,8 @@
 "tradeoff.very_good" = "Decisivo";
 "tradeoff.unrated" = "Sin valorar";
 "tasks.tradeoff_grid.full_screen" = "Pantalla completa";
+"tasks.tradeoff_grid.rotate_landscape" = "Girar en horizontal";
+"tasks.tradeoff_grid.rotate_upright" = "Girar en vertical";
 
 /* AITD-613: board status pill on list rows */
 "board.status.inbox" = "Ideas/Bandeja de entrada";

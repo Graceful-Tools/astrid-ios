@@ -1616,6 +1616,8 @@
 "tradeoff.very_good" = "决定性";
 "tradeoff.unrated" = "未评分";
 "tasks.tradeoff_grid.full_screen" = "全屏";
+"tasks.tradeoff_grid.rotate_landscape" = "横向显示";
+"tasks.tradeoff_grid.rotate_upright" = "竖向显示";
 
 /* AITD-613: board status pill on list rows */
 "board.status.inbox" = "创意/收件箱";
