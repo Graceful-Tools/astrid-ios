@@ -347,7 +347,8 @@ struct MacTaskDetailView: View {
         // there, so the board card has them too.
         MacCommentComposerBar(draft: commentDraft, taskId: task.id, members: members,
                               focus: $commentFocused,
-                              onPosted: { comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? comments }) {
+                              onPosted: { comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? comments },
+                              onDecision: { markdown, destination in addDecision(markdown, to: destination) }) {
             TimelineView(.periodic(from: .now, by: 1)) { _ in
                 if timerRunning {
                     Text(hms(loggedSeconds)).macFont(.caption.monospaced()).foregroundStyle(Theme.accent)
@@ -399,6 +400,26 @@ struct MacTaskDetailView: View {
     }
 
     /// Delete this task via the canonical service, closing the pop-out first.
+
+    /// A decision from the composer (ADEV-243, as iOS's `addDecision`): a comment, or after the
+    /// description.
+    private func addDecision(_ markdown: String, to destination: DecisionComposerView.Destination) {
+        switch destination {
+        case .comment:
+            _Concurrency.Task {
+                await DecisionComposerView.post(markdown, taskId: task.id)
+                comments = (try? await CommentService.shared.fetchComments(taskId: task.id)) ?? comments
+            }
+        case .description:
+            // The store's copy: this view's `task` may be the snapshot it opened with, and appending
+            // to that would drop a description saved since.
+            let current = taskService.tasks.first { $0.id == task.id } ?? task
+            let description = DecisionDraft.append(markdown, to: current.description)
+            AppActions.perform("Add decision to description") {
+                _ = try await taskService.updateTask(taskId: task.id, description: description, task: current)
+            }
+        }
+    }
     private func deleteTask() {
         onClose?()
         AppActions.perform("Delete task") { try await taskService.deleteTask(id: task.id, task: task) }

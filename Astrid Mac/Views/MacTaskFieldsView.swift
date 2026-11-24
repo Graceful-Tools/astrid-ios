@@ -64,6 +64,11 @@ struct MacTaskFieldsView: View {
         }
         .macTextSelection()
         .task(id: task.id) { await load() }
+        // A description written elsewhere — the decision composer appends to it (ADEV-243) — shows
+        // here unless you are mid-edit.
+        .onChange(of: task.description) { _, description in
+            if !editingNotes { notes = description }
+        }
         .onDisappear { saveNotes() }
         // Field-focus bare keys (d/i/s/c) for the fields this view owns (9a60b697).
         .onChange(of: MacAppModel.shared.shortcutRequest) { _, req in

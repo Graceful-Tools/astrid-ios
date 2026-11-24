@@ -2,7 +2,8 @@
 //  Write a decision from a task's details (ADEV-189): a question, its options, and, if wanted,
 //  criteria rated per option in traffic-light colours. Posted as a comment it draws as cards that
 //  answer with a tap (`DecisionThread`); added to the description it draws the same, read-only.
-//  The draft and its markdown are `DecisionDraft`; this view only edits it.
+//  The draft and its markdown are `DecisionDraft`; this view only edits it. The Mac shows the
+//  same form from its comment bar (ADEV-243).
 
 import AstridCore
 import SwiftUI
@@ -20,6 +21,10 @@ struct DecisionComposerView: View {
     /// The Form's own text colour (ADEV-228), for the preview and the rating rows. Its rows follow
     /// the system appearance, so the app theme's colours vanished whenever the two disagreed.
     static let previewTextColor: Color = .primary
+
+    /// The Mac sheet's least size (ADEV-243): room for the question, two options, a criterion and
+    /// its lights without scrolling.
+    static let macSheetSize = CGSize(width: 520, height: 560)
 
     var body: some View {
         NavigationStack {
@@ -54,7 +59,13 @@ struct DecisionComposerView: View {
                 }
             }
             .navigationTitle(NSLocalizedString("decision_composer.title", comment: "Ask for a decision"))
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #else
+            // A sheet on the Mac (ADEV-243): grouped, so its sections read as the iOS form does.
+            .formStyle(.grouped)
+            .frame(minWidth: Self.macSheetSize.width, minHeight: Self.macSheetSize.height)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(NSLocalizedString("actions.cancel", comment: "")) { dismiss() }
