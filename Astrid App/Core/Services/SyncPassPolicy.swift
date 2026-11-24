@@ -1,3 +1,4 @@
+import AstridCore
 import Foundation
 
 /// How a sync pass decides to run. Pure and testable on purpose — the rules here and
@@ -31,5 +32,28 @@ enum SyncPassPolicy {
     static func admission(isSyncing: Bool, isUserInitiated: Bool) -> Admission {
         guard isSyncing else { return .start }
         return isUserInitiated ? .waitForInFlight : .skip
+    }
+
+    /// What a failed pass means. Every failure used to be logged as "offline?" and dropped, so a
+    /// session the server had stopped accepting looked exactly like a quiet network: nothing new
+    /// arrived, a manual sync changed nothing, and only signing out and in again brought a task
+    /// back (ADEV-250).
+    enum Outcome: Equatable {
+        /// No network. Stay quiet; the next pass tries again.
+        case offline
+        /// The server refused the session. The person has to sign in again.
+        case sessionRejected
+        /// Anything else: worth a log line that does not say "offline".
+        case failed
+    }
+
+    static func outcome(of error: Error) -> Outcome {
+        if let failure = error as? CoreFailure {
+            if failure.kind == .unauthorized || failure.status == 401 { return .sessionRejected }
+            return failure.kind == .offline ? .offline : .failed
+        }
+        if let apiError = error as? AstridAPIError, apiError.httpStatusCode == 401 { return .sessionRejected }
+        if error is URLError { return .offline }
+        return .failed
     }
 }
