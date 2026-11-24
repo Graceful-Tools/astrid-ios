@@ -2,6 +2,8 @@ import SwiftUI
 
 @main
 struct AstridApp: App {
+    /// Answers which way the app may face (ADEV-233): upright, unless a full-screen grid asks.
+    @UIApplicationDelegateAdaptor(AstridAppDelegate.self) private var appDelegate
     @StateObject private var authManager = AuthManager.shared
     @StateObject private var notificationPromptManager = NotificationPromptManager.shared
     @StateObject private var reviewPromptManager = ReviewPromptManager.shared

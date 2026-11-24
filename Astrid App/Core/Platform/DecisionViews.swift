@@ -224,6 +224,7 @@ struct TradeOffGridView: View {
         .buttonStyle(.plain)
         .font(style.small)
         .foregroundColor(style.muted)
+        .accessibilityIdentifier("tradeOffGrid.fullScreen")
     }
 
     /// The options column's name as written; each criterion after it under its letter, A, B, C.
@@ -350,6 +351,7 @@ struct TradeOffGridFullScreenView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.taskIdentifierLinks) private var identifiers
     @State private var width: CGFloat?
+    @State private var landscape = false
 
     private var plain: MarkdownStyle {
         var plain = style
@@ -371,9 +373,33 @@ struct TradeOffGridFullScreenView: View {
                     Button { dismiss() } label: { Image(systemName: "xmark") }
                         .accessibilityLabel(Text(NSLocalizedString("misc.close", comment: "")))
                 }
+                #if os(iOS)
+                if OrientationLock.canRotateOnRequest {
+                    ToolbarItem(placement: .primaryAction) { rotateButton }
+                }
+                #endif
             }
         }
+        #if os(iOS)
+        .onDisappear { OrientationLock.setLandscape(false) }  // the rest of the app stays upright
+        #endif
     }
+
+    #if os(iOS)
+    /// The iPhone is held upright everywhere else; a wide grid reads better sideways (ADEV-233).
+    private var rotateButton: some View {
+        Button {
+            landscape.toggle()
+            OrientationLock.setLandscape(landscape)
+        } label: {
+            Image(systemName: landscape ? "rectangle.portrait.rotate" : "rectangle.landscape.rotate")
+        }
+        .accessibilityLabel(Text(NSLocalizedString(landscape ? "tasks.tradeoff_grid.rotate_upright"
+                                                             : "tasks.tradeoff_grid.rotate_landscape",
+                                                   comment: "Turns the full-screen grid")))
+        .accessibilityIdentifier("tradeOffGrid.rotate")
+    }
+    #endif
 
     private func inline(_ inlines: [MarkdownInline]) -> Text {
         Text(MarkdownRendering.attributed(inlines, defaultColor: .primary, referenceFont: nil,

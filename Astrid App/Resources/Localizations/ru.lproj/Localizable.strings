@@ -1616,6 +1616,8 @@
 "tradeoff.very_good" = "Решающее";
 "tradeoff.unrated" = "Без оценки";
 "tasks.tradeoff_grid.full_screen" = "Во весь экран";
+"tasks.tradeoff_grid.rotate_landscape" = "Повернуть горизонтально";
+"tasks.tradeoff_grid.rotate_upright" = "Повернуть вертикально";
 
 /* AITD-613: board status pill on list rows */
 "board.status.inbox" = "Идеи/Входящие";

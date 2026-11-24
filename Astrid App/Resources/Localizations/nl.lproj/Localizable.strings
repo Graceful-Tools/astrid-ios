@@ -1616,6 +1616,8 @@
 "tradeoff.very_good" = "Doorslaggevend";
 "tradeoff.unrated" = "Niet beoordeeld";
 "tasks.tradeoff_grid.full_screen" = "Volledig scherm";
+"tasks.tradeoff_grid.rotate_landscape" = "Liggend draaien";
+"tasks.tradeoff_grid.rotate_upright" = "Staand draaien";
 
 /* AITD-613: board status pill on list rows */
 "board.status.inbox" = "Ideeën/Inbox";
