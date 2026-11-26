@@ -115,3 +115,70 @@ final class TradeoffRatingWordsTests: XCTestCase {
         XCTAssertEqual(en.localizedString(forKey: "tradeoff.very_poor", value: nil, table: nil), "Disqualifying")
     }
 }
+
+/// ADEV-319: a save keeps what this build does not model.
+final class ProjectGoalsPassThroughTests: XCTestCase {
+
+    /// Web shapes this app does not edit: an enforced guardrail's `check` (ADEV-182/277), a goal's
+    /// `metric` and `history` (ADEV-270), and whatever comes next.
+    private let signalsExample = """
+    {
+      "projectId": "p1",
+      "goals": [{ "id": "g1", "statement": "Grow", "current": "5",
+                  "metric": { "direction": "up", "unit": "users", "target": 100, "source": { "connectorId": "c1", "metricKey": "dau" } },
+                  "history": [{ "value": "4", "by": "u1", "at": "2026-11-20T00:00:00Z" }],
+                  "futureGoalField": { "x": [1, true, null] } }],
+      "guardrails": [
+        { "id": "r1", "statement": "Agents never merge alone", "kind": "enforced",
+          "check": { "type": "policy", "field": "merge", "atLeast": "ask" } },
+        { "id": "r2", "statement": "Error rate", "kind": "enforced",
+          "check": { "type": "metric", "source": { "connectorId": "c1", "metricKey": "err" }, "op": "<=", "threshold": 0.5 } }
+      ],
+      "canEdit": true
+    }
+    """
+
+    private func putBody(after edit: (inout ProjectGoals) -> Void) throws -> [String: Any] {
+        var goals = try JSONDecoder().decode(ProjectGoals.self, from: Data(signalsExample.utf8))
+        edit(&goals)
+        let data = try JSONEncoder().encode(ProjectGoalsUpdate(goals: goals.goals, guardrails: goals.guardrails))
+        return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    }
+
+    /// The bug: editing a goal on iOS/Mac and saving PUT the guardrails without their checks, and
+    /// the server (which keeps an omitted metric but not an omitted check) dropped them, unblocking
+    /// what the guardrail blocked.
+    func testADEV319_savingKeepsEnforcedGuardrailChecks() throws {
+        let body = try putBody { $0.goals[0].statement = "Grow faster" }
+        let rails = try XCTUnwrap(body["guardrails"] as? [[String: Any]])
+        let policy = try XCTUnwrap(rails[0]["check"] as? [String: Any])
+        XCTAssertEqual(policy["type"] as? String, "policy")
+        XCTAssertEqual(policy["field"] as? String, "merge")
+        XCTAssertEqual(policy["atLeast"] as? String, "ask")
+        let metric = try XCTUnwrap(rails[1]["check"] as? [String: Any])
+        XCTAssertEqual(metric["op"] as? String, "<=")
+        XCTAssertEqual(metric["threshold"] as? Double, 0.5)
+        XCTAssertEqual((metric["source"] as? [String: Any])?["metricKey"] as? String, "err")
+    }
+
+    /// A goal's metric and any field a later web adds go back as they came.
+    func testADEV319_savingKeepsGoalFieldsThisBuildDoesNotModel() throws {
+        let body = try putBody { $0.goals[0].target = "200" }
+        let goal = try XCTUnwrap((body["goals"] as? [[String: Any]])?.first)
+        XCTAssertEqual(goal["target"] as? String, "200")
+        let metric = try XCTUnwrap(goal["metric"] as? [String: Any])
+        XCTAssertEqual(metric["direction"] as? String, "up")
+        XCTAssertEqual(metric["target"] as? Int, 100)
+        XCTAssertNotNil(goal["futureGoalField"])
+        XCTAssertNotNil(goal["history"])
+    }
+
+    /// The server refuses a check on a stated guardrail (400), so turning one to stated drops it.
+    func testADEV319_aGuardrailMadeStatedSendsNoCheck() throws {
+        let body = try putBody { $0.guardrails[0].kind = .stated }
+        let rails = try XCTUnwrap(body["guardrails"] as? [[String: Any]])
+        XCTAssertEqual(rails[0]["kind"] as? String, "stated")
+        XCTAssertNil(rails[0]["check"])
+        XCTAssertNotNil(rails[1]["check"])
+    }
+}

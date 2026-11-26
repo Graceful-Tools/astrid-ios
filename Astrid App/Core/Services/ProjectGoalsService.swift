@@ -8,6 +8,7 @@
 //  call goes through `AstridAPIClient`. Saving is online only, like the board rows: it is project
 //  metadata, not task data, so it doesn't go through the Outbox.
 
+import AstridCore
 import Combine
 import Foundation
 
@@ -18,18 +19,46 @@ nonisolated struct ProjectGoal: Codable, Equatable, Hashable, Sendable {
     var measure: String?
     var target: String?
     var current: String?
+    /// Every key this build does not model — `metric`, `history`, and whatever web adds next —
+    /// as it came, so a save sends it back rather than dropping it (ADEV-319).
+    var unmodeled: [String: JSONValue] = [:]
 
-    private enum CodingKeys: String, CodingKey { case id, statement, measure, target, current }
+    private enum CodingKeys: String, CodingKey, CaseIterable { case id, statement, measure, target, current }
+
+    init(id: String?, statement: String, measure: String? = nil, target: String? = nil, current: String? = nil) {
+        self.id = id
+        self.statement = statement
+        self.measure = measure
+        self.target = target
+        self.current = current
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(String.self, forKey: .id)
+        statement = try c.decode(String.self, forKey: .statement)
+        measure = try c.decodeIfPresent(String.self, forKey: .measure)
+        target = try c.decodeIfPresent(String.self, forKey: .target)
+        current = try c.decodeIfPresent(String.self, forKey: .current)
+        unmodeled = try UnmodeledKeys.decode(from: decoder, except: CodingKeys.allCases.map(\.rawValue))
+    }
 
     /// Leaves out a missing id and every empty optional field, so a new row is sent without an id
     /// and a cleared field as absent rather than "".
     func encode(to encoder: Encoder) throws {
+        try UnmodeledKeys.encode(unmodeled, to: encoder)
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encodeIfPresent(id.nonEmpty, forKey: .id)
         try c.encode(statement, forKey: .statement)
         try c.encodeIfPresent(measure.nonEmpty, forKey: .measure)
         try c.encodeIfPresent(target.nonEmpty, forKey: .target)
         try c.encodeIfPresent(current.nonEmpty, forKey: .current)
+    }
+
+    /// The editor's rows are keyed by what the person edits; the pass-through keys don't take part.
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id); hasher.combine(statement); hasher.combine(measure)
+        hasher.combine(target); hasher.combine(current)
     }
 }
 
@@ -47,8 +76,12 @@ nonisolated struct ProjectGuardrail: Codable, Equatable, Hashable, Sendable {
     var id: String?
     var statement: String
     var kind: Kind = .stated
+    /// Every key this build does not model — an enforced guardrail's `check` (web ADEV-182/277),
+    /// and whatever comes next — as it came. The server keeps an omitted goal metric but not an
+    /// omitted check, so dropping this unblocked what the guardrail blocked (ADEV-319).
+    var unmodeled: [String: JSONValue] = [:]
 
-    private enum CodingKeys: String, CodingKey { case id, statement, kind }
+    private enum CodingKeys: String, CodingKey, CaseIterable { case id, statement, kind }
 
     init(id: String?, statement: String, kind: Kind = .stated) {
         self.id = id
@@ -61,13 +94,46 @@ nonisolated struct ProjectGuardrail: Codable, Equatable, Hashable, Sendable {
         id = try c.decodeIfPresent(String.self, forKey: .id)
         statement = try c.decode(String.self, forKey: .statement)
         kind = try c.decodeIfPresent(Kind.self, forKey: .kind) ?? .stated
+        unmodeled = try UnmodeledKeys.decode(from: decoder, except: CodingKeys.allCases.map(\.rawValue))
     }
 
     func encode(to encoder: Encoder) throws {
+        var passThrough = unmodeled
+        // Only an enforced guardrail may carry a check; the server answers 400 otherwise.
+        if kind != .enforced { passThrough["check"] = nil }
+        try UnmodeledKeys.encode(passThrough, to: encoder)
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encodeIfPresent(id.nonEmpty, forKey: .id)
         try c.encode(statement, forKey: .statement)
         try c.encode(kind, forKey: .kind)
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id); hasher.combine(statement); hasher.combine(kind)
+    }
+}
+
+/// The keys of a JSON object other than the ones a type models, read and written as they are.
+private nonisolated enum UnmodeledKeys {
+    struct Key: CodingKey {
+        let stringValue: String
+        init(stringValue: String) { self.stringValue = stringValue }
+        var intValue: Int? { nil }
+        init?(intValue: Int) { nil }
+    }
+
+    static func decode(from decoder: Decoder, except modeled: [String]) throws -> [String: JSONValue] {
+        let c = try decoder.container(keyedBy: Key.self)
+        var out: [String: JSONValue] = [:]
+        for key in c.allKeys where !modeled.contains(key.stringValue) {
+            out[key.stringValue] = try c.decode(JSONValue.self, forKey: key)
+        }
+        return out
+    }
+
+    static func encode(_ values: [String: JSONValue], to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: Key.self)
+        for (key, value) in values { try c.encode(value, forKey: Key(stringValue: key)) }
     }
 }
 
