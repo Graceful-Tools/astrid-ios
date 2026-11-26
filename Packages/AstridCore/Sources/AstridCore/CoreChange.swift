@@ -24,6 +24,9 @@ public enum CoreChange: Equatable, Sendable {
     case notifications
     /// The live stream connected (`true`) or dropped.
     case stream(live: Bool)
+    /// A task's goal links, estimate or experiment results moved in the cache (core ADEV-285):
+    /// ask `getTaskGoalLinks`, `getTaskEstimate` or `getTaskExperiment` again.
+    case taskGoalSignals(taskId: String)
     /// A change this build does not know — a newer core. Treated as "read everything again".
     case unknown(String)
 
@@ -72,6 +75,7 @@ public enum CoreChange: Equatable, Sendable {
                 pending: wire.pending ?? 0, running: wire.running ?? 0, failed: wire.failed ?? 0))
         case "notifications": self = .notifications
         case "stream": self = .stream(live: wire.live ?? false)
+        case "taskGoalSignals": self = wire.id.map { .taskGoalSignals(taskId: $0) } ?? .unknown(json)
         default: self = .unknown(json)
         }
     }

@@ -172,7 +172,7 @@ final class AppCore: ObservableObject {
 
     /// The services a change can concern.
     enum Audience: CaseIterable, Hashable {
-        case lists, tasks, comments, chat, projects, members
+        case lists, tasks, comments, chat, projects, members, goalSignals
     }
 
     /// Which services a change concerns (AITD-454).
@@ -210,6 +210,8 @@ final class AppCore: ObservableObject {
             if !delivery.commentTaskIds.isEmpty { audiences.insert(.comments) }
             if !delivery.channelIds.isEmpty { audiences.insert(.chat) }
             return audiences
+        case .taskGoalSignals:
+            return [.goalSignals]
         case .unknown:
             return Set(Audience.allCases)
         case .remindersDue, .notifications, .stream:
@@ -226,6 +228,7 @@ final class AppCore: ObservableObject {
         if audiences.contains(.chat) { ChatService.shared.coreDidChange(change) }
         if audiences.contains(.projects) { ProjectService.shared.coreDidChange(change) }
         if audiences.contains(.members) { ListMemberService.shared.coreDidChange(change) }
+        if audiences.contains(.goalSignals) { GoalSignalsService.shared.coreDidChange(change) }
         switch change {
         case .delivered(let delivery) where !delivery.undescribed:
             // The journal's counts came with the change: one answer for every badge, rather than

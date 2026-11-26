@@ -383,8 +383,14 @@ struct BoardColumnView: View {
     /// where a release lands. The card reports its own extent so it can.
     @ViewBuilder
     private func cardSlot(for task: Task, at index: Int) -> some View {
-        BoardTaskCardView(task: task, hiddenListIds: rowHiddenListIds,
-                          isSelected: task.id == selectedTaskId)
+        VStack(alignment: .leading, spacing: 0) {
+            BoardTaskCardView(task: task, hiddenListIds: rowHiddenListIds,
+                              isSelected: task.id == selectedTaskId)
+            // The Pending results column draws each card's experiment results (ADEV-323).
+            if column.id == GoalSignalsWording.resultsColumnRole {
+                PendingResultsCardStrip(taskId: task.id)
+            }
+        }
             // A tap opens the details the way a list row does — the panel beside the card on
             // iPad, the push on iPhone — never inline in the column (AITD-679). The leading control
             // inside the card intercepts its own taps first, so picking a status doesn't also open
