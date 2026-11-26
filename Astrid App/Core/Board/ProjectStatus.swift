@@ -67,6 +67,9 @@ nonisolated struct ProjectBoardColumn: Equatable, Identifiable, Sendable {
     let name: String
     let description: String
     let kind: ProjectBoardColumnKind
+    /// The `board.empty.*` message the core chose for this column when empty (core ADEV-221);
+    /// nil for a column the core did not answer (a status picker's option, an older cached board).
+    var emptyMessageKey: String? = nil
 
     static func == (lhs: ProjectBoardColumn, rhs: ProjectBoardColumn) -> Bool {
         lhs.id == rhs.id && lhs.kind == rhs.kind

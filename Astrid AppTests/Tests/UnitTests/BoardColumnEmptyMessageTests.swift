@@ -31,4 +31,29 @@ final class BoardColumnEmptyMessageTests: XCTestCase {
             XCTAssertTrue(seen.insert(message.text).inserted, "\(message.key) repeats another column's message")
         }
     }
+
+    // MARK: ADEV-320 — the core names the message (core ADEV-221)
+
+    /// The board answer carries each column's `emptyMessageKey`; the core's choice is the one shown,
+    /// not a Swift copy of the rule.
+    func testTheCoresEmptyMessageKeyDecides_ADEV320() throws {
+        let json = #"{"id":"custom-qa","name":"QA","description":"","kind":"status","ids":[],"emptyMessageKey":"board.empty.waiting"}"#
+        let col = try JSONDecoder().decode(BoardModel.Column.self, from: Data(json.utf8))
+        XCTAssertEqual(col.column.emptyMessageKey, "board.empty.waiting")
+        XCTAssertEqual(BoardColumnEmptyMessage.decide(col.column), .waiting)
+    }
+
+    /// Every key core catalogues maps to a message; an unknown key or none falls back to the column.
+    func testEveryCoreKeyMapsAndUnknownFallsBack_ADEV320() {
+        let pairs: [(String, BoardColumnEmptyMessage)] = [
+            ("board.empty.inbox", .inbox), ("board.empty.ready", .ready), ("board.empty.doing", .doing),
+            ("board.empty.waiting", .waiting), ("board.empty.done", .done), ("board.empty.custom", .custom),
+        ]
+        for (key, message) in pairs {
+            let col = ProjectBoardColumn(id: "custom-x", name: "X", description: "", kind: .status, emptyMessageKey: key)
+            XCTAssertEqual(BoardColumnEmptyMessage.decide(col), message, key)
+        }
+        let unknown = ProjectBoardColumn(id: "doing", name: "Doing", description: "", kind: .status, emptyMessageKey: "board.empty.someday")
+        XCTAssertEqual(BoardColumnEmptyMessage.decide(unknown), .doing)
+    }
 }

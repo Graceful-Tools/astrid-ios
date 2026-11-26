@@ -11,6 +11,9 @@ enum BoardColumnEmptyMessage: Equatable, CaseIterable {
     case inbox, ready, doing, waiting, done, custom
 
     static func decide(_ column: ProjectBoardColumn) -> BoardColumnEmptyMessage {
+        // The core names it (ADEV-221 there, ADEV-320 here); the rule below is only for a column
+        // the core did not answer, or a key this build does not know.
+        if let key = column.emptyMessageKey, let named = fromCoreKey(key) { return named }
         switch column.kind {
         case .inbox: return .inbox
         case .done: return .done
@@ -21,6 +24,19 @@ enum BoardColumnEmptyMessage: Equatable, CaseIterable {
             case "waiting": return .waiting
             default: return .custom
             }
+        }
+    }
+
+    /// astrid-core's `board.empty.<state>` catalogue key → the message.
+    static func fromCoreKey(_ key: String) -> BoardColumnEmptyMessage? {
+        switch key {
+        case "board.empty.inbox": return .inbox
+        case "board.empty.ready": return .ready
+        case "board.empty.doing": return .doing
+        case "board.empty.waiting": return .waiting
+        case "board.empty.done": return .done
+        case "board.empty.custom": return .custom
+        default: return nil
         }
     }
 

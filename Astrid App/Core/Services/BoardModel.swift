@@ -47,9 +47,12 @@ final class BoardModel: ObservableObject {
         let description: String
         let kind: ProjectBoardColumnKind
         let ids: [String]
+        /// What the column says when empty, as a core catalogue key (core ADEV-221).
+        var emptyMessageKey: String?
 
         var column: ProjectBoardColumn {
-            ProjectBoardColumn(id: id, name: name, description: description, kind: kind)
+            ProjectBoardColumn(id: id, name: name, description: description, kind: kind,
+                               emptyMessageKey: emptyMessageKey)
         }
     }
 
