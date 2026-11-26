@@ -78,6 +78,9 @@ struct MacBoardView: View {
     /// (`MacViewMode.offersBoard`), so its Enable branch never drew.
     static let hasHeaderStrip = false
 
+    /// The board shows several columns, so it snaps by column like iPad's multi-column board (ADEV-315).
+    static let scrollSnap = BoardScrollSnap(multiColumn: true)
+
     private var columns: [ProjectBoardColumn] { board.columns.map(\.column) }
 
     /// How far back Done goes on this list's board, per person (ADEV-131).
@@ -105,9 +108,15 @@ struct MacBoardView: View {
                     let buckets = cardsByColumn()
                     ForEach(columns) { col in columnView(col, items: buckets[col.id] ?? []).id(col.id) }
                 }
+                .scrollTargetLayout()
                 .frame(height: columnHeight)
-                .padding(MacLayout.boardPadding)
+                .padding(.vertical, MacLayout.boardPadding)
             }
+            // A sideways swipe moves one column and settles on its leading edge, as on iPad
+            // (ADEV-315). The side gutter is a content margin, not padding inside the snapped
+            // stack: the snap aligns a column to the margin, so the gutter survives it.
+            .modifier(BoardScrollSnapModifier(Self.scrollSnap))
+            .contentMargins(.horizontal, MacLayout.boardPadding, for: .scrollContent)
             // The open card moved column — completed into Done, marked to-do out of it: scroll the
             // column it went to into view on the side it was opened on, clear of the pop-out, then
             // dock the pop-out beside it so the arrow points at it (ADEV-175).
