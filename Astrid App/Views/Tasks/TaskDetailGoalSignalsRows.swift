@@ -32,9 +32,10 @@ struct TaskDetailGoalSignalsRows: View {
                     content.font(Theme.Typography.caption1())
                 }
             }
-            if let results = signals?.experiments, !results.experiments.isEmpty {
-                TwoColumnRow(label: NSLocalizedString("goalSignals.results.title", comment: ""), icon: "flask") {
-                    PendingResultsLines(results: results)
+            // Experiments on the task: results, link / unlink / refresh, the Add column offer (ADEV-330).
+            ExperimentSection(task: task, isReadOnly: isReadOnly) { content in
+                TwoColumnRow(label: NSLocalizedString("goalSignals.experiment.title", comment: ""), icon: "flask") {
+                    content.font(Theme.Typography.caption1())
                 }
             }
         }
@@ -66,32 +67,4 @@ struct GoalLinksList: View {
     }
 }
 
-/// Each experiment or verification: kind, state and verdict, when to decide, and a stale note.
-struct PendingResultsLines: View {
-    let results: TaskExperiments
-
-    @ThemedPalette private var palette
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Theme.spacing4) {
-            ForEach(results.experiments) { link in
-                VStack(alignment: .leading, spacing: Theme.spacing2) {
-                    Text(GoalSignalsWording.resultLine(link))
-                        .font(Theme.Typography.caption1())
-                        .foregroundColor(palette.textPrimary)
-                    if let date = link.decideByDate {
-                        Text(GoalSignalsWording.decideBy(date))
-                            .font(Theme.Typography.caption1())
-                            .foregroundColor(palette.textMuted)
-                    }
-                    if link.stale {
-                        Text(NSLocalizedString("goalSignals.results.stale", comment: ""))
-                            .font(Theme.Typography.caption1())
-                            .foregroundColor(palette.textMuted)
-                    }
-                }
-            }
-        }
-    }
-}
 #endif

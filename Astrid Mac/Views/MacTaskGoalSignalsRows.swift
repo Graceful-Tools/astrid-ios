@@ -36,18 +36,10 @@ struct MacTaskGoalSignalsRows: View {
                     content
                 }
             }
-            if let results = signals?.experiments, !results.experiments.isEmpty {
-                row(icon: "flask", NSLocalizedString("goalSignals.results.title", comment: "")) {
-                    ForEach(results.experiments) { link in
-                        Text(GoalSignalsWording.resultLine(link))
-                        if let date = link.decideByDate {
-                            Text(GoalSignalsWording.decideBy(date)).foregroundStyle(Theme.textMuted)
-                        }
-                        if link.stale {
-                            Text(NSLocalizedString("goalSignals.results.stale", comment: ""))
-                                .foregroundStyle(Theme.textMuted)
-                        }
-                    }
+            // Experiments on the task: results, link / unlink / refresh, the Add column offer (ADEV-330).
+            ExperimentSection(task: task, isReadOnly: isReadOnly) { content in
+                row(icon: "flask", NSLocalizedString("goalSignals.experiment.title", comment: "")) {
+                    content
                 }
             }
         }
