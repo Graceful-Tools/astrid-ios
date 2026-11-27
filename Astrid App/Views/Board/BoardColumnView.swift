@@ -390,6 +390,10 @@ struct BoardColumnView: View {
             if column.id == GoalSignalsWording.resultsColumnRole {
                 PendingResultsCardStrip(taskId: task.id)
             }
+            // An idea card's one-tap Estimate (ADEV-329); nothing on any other card.
+            EstimateCardControl(task: task)
+                .font(Theme.Typography.caption1())
+                .padding(.horizontal, Theme.spacing8)
         }
             // A tap opens the details the way a list row does — the panel beside the card on
             // iPad, the push on iPhone — never inline in the column (AITD-679). The leading control

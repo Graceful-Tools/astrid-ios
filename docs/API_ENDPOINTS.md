@@ -50,6 +50,10 @@ not the app, so those paths are named here rather than listed below.
 
 - `/api/v1/empathy-art`
 
+### `/api/v1/feature-requests`
+
+- `/api/v1/feature-requests`
+
 ### `/api/v1/github`
 
 - `/api/v1/github/repositories`
@@ -69,6 +73,8 @@ not the app, so those paths are named here rather than listed below.
 
 
 ### `/api/v1/tasks`
+
+- `/api/v1/tasks/{id}/estimates`
 
 The app's client no longer reads it: a public list's tasks come from astrid-core's `featuredRows`
 (AITD-634).

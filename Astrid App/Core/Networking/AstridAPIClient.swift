@@ -276,6 +276,23 @@ class AstridAPIClient {
         try await request(method: "PUT", path: "/api/v1/projects/\(projectId)/goals", body: update)
     }
 
+    // MARK: - Goal signals (ADEV-329, web ADEV-278)
+
+    /// Ask an estimator for an estimate of a task: 201 with it, or 202 `{ pending: true }` while a
+    /// service works. Called only by `GoalSignalsService`; the core has no write for it yet.
+    func requestTaskEstimate(taskId: String, estimator: String, projectId: String?) async throws -> EstimateRequestReply {
+        struct Body: Encodable { let estimator: String; let projectId: String? }
+        return try await request(method: "POST", path: "/api/v1/tasks/\(taskId)/estimates",
+                                 body: Body(estimator: estimator, projectId: projectId))
+    }
+
+    /// Ask for a gated feature (`featureKey`); asking twice updates the one request.
+    func requestFeatureAccess(featureKey: String) async throws {
+        struct Body: Encodable { let featureKey: String }
+        let _: EmptyResponse = try await request(method: "POST", path: "/api/v1/feature-requests",
+                                                 body: Body(featureKey: featureKey))
+    }
+
     // MARK: - Task Operations
 
     // A public list's tasks were the last read of `/api/v1/tasks`; they come from the core's

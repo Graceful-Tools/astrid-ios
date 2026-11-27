@@ -289,6 +289,9 @@ struct MacBoardView: View {
                 if col.id == GoalSignalsWording.resultsColumnRole {
                     MacPendingResultsCardLines(taskId: t.id)
                 }
+                // An idea card's one-tap Estimate (ADEV-329); nothing on any other card.
+                EstimateCardControl(task: t)
+                    .macFont(.caption2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }

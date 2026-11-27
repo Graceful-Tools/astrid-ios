@@ -140,16 +140,6 @@ struct TaskDetailBlockersRow: View {
     private var textMuted: Color { palette.textMuted }
 }
 
-extension View {
-    /// The When row's compact chip (shared with the occurrences row, AITD-491) (`InlineDatePicker(compact: true)`), so the rows match.
-    func chipBackground(_ palette: AstridTokens.Palette) -> some View {
-        padding(.horizontal, Theme.spacing8)
-            .padding(.vertical, Theme.spacing4)
-            .background(palette.bgSecondary)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.radiusMedium))
-    }
-}
-
 /// Search the server for a task to wait on. Stays open between picks — adding two or three at
 /// once is common.
 private struct TaskBlockerPickerSheet: View {

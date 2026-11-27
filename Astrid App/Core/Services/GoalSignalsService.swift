@@ -21,16 +21,41 @@ final class GoalSignalsService: ObservableObject {
 
     @Published private(set) var byTask: [String: GoalSignals] = [:]
 
+    /// Tasks with an estimate request in flight, so the button reads "Estimating…" (ADEV-329).
+    @Published private(set) var estimating: Set<String> = []
+    /// This person asked for the `goal_signals` flag in this session.
+    @Published private(set) var accessRequested = false
+
+    /// Ask for an estimate: task id, estimator key, project id.
+    typealias PostEstimate = @MainActor (String, String, String?) async throws -> EstimateRequestReply
+    /// Ask for a gated feature by its key.
+    typealias PostFeatureRequest = @MainActor (String) async throws -> Void
+
     private let readLinks: Read<TaskGoalLinks>
     private let readEstimate: Read<TaskEstimates>
     private let readExperiment: Read<TaskExperiments>
+    private let postEstimate: PostEstimate
+    private let postFeatureRequest: PostFeatureRequest
+
+    /// The feature flag behind every goal-signals route (web `GOAL_SIGNALS_FEATURE_KEY`).
+    static let featureKey = "goal_signals"
 
     init(readLinks: Read<TaskGoalLinks>? = nil,
          readEstimate: Read<TaskEstimates>? = nil,
-         readExperiment: Read<TaskExperiments>? = nil) {
+         readExperiment: Read<TaskExperiments>? = nil,
+         postEstimate: PostEstimate? = nil,
+         postFeatureRequest: PostFeatureRequest? = nil) {
         self.readLinks = readLinks ?? { try await Self.core.run(CoreCommand(kind: "getTaskGoalLinks", taskId: $0), as: TaskGoalLinks.self) }
         self.readEstimate = readEstimate ?? { try await Self.core.run(CoreCommand(kind: "getTaskEstimate", taskId: $0), as: TaskEstimates.self) }
         self.readExperiment = readExperiment ?? { try await Self.core.run(CoreCommand(kind: "getTaskExperiment", taskId: $0), as: TaskExperiments.self) }
+        // The core has no write for estimates yet, so asking goes through the API client here,
+        // and only here (ASTRID.md §0 rule 1). The answer is then read back through the core.
+        self.postEstimate = postEstimate ?? {
+            try await AstridAPIClient.shared.requestTaskEstimate(taskId: $0, estimator: $1, projectId: $2)
+        }
+        self.postFeatureRequest = postFeatureRequest ?? {
+            try await AstridAPIClient.shared.requestFeatureAccess(featureKey: $0)
+        }
     }
 
     private static var core: CoreSession { AppCore.shared.session }
@@ -55,6 +80,54 @@ final class GoalSignalsService: ObservableObject {
         if byTask[taskId] != signals { byTask[taskId] = signals }
     }
 
+    // MARK: - Asking for an estimate (ADEV-329)
+
+    func isEstimating(taskId: String) -> Bool { estimating.contains(taskId) }
+
+    /// Ask `estimator` for an estimate of the task against `projectId`'s goals. A person-only
+    /// action: the server refuses an agent's. When it lands, the task's signals are read again,
+    /// so the card shows the server's stored row, label and all.
+    func requestEstimate(taskId: String, estimator: String, projectId: String?) async -> EstimateRequestOutcome {
+        guard !estimating.contains(taskId) else { return .failed }
+        estimating.insert(taskId)
+        defer { estimating.remove(taskId) }
+        do {
+            let reply = try await postEstimate(taskId, estimator, projectId)
+            if reply.pending == true { return .pending }
+            await load(taskId: taskId)
+            return .landed
+        } catch {
+            AppLog.debug("❌ [GoalSignals] estimate request failed: \((error as NSError).localizedDescription)")
+            return Self.outcome(for: error)
+        }
+    }
+
+    /// What a refusal means to the person: the flag not granted, no AI key for the built-in
+    /// estimator, or anything else.
+    nonisolated static func outcome(for error: Error) -> EstimateRequestOutcome {
+        guard case AstridAPIError.httpError(_, let message) = error,
+              let body = try? JSONDecoder().decode([String: JSONValue].self, from: Data(message.utf8)),
+              case .string(let reason)? = body["reason"] else { return .failed }
+        switch reason {
+        case "not_granted": return .notGranted
+        case "no_api_key": return .noKey
+        default: return .failed
+        }
+    }
+
+    /// Ask for the `goal_signals` flag (`POST /api/v1/feature-requests`). True when the server took it.
+    @discardableResult
+    func requestAccess() async -> Bool {
+        do {
+            try await postFeatureRequest(Self.featureKey)
+            accessRequested = true
+            return true
+        } catch {
+            AppLog.debug("❌ [GoalSignals] access request failed: \((error as NSError).localizedDescription)")
+            return false
+        }
+    }
+
     func coreDidChange(_ change: CoreChange) {
         _Concurrency.Task { await refresh(for: change) }
     }
@@ -72,6 +145,26 @@ final class GoalSignalsService: ObservableObject {
             break
         }
     }
+}
+
+/// What came of asking for an estimate.
+enum EstimateRequestOutcome: Equatable {
+    /// Stored; the signals were read again.
+    case landed
+    /// A service is still working; it appears when it is done.
+    case pending
+    /// The `goal_signals` flag is not granted: offer to request access.
+    case notGranted
+    /// The built-in estimator needs this person's AI key.
+    case noKey
+    case failed
+}
+
+/// The POST's answer, as far as the app needs it: 201 carries the estimate (read back through the
+/// core instead), 202 says `pending`.
+nonisolated struct EstimateRequestReply: Codable, Equatable, Sendable {
+    var pending: Bool?
+    var estimator: String?
 }
 
 /// The three answers for one task. A `nil` part was refused, or has not been read.
@@ -145,6 +238,31 @@ struct GoalImpact: Equatable {
     let delta: Double
     var low: Double?
     var high: Double?
+    var unit: String?
+
+    init(goalId: String, delta: Double, low: Double? = nil, high: Double? = nil, unit: String? = nil) {
+        self.goalId = goalId
+        self.delta = delta
+        self.low = low
+        self.high = high
+        self.unit = unit
+    }
+}
+
+/// An estimate's expected effect on one guardrail, and the chance it is breached (ADEV-329).
+struct GuardrailImpact: Equatable {
+    let guardrailId: String
+    var delta: Double?
+    var low: Double?
+    var high: Double?
+    var breachProbability: Double?
+}
+
+/// How many people a change reaches, per period (`{ count, unit, period }`).
+struct EstimateReach: Equatable {
+    let count: Double
+    let unit: String
+    let period: String
 }
 
 /// One reason for a label: its `code`, and the values that produced it, as sent.
@@ -170,7 +288,13 @@ struct Estimate: Decodable, Equatable {
     var label: TradeoffLabel?
     var reasons: [EstimateReason] = []
     var goalImpacts: [GoalImpact] = []
+    var guardrailImpacts: [GuardrailImpact] = []
     var risk: SignalLevel?
+    /// What the estimator says makes it risky, as it said it.
+    var riskFactors: [String] = []
+    var costMicrocents: Double?
+    var effortHours: Double?
+    var reach: EstimateReach?
     var confidence: SignalLevel?
     var rationale: String?
     /// The built-in estimator's answer: its ranges show under a "rough estimate" tag.
@@ -178,7 +302,8 @@ struct Estimate: Decodable, Equatable {
     var createdAt: String?
 
     private enum CodingKeys: String, CodingKey {
-        case id, source, label, labelReasons, goalImpacts, risk, confidence, rationale, rough, createdAt
+        case id, source, label, labelReasons, goalImpacts, guardrailImpacts, risk, costMicrocents, effortHours, reach
+        case confidence, rationale, rough, createdAt
     }
 
     init(id: String, label: TradeoffLabel? = nil) {
@@ -198,21 +323,39 @@ struct Estimate: Decodable, Equatable {
 
         // The sections whose shape the server owns arrive as any JSON: read what is understood,
         // skip what is not, never fail the whole estimate on one of them.
-        if case .object(let risk)? = try? container.decodeIfPresent(JSONValue.self, forKey: .risk),
-           case .string(let level)? = risk["level"] {
-            self.risk = SignalLevel(rawValue: level)
+        if case .object(let risk)? = try? container.decodeIfPresent(JSONValue.self, forKey: .risk) {
+            if case .string(let level)? = risk["level"] { self.risk = SignalLevel(rawValue: level) }
+            if case .array(let factors)? = risk["factors"] {
+                riskFactors = factors.compactMap { if case .string(let factor) = $0 { return factor } else { return nil } }
+            }
         }
         if case .array(let impacts)? = try? container.decodeIfPresent(JSONValue.self, forKey: .goalImpacts) {
             goalImpacts = impacts.compactMap { item in
                 guard case .object(let object) = item,
                       case .string(let goalId)? = object["goalId"],
-                      case .number(let delta)? = object["delta"] else { return nil }
-                func number(_ key: String) -> Double? {
-                    if case .number(let value)? = object[key] { return value }
-                    return nil
-                }
-                return GoalImpact(goalId: goalId, delta: delta, low: number("low"), high: number("high"))
+                      let delta = Self.number(object["delta"]) else { return nil }
+                return GoalImpact(goalId: goalId, delta: delta, low: Self.number(object["low"]),
+                                  high: Self.number(object["high"]), unit: Self.text(object["unit"]))
             }
+        }
+        if case .array(let impacts)? = try? container.decodeIfPresent(JSONValue.self, forKey: .guardrailImpacts) {
+            guardrailImpacts = impacts.compactMap { item in
+                guard case .object(let object) = item, case .string(let id)? = object["guardrailId"] else { return nil }
+                return GuardrailImpact(guardrailId: id, delta: Self.number(object["delta"]), low: Self.number(object["low"]),
+                                       high: Self.number(object["high"]),
+                                       breachProbability: Self.number(object["breachProbability"]))
+            }
+        }
+        // Cost arrives as a number, or as a string where the server's BigInt would not fit one.
+        switch try? container.decodeIfPresent(JSONValue.self, forKey: .costMicrocents) {
+        case .number(let value)?: costMicrocents = value
+        case .string(let value)?: costMicrocents = Double(value)
+        default: break
+        }
+        effortHours = Self.number(try? container.decodeIfPresent(JSONValue.self, forKey: .effortHours))
+        if case .object(let reach)? = try? container.decodeIfPresent(JSONValue.self, forKey: .reach),
+           let count = Self.number(reach["count"]) {
+            self.reach = EstimateReach(count: count, unit: Self.text(reach["unit"]) ?? "", period: Self.text(reach["period"]) ?? "")
         }
         if case .array(let reasons)? = try? container.decodeIfPresent(JSONValue.self, forKey: .labelReasons) {
             self.reasons = reasons.compactMap { item in
@@ -221,6 +364,18 @@ struct Estimate: Decodable, Equatable {
                 return EstimateReason(code: code, values: object)
             }
         }
+    }
+}
+
+extension Estimate {
+    fileprivate static func number(_ value: JSONValue?) -> Double? {
+        if case .number(let number)? = value { return number }
+        return nil
+    }
+
+    fileprivate static func text(_ value: JSONValue?) -> String? {
+        if case .string(let text)? = value, !text.isEmpty { return text }
+        return nil
     }
 }
 
@@ -429,7 +584,74 @@ enum GoalSignalsWording {
         String(format: text("goalSignals.results.decideBy"), date.formatted(date: .abbreviated, time: .omitted))
     }
 
-    private static func signed(_ value: Double) -> String {
+    // MARK: The estimate card (ADEV-329)
+
+    /// "+1 % to +4 %": a row's range, each end with its unit.
+    static func range(_ row: EstimateRangeRow) -> String {
+        String(format: text("goalSignals.estimate.range"), withUnit(signed(row.low), row.unit), withUnit(signed(row.high), row.unit))
+    }
+
+    /// "(target change +3 %)", or nil without a reference.
+    static func reference(_ row: EstimateRangeRow) -> String? {
+        row.reference.map { String(format: text("goalSignals.estimate.reference"), withUnit(signed($0), row.unit)) }
+    }
+
+    /// "20% chance of breach".
+    static func breach(_ probability: Double) -> String {
+        String(format: text("goalSignals.estimate.breach"), percent(probability))
+    }
+
+    /// "High risk": the card's risk chip.
+    static func riskChip(_ value: SignalLevel) -> String {
+        String(format: text("goalSignals.estimate.riskChip"), level(value))
+    }
+
+    static func effort(_ hours: Double) -> String {
+        String(format: text("goalSignals.estimate.effort"), hours.formatted(.number.precision(.fractionLength(0...1))))
+    }
+
+    /// "+2k to +8k users / month".
+    static func opportunity(_ value: EstimateOpportunity) -> String {
+        String(format: text("goalSignals.estimate.opportunityRange"),
+               EstimateCardModel.signedCount(value.low), EstimateCardModel.signedCount(value.high), value.unit, value.period)
+    }
+
+    static func source(_ kind: EstimateCardModel.SourceKind) -> String {
+        let name: String
+        switch kind {
+        case .builtin: name = text("goalSignals.estimate.sourceBuiltin")
+        case .human: name = text("goalSignals.estimate.sourceHuman")
+        case .service(let key): name = key
+        }
+        return String(format: text("goalSignals.estimate.source"), name)
+    }
+
+    static func age(_ age: EstimateCardModel.Age) -> String {
+        switch age {
+        case .now: return text("goalSignals.estimate.age.now")
+        case .minutes(let n): return String(format: text("goalSignals.estimate.age.minutes"), n)
+        case .hours(let n): return String(format: text("goalSignals.estimate.age.hours"), n)
+        case .days(let n): return String(format: text("goalSignals.estimate.age.days"), n)
+        }
+    }
+
+    /// What the person sees after asking, or nil when there is nothing to say (it landed).
+    static func outcome(_ outcome: EstimateRequestOutcome) -> String? {
+        switch outcome {
+        case .landed: return nil
+        case .pending: return text("goalSignals.estimate.pending")
+        case .noKey: return text("goalSignals.estimate.noKey")
+        case .notGranted: return text("goalSignals.estimate.notGranted")
+        case .failed: return text("goalSignals.estimate.failed")
+        }
+    }
+
+    private static func withUnit(_ value: String, _ unit: String?) -> String {
+        guard let unit, !unit.isEmpty else { return value }
+        return unit == "%" ? value + unit : value + " " + unit
+    }
+
+    static func signed(_ value: Double) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.maximumFractionDigits = 2
