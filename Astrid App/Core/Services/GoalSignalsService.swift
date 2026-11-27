@@ -36,6 +36,7 @@ final class GoalSignalsService: ObservableObject {
     private let readExperiment: Read<TaskExperiments>
     private let postEstimate: PostEstimate
     private let postFeatureRequest: PostFeatureRequest
+    private let experimentWrites: ExperimentWrites
 
     /// The feature flag behind every goal-signals route (web `GOAL_SIGNALS_FEATURE_KEY`).
     static let featureKey = "goal_signals"
@@ -44,7 +45,8 @@ final class GoalSignalsService: ObservableObject {
          readEstimate: Read<TaskEstimates>? = nil,
          readExperiment: Read<TaskExperiments>? = nil,
          postEstimate: PostEstimate? = nil,
-         postFeatureRequest: PostFeatureRequest? = nil) {
+         postFeatureRequest: PostFeatureRequest? = nil,
+         experimentWrites: ExperimentWrites? = nil) {
         self.readLinks = readLinks ?? { try await Self.core.run(CoreCommand(kind: "getTaskGoalLinks", taskId: $0), as: TaskGoalLinks.self) }
         self.readEstimate = readEstimate ?? { try await Self.core.run(CoreCommand(kind: "getTaskEstimate", taskId: $0), as: TaskEstimates.self) }
         self.readExperiment = readExperiment ?? { try await Self.core.run(CoreCommand(kind: "getTaskExperiment", taskId: $0), as: TaskExperiments.self) }
@@ -56,6 +58,7 @@ final class GoalSignalsService: ObservableObject {
         self.postFeatureRequest = postFeatureRequest ?? {
             try await AstridAPIClient.shared.requestFeatureAccess(featureKey: $0)
         }
+        self.experimentWrites = experimentWrites ?? .api
     }
 
     private static var core: CoreSession { AppCore.shared.session }
@@ -128,6 +131,55 @@ final class GoalSignalsService: ObservableObject {
         }
     }
 
+    // MARK: - Experiments on a task (ADEV-330)
+
+    /// Link an experiment or start a verification window, then read the task's experiments back.
+    @discardableResult
+    func linkExperiment(taskId: String, request: ExperimentLinkRequest, projectId: String?) async -> Bool {
+        await write("link") { try await self.experimentWrites.link(taskId, request, projectId) } then: {
+            await self.loadExperiment(taskId: taskId)
+        }
+    }
+
+    @discardableResult
+    func unlinkExperiment(taskId: String, experimentId: String) async -> Bool {
+        await write("unlink") { try await self.experimentWrites.unlink(taskId, experimentId) } then: {
+            await self.loadExperiment(taskId: taskId)
+        }
+    }
+
+    /// Ask the services now; a task in the Pending results column may settle at once.
+    @discardableResult
+    func refreshExperiments(taskId: String) async -> Bool {
+        await write("refresh") { try await self.experimentWrites.refresh(taskId) } then: {
+            await self.loadExperiment(taskId: taskId)
+        }
+    }
+
+    /// The project's experiment connectors. Only an owner or admin may read them; a refusal is
+    /// an empty list, which leaves verification as the only choice.
+    func experimentConnectors(projectId: String) async -> [ProjectConnector] {
+        let all = (try? await experimentWrites.connectors(projectId)) ?? []
+        return all.filter { $0.kind == "experiment" }
+    }
+
+    /// Add the Pending results preset column to a board (its owner only).
+    @discardableResult
+    func addResultsColumn(projectId: String) async -> Bool {
+        await write("add results column") { try await self.experimentWrites.addResultsColumn(projectId) } then: {}
+    }
+
+    private func write(_ what: String, _ action: () async throws -> Void, then after: () async -> Void) async -> Bool {
+        do {
+            try await action()
+        } catch {
+            AppLog.debug("❌ [GoalSignals] \(what) failed: \((error as NSError).localizedDescription)")
+            return false
+        }
+        await after()
+        return true
+    }
+
     func coreDidChange(_ change: CoreChange) {
         _Concurrency.Task { await refresh(for: change) }
     }
@@ -144,6 +196,97 @@ final class GoalSignalsService: ObservableObject {
         default:
             break
         }
+    }
+}
+
+/// What a task waits on, as the picker builds it (web `ExperimentLinkForm`).
+enum ExperimentLinkRequest: Equatable, CustomStringConvertible {
+    case experiment(connectorId: String, externalKey: String)
+    case verification(days: Int)
+
+    /// The longest verification window the server takes (web `VERIFICATION_MAX_DAYS`).
+    static let maxVerificationDays = 90
+
+    /// A whole number of days, 1 to 90, or nil.
+    static func verificationDays(_ text: String) -> Int? {
+        guard let days = Int(text.trimmingCharacters(in: .whitespaces)),
+              (1...maxVerificationDays).contains(days) else { return nil }
+        return days
+    }
+
+    struct Body: Encodable, Equatable {
+        let kind: String
+        var connectorId: String?
+        var externalKey: String?
+        var days: Int?
+        var projectId: String?
+    }
+
+    /// `POST /api/v1/tasks/{id}/experiment`'s body.
+    func body(projectId: String?) -> Body {
+        switch self {
+        case .experiment(let connectorId, let externalKey):
+            return Body(kind: "experiment", connectorId: connectorId,
+                        externalKey: externalKey.trimmingCharacters(in: .whitespacesAndNewlines), projectId: projectId)
+        case .verification(let days):
+            return Body(kind: "verification", days: days, projectId: projectId)
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .experiment(let connectorId, let key): return "experiment(\(connectorId), \(key))"
+        case .verification(let days): return "verification(days: \(days))"
+        }
+    }
+}
+
+/// A project's connector to an outside service, without its credential.
+nonisolated struct ProjectConnector: Codable, Equatable, Identifiable, Sendable {
+    let id: String
+    let name: String
+    /// `metric`, `experiment` or `estimator`.
+    var kind: String?
+}
+
+/// The experiment writes, as closures so tests can stand in for the server.
+struct ExperimentWrites {
+    var link: @MainActor (String, ExperimentLinkRequest, String?) async throws -> Void
+    var unlink: @MainActor (String, String) async throws -> Void
+    var refresh: @MainActor (String) async throws -> Void
+    var connectors: @MainActor (String) async throws -> [ProjectConnector]
+    var addResultsColumn: @MainActor (String) async throws -> Void
+
+    /// The app's API client: the core has no experiment writes yet (ASTRID.md §0 rule 1 — only
+    /// `GoalSignalsService` calls these).
+    static var api: ExperimentWrites {
+        ExperimentWrites(
+            link: { try await AstridAPIClient.shared.linkTaskExperiment(taskId: $0, body: $1.body(projectId: $2)) },
+            unlink: { try await AstridAPIClient.shared.unlinkTaskExperiment(taskId: $0, experimentId: $1) },
+            refresh: { try await AstridAPIClient.shared.refreshTaskExperiments(taskId: $0) },
+            connectors: { try await AstridAPIClient.shared.getProjectConnectors(projectId: $0) },
+            addResultsColumn: { try await AstridAPIClient.shared.addProjectPresetColumn(projectId: $0, preset: GoalSignalsWording.resultsColumnRole) })
+    }
+}
+
+/// The one-tap offer to add the Pending results column (web `ResultsColumnOffer`, ADEV-282).
+enum ResultsColumnOffer {
+    /// Once the task has a link, to the board's owner (the only person the statuses route lets add
+    /// a column), on a board without the column, unless they said "Not now" for this board.
+    static func shows(hasLinks: Bool, project: Project?, currentUserId: String?, dismissed: Bool) -> Bool {
+        guard hasLinks, !dismissed, let project, let currentUserId, project.ownerId == currentUserId else { return false }
+        return !(project.customStates ?? []).contains { $0.role == GoalSignalsWording.resultsColumnRole }
+    }
+
+    /// "Not now", remembered per board on this device.
+    struct Dismissals {
+        let defaults: UserDefaults
+        private static let prefix = "resultsColumnOffer.dismissed."
+
+        init(defaults: UserDefaults = .standard) { self.defaults = defaults }
+
+        func isDismissed(projectId: String) -> Bool { defaults.bool(forKey: Self.prefix + projectId) }
+        func dismiss(projectId: String) { defaults.set(true, forKey: Self.prefix + projectId) }
     }
 }
 
@@ -401,37 +544,88 @@ struct TaskEstimates: Decodable, Equatable {
     private enum CodingKeys: String, CodingKey { case taskId, latest, history }
 }
 
+/// One metric an experiment service reports, as it reports it.
+struct ExperimentMetric: Equatable {
+    let metricKey: String
+    let relDelta: Double
+    var significant: Bool?
+}
+
+/// What the experiment service recommends: `start`, `continue`, `stop`, `ship` or `rollback`.
+struct ExperimentRecommendation: Equatable {
+    let action: String
+    var reason: String?
+}
+
 /// An experiment link or a post-deploy verification window. The service's numbers are kept as
 /// given: Astrid computes no statistics.
 struct ExperimentLink: Decodable, Equatable, Identifiable {
     let id: String
     /// `experiment` or `verification`.
     var kind: String?
+    /// The experiment's key in its service (ADEV-330), the row's title.
+    var externalKey: String?
     var url: String?
     /// `pending`, `running`, `concluded`, `stopped` or `unknown`.
     var state: String
     /// `improving`, `flat`, `regressing` or `inconclusive`; `nil` until there is one.
     var verdict: String?
+    var recommendation: ExperimentRecommendation?
+    /// Only metrics with a relative delta: one without has nothing to say.
+    var metrics: [ExperimentMetric] = []
     var decideBy: String?
+    var fetchedAt: String?
     /// No data for 48 hours.
     var stale: Bool
 
-    private enum CodingKeys: String, CodingKey { case id, kind, url, state, verdict, decideBy, stale }
+    private enum CodingKeys: String, CodingKey {
+        case id, kind, externalKey, url, state, verdict, recommendation, metrics, decideBy, fetchedAt, stale
+    }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
         kind = try container.decodeIfPresent(String.self, forKey: .kind)
+        externalKey = try? container.decodeIfPresent(String.self, forKey: .externalKey)
         url = try container.decodeIfPresent(String.self, forKey: .url)
         state = try container.decodeIfPresent(String.self, forKey: .state) ?? "unknown"
         verdict = try container.decodeIfPresent(String.self, forKey: .verdict)
         decideBy = try container.decodeIfPresent(String.self, forKey: .decideBy)
+        fetchedAt = try? container.decodeIfPresent(String.self, forKey: .fetchedAt)
         stale = try container.decodeIfPresent(Bool.self, forKey: .stale) ?? false
+        // The service's sections arrive as any JSON: read what is understood, never fail the link.
+        if case .object(let object)? = try? container.decodeIfPresent(JSONValue.self, forKey: .recommendation),
+           case .string(let action)? = object["action"] {
+            var reason: String?
+            if case .string(let text)? = object["reason"], !text.isEmpty { reason = text }
+            recommendation = ExperimentRecommendation(action: action, reason: reason)
+        }
+        if case .array(let items)? = try? container.decodeIfPresent(JSONValue.self, forKey: .metrics) {
+            metrics = items.compactMap { item in
+                guard case .object(let object) = item,
+                      case .string(let key)? = object["metricKey"],
+                      case .number(let delta)? = object["relDelta"] else { return nil }
+                var significant: Bool?
+                if case .bool(let flag)? = object["significant"] { significant = flag }
+                return ExperimentMetric(metricKey: key, relDelta: delta, significant: significant)
+            }
+        }
     }
+
+    /// Still waiting on a result.
+    var isOpen: Bool { state != "concluded" && state != "stopped" }
 
     /// `decideBy` as a date, for "Decide by …".
     var decideByDate: Date? {
         decideBy.flatMap { ISO8601DateFormatter().date(from: $0) }
+    }
+
+    var fetchedAtDate: Date? {
+        guard let fetchedAt else { return nil }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: fetchedAt) { return date }
+        return ISO8601DateFormatter().date(from: fetchedAt)
     }
 }
 
@@ -582,6 +776,53 @@ enum GoalSignalsWording {
 
     static func decideBy(_ date: Date) -> String {
         String(format: text("goalSignals.results.decideBy"), date.formatted(date: .abbreviated, time: .omitted))
+    }
+
+    // MARK: The experiment row (ADEV-330)
+
+    /// The experiment's key, or "Experiment" / "Verification".
+    static func experimentTitle(_ link: ExperimentLink) -> String {
+        if link.kind == "verification" { return text("goalSignals.results.verification") }
+        if let key = link.externalKey, !key.isEmpty { return key }
+        return text("goalSignals.results.experiment")
+    }
+
+    /// `+4.2%` from 0.042, written as web writes it.
+    static func relDelta(_ value: Double) -> String {
+        let percent = value * 100
+        let rounded = (percent * 10).rounded() / 10
+        let body = String(format: "%.1f%%", rounded == 0 ? 0 : rounded)
+        return rounded > 0 ? "+" + body : body
+    }
+
+    /// "conversion +4.2%", "aov −1.0% (not significant)".
+    static func metricLine(_ metric: ExperimentMetric) -> String {
+        let line = "\(metric.metricKey) \(relDelta(metric.relDelta))"
+        guard metric.significant == false else { return line }
+        return String(format: text("goalSignals.experiment.notSignificant"), line)
+    }
+
+    /// "Recommends ship: Conversion is up"; an action this build does not know is left unsaid.
+    static func recommendation(_ value: ExperimentRecommendation) -> String? {
+        let key: String
+        switch value.action {
+        case "start": key = "goalSignals.experiment.action.start"
+        case "continue": key = "goalSignals.experiment.action.continue"
+        case "stop": key = "goalSignals.experiment.action.stop"
+        case "ship": key = "goalSignals.experiment.action.ship"
+        case "rollback": key = "goalSignals.experiment.action.rollback"
+        default: return nil
+        }
+        let line = String(format: text("goalSignals.experiment.recommends"), text(key))
+        guard let reason = value.reason else { return line }
+        return line + ": " + reason
+    }
+
+    /// "No data since 3 d ago", or "No data yet".
+    static func noData(since date: Date?, now: Date = Date()) -> String {
+        guard let date else { return text("goalSignals.experiment.noDataYet") }
+        let age = EstimateCardModel.age(createdAt: ISO8601DateFormatter().string(from: date), now: now) ?? .now
+        return String(format: text("goalSignals.experiment.noDataSince"), self.age(age))
     }
 
     // MARK: The estimate card (ADEV-329)

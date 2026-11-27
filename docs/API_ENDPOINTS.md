@@ -67,7 +67,9 @@ not the app, so those paths are named here rather than listed below.
 
 ### `/api/v1/projects`
 
+- `/api/v1/projects/{id}/connectors`
 - `/api/v1/projects/{id}/goals`
+- `/api/v1/projects/{id}/statuses`
 
 ### `/api/v1/public`
 
@@ -75,6 +77,8 @@ not the app, so those paths are named here rather than listed below.
 ### `/api/v1/tasks`
 
 - `/api/v1/tasks/{id}/estimates`
+- `/api/v1/tasks/{id}/experiment`
+- `/api/v1/tasks/{id}/experiment/refresh`
 
 The app's client no longer reads it: a public list's tasks come from astrid-core's `featuredRows`
 (AITD-634).
