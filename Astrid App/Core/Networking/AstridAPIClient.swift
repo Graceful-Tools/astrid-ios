@@ -276,11 +276,6 @@ class AstridAPIClient {
         try await request(method: "PUT", path: "/api/v1/projects/\(projectId)/goals", body: update)
     }
 
-    /// A list's orchestration policy, for whether a trade-off policy applies (ADEV-321).
-    func getListOrchestrationPolicy(listId: String) async throws -> ListOrchestrationPolicy {
-        try await request(method: "GET", path: "/api/v1/lists/\(listId)/orchestration-policy")
-    }
-
     // MARK: - Task Operations
 
     // A public list's tasks were the last read of `/api/v1/tasks`; they come from the core's

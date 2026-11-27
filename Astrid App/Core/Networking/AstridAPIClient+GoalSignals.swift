@@ -7,6 +7,11 @@
 import Foundation
 
 extension AstridAPIClient {
+    /// A list's orchestration policy, for whether a trade-off policy applies (ADEV-321).
+    func getListOrchestrationPolicy(listId: String) async throws -> ListOrchestrationPolicy {
+        try await request(method: "GET", path: "/api/v1/lists/\(listId)/orchestration-policy")
+    }
+
     /// Ask an estimator for an estimate of a task: 201 with it, or 202 `{ pending: true }` while a
     /// service works. Called only by `GoalSignalsService`; the core has no write for it yet.
     func requestTaskEstimate(taskId: String, estimator: String, projectId: String?) async throws -> EstimateRequestReply {
