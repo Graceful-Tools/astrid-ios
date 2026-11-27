@@ -1755,6 +1755,14 @@
 "project_goals.counts" = "Цели: %1$d · Ограничения: %2$d";
 "project_goals.target_value" = "Цель: %@";
 "project_goals.current_value" = "Сейчас: %@";
+"project_goals.target_met" = "Цель достигнута";
+"project_goals.progress_value" = "%@%% от цели";
+"project_goals.source_name" = "Источник: %@";
+"project_goals.updated_ago" = "Обновлено %@";
+"project_goals.stale_since" = "Устарело · обновлено %@";
+"project_goals.sparkline_label" = "История: %@";
+"project_goals.work_served" = "Задач, служивших этой цели: %@";
+"lists.sort_policy" = "Политика";
 "goalSignals.section" = "Цели";
 "goalSignals.estimate" = "Оценка";
 "goalSignals.rough" = "Приблизительная оценка";

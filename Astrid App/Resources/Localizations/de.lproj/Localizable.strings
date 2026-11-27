@@ -1755,6 +1755,14 @@
 "project_goals.counts" = "Ziele: %1$d · Leitplanken: %2$d";
 "project_goals.target_value" = "Zielwert: %@";
 "project_goals.current_value" = "Aktuell: %@";
+"project_goals.target_met" = "Ziel erreicht";
+"project_goals.progress_value" = "%@ %% des Ziels";
+"project_goals.source_name" = "Quelle: %@";
+"project_goals.updated_ago" = "Aktualisiert %@";
+"project_goals.stale_since" = "Veraltet · aktualisiert %@";
+"project_goals.sparkline_label" = "Verlauf von %@";
+"project_goals.work_served" = "%@ Aufgaben dienten diesem Ziel";
+"lists.sort_policy" = "Richtlinie";
 "goalSignals.section" = "Ziele";
 "goalSignals.estimate" = "Schätzung";
 "goalSignals.rough" = "Grobe Schätzung";

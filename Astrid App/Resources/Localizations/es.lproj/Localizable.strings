@@ -1771,6 +1771,14 @@
 "project_goals.counts" = "Objetivos: %1$d · Límites: %2$d";
 "project_goals.target_value" = "Meta: %@";
 "project_goals.current_value" = "Ahora: %@";
+"project_goals.target_met" = "Objetivo cumplido";
+"project_goals.progress_value" = "%@%% del objetivo";
+"project_goals.source_name" = "Fuente: %@";
+"project_goals.updated_ago" = "Actualizado %@";
+"project_goals.stale_since" = "Desactualizado · actualizado %@";
+"project_goals.sparkline_label" = "Historial de %@";
+"project_goals.work_served" = "%@ tareas sirvieron a este objetivo";
+"lists.sort_policy" = "Política";
 "goalSignals.section" = "Objetivos";
 "goalSignals.estimate" = "Estimación";
 "goalSignals.rough" = "Estimación aproximada";

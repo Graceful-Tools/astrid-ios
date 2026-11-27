@@ -5,6 +5,8 @@ struct ListSortFiltersTab: View {
     @ThemedPalette private var palette
     @StateObject private var listService = ListService.shared
     @ObservedObject private var memberService = ListMemberService.shared
+    /// Whether a trade-off policy applies, which offers the Policy sort (ADEV-321).
+    @ObservedObject private var tradeoffPolicy = ListTradeoffPolicyService.shared
 
     let list: TaskList
     let onUpdate: (TaskList) -> Void
@@ -54,6 +56,10 @@ struct ListSortFiltersTab: View {
                     // Web's sortBy value verbatim — the field round-trips through
                     // PUT /api/v1/lists/:id and both platforms read the same key.
                     Text(NSLocalizedString("lists.recently_completed", comment: "")).tag("completedAt")
+                    // The trade-off policy's order (web ADEV-281, core ADEV-324), only where one is stated.
+                    if tradeoffPolicy.isStated(listId: list.id) || sortBy == ListSortOptions.policy {
+                        Text(NSLocalizedString("lists.sort_policy", comment: "")).tag(ListSortOptions.policy)
+                    }
                 }
                 .onChange(of: sortBy) { oldValue, newValue in
                     AppLog.debug("🔄 [ListSortFiltersTab] sortBy changed: \(oldValue) → \(newValue)")
@@ -256,6 +262,7 @@ struct ListSortFiltersTab: View {
         .task {
             await loadMembers()
         }
+        .task(id: list.id) { await tradeoffPolicy.load(listId: list.id) }
     }
 
     private var hasActiveFilters: Bool {

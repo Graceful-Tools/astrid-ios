@@ -41,6 +41,8 @@ struct MacListSortFiltersContent: View {
     /// list RENDERS, which is the question every other control on this sheet answers. Web says
     /// the same thing in list-sort-and-filters.tsx, and iOS keeps it in Sort & Filters.
     @State private var showSubtasks: Bool
+    /// Whether a trade-off policy applies, which offers the Policy sort (ADEV-321).
+    @ObservedObject private var tradeoffPolicy = ListTradeoffPolicyService.shared
 
     init(list: TaskList, showsSort: Bool = true) {
         self.list = list
@@ -67,7 +69,8 @@ struct MacListSortFiltersContent: View {
                 // saved per-user against the list, not as a column of it (AITD-394).
                 if showsSort {
                     MacFilterRows.header(NSLocalizedString("actions.sort", comment: ""))
-                    filterPicker(NSLocalizedString("lists.sort_order", comment: ""), selection: $sortBy, options: MacListFilter.sort)
+                    filterPicker(NSLocalizedString("lists.sort_order", comment: ""), selection: $sortBy,
+                                 options: MacListFilter.sort(policyStated: tradeoffPolicy.isStated(listId: list.id)))
                 }
                 MacFilterRows.header(NSLocalizedString("lists.filters", comment: ""))
                 filterPicker(NSLocalizedString("lists.task_completion", comment: ""), selection: $completion, options: MacListFilter.completion)
@@ -98,6 +101,7 @@ struct MacListSortFiltersContent: View {
                 }
             }
             .onChange(of: showSubtasks) { _, on in saveShowSubtasks(on) }
+            .task(id: list.id) { if showsSort { await tradeoffPolicy.load(listId: list.id) } }
 
             HStack {
                 Button(NSLocalizedString("mac.clear_filters", comment: "")) {

@@ -144,16 +144,19 @@ nonisolated struct ProjectGoals: Codable, Equatable, Sendable {
     var goals: [ProjectGoal]
     var guardrails: [ProjectGuardrail]
     var canEdit: Bool
+    /// How many tasks served each goal, by goal id (web `workByGoal`, ADEV-182). Read-only.
+    var workByGoal: [String: Int] = [:]
 
-    private enum CodingKeys: String, CodingKey { case projectId, projectName, goals, guardrails, canEdit }
+    private enum CodingKeys: String, CodingKey { case projectId, projectName, goals, guardrails, canEdit, workByGoal }
 
     init(projectId: String? = nil, projectName: String? = nil, goals: [ProjectGoal],
-         guardrails: [ProjectGuardrail], canEdit: Bool = false) {
+         guardrails: [ProjectGuardrail], canEdit: Bool = false, workByGoal: [String: Int] = [:]) {
         self.projectId = projectId
         self.projectName = projectName
         self.goals = goals
         self.guardrails = guardrails
         self.canEdit = canEdit
+        self.workByGoal = workByGoal
     }
 
     init(from decoder: Decoder) throws {
@@ -163,6 +166,7 @@ nonisolated struct ProjectGoals: Codable, Equatable, Sendable {
         goals = try c.decodeIfPresent([ProjectGoal].self, forKey: .goals) ?? []
         guardrails = try c.decodeIfPresent([ProjectGuardrail].self, forKey: .guardrails) ?? []
         canEdit = try c.decodeIfPresent(Bool.self, forKey: .canEdit) ?? false
+        workByGoal = (try? c.decodeIfPresent([String: Int].self, forKey: .workByGoal)) ?? [:]
     }
 
     var isEmpty: Bool { goals.isEmpty && guardrails.isEmpty }
