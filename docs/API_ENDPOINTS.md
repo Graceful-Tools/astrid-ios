@@ -60,6 +60,8 @@ not the app, so those paths are named here rather than listed below.
 
 ### `/api/v1/lists`
 
+- `/api/v1/lists/{id}/orchestration-policy`
+
 
 ### `/api/v1/projects`
 

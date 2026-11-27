@@ -1736,6 +1736,14 @@
 "project_goals.counts" = "目标:%1$d · 护栏:%2$d";
 "project_goals.target_value" = "目标值:%@";
 "project_goals.current_value" = "当前:%@";
+"project_goals.target_met" = "目标已达成";
+"project_goals.progress_value" = "已达目标的 %@%%";
+"project_goals.source_name" = "来源：%@";
+"project_goals.updated_ago" = "更新于%@";
+"project_goals.stale_since" = "已过期 · 更新于%@";
+"project_goals.sparkline_label" = "%@ 的历史";
+"project_goals.work_served" = "%@ 个任务服务于此目标";
+"lists.sort_policy" = "策略";
 "goalSignals.section" = "目标";
 "goalSignals.estimate" = "估算";
 "goalSignals.rough" = "粗略估算";

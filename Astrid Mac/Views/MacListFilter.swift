@@ -49,6 +49,10 @@ enum MacListFilter {
         .init("createdAt", L("lists.created_date")),
         .init("completedAt", L("lists.recently_completed")),
     ]
+    /// The sort choices, with Policy only where a trade-off policy is stated (ADEV-321, web ADEV-281).
+    static func sort(policyStated: Bool) -> [Option] {
+        policyStated ? sort + [.init(ListSortOptions.policy, L("lists.sort_policy"))] : sort
+    }
     static let assignedBy: [Option] = [
         .init("all", L("lists.all")), .init("current_user", L("lists.me")),
         .init("not_current_user", L("lists.not_me")),

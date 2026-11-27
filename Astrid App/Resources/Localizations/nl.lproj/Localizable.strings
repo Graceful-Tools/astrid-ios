@@ -1736,6 +1736,14 @@
 "project_goals.counts" = "Doelen: %1$d · Vangrails: %2$d";
 "project_goals.target_value" = "Streefwaarde: %@";
 "project_goals.current_value" = "Nu: %@";
+"project_goals.target_met" = "Doel bereikt";
+"project_goals.progress_value" = "%@%% van het doel";
+"project_goals.source_name" = "Bron: %@";
+"project_goals.updated_ago" = "Bijgewerkt %@";
+"project_goals.stale_since" = "Verouderd · bijgewerkt %@";
+"project_goals.sparkline_label" = "Verloop van %@";
+"project_goals.work_served" = "%@ taken dienden dit doel";
+"lists.sort_policy" = "Beleid";
 "goalSignals.section" = "Doelen";
 "goalSignals.estimate" = "Schatting";
 "goalSignals.rough" = "Ruwe schatting";

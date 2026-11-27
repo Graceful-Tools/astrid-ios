@@ -1736,6 +1736,14 @@
 "project_goals.counts" = "目標: %1$d · ガードレール: %2$d";
 "project_goals.target_value" = "目標値: %@";
 "project_goals.current_value" = "現在: %@";
+"project_goals.target_met" = "目標達成";
+"project_goals.progress_value" = "目標の%@%%";
+"project_goals.source_name" = "ソース: %@";
+"project_goals.updated_ago" = "更新: %@";
+"project_goals.stale_since" = "古い · 更新: %@";
+"project_goals.sparkline_label" = "%@ の推移";
+"project_goals.work_served" = "この目標に貢献したタスク: %@件";
+"lists.sort_policy" = "ポリシー";
 "goalSignals.section" = "目標";
 "goalSignals.estimate" = "見積もり";
 "goalSignals.rough" = "概算";

@@ -1744,6 +1744,14 @@
 "project_goals.counts" = "Goals: %1$d · Guardrails: %2$d";
 "project_goals.target_value" = "Target: %@";
 "project_goals.current_value" = "Now: %@";
+"project_goals.target_met" = "Target met";
+"project_goals.progress_value" = "%@%% of target";
+"project_goals.source_name" = "Source: %@";
+"project_goals.updated_ago" = "Updated %@";
+"project_goals.stale_since" = "Stale · updated %@";
+"project_goals.sparkline_label" = "History of %@";
+"project_goals.work_served" = "%@ tasks served this goal";
+"lists.sort_policy" = "Policy";
 "goalSignals.section" = "Goals";
 "goalSignals.estimate" = "Estimate";
 "goalSignals.rough" = "Rough estimate";

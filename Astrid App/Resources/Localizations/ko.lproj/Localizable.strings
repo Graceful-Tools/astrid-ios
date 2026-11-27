@@ -1738,6 +1738,14 @@
 "project_goals.counts" = "목표: %1$d · 가드레일: %2$d";
 "project_goals.target_value" = "목표치: %@";
 "project_goals.current_value" = "현재: %@";
+"project_goals.target_met" = "목표 달성";
+"project_goals.progress_value" = "목표의 %@%%";
+"project_goals.source_name" = "출처: %@";
+"project_goals.updated_ago" = "업데이트: %@";
+"project_goals.stale_since" = "오래됨 · 업데이트: %@";
+"project_goals.sparkline_label" = "%@ 추이";
+"project_goals.work_served" = "이 목표에 기여한 작업 %@개";
+"lists.sort_policy" = "정책";
 "goalSignals.section" = "목표";
 "goalSignals.estimate" = "추정";
 "goalSignals.rough" = "대략적 추정";
