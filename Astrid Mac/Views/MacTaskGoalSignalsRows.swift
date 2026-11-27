@@ -10,6 +10,8 @@ import SwiftUI
 
 struct MacTaskGoalSignalsRows: View {
     let task: Task
+    /// No Estimate button on a task this person may not change: asking writes a row (ADEV-329).
+    var isReadOnly = false
 
     @ObservedObject private var service = GoalSignalsService.shared
 
@@ -28,9 +30,10 @@ struct MacTaskGoalSignalsRows: View {
                     }
                 }
             }
-            if let estimate = signals?.estimates?.latest {
+            // The Estimate button and the estimate card (ADEV-329), shared with iOS.
+            EstimateSection(task: task, isReadOnly: isReadOnly) { content in
                 row(icon: "gauge.with.dots.needle.33percent", NSLocalizedString("goalSignals.estimate", comment: "")) {
-                    estimateLines(estimate, links: signals?.links)
+                    content
                 }
             }
             if let results = signals?.experiments, !results.experiments.isEmpty {
@@ -49,24 +52,6 @@ struct MacTaskGoalSignalsRows: View {
             }
         }
         .task(id: task.id) { await service.load(taskId: task.id) }
-    }
-
-    @ViewBuilder
-    private func estimateLines(_ estimate: Estimate, links: TaskGoalLinks?) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: Theme.spacing8) {
-            if let label = estimate.label {
-                Text(GoalSignalsWording.label(label)).bold()
-            }
-            if estimate.rough {
-                Text(NSLocalizedString("goalSignals.rough", comment: "")).foregroundStyle(Theme.textMuted)
-            }
-        }
-        ForEach(Array(GoalSignalsWording.summaryLines(estimate, links: links).enumerated()), id: \.offset) { _, line in
-            Text(line).foregroundStyle(Theme.textSecondary)
-        }
-        if let rationale = estimate.rationale, !rationale.isEmpty {
-            Text(rationale).foregroundStyle(Theme.textMuted)
-        }
     }
 
     private func row<Content: View>(icon: String, _ label: String, @ViewBuilder content: () -> Content) -> some View {

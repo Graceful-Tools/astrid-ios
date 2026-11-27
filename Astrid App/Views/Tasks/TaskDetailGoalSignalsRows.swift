@@ -12,6 +12,8 @@ import SwiftUI
 
 struct TaskDetailGoalSignalsRows: View {
     let task: Task
+    /// No Estimate button on a task this person may not change: asking writes a row (ADEV-329).
+    var isReadOnly = false
 
     @ObservedObject private var service = GoalSignalsService.shared
 
@@ -24,9 +26,10 @@ struct TaskDetailGoalSignalsRows: View {
                     GoalLinksList(links: links)
                 }
             }
-            if let estimate = signals?.estimates?.latest {
+            // The Estimate button and the estimate card (ADEV-329), shared with the Mac.
+            EstimateSection(task: task, isReadOnly: isReadOnly) { content in
                 TwoColumnRow(label: NSLocalizedString("goalSignals.estimate", comment: ""), icon: "gauge.with.dots.needle.33percent") {
-                    EstimateSummary(estimate: estimate, links: signals?.links)
+                    content.font(Theme.Typography.caption1())
                 }
             }
             if let results = signals?.experiments, !results.experiments.isEmpty {
@@ -58,45 +61,6 @@ struct GoalLinksList: View {
                             .foregroundColor(palette.textMuted)
                     }
                 }
-            }
-        }
-    }
-}
-
-/// The label chip, then the estimate in words: reasons, each goal's range, risk and confidence,
-/// and the estimator's rationale. A built-in estimate is tagged "Rough estimate".
-struct EstimateSummary: View {
-    let estimate: Estimate
-    let links: TaskGoalLinks?
-
-    @ThemedPalette private var palette
-
-    private var lines: [String] { GoalSignalsWording.summaryLines(estimate, links: links) }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Theme.spacing4) {
-            HStack(spacing: Theme.spacing8) {
-                if let label = estimate.label {
-                    Text(GoalSignalsWording.label(label))
-                        .font(Theme.Typography.body())
-                        .foregroundColor(palette.textPrimary)
-                        .chipBackground(palette)
-                }
-                if estimate.rough {
-                    Text(NSLocalizedString("goalSignals.rough", comment: ""))
-                        .font(Theme.Typography.caption1())
-                        .foregroundColor(palette.textMuted)
-                }
-            }
-            ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
-                Text(line)
-                    .font(Theme.Typography.caption1())
-                    .foregroundColor(palette.textSecondary)
-            }
-            if let rationale = estimate.rationale, !rationale.isEmpty {
-                Text(rationale)
-                    .font(Theme.Typography.caption1())
-                    .foregroundColor(palette.textMuted)
             }
         }
     }

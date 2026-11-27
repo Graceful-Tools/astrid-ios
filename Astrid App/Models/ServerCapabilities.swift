@@ -15,6 +15,13 @@ import Foundation
 /// Swift's synthesized `init(from:)` THROWS on a missing key even when the property has
 /// a default value, so a server that omits a section — an older deployment, or a newer
 /// one that has reorganised — would fail the whole decode and blank out every capability.
+/// One estimator the deployment offers (`/api/v1/capabilities` → `goalSignals.estimators`).
+nonisolated struct EstimatorChoice: Codable, Equatable, Hashable, Sendable, Identifiable {
+    let key: String
+    let name: String
+    var id: String { key }
+}
+
 struct ServerCapabilities: Codable, Equatable {
 
     struct Auth: Codable, Equatable {
@@ -270,6 +277,22 @@ struct ServerCapabilities: Codable, Equatable {
     var brand = BrandInfo()
     var copy: BrandCopy?
     var meta = Meta()
+    var goalSignals = GoalSignalsOffering()
+
+    /// What goal signals offers on this deployment (ADEV-329; web `goalSignalsOffering`). Empty
+    /// and absent both mean "offer nothing" — the opposite of the groups above, because every
+    /// entry here names a service that has to be configured, and a button for one that is not
+    /// would only fail.
+    struct GoalSignalsOffering: Codable, Equatable {
+        var estimators: [EstimatorChoice] = []
+
+        init() {}
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            estimators = (try? c.decodeIfPresent([EstimatorChoice].self, forKey: .estimators)) ?? []
+        }
+    }
 
     /// Which API this server speaks (ADEV-121). `apiLevel` rises by one whenever the server
     /// gains behaviour a client may depend on (astrid-web `lib/api-level.ts`); a server older
@@ -303,5 +326,6 @@ struct ServerCapabilities: Codable, Equatable {
         brand = try c.decodeIfPresent(BrandInfo.self, forKey: .brand) ?? BrandInfo()
         copy = try c.decodeIfPresent(BrandCopy.self, forKey: .copy)
         meta = (try? c.decodeIfPresent(Meta.self, forKey: .meta)) ?? Meta()
+        goalSignals = (try? c.decodeIfPresent(GoalSignalsOffering.self, forKey: .goalSignals)) ?? GoalSignalsOffering()
     }
 }
