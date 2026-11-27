@@ -61,6 +61,8 @@ struct MacTaskFieldsView: View {
             }
             // A GitHub board's project fields, one row each; none off a board (AITD-491).
             MacTaskProjectFieldsRows(task: task)
+            // Goals, estimate and Pending results; nothing where the project has none (ADEV-323).
+            MacTaskGoalSignalsRows(task: task)
         }
         .macTextSelection()
         .task(id: task.id) { await load() }

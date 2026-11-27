@@ -181,7 +181,7 @@ struct MacBoardView: View {
             ScrollViewReader { cardsProxy in
             ScrollView(.vertical) {
                 LazyVStack(alignment: .leading, spacing: AstridTokens.Layout.Compact.boardCardGap) {
-                    ForEach(items) { t in card(t).id(t.id) }
+                    ForEach(items) { t in card(t, in: col).id(t.id) }
                 }
                 // An empty column says something about its own state, as on iOS (ADEV-81).
                 if items.isEmpty {
@@ -238,7 +238,7 @@ struct MacBoardView: View {
                        onOpen: { created in onOpenCard(created.id, nil) })
     }
 
-    private func card(_ t: Task) -> some View {
+    private func card(_ t: Task, in col: ProjectBoardColumn) -> some View {
         let selected = selectedTaskId == t.id
         return HStack(alignment: .top, spacing: 8) {
             // The SAME control the detail panel uses (task 9be8cb1b). This was a button whose
@@ -284,6 +284,10 @@ struct MacBoardView: View {
                         }
                     }
                     .macFont(.caption2).foregroundStyle(Theme.textMuted)
+                }
+                // The Pending results column draws each card's experiment results (ADEV-323).
+                if col.id == GoalSignalsWording.resultsColumnRole {
+                    MacPendingResultsCardLines(taskId: t.id)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

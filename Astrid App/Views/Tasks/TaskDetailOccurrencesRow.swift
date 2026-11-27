@@ -17,6 +17,7 @@ struct TaskDetailRelatedTasksRows: View {
         TaskDetailBlockersRow(task: task, isReadOnly: isReadOnly)
         TaskDetailOccurrencesRow(task: task)
         TaskDetailProjectFieldsRows(task: task, isReadOnly: isReadOnly) // a GitHub board's fields (AITD-491)
+        TaskDetailGoalSignalsRows(task: task) // goals, estimate, Pending results (ADEV-323)
     }
 }
 
