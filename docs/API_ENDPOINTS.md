@@ -71,6 +71,7 @@ not the app, so those paths are named here rather than listed below.
 
 - `/api/v1/projects/{id}/connectors`
 - `/api/v1/projects/{id}/goals`
+- `/api/v1/projects/{id}/orchestration-policy`
 - `/api/v1/projects/{id}/statuses`
 
 ### `/api/v1/public`

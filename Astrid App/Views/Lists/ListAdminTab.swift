@@ -300,6 +300,17 @@ struct ListAdminTab: View {
                 }
             }
 
+            // The agent policy (ADEV-333): who takes unassigned Ready work, what an agent may do
+            // alone, who it asks. The editor saves itself; the server's `canEdit` decides the rest.
+            Section {
+                NavigationLink {
+                    OrchestrationPolicyEditor(list: list)
+                } label: {
+                    Label(NSLocalizedString("orchestrationPolicy.title", comment: ""), systemImage: "checkmark.shield")
+                }
+                .accessibilityIdentifier("listSettings.agentPolicy")
+            }
+
             // External sync — mirror THIS list to GitHub Issues / Google Tasks.
             // Links are per-user (each member mirrors to their own account);
             // account connect lives in Settings → GitHub Issues / Google Tasks.

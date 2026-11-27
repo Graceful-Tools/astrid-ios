@@ -166,6 +166,7 @@ struct MacListAdminTab: View {
     let list: TaskList
     var onDelete: () -> Void = {}
     @State private var confirmingDelete = false
+    @State private var showingAgentPolicy = false
 
     /// Owner only: an admin may change every setting but not destroy other people's work. The
     /// rule is `ListPermissions`', never restated (PRODUCT_CONTRACT.md).
@@ -198,10 +199,29 @@ struct MacListAdminTab: View {
                     boardSwitch
                 }
                 MacListEditSheet(existing: list, embedded: true)
+                // The agent policy (ADEV-333), in its own sheet: it is a long form of its own,
+                // and it saves each choice itself rather than riding the editor's Save.
+                Button {
+                    showingAgentPolicy = true
+                } label: {
+                    Label(NSLocalizedString("orchestrationPolicy.open", comment: ""), systemImage: "checkmark.shield")
+                }
+                .padding(.horizontal, Theme.spacing4)
+                .accessibilityIdentifier("listSettings.agentPolicy")
                 if Self.offersDelete(for: list, userId: AuthManager.shared.userId) {
                     dangerZone
                 }
             }
+        }
+        .sheet(isPresented: $showingAgentPolicy) {
+            OrchestrationPolicyEditor(list: list)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(NSLocalizedString("actions.done", comment: "")) { showingAgentPolicy = false }
+                            .keyboardShortcut(.return)
+                    }
+                }
+                .frame(minWidth: MacLayout.formSheetMinWidth, minHeight: MacLayout.formSheetMinHeight)
         }
         .confirmationDialog(NSLocalizedString("mac.delete_list_confirm", comment: ""),
                             isPresented: $confirmingDelete) {

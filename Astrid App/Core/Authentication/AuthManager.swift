@@ -774,6 +774,7 @@ class AuthManager: ObservableObject {
         ProjectBoardRowsService.shared.clear()
         ProjectGoalsService.shared.clear()
         ListTradeoffPolicyService.shared.clear()
+        OrchestrationPolicyService.shared.clear()
 
         // Clear user preferences and settings
         MyTasksPreferencesService.shared.clearData()

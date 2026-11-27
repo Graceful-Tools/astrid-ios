@@ -32,6 +32,10 @@ enum MacLayout {
     /// edge, and the panel needs a matching margin on the trailing edge.
     static let detailPanelMargin: CGFloat = 14
 
+    /// A sheet that holds a long settings form of its own — the agent policy (ADEV-333).
+    static let formSheetMinWidth: CGFloat = 520
+    static let formSheetMinHeight: CGFloat = 600
+
     /// Total width the floating pop-out occupies, margins included.
     static var detailPopoutWidth: CGFloat {
         detailPanelWidth + detailArrowWidth + detailPanelMargin * 2
