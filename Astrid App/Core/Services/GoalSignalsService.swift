@@ -159,8 +159,14 @@ final class GoalSignalsService: ObservableObject {
     /// The project's experiment connectors. Only an owner or admin may read them; a refusal is
     /// an empty list, which leaves verification as the only choice.
     func experimentConnectors(projectId: String) async -> [ProjectConnector] {
+        await connectors(projectId: projectId, kind: "experiment")
+    }
+
+    /// The project's connectors of one kind (`metric`, `experiment`, `estimator`); empty when
+    /// refused, since only an owner or admin may read them (ADEV-331's source picker uses `metric`).
+    func connectors(projectId: String, kind: String) async -> [ProjectConnector] {
         let all = (try? await experimentWrites.connectors(projectId)) ?? []
-        return all.filter { $0.kind == "experiment" }
+        return all.filter { $0.kind == kind }
     }
 
     /// Add the Pending results preset column to a board (its owner only).
