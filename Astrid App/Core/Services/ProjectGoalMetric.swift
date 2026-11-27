@@ -43,13 +43,13 @@ nonisolated enum MetricDirection: String, CaseIterable, Sendable {
 }
 
 extension ProjectGoal {
-    private var metric: [String: JSONValue]? {
+    private var metricObject: [String: JSONValue]? {
         if case .object(let object)? = unmodeled["metric"] { return object }
         return nil
     }
 
     /// The goal states a measured metric.
-    var hasMetric: Bool { metric != nil }
+    var hasMetric: Bool { metricObject != nil }
 
     /// Start a metric, pointing up (web's default).
     mutating func addMetric() {
@@ -62,42 +62,42 @@ extension ProjectGoal {
     }
 
     private mutating func setMetric(_ key: String, _ value: JSONValue?) {
-        guard var object = metric else { return }
+        guard var object = metricObject else { return }
         object[key] = value
         unmodeled["metric"] = .object(object)
     }
 
     var metricDirection: MetricDirection {
         get {
-            if case .string(let raw)? = metric?["direction"] { return MetricDirection(rawValue: raw) ?? .up }
+            if case .string(let raw)? = metricObject?["direction"] { return MetricDirection(rawValue: raw) ?? .up }
             return .up
         }
         set { setMetric("direction", .string(newValue.rawValue)) }
     }
 
     var metricUnit: String? {
-        get { if case .string(let unit)? = metric?["unit"] { return unit } else { return nil } }
+        get { if case .string(let unit)? = metricObject?["unit"] { return unit } else { return nil } }
         set { setMetric("unit", GoalMetricJSON.text(newValue)) }
     }
 
     var metricTarget: Double? {
-        get { GoalMetricJSON.number(metric?["target"]) }
+        get { GoalMetricJSON.number(metricObject?["target"]) }
         set { setMetric("target", newValue.map(JSONValue.number)) }
     }
 
     var metricBaseline: Double? {
-        get { GoalMetricJSON.number(metric?["baseline"]) }
+        get { GoalMetricJSON.number(metricObject?["baseline"]) }
         set { setMetric("baseline", newValue.map(JSONValue.number)) }
     }
 
     /// How old the reading may get before it counts as unknown (the server's default is 48).
     var metricStaleAfterHours: Double? {
-        get { GoalMetricJSON.number(metric?["staleAfterHours"]) }
+        get { GoalMetricJSON.number(metricObject?["staleAfterHours"]) }
         set { setMetric("staleAfterHours", newValue.map(JSONValue.number)) }
     }
 
     var metricSource: MetricSource? {
-        get { MetricSource(metric?["source"]) }
+        get { MetricSource(metricObject?["source"]) }
         set { setMetric("source", newValue.map(\.json)) }
     }
 }
