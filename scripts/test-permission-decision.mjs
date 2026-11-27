@@ -25,7 +25,7 @@ test('ADEV-249 the comment is a decision with the command and three numbered opt
   const md = decisionComment(bash);
   assert.match(md, /^\*\*Decision:\*\*/);
   assert.ok(md.includes('curl -s https://example.com'));
-  assert.match(md, /\n1\. Allow once\n2\. Allow for this task\n3\. Deny\n/);
+  assert.match(md, /\n- \*\*1\.\*\* Allow once\n- \*\*2\.\*\* Allow for this task\n- \*\*3\.\*\* Deny\n/);
   assert.ok(md.includes(`Request \`${sig}\``));
 });
 

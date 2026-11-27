@@ -32,7 +32,8 @@ export function decisionComment(request, waitMinutes = 20) {
   return [
     `**Decision:** The scheduled run wants to use **${request.tool_name}**, which its allowlist does not cover: \`${shown(request)}\`. Allow it?`,
     '',
-    ...CHOICES.map((c, i) => `${i + 1}. ${c}`),
+    // A bold number opens each option, or no client draws the cards (ADEV-336, DECISIONS.md).
+    ...CHOICES.map((c, i) => `- **${i + 1}.** ${c}`),
     '',
     `${why}Request \`${requestSignature(request)}\`. A reply in words denies it, and the agent reads your comment on the task instead. ` +
       `With no answer in ${waitMinutes} minutes the run stops asking and hands the task back to you.`,

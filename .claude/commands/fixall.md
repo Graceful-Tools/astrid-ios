@@ -216,10 +216,29 @@ This adapter depends on the shared web handback/resume API **and** its matching
 `claim-fixall-task.ts` deployment. Until both are deployed, report missing resume support;
 do not simulate it with a manual status change, reassignment, or a fresh Ready claim.
 
-When the agent needs an answer, post the question as the actual agent mailbox — in the Decision
-format (astrid-web `docs/DECISIONS.md`: a bold `**Decision:**` paragraph, then numbered options,
-one marked `(recommended)`), ending the comment with the exact line `AGENT-HANDBACK: claude` —
-then hand it back with `assign-task.ts <taskId> <email> --handback --agent claude`: the **Inbox**,
+When the agent needs an answer, post the question as the actual agent mailbox in the Decision
+format (astrid-web `docs/DECISIONS.md`), with the exact line `AGENT-HANDBACK: claude` last:
+
+```markdown
+**Decision:** Should iOS and Mac get the editor now?
+
+- **1.** Leave it web-only and close this (recommended)
+- **2.** Build only the trade-off and autonomy parts
+- **3.** Build the full editor to match web
+
+Why 1: the people who edit it are on web, and Apple already reads the effective policy.
+
+AGENT-HANDBACK: claude
+```
+
+**Every option opens with a bold number, `- **1.** …`.** A plain list number before bold text
+(`1. **Leave it web-only.**`) is not a Decision: no client draws cards for it, and Jon has to type
+the answer (ADEV-336). Keep each option a short phrase — a tapped card posts it back verbatim —
+and put the reasoning in prose after the list, not inside the options. `(recommended)` goes at the
+end of exactly one option. `scripts/test-decision-format.mjs` holds this example to the shared
+contract fixture.
+
+Then hand it back with `assign-task.ts <taskId> <email> --handback --agent claude`: the **Inbox**,
 assigned to that human. Waiting on a person is not Waiting. Jon can answer in that task's
 ordinary comments; he need not issue a
 command or reassign the task. The marker is mailbox attribution, **not approval** for a
