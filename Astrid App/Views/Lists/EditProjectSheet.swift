@@ -50,7 +50,7 @@ struct EditProjectSheet: View {
                     ListColorSwatches(color: color) { color = $0 }
                 }
                 if let draft = goalsDraft {
-                    ProjectGoalsEditor(draft: Binding(get: { draft }, set: { goalsDraft = $0 }))
+                    ProjectGoalsEditor(draft: Binding(get: { draft }, set: { goalsDraft = $0 }), projectId: project.id)
                 }
                 if goalsSaveFailed {
                     Text(NSLocalizedString("project_goals.save_failed", comment: ""))
