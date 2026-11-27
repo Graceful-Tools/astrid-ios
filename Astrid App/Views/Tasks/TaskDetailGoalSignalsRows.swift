@@ -16,12 +16,26 @@ struct TaskDetailGoalSignalsRows: View {
     var isReadOnly = false
 
     @ObservedObject private var service = GoalSignalsService.shared
+    @ObservedObject private var listService = ListService.shared
 
     private var signals: GoalSignals? { service.signals(taskId: task.id) }
+    /// The project whose goals the chips offer; nil off a project or with Project Mode off.
+    private var projectId: String? {
+        guard ListProjectControl.isOffered else { return nil }
+        return EstimateOffer.projectId(for: task, lists: listService.lists)
+    }
 
     var body: some View {
         Group {
-            if let links = signals?.links, !links.links.isEmpty {
+            // Linking and unlinking goals (ADEV-328) where the task is in a project; the read-only
+            // list otherwise, for links a project-less task still carries.
+            if let projectId {
+                GoalChipsView(subject: .task(task.id), projectId: projectId, canEdit: !isReadOnly) { chips in
+                    TwoColumnRow(label: NSLocalizedString("goalSignals.section", comment: ""), icon: "target") {
+                        chips
+                    }
+                }
+            } else if let links = signals?.links, !links.links.isEmpty {
                 TwoColumnRow(label: NSLocalizedString("goalSignals.section", comment: ""), icon: "target") {
                     GoalLinksList(links: links)
                 }

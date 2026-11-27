@@ -1939,3 +1939,9 @@
 "orchestrationPolicy.tradeoff.switch" = "Задать политику компромиссов";
 "orchestrationPolicy.tradeoff.title" = "Политика компромиссов";
 "orchestrationPolicy.unavailable" = "Не удалось прочитать политику агентов этого списка.";
+
+/* Goal links on a task or list, web GoalChips (ADEV-328) */
+"projectMode.goals.linkGoal" = "Привязать цель";
+"projectMode.goals.unlinkGoal" = "Отвязать %@";
+"projectMode.goals.viaList" = "Из списка";
+"projectMode.goals.linkFailed" = "Не удалось изменить привязку к цели. Повторите попытку.";

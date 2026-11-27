@@ -1955,3 +1955,9 @@
 "orchestrationPolicy.tradeoff.switch" = "Définir une politique d'arbitrage";
 "orchestrationPolicy.tradeoff.title" = "Politique d'arbitrage";
 "orchestrationPolicy.unavailable" = "Impossible de lire la politique des agents de cette liste.";
+
+/* Goal links on a task or list, web GoalChips (ADEV-328) */
+"projectMode.goals.linkGoal" = "Lier un objectif";
+"projectMode.goals.unlinkGoal" = "Délier %@";
+"projectMode.goals.viaList" = "Depuis la liste";
+"projectMode.goals.linkFailed" = "Impossible de modifier le lien avec l'objectif. Réessayez.";

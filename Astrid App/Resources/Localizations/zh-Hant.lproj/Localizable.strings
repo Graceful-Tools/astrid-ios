@@ -1941,3 +1941,9 @@
 "orchestrationPolicy.tradeoff.switch" = "設定權衡政策";
 "orchestrationPolicy.tradeoff.title" = "權衡政策";
 "orchestrationPolicy.unavailable" = "無法讀取此清單的代理政策。";
+
+/* Goal links on a task or list, web GoalChips (ADEV-328) */
+"projectMode.goals.linkGoal" = "連結目標";
+"projectMode.goals.unlinkGoal" = "取消連結 %@";
+"projectMode.goals.viaList" = "來自清單";
+"projectMode.goals.linkFailed" = "無法變更目標連結。請再試一次。";

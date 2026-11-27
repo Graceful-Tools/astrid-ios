@@ -195,6 +195,17 @@ struct MacListAdminTab: View {
                 // Which project the list is in, and moving it (AITD-681). Draws nothing when
                 // Project Mode is off or the core offers no move.
                 MacListProjectRow(list: list)
+                // The goals every task on the list serves (ADEV-328), a list admin's to change.
+                if ListProjectControl.isOffered, let projectId = list.projectId {
+                    GoalChipsView(subject: .list(list.id), projectId: projectId,
+                                  canEdit: ListPermissions.canEditSettings(list, userId: AuthManager.shared.userId)) { chips in
+                        VStack(alignment: .leading, spacing: Theme.spacing4) {
+                            Text(NSLocalizedString("goalSignals.section", comment: ""))
+                                .foregroundStyle(Theme.textMuted)
+                            chips
+                        }
+                    }
+                }
                 if Self.offersBoardSwitch(for: list, userId: AuthManager.shared.userId) {
                     boardSwitch
                 }

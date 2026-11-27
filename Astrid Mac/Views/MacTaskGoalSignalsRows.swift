@@ -14,12 +14,26 @@ struct MacTaskGoalSignalsRows: View {
     var isReadOnly = false
 
     @ObservedObject private var service = GoalSignalsService.shared
+    @ObservedObject private var listService = ListService.shared
 
     private var signals: GoalSignals? { service.signals(taskId: task.id) }
+    /// The project whose goals the chips offer; nil off a project or with Project Mode off.
+    private var projectId: String? {
+        guard ListProjectControl.isOffered else { return nil }
+        return EstimateOffer.projectId(for: task, lists: listService.lists)
+    }
 
     var body: some View {
         Group {
-            if let links = signals?.links, !links.links.isEmpty {
+            // Linking and unlinking goals (ADEV-328) where the task is in a project; read-only
+            // lines otherwise.
+            if let projectId {
+                GoalChipsView(subject: .task(task.id), projectId: projectId,
+                              canEdit: !isReadOnly && GoalChipsAccess.canEditTask(task, lists: listService.lists,
+                                                                                    userId: AuthManager.shared.userId)) { chips in
+                    row(icon: "target", NSLocalizedString("goalSignals.section", comment: "")) { chips }
+                }
+            } else if let links = signals?.links, !links.links.isEmpty {
                 row(icon: "target", NSLocalizedString("goalSignals.section", comment: "")) {
                     ForEach(links.links) { link in
                         Text(link.statement)

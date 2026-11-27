@@ -300,6 +300,15 @@ struct ListAdminTab: View {
                 }
             }
 
+            // The goals every task on the list serves (ADEV-328; web GoalChips). Only in a project
+            // with goals, and only a list admin may change them (ListPermissions).
+            if ListProjectControl.isOffered, let projectId = list.projectId {
+                GoalChipsView(subject: .list(list.id), projectId: projectId,
+                              canEdit: ListPermissions.canEditSettings(list, userId: AuthManager.shared.userId)) { chips in
+                    Section(NSLocalizedString("goalSignals.section", comment: "")) { chips }
+                }
+            }
+
             // The agent policy (ADEV-333): who takes unassigned Ready work, what an agent may do
             // alone, who it asks. The editor saves itself; the server's `canEdit` decides the rest.
             Section {

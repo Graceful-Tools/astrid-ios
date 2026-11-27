@@ -1955,3 +1955,9 @@
 "orchestrationPolicy.tradeoff.switch" = "Definir una política de equilibrio";
 "orchestrationPolicy.tradeoff.title" = "Política de equilibrio";
 "orchestrationPolicy.unavailable" = "No se puede leer la política de agentes de esta lista.";
+
+/* Goal links on a task or list, web GoalChips (ADEV-328) */
+"projectMode.goals.linkGoal" = "Vincular un objetivo";
+"projectMode.goals.unlinkGoal" = "Desvincular %@";
+"projectMode.goals.viaList" = "De la lista";
+"projectMode.goals.linkFailed" = "No se pudo cambiar el vínculo con el objetivo. Inténtalo de nuevo.";

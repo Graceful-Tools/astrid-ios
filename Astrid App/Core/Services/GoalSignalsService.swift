@@ -37,6 +37,10 @@ final class GoalSignalsService: ObservableObject {
     private let postEstimate: PostEstimate
     private let postFeatureRequest: PostFeatureRequest
     private let experimentWrites: ExperimentWrites
+    private let goalLinkWrites: GoalLinkWrites
+
+    /// Each list's goal links, once read (ADEV-328); missing means not read, or refused.
+    @Published private(set) var byList: [String: ListGoalLinks] = [:]
 
     /// The feature flag behind every goal-signals route (web `GOAL_SIGNALS_FEATURE_KEY`).
     static let featureKey = "goal_signals"
@@ -46,7 +50,8 @@ final class GoalSignalsService: ObservableObject {
          readExperiment: Read<TaskExperiments>? = nil,
          postEstimate: PostEstimate? = nil,
          postFeatureRequest: PostFeatureRequest? = nil,
-         experimentWrites: ExperimentWrites? = nil) {
+         experimentWrites: ExperimentWrites? = nil,
+         goalLinkWrites: GoalLinkWrites? = nil) {
         self.readLinks = readLinks ?? { try await Self.core.run(CoreCommand(kind: "getTaskGoalLinks", taskId: $0), as: TaskGoalLinks.self) }
         self.readEstimate = readEstimate ?? { try await Self.core.run(CoreCommand(kind: "getTaskEstimate", taskId: $0), as: TaskEstimates.self) }
         self.readExperiment = readExperiment ?? { try await Self.core.run(CoreCommand(kind: "getTaskExperiment", taskId: $0), as: TaskExperiments.self) }
@@ -59,6 +64,7 @@ final class GoalSignalsService: ObservableObject {
             try await AstridAPIClient.shared.requestFeatureAccess(featureKey: $0)
         }
         self.experimentWrites = experimentWrites ?? .api
+        self.goalLinkWrites = goalLinkWrites ?? .core
     }
 
     private static var core: CoreSession { AppCore.shared.session }
@@ -127,6 +133,77 @@ final class GoalSignalsService: ObservableObject {
             return true
         } catch {
             AppLog.debug("❌ [GoalSignals] access request failed: \((error as NSError).localizedDescription)")
+            return false
+        }
+    }
+
+    // MARK: - Goal links (ADEV-328)
+
+    /// Link one more goal to the task: its own links in `projectId`, plus this one. The answer is
+    /// the new set, held at once, so the chips redraw without a re-read.
+    @discardableResult
+    func linkGoal(taskId: String, goalId: String, projectId: String) async -> Bool {
+        let own = (byTask[taskId]?.links?.links ?? [])
+            .filter { $0.projectId == projectId && $0.via != "list" }
+            .map(\.goalId)
+        guard !own.contains(goalId) else { return true }
+        return await holdLinks(taskId: taskId, "link goal") {
+            try await self.goalLinkWrites.setTask(taskId, own + [goalId], projectId)
+        }
+    }
+
+    /// Unlink one of the task's own goals. One inherited from a list is unlinked on the list.
+    @discardableResult
+    func unlinkGoal(taskId: String, goalId: String, projectId: String) async -> Bool {
+        await holdLinks(taskId: taskId, "unlink goal") {
+            try await self.goalLinkWrites.unlinkTask(taskId, goalId, projectId)
+        }
+    }
+
+    private func holdLinks(taskId: String, _ what: String, _ action: () async throws -> TaskGoalLinks) async -> Bool {
+        do {
+            let links = try await action()
+            var signals = byTask[taskId] ?? GoalSignals()
+            signals.links = links
+            if byTask[taskId] != signals { byTask[taskId] = signals }
+            return true
+        } catch {
+            AppLog.debug("❌ [GoalSignals] \(what) failed: \((error as NSError).localizedDescription)")
+            return false
+        }
+    }
+
+    func listLinks(listId: String) -> ListGoalLinks? { byList[listId] }
+
+    /// Read the list's goal links. A refusal leaves what was held.
+    func loadList(listId: String) async {
+        _ = await holdListLinks(listId: listId, "read list goals") { try await self.goalLinkWrites.readList(listId) }
+    }
+
+    /// Link one more goal to the list. The server takes it from a list admin only.
+    @discardableResult
+    func linkListGoal(listId: String, goalId: String) async -> Bool {
+        let own = byList[listId]?.links.map(\.goalId) ?? []
+        guard !own.contains(goalId) else { return true }
+        return await holdListLinks(listId: listId, "link list goal") {
+            try await self.goalLinkWrites.setList(listId, own + [goalId])
+        }
+    }
+
+    @discardableResult
+    func unlinkListGoal(listId: String, goalId: String) async -> Bool {
+        await holdListLinks(listId: listId, "unlink list goal") {
+            try await self.goalLinkWrites.unlinkList(listId, goalId)
+        }
+    }
+
+    private func holdListLinks(listId: String, _ what: String, _ action: () async throws -> ListGoalLinks) async -> Bool {
+        do {
+            let links = try await action()
+            if byList[listId] != links { byList[listId] = links }
+            return true
+        } catch {
+            AppLog.debug("❌ [GoalSignals] \(what) failed: \((error as NSError).localizedDescription)")
             return false
         }
     }

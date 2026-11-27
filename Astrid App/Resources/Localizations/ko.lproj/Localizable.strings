@@ -1941,3 +1941,9 @@
 "orchestrationPolicy.tradeoff.switch" = "트레이드오프 정책 지정";
 "orchestrationPolicy.tradeoff.title" = "트레이드오프 정책";
 "orchestrationPolicy.unavailable" = "이 목록의 에이전트 정책을 읽을 수 없습니다.";
+
+/* Goal links on a task or list, web GoalChips (ADEV-328) */
+"projectMode.goals.linkGoal" = "목표 연결";
+"projectMode.goals.unlinkGoal" = "%@ 연결 해제";
+"projectMode.goals.viaList" = "목록에서";
+"projectMode.goals.linkFailed" = "목표 연결을 변경할 수 없습니다. 다시 시도하세요.";

@@ -1939,3 +1939,9 @@
 "orchestrationPolicy.tradeoff.switch" = "Een afwegingsbeleid vastleggen";
 "orchestrationPolicy.tradeoff.title" = "Afwegingsbeleid";
 "orchestrationPolicy.unavailable" = "Het agentbeleid van deze lijst kan niet worden gelezen.";
+
+/* Goal links on a task or list, web GoalChips (ADEV-328) */
+"projectMode.goals.linkGoal" = "Doel koppelen";
+"projectMode.goals.unlinkGoal" = "%@ ontkoppelen";
+"projectMode.goals.viaList" = "Van de lijst";
+"projectMode.goals.linkFailed" = "De doelkoppeling kon niet worden gewijzigd. Probeer het opnieuw.";

@@ -1939,3 +1939,9 @@
 "orchestrationPolicy.tradeoff.switch" = "Eine Abwägungsrichtlinie festlegen";
 "orchestrationPolicy.tradeoff.title" = "Abwägungsrichtlinie";
 "orchestrationPolicy.unavailable" = "Die Agent-Richtlinie dieser Liste kann nicht gelesen werden.";
+
+/* Goal links on a task or list, web GoalChips (ADEV-328) */
+"projectMode.goals.linkGoal" = "Ziel verknüpfen";
+"projectMode.goals.unlinkGoal" = "%@ lösen";
+"projectMode.goals.viaList" = "Von der Liste";
+"projectMode.goals.linkFailed" = "Die Zielverknüpfung konnte nicht geändert werden. Versuche es erneut.";

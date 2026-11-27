@@ -1939,3 +1939,9 @@
 "orchestrationPolicy.tradeoff.switch" = "トレードオフポリシーを設定する";
 "orchestrationPolicy.tradeoff.title" = "トレードオフポリシー";
 "orchestrationPolicy.unavailable" = "このリストのエージェントポリシーを読み込めません。";
+
+/* Goal links on a task or list, web GoalChips (ADEV-328) */
+"projectMode.goals.linkGoal" = "目標をリンク";
+"projectMode.goals.unlinkGoal" = "%@ のリンクを解除";
+"projectMode.goals.viaList" = "リストから";
+"projectMode.goals.linkFailed" = "目標のリンクを変更できませんでした。もう一度お試しください。";

@@ -1947,3 +1947,9 @@
 "orchestrationPolicy.tradeoff.switch" = "State a trade-off policy";
 "orchestrationPolicy.tradeoff.title" = "Trade-off policy";
 "orchestrationPolicy.unavailable" = "The agent policy can't be read on this list.";
+
+/* Goal links on a task or list, web GoalChips (ADEV-328) */
+"projectMode.goals.linkGoal" = "Link a goal";
+"projectMode.goals.unlinkGoal" = "Unlink %@";
+"projectMode.goals.viaList" = "From the list";
+"projectMode.goals.linkFailed" = "Could not change the goal link. Try again.";

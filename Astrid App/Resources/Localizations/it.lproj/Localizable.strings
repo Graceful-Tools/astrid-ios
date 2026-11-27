@@ -1939,3 +1939,9 @@
 "orchestrationPolicy.tradeoff.switch" = "Definire una policy di compromesso";
 "orchestrationPolicy.tradeoff.title" = "Policy di compromesso";
 "orchestrationPolicy.unavailable" = "Impossibile leggere i criteri degli agenti di questo elenco.";
+
+/* Goal links on a task or list, web GoalChips (ADEV-328) */
+"projectMode.goals.linkGoal" = "Collega un obiettivo";
+"projectMode.goals.unlinkGoal" = "Scollega %@";
+"projectMode.goals.viaList" = "Dalla lista";
+"projectMode.goals.linkFailed" = "Impossibile modificare il collegamento all'obiettivo. Riprova.";
