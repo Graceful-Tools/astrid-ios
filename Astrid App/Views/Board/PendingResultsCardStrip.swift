@@ -13,17 +13,18 @@ struct PendingResultsCardStrip: View {
     let taskId: String
 
     @ObservedObject private var service = GoalSignalsService.shared
+    @ThemedPalette private var palette
 
     private var experiments: [ExperimentLink] {
         service.signals(taskId: taskId)?.experiments?.experiments ?? []
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: Theme.spacing2) {
             ForEach(experiments) { link in
                 Text(GoalSignalsWording.cardLine(link))
                     .font(Theme.Typography.caption1())
-                    .foregroundStyle(link.stale ? Theme.textMuted : Theme.textSecondary)
+                    .foregroundStyle(link.stale ? palette.textMuted : palette.textSecondary)
                     .lineLimit(2)
             }
         }

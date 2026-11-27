@@ -383,7 +383,7 @@ struct BoardColumnView: View {
     /// where a release lands. The card reports its own extent so it can.
     @ViewBuilder
     private func cardSlot(for task: Task, at index: Int) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: Theme.spacing2) {
             BoardTaskCardView(task: task, hiddenListIds: rowHiddenListIds,
                               isSelected: task.id == selectedTaskId)
             // The Pending results column draws each card's experiment results (ADEV-323).

@@ -93,7 +93,7 @@ struct MacPendingResultsCardLines: View {
 
     var body: some View {
         let experiments = service.signals(taskId: taskId)?.experiments?.experiments ?? []
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: Theme.spacing2) {
             ForEach(experiments) { link in
                 Text(GoalSignalsWording.cardLine(link))
                     .lineLimit(2)

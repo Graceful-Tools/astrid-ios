@@ -48,7 +48,7 @@ struct GoalLinksList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.spacing4) {
             ForEach(links.links) { link in
-                VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: Theme.spacing2) {
                     Text(link.statement)
                         .font(Theme.Typography.body())
                         .foregroundColor(palette.textPrimary)
@@ -111,7 +111,7 @@ struct PendingResultsLines: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.spacing4) {
             ForEach(results.experiments) { link in
-                VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: Theme.spacing2) {
                     Text(GoalSignalsWording.resultLine(link))
                         .font(Theme.Typography.caption1())
                         .foregroundColor(palette.textPrimary)
