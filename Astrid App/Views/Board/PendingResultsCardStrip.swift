@@ -21,7 +21,7 @@ struct PendingResultsCardStrip: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(experiments) { link in
-                Text(Self.line(link))
+                Text(GoalSignalsWording.cardLine(link))
                     .font(Theme.Typography.caption1())
                     .foregroundStyle(link.stale ? Theme.textMuted : Theme.textSecondary)
                     .lineLimit(2)
@@ -30,13 +30,5 @@ struct PendingResultsCardStrip: View {
         .padding(.horizontal, Theme.spacing8)
         .padding(.vertical, experiments.isEmpty ? 0 : Theme.spacing4)
         .task(id: taskId) { await service.loadExperiment(taskId: taskId) }
-    }
-
-    /// "Experiment · Running · Improving · Decide by Dec 1", with the stale note after.
-    static func line(_ link: ExperimentLink) -> String {
-        var parts = [GoalSignalsWording.resultLine(link)]
-        if let date = link.decideByDate { parts.append(GoalSignalsWording.decideBy(date)) }
-        if link.stale { parts.append(NSLocalizedString("goalSignals.results.stale", comment: "")) }
-        return parts.joined(separator: " · ")
     }
 }

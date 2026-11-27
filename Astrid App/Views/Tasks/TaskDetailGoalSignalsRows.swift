@@ -4,8 +4,10 @@
 //
 //  Everything is read through `GoalSignalsService` and worded by `GoalSignalsWording`; nothing is
 //  computed here. A part the server refused, or one with nothing in it, draws no row, so a task in
-//  a project without goal signals shows its details unchanged.
+//  a project without goal signals shows its details unchanged. iOS only: the Mac draws its own
+//  (`MacTaskGoalSignalsRows`) at its density, from the same service and wording.
 
+#if os(iOS)
 import SwiftUI
 
 struct TaskDetailGoalSignalsRows: View {
@@ -128,3 +130,4 @@ struct PendingResultsLines: View {
         }
     }
 }
+#endif

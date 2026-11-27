@@ -83,4 +83,25 @@ struct MacTaskGoalSignalsRows: View {
         }
     }
 }
+
+/// The Pending results card on the Mac board (ADEV-323): under the title of a card in the
+/// `results` column, one line per experiment or verification, as iOS's `PendingResultsCardStrip`.
+struct MacPendingResultsCardLines: View {
+    let taskId: String
+
+    @ObservedObject private var service = GoalSignalsService.shared
+
+    var body: some View {
+        let experiments = service.signals(taskId: taskId)?.experiments?.experiments ?? []
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(experiments) { link in
+                Text(GoalSignalsWording.cardLine(link))
+                    .lineLimit(2)
+                    .foregroundStyle(link.stale ? Theme.textMuted : Theme.textSecondary)
+            }
+        }
+        .macFont(.caption2)
+        .task(id: taskId) { await service.loadExperiment(taskId: taskId) }
+    }
+}
 #endif

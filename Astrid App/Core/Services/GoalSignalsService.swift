@@ -1,4 +1,5 @@
 import AstridCore
+import Combine
 import Foundation
 
 /// What a task does for its project's goals: its goal links, its estimate and its experiment
@@ -392,6 +393,15 @@ enum GoalSignalsWording {
         parts.append(text(link.kind == "verification" ? "goalSignals.results.verification" : "goalSignals.results.experiment"))
         parts.append(state(link.state))
         if let verdict = link.verdict.flatMap(verdict) { parts.append(verdict) }
+        return parts.joined(separator: " · ")
+    }
+
+    /// A Pending results card's line, iOS and Mac: "Experiment · Running · Improving · Decide by
+    /// Dec 1", with the stale note after.
+    static func cardLine(_ link: ExperimentLink) -> String {
+        var parts = [resultLine(link)]
+        if let date = link.decideByDate { parts.append(decideBy(date)) }
+        if link.stale { parts.append(text("goalSignals.results.stale")) }
         return parts.joined(separator: " · ")
     }
 

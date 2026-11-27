@@ -132,6 +132,11 @@ final class GoalSignalsTests: XCTestCase {
         XCTAssertEqual(GoalSignalsWording.resultLine(running), "Experiment · Running · Improving")
         let pending = try XCTUnwrap(results.experiments.last)
         XCTAssertEqual(GoalSignalsWording.resultLine(pending), "Verification · Not started")
+        // The board card adds when to decide and the stale note, the same line on iOS and Mac.
+        XCTAssertTrue(GoalSignalsWording.cardLine(running).hasPrefix("Experiment · Running · Improving · "))
+        XCTAssertEqual(GoalSignalsWording.cardLine(pending),
+                       "Verification · Not started · " + NSLocalizedString("goalSignals.results.stale", comment: ""))
+        XCTAssertEqual(GoalSignalsWording.resultsColumnRole, "results")
     }
 
     // MARK: - The service
