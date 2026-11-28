@@ -1,5 +1,6 @@
 //  MacProjectActions.swift
-//  Astrid for Mac — creating a project on its own and deleting one (ADEV-27).
+//  Astrid for Mac — deleting a project from the sidebar (ADEV-27). Creating one moved to
+//  Settings ▸ Projects (ADEV-357, `ProjectsSettingsView`), shared with iPhone and iPad.
 //
 //  Jon, 2026-11-16: the Mac "can't create, edit (add/remove lists, users), delete projects". Lists
 //  already move in and out (AITD-681) and a board's rows are its Add list / × (AITD-674); what had
@@ -13,14 +14,12 @@ import SwiftUI
 
 enum MacProjectActions {
 
-    /// The Projects section shows whenever Project Mode is on — with no projects it is where the
-    /// first one is made.
+    /// The Projects section shows whenever Project Mode is on.
     static func showsSection(offered: Bool) -> Bool { offered }
 
     /// The name a new project is created with, or nil when there is nothing to create.
     static func projectName(from input: String) -> String? {
-        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
+        ProjectsSettings.projectName(from: input)
     }
 
     /// The sidebar selection once `projectId` is gone: its board closes, anything else stays.
@@ -36,60 +35,8 @@ enum MacProjectActions {
     // MARK: - Doing it
 
     @MainActor
-    static func create(named name: String, then done: @escaping (Project) -> Void) {
-        _Concurrency.Task {
-            do {
-                done(try await ProjectService.shared.createProject(name: name))
-            } catch {
-                if let key = MacListProjectControl.refusalKey(for: error) {
-                    AppErrorCenter.shared.show(NSLocalizedString(key, comment: ""))
-                } else {
-                    AppErrorCenter.shared.report("Create project", error)
-                }
-            }
-        }
-    }
-
-    @MainActor
     static func delete(projectId: String, then done: @escaping () -> Void) {
         ListProjectControl.deleteProject(id: projectId, then: done)
-    }
-}
-
-// MARK: - New Project…
-
-struct MacNewProjectSheet: View {
-    var onCreated: (Project) -> Void
-    @Environment(\.dismiss) private var dismiss
-    @State private var name = ""
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: AstridTokens.Space.s12) {
-            Text(NSLocalizedString("projects.new_project_title", comment: ""))
-                .macFont(.headline).foregroundStyle(Theme.textPrimary)
-            TextField(NSLocalizedString("projects.project_name", comment: ""), text: $name)
-                .textFieldStyle(.roundedBorder)
-                .accessibilityIdentifier("projects.newProjectName")
-                .onSubmit(create)
-            HStack {
-                Spacer()
-                Button(NSLocalizedString("actions.cancel", comment: "")) { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Button(NSLocalizedString("actions.create", comment: ""), action: create)
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(MacProjectActions.projectName(from: name) == nil)
-                    .accessibilityIdentifier("projects.newProjectCreate")
-            }
-        }
-        .padding(AstridTokens.Space.s20)
-        .frame(minWidth: 320)
-    }
-
-    private func create() {
-        guard let name = MacProjectActions.projectName(from: name) else { return }
-        MacProjectActions.create(named: name, then: onCreated)
-        dismiss()
     }
 }
 #endif

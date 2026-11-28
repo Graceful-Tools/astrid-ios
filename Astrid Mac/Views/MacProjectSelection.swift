@@ -66,8 +66,7 @@ struct MacProjectsSidebarSection<ListRow: View>: View {
     /// Which projects have their lists hidden (ADEV-57), shared with iPhone and iPad.
     @StateObject private var collapse = SidebarProjectCollapse.shared
     @State private var newListProject: Project?
-    /// New Project… (ADEV-27): the sidebar is where a project is made, even the first one.
-    @State private var creatingProject = false
+    // New Project… is in Settings ▸ Projects, not here (ADEV-357).
     /// Delete Project…, confirmed first (ADEV-27).
     @State private var deletingProject: Project?
     /// Rename Project… and Edit Project… (ADEV-65), shared with iPhone and iPad.
@@ -77,7 +76,6 @@ struct MacProjectsSidebarSection<ListRow: View>: View {
     var body: some View {
         let entries = SidebarProjects.entries(offered: offered, projects: projectService.projects, lists: lists)
         if MacProjectActions.showsSection(offered: offered) {
-            Section { newProjectRow }
             // The sections, the header's name and its chevron are iOS's (ADEV-170).
             SidebarProjectSections(entries: entries, collapse: collapse, header: { project, name in
                 HStack(spacing: 0) {
@@ -87,18 +85,6 @@ struct MacProjectsSidebarSection<ListRow: View>: View {
                         .padding(.trailing, MacLayout.sidebarHeaderAccessoryTrailingInset)   // in the counts' column (ADEV-77)
                 }
             }, listRow: listRow)
-        }
-    }
-
-    private var newProjectRow: some View {
-        Button { creatingProject = true } label: {
-            Label(NSLocalizedString("projects.new_project", comment: ""), systemImage: "plus")
-                .foregroundStyle(Theme.textSecondary)
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("sidebar.newProject")
-        .sheet(isPresented: $creatingProject) {
-            MacNewProjectSheet { project in selection = MacProjectSelection.tag(projectId: project.id) }
         }
     }
 

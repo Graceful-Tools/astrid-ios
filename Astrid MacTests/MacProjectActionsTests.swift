@@ -10,7 +10,7 @@ import XCTest
 
 final class MacProjectActionsTests: XCTestCase {
 
-    func testTheProjectsSectionShowsWithNoProjectsSoOneCanBeCreated_ADEV27() {
+    func testTheProjectsSectionShowsWheneverProjectModeIsOn_ADEV27() {
         XCTAssertTrue(MacProjectActions.showsSection(offered: true))
         XCTAssertFalse(MacProjectActions.showsSection(offered: false))
     }

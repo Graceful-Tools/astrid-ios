@@ -69,6 +69,15 @@ struct SettingsView: View {
                     NavigationLink(destination: LazyView { ReminderSettingsView() }) {
                         Label(NSLocalizedString("reminders", comment: ""), systemImage: "bell")
                     }
+                    // Add and edit projects (ADEV-357), only where Project Mode is on.
+                    if ProjectsSettings.isShown(offered: ListProjectControl.isOffered(
+                        deploymentShips: serverCapabilities.capabilities.product.projectMode,
+                        flagEnabled: featureFlags.isEnabled(.projectMode))) {
+                        NavigationLink(destination: LazyView { ProjectsSettingsView() }) {
+                            Label(NSLocalizedString("project_mode.projects_heading", comment: ""), systemImage: "rectangle.3.group")
+                        }
+                        .accessibilityIdentifier("settings.projects")
+                    }
                 }
 
                 // Exploratory Features section

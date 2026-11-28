@@ -86,11 +86,12 @@ final class MacProjectSidebarSectionsTests: XCTestCase {
                       "the chevron is pulled in to the counts' column")
     }
 
-    /// What the row carried moves onto the header: New Project stays (ADEV-27), and the header
-    /// still opens the board, offers New List / Delete, and takes a dropped list.
+    /// What the row carried moves onto the header: it still opens the board, offers New List /
+    /// Delete, and takes a dropped list. New Project… left for Settings ▸ Projects (ADEV-357).
     func testTheHeaderKeepsTheRowsActions_ADEV51() throws {
         let source = try sectionSource()
-        for marker in ["sidebar.newProject", "sidebar.project.newList", "sidebar.project.delete",
+        XCTAssertFalse(source.contains("sidebar.newProject"), "made in Settings now (ADEV-357)")
+        for marker in ["sidebar.project.newList", "sidebar.project.delete",
                        "MacProjectSelection.tag(projectId:", ".dropDestination"] {
             XCTAssertTrue(source.contains(marker), "kept: \(marker)")
         }

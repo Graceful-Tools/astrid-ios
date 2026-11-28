@@ -10,6 +10,8 @@ struct MacSettingsView: View {
     @StateObject private var reminders = ReminderSettings.shared
     @StateObject private var userSettings = UserSettingsService.shared
     @ObservedObject private var textSize = MacTextSize.shared
+    @StateObject private var capabilities = ServerCapabilityService.shared
+    @StateObject private var featureFlags = FeatureFlagService.shared
     @AppStorage("themeMode") private var themeMode: ThemeMode = .ocean
     // Scroll bars are hidden by default (task 01d8cfa1); this puts them back for anyone who
     // wants the system behaviour.
@@ -67,6 +69,16 @@ struct MacSettingsView: View {
                 .tabItem { Label(NSLocalizedString("sync", comment: ""), systemImage: "arrow.triangle.2.circlepath") }
                 .tag(MacSettingsTab.sync)
 
+            // Add and edit projects (ADEV-357), only where Project Mode is on.
+            if ProjectsSettings.isShown(offered: MacProjectSelection.isOffered(
+                deploymentShips: capabilities.capabilities.product.projectMode,
+                flagEnabled: featureFlags.isEnabled(.projectMode))) {
+                ProjectsSettingsView()
+                    .macThemedSurface()
+                    .tabItem { Label(NSLocalizedString("project_mode.projects_heading", comment: ""), systemImage: "rectangle.3.group") }
+                    .tag(MacSettingsTab.projects)
+            }
+
             MacAgentHubView()
                 .tabItem { Label(NSLocalizedString("mac.ai", comment: ""), systemImage: "sparkles") }
                 .tag(MacSettingsTab.ai)
@@ -89,7 +101,7 @@ struct MacSettingsView: View {
 
 /// The Settings window's tabs, stored so a link can pick one (AITD-452).
 enum MacSettingsTab: String {
-    case general, reminders, sync, ai, language, connection, account
+    case general, reminders, sync, projects, ai, language, connection, account
 
     static let defaultsKey = "macSettingsTab"
     /// Set by a Connections link; the Agent Hub opens its Connections sheet and clears it (AITD-458).
