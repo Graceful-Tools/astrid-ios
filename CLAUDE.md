@@ -61,7 +61,8 @@ npm run predeploy             # Run standard checks before pushing
 | `npm run predeploy` | Quick + partner-brand audit + unit tests (with the per-directory coverage table, failing below `scripts/coverage-floor.json`) + script self-tests + `test:core` — **the standard gate before pushing** |
 | `npm run predeploy:full` | Standard + iOS UI tests (mints a per-run test account) + Mac unit tests + Mac UI tests |
 | `npm run check:version` | Refuse a `MARKETING_VERSION` the App Store has already released, iOS and Mac (skips offline) |
-| `npm run test:scripts` | Self-tests for the shell scripts (`check-version.sh`, `check-app-version-table.sh`, `fixall-loop.sh`, `core/worktree.sh`, `update-web-tooling.sh`, `make-brand-variant.sh` and the brand-variant smoke's checks, `monkey-test.sh`'s verdict, the source-contract rules) |
+| `npm run test:scripts` | Self-tests for the shell scripts (`check-version.sh`, `check-app-version-table.sh`, `fixall-loop.sh`, `core/worktree.sh`, `update-web-tooling.sh`, `land-main.sh`, `make-brand-variant.sh` and the brand-variant smoke's checks, `monkey-test.sh`'s verdict, the source-contract rules) |
+| `npm run land` | Land local `main` through a PR (main takes no direct push), wait for the required checks, merge, push `iosdev`/`macdev`; `-- --no-build` for main only |
 | `npm run fixall:status` | Read-only answer to "status?": the tree lock and unpushed commits, the iOS queue, each Doing task and whether a VALID build carries it, the latest Xcode Cloud runs, how stale the astrid-web tooling checkout is, the loop's last results |
 | `npm run test` | Unit tests |
 | `npm run test:ui` | UI tests only |
@@ -127,9 +128,14 @@ Only automation moves them: `scripts/sync-prod-branches.sh` (`npm run prod:sync`
 ```bash
 npm run predeploy                    # 1. Verify (must pass)
 git add -A && git commit             # 2. Commit (message includes task id if applicable)
-git push origin main                 # 3. Land the work — builds nothing
-git push origin iosdev macdev        # 4. Build it → Xcode Cloud → TestFlight
+npm run land                         # 3+4. PR → required check → merge → iosdev + macdev
 ```
+
+**`main` takes no direct push** (ruleset `socket_gate`, 2026-11-27): the required check
+`socket / socket-package-gate` runs on pull requests only, so `git push origin main` fails with
+GH013. `npm run land` (`scripts/land-main.sh`) pushes main to a branch, opens the PR, waits for
+the required checks only, merges with a merge commit (the shas in `**Awaiting build:**` lines stay
+real), then pushes `iosdev` and `macdev`. `npm run land -- --no-build` lands main alone.
 
 **Step 4 is not a question.** Jon, 2026-09-06: *"I want to look at work when you are
 done. I don't want to tell you to push it so I can look at it and then wait."* A build

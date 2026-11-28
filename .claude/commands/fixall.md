@@ -524,11 +524,15 @@ expect one build to carry several tasks. That is the trade for not burning the a
 build no longer maps to a single change, so the completion reports have to carry the detail.
 
 ```bash
-git push origin main                                    # lands the work — builds nothing
-git checkout iosdev && git merge --ff-only main && git push origin iosdev
-git checkout macdev && git merge --ff-only main && git push origin macdev
-git checkout main
+npm run land            # PR -> required checks -> merge commit -> iosdev + macdev, one RESULT: line
 ```
+
+- **`main` takes no direct push** since 2026-11-27 (ruleset `socket_gate`: the required check
+  `socket / socket-package-gate` runs on pull requests only, so `git push origin main` is GH013).
+  `scripts/land-main.sh` does the PR for you and waits only for the required checks. It merges
+  with a merge commit, so the sha in an `**Awaiting build:**` line stays an ancestor of the build.
+  `npm run land -- --no-build` lands main without a TestFlight build (docs, scripts, a
+  lockfile-only core bump).
 
 - Xcode Cloud picks the push up by webhook, which has lagged 0 to ~36 minutes. That is normal —
   do not retrigger on a hunch. A manual `POST /v1/ciBuildRuns` **must** carry
