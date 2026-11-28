@@ -613,13 +613,8 @@ struct TaskDetailViewNew: View {
                 // Collapsed (state kept) while another input owns the keyboard.
                 if !isReadOnly {
                   VStack(spacing: 0) {
-                    // Answered a question? Give the task back to whoever asked (ADEV-360).
-                    ReplyHandBackButton(taskId: task.id, onHandedBack: { updated in
-                        task = updated
-                        editedAssigneeId = updated.assigneeId
-                    })
-                    .padding(.horizontal, Theme.spacing16)
-                    .padding(.top, Theme.spacing4)
+                    ReplyHandBackButton(taskId: task.id) { task = $0; editedAssigneeId = $0.assigneeId } // ADEV-360
+                        .padding(.horizontal, Theme.spacing16).padding(.top, Theme.spacing4)
                     RichTextInput(
                         placeholder: "Add a comment...",
                         listId: task.listIds?.first,
