@@ -226,6 +226,11 @@ struct MacCommentComposerBar<Accessory: View, Idle: View>: View {
                 .background(Theme.bgSecondary).clipShape(RoundedRectangle(cornerRadius: 6))
                 .padding(.horizontal, 8)
             }
+            // Answered a question? Give the task back to whoever asked (ADEV-360) — the same
+            // button and rule the iPhone draws, so both surfaces that compose here get it.
+            ReplyHandBackButton(taskId: taskId)
+                .padding(.horizontal, Theme.spacing12)
+                .padding(.top, Theme.spacing8)
             stagedAttachments
             HStack(spacing: 8) {
                 Button { draft.attachComment(taskId: taskId) } label: { Image(systemName: "paperclip") }

@@ -1945,3 +1945,6 @@
 "projectMode.goals.unlinkGoal" = "Desvincular %@";
 "projectMode.goals.viaList" = "Da lista";
 "projectMode.goals.linkFailed" = "Não foi possível alterar o vínculo com a meta. Tente novamente.";
+
+/* Reply, then return the task to whoever asked (ADEV-360) */
+"comments.hand_back" = "Devolver para %@";

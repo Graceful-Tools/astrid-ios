@@ -1945,3 +1945,6 @@
 "projectMode.goals.unlinkGoal" = "%@ ontkoppelen";
 "projectMode.goals.viaList" = "Van de lijst";
 "projectMode.goals.linkFailed" = "De doelkoppeling kon niet worden gewijzigd. Probeer het opnieuw.";
+
+/* Reply, then return the task to whoever asked (ADEV-360) */
+"comments.hand_back" = "Teruggeven aan %@";

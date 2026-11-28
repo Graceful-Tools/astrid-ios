@@ -1945,3 +1945,6 @@
 "projectMode.goals.unlinkGoal" = "Отвязать %@";
 "projectMode.goals.viaList" = "Из списка";
 "projectMode.goals.linkFailed" = "Не удалось изменить привязку к цели. Повторите попытку.";
+
+/* Reply, then return the task to whoever asked (ADEV-360) */
+"comments.hand_back" = "Вернуть: %@";

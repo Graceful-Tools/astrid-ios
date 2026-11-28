@@ -1961,3 +1961,6 @@
 "projectMode.goals.unlinkGoal" = "Délier %@";
 "projectMode.goals.viaList" = "Depuis la liste";
 "projectMode.goals.linkFailed" = "Impossible de modifier le lien avec l'objectif. Réessayez.";
+
+/* Reply, then return the task to whoever asked (ADEV-360) */
+"comments.hand_back" = "Rendre à %@";

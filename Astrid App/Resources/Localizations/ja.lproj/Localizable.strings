@@ -1945,3 +1945,6 @@
 "projectMode.goals.unlinkGoal" = "%@ のリンクを解除";
 "projectMode.goals.viaList" = "リストから";
 "projectMode.goals.linkFailed" = "目標のリンクを変更できませんでした。もう一度お試しください。";
+
+/* Reply, then return the task to whoever asked (ADEV-360) */
+"comments.hand_back" = "%@ に戻す";

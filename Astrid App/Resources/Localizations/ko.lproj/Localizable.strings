@@ -1947,3 +1947,6 @@
 "projectMode.goals.unlinkGoal" = "%@ 연결 해제";
 "projectMode.goals.viaList" = "목록에서";
 "projectMode.goals.linkFailed" = "목표 연결을 변경할 수 없습니다. 다시 시도하세요.";
+
+/* Reply, then return the task to whoever asked (ADEV-360) */
+"comments.hand_back" = "%@에게 돌려주기";

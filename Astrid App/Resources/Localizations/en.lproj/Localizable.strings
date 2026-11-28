@@ -1953,3 +1953,6 @@
 "projectMode.goals.unlinkGoal" = "Unlink %@";
 "projectMode.goals.viaList" = "From the list";
 "projectMode.goals.linkFailed" = "Could not change the goal link. Try again.";
+
+/* Reply, then return the task to whoever asked (ADEV-360) */
+"comments.hand_back" = "Hand back to %@";

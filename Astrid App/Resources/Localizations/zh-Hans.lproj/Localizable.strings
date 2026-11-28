@@ -1945,3 +1945,6 @@
 "projectMode.goals.unlinkGoal" = "取消关联 %@";
 "projectMode.goals.viaList" = "来自列表";
 "projectMode.goals.linkFailed" = "无法更改目标关联。请重试。";
+
+/* Reply, then return the task to whoever asked (ADEV-360) */
+"comments.hand_back" = "交还给 %@";

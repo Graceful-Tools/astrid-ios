@@ -1945,3 +1945,6 @@
 "projectMode.goals.unlinkGoal" = "Scollega %@";
 "projectMode.goals.viaList" = "Dalla lista";
 "projectMode.goals.linkFailed" = "Impossibile modificare il collegamento all'obiettivo. Riprova.";
+
+/* Reply, then return the task to whoever asked (ADEV-360) */
+"comments.hand_back" = "Restituisci a %@";

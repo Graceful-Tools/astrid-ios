@@ -1947,3 +1947,6 @@
 "projectMode.goals.unlinkGoal" = "取消連結 %@";
 "projectMode.goals.viaList" = "來自清單";
 "projectMode.goals.linkFailed" = "無法變更目標連結。請再試一次。";
+
+/* Reply, then return the task to whoever asked (ADEV-360) */
+"comments.hand_back" = "交還給 %@";

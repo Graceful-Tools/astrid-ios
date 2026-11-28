@@ -1961,3 +1961,6 @@
 "projectMode.goals.unlinkGoal" = "Desvincular %@";
 "projectMode.goals.viaList" = "De la lista";
 "projectMode.goals.linkFailed" = "No se pudo cambiar el vínculo con el objetivo. Inténtalo de nuevo.";
+
+/* Reply, then return the task to whoever asked (ADEV-360) */
+"comments.hand_back" = "Devolver a %@";

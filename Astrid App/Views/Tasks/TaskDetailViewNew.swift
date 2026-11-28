@@ -612,6 +612,14 @@ struct TaskDetailViewNew: View {
                 // Fixed comment input above keyboard (like messaging apps).
                 // Collapsed (state kept) while another input owns the keyboard.
                 if !isReadOnly {
+                  VStack(spacing: 0) {
+                    // Answered a question? Give the task back to whoever asked (ADEV-360).
+                    ReplyHandBackButton(taskId: task.id, onHandedBack: { updated in
+                        task = updated
+                        editedAssigneeId = updated.assigneeId
+                    })
+                    .padding(.horizontal, Theme.spacing16)
+                    .padding(.top, Theme.spacing4)
                     RichTextInput(
                         placeholder: "Add a comment...",
                         listId: task.listIds?.first,
@@ -626,6 +634,7 @@ struct TaskDetailViewNew: View {
                         .sheet(isPresented: $showingDecisionComposer) {
                             DecisionComposerView { md, to in _Concurrency.Task { await addDecision(md, to: to) } }
                         }
+                  }
                         .frame(height: hideCommentBar ? 0 : nil)
                         .clipped()
                         .opacity(hideCommentBar ? 0 : 1)
