@@ -1,34 +1,13 @@
-//  ProjectGoalsStrip.swift
-//  ADEV-183 (web ADEV-179, `components/projects/ProjectGoalsStrip.tsx`): a project board's
-//  compact "Goals: N · Guardrails: N" control. It opens to show the lists: a goal with its
-//  measure, "Target: …" and "Now: …", and a guardrail with an "Enforced" mark. It draws nothing
-//  when the project has neither. Shared with the Mac target. The board loads the goals
-//  (`ProjectGoalsService.load`) and includes this only when `shows` says so.
-//  ADEV-321 (web ADEV-276): a goal also shows its progress, its source, how fresh its reading is
-//  and a sparkline of its history — each only when its data exists.
+//  GoalReadingLine.swift
+//  A goal's reading where its goals are edited (ADEV-365; before that on the board header strip,
+//  ADEV-183/321, which Jon asked to take off the board: "Should be in settings"). The wording follows
+//  web's `ProjectGoalsStrip.tsx`: the measure, target, current value, progress, the source, how
+//  fresh the reading is and a sparkline of its history, each only when its data exists.
+//  Shared with the Mac target.
 
 import SwiftUI
 
-struct ProjectGoalsStrip: View {
-    let projectId: String
-    /// The board's own side margin, so the strip lines up with its columns.
-    var horizontalPadding: CGFloat = Theme.spacing16
-
-    @StateObject private var service = ProjectGoalsService.shared
-    @ThemedPalette private var palette
-    @State private var expanded = false
-
-    /// Whether there is anything to draw.
-    static func shows(_ goals: ProjectGoals?) -> Bool {
-        guard let goals else { return false }
-        return !goals.isEmpty
-    }
-
-    static func countsText(_ goals: ProjectGoals) -> String {
-        String(format: NSLocalizedString("project_goals.counts", comment: "Goals: N · Guardrails: N"),
-               goals.goals.count, goals.guardrails.count)
-    }
-
+enum GoalReadingText {
     /// A goal's measure, target, current value, progress and the work that served it on one line,
     /// e.g. "IRR · Target: 8% · Now: 6% · 75% of target · 3 tasks served this goal".
     static func detail(_ goal: ProjectGoal, workServed: Int? = nil) -> String? {
@@ -67,71 +46,23 @@ struct ProjectGoalsStrip: View {
         let key = freshness.stale ? "project_goals.stale_since" : "project_goals.updated_ago"
         return String(format: NSLocalizedString(key, comment: ""), age)
     }
+}
+
+/// Where a goal's number comes from, how fresh it is, and how it moved; nothing for a goal that
+/// is only words.
+struct GoalReadingLine: View {
+    let goal: ProjectGoal
+    @ThemedPalette private var palette
 
     var body: some View {
-        let goals = service.goals(projectId: projectId)
-        Group {
-            if let goals, Self.shows(goals) {
-                DisclosureGroup(isExpanded: $expanded) {
-                    lists(goals)
-                } label: {
-                    Text(verbatim: Self.countsText(goals))
-                        .foregroundColor(palette.textSecondary)
-                }
-                .padding(.horizontal, horizontalPadding)
-                .padding(.vertical, Theme.spacing8)
-                .accessibilityIdentifier("projectGoals.strip")
-            }
-        }
-        #if os(macOS)
-        .macFont(.caption)
-        #else
-        .font(Theme.Typography.caption1())
-        #endif
-    }
-
-    private func lists(_ goals: ProjectGoals) -> some View {
-        VStack(alignment: .leading, spacing: Theme.spacing8) {
-            if !goals.goals.isEmpty {
-                heading("project_goals.goals_heading")
-                ForEach(Array(goals.goals.enumerated()), id: \.offset) { _, goal in
-                    VStack(alignment: .leading, spacing: Theme.spacing2) {
-                        Text(verbatim: goal.statement).foregroundColor(palette.textPrimary)
-                        if let detail = Self.detail(goal, workServed: goal.id.flatMap { goals.workByGoal[$0] }) {
-                            Text(verbatim: detail).foregroundColor(palette.textSecondary)
-                        }
-                        signal(goal)
-                    }
-                }
-            }
-            if !goals.guardrails.isEmpty {
-                heading("project_goals.guardrails_heading")
-                ForEach(Array(goals.guardrails.enumerated()), id: \.offset) { _, guardrail in
-                    HStack(alignment: .firstTextBaseline, spacing: Theme.spacing8) {
-                        Text(verbatim: guardrail.statement).foregroundColor(palette.textPrimary)
-                        if guardrail.kind == .enforced {
-                            AstridPill(text: NSLocalizedString("project_goals.kind_enforced", comment: ""),
-                                       tint: palette.textSecondary)
-                        }
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, Theme.spacing4)
-    }
-
-    /// Where the goal's number comes from, how fresh it is, and how it moved. Nothing for a prose goal.
-    @ViewBuilder
-    private func signal(_ goal: ProjectGoal) -> some View {
-        let source = Self.sourceText(goal)
+        let source = GoalReadingText.sourceText(goal)
         let freshness = GoalReadings.freshness(goal)
         let values = GoalReadings.sparkValues(goal)
         if source != nil || freshness != nil || values.count >= 2 {
             HStack(spacing: Theme.spacing8) {
                 if let source { Text(verbatim: source).foregroundColor(palette.textSecondary) }
                 if let freshness {
-                    Text(verbatim: Self.freshnessText(freshness))
+                    Text(verbatim: GoalReadingText.freshnessText(freshness))
                         .foregroundColor(freshness.stale ? palette.errorInk : palette.textSecondary)
                 }
                 GoalSparkline(values: values)
@@ -139,11 +70,8 @@ struct ProjectGoalsStrip: View {
                     .accessibilityLabel(String(format: NSLocalizedString("project_goals.sparkline_label", comment: ""),
                                                goal.measure ?? goal.statement))
             }
+            .font(Theme.Typography.caption1())
         }
-    }
-
-    private func heading(_ key: String) -> some View {
-        Text(NSLocalizedString(key, comment: "")).bold().foregroundColor(palette.textSecondary)
     }
 }
 
