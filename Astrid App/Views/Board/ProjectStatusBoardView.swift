@@ -126,10 +126,6 @@ struct ProjectStatusBoardView: View {
 
     var body: some View {
         VStack {
-        // The project's goals and guardrails, folded; nothing when it has none (ADEV-183).
-        if ProjectGoalsStrip.shows(goalsService.goals(projectId: projectId)) {
-            ProjectGoalsStrip(projectId: projectId)
-        }
         GeometryReader { geo in
             // Phone-narrow widths: one full-screen paged column (existing
             // behavior). Wider iPad layouts: fan out to multiple columns

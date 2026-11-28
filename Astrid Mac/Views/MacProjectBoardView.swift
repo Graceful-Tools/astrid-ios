@@ -42,10 +42,6 @@ struct MacProjectBoardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             toolbar
-            // The project's goals and guardrails, folded; nothing when it has none (ADEV-183).
-            if ProjectGoalsStrip.shows(goalsService.goals(projectId: projectId)) {
-                ProjectGoalsStrip(projectId: projectId, horizontalPadding: MacLayout.boardPadding)
-            }
             // Rows stack and scroll down; each row's columns scroll across on their own, as the
             // list's board does, and its cards scroll inside the fixed-height column (ADEV-59).
             ScrollView(.vertical) {

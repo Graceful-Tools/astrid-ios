@@ -102,6 +102,64 @@ extension ProjectGoal {
     }
 }
 
+// MARK: - ADEV-365: the fields the editor shows, labeled, with no separate "add a metric" step
+
+extension ProjectGoal {
+    /// Higher or lower is better. Choosing one starts the metric, so there is no separate
+    /// "Measure with a metric" step.
+    var betterWhen: MetricDirection {
+        get { metricDirection }
+        set {
+            if !hasMetric { addMetric() }
+            metricDirection = newValue
+        }
+    }
+
+    /// The metric's unit; typing one starts the metric too.
+    var unit: String? {
+        get { metricUnit }
+        set {
+            if !hasMetric, GoalMetricJSON.text(newValue) == nil { return }
+            if !hasMetric { addMetric() }
+            metricUnit = newValue
+        }
+    }
+
+    /// The Target field: kept as written, and when it is a plain number it is also the metric's
+    /// target, which is what progress is measured against. Words alone never start a metric.
+    mutating func setTarget(_ text: String?) {
+        target = text
+        let number = text.flatMap { Double($0.trimmingCharacters(in: .whitespaces)) }
+        if let number {
+            if !hasMetric { addMetric() }
+            metricTarget = number
+        } else if hasMetric {
+            metricTarget = nil
+        }
+    }
+
+    /// The day the target should be hit (web ADEV-359 `targetDate`, "YYYY-MM-DD"), in the
+    /// person's own calendar: the day they picked, whatever the hour.
+    var targetDate: Date? {
+        get {
+            guard case .string(let text)? = unmodeled["targetDate"] else { return nil }
+            return GoalTargetDay.formatter.date(from: text)
+        }
+        set { unmodeled["targetDate"] = newValue.map { .string(GoalTargetDay.formatter.string(from: $0)) } }
+    }
+}
+
+private nonisolated enum GoalTargetDay {
+    static var formatter: DateFormatter {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.calendar = Calendar(identifier: .gregorian)
+        f.timeZone = .current
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }
+}
+
 /// An enforced guardrail's metric check: pass while the reading is at most / at least the threshold.
 nonisolated struct GuardrailMetricCheck: Equatable, Sendable {
     enum Op: String, CaseIterable, Sendable {

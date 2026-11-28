@@ -98,16 +98,16 @@ final class GoalReadingsTests: XCTestCase {
         XCTAssertEqual(GoalReadings.sparkValues(goal), [30, 50])
     }
 
-    /// The strip's lines, worded as web words them.
+    /// A goal's reading lines (in the editor since ADEV-365), worded as web words them.
     func testADEV321_stripWording() throws {
         let decoded = try goals(signalled)
         let goal = try XCTUnwrap(decoded.goals.first)
-        let detail = try XCTUnwrap(ProjectGoalsStrip.detail(goal, workServed: decoded.workByGoal["g1"]))
+        let detail = try XCTUnwrap(GoalReadingText.detail(goal, workServed: decoded.workByGoal["g1"]))
         XCTAssertTrue(detail.contains("25"), detail)
         XCTAssertTrue(detail.contains("3"), detail)
-        XCTAssertEqual(ProjectGoalsStrip.sourceText(goal), String(
+        XCTAssertEqual(GoalReadingText.sourceText(goal), String(
             format: NSLocalizedString("project_goals.source_name", comment: ""), "posthog · dau"))
-        XCTAssertNil(ProjectGoalsStrip.sourceText(ProjectGoal(id: "g", statement: "prose")))
+        XCTAssertNil(GoalReadingText.sourceText(ProjectGoal(id: "g", statement: "prose")))
     }
 }
 

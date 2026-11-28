@@ -44,13 +44,54 @@ final class ProjectGoalsTests: XCTestCase {
         XCTAssertFalse(none.canEdit)
     }
 
-    /// The strip says "Goals: N · Guardrails: N" and draws nothing when both are empty.
-    func testADEV183_stripCountsAndHidesWhenEmpty() throws {
-        let goals = try JSONDecoder().decode(ProjectGoals.self, from: Data(contractExample.utf8))
-        XCTAssertEqual(ProjectGoalsStrip.countsText(goals), "Goals: 1 · Guardrails: 2")
-        XCTAssertTrue(ProjectGoalsStrip.shows(goals))
-        XCTAssertFalse(ProjectGoalsStrip.shows(nil))
-        XCTAssertFalse(ProjectGoalsStrip.shows(ProjectGoals(goals: [], guardrails: [])))
+    // MARK: ADEV-365 — the editor Jon described: labeled fields, a target date, no separate
+    // "Measure with a metric" step, numbered cards.
+
+    func testADEV365_targetDateIsADayAndClearingItLeavesItOut() throws {
+        var goal = try JSONDecoder().decode(ProjectGoal.self,
+                                            from: Data(#"{"id":"g1","statement":"MAU","targetDate":"2027-12-15"}"#.utf8))
+        let day = try XCTUnwrap(goal.targetDate)
+        XCTAssertEqual(Calendar.current.dateComponents([.year, .month, .day], from: day),
+                       DateComponents(year: 2027, month: 12, day: 15))
+
+        goal.targetDate = Calendar.current.date(from: DateComponents(year: 2028, month: 1, day: 2, hour: 23))
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(goal)) as? [String: Any])
+        XCTAssertEqual(json["targetDate"] as? String, "2028-01-02", "the local day, whatever the hour")
+
+        goal.targetDate = nil
+        json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(goal)) as? [String: Any])
+        XCTAssertNil(json["targetDate"])
+    }
+
+    func testADEV365_aNumberTargetFeedsTheMetric_proseStaysProse() {
+        var goal = ProjectGoal(id: "g1", statement: "Grow MAU")
+        goal.setTarget("1000")
+        XCTAssertEqual(goal.target, "1000")
+        XCTAssertTrue(goal.hasMetric)
+        XCTAssertEqual(goal.metricTarget, 1000)
+
+        goal.setTarget("≥ 8%/yr")
+        XCTAssertEqual(goal.target, "≥ 8%/yr", "a target in words is kept as written")
+        XCTAssertNil(goal.metricTarget)
+
+        var prose = ProjectGoal(id: "g2", statement: "Be kind")
+        prose.setTarget("most days")
+        XCTAssertFalse(prose.hasMetric, "words alone never start a metric")
+    }
+
+    func testADEV365_choosingWhichWayIsBetterStartsTheMetric() {
+        var goal = ProjectGoal(id: "g1", statement: "Spend less")
+        XCTAssertFalse(goal.hasMetric)
+        goal.betterWhen = .down
+        XCTAssertTrue(goal.hasMetric)
+        XCTAssertEqual(goal.metricDirection, .down)
+        goal.unit = "USD"
+        XCTAssertEqual(goal.metricUnit, "USD")
+    }
+
+    func testADEV365_cardsAreNumberedFromOne() {
+        XCTAssertEqual(ProjectGoalsEditorText.goalTitle(0), "Goal 1")
+        XCTAssertEqual(ProjectGoalsEditorText.guardrailTitle(1), "Guardrail 2")
     }
 
     /// PUT sends the whole value; a new row carries no id (the server assigns g1/r1), and an
