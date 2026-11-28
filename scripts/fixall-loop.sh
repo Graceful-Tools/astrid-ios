@@ -37,6 +37,8 @@
 #                       scripts/sync-prod-branches.sh; empty = skip, as the test does)
 #   FIXALL_CLOSE_BUILT  closes Doing tasks whose TestFlight build is VALID (default:
 #                       node scripts/close-built-tasks.mjs; empty = skip, as the test does)
+#   FIXALL_WEB_UPDATE   keeps the astrid-web tooling checkout on origin/main (default:
+#                       scripts/update-web-tooling.sh; empty = skip, as the test does)
 #   ASTRID_WEB_DIR      shared task tooling checkout (default: sibling astrid-web)
 #   FIXALL_RUN_STATE    durable per-checkout run state (default: under ~/Library/Application
 #                       Support/Astrid; never in node_modules or a temporary directory)
@@ -64,6 +66,7 @@ STALL_STATE="${FIXALL_STALL_STATE:-$HOME/Library/Logs/astrid-fixall-stall.state}
 STALL_ALERT_AFTER="${FIXALL_STALL_ALERT_AFTER:-3}"
 PROD_SYNC="${FIXALL_PROD_SYNC-$REPO/scripts/sync-prod-branches.sh}"
 CLOSE_BUILT="${FIXALL_CLOSE_BUILT-node $REPO/scripts/close-built-tasks.mjs}"
+WEB_UPDATE="${FIXALL_WEB_UPDATE-$REPO/scripts/update-web-tooling.sh}"
 RUN_STATE="${FIXALL_RUN_STATE:-$HOME/Library/Application Support/Astrid/fixall-ios/$(printf '%s' "$REPO" | cksum | awk '{print $1}')}"
 ACTIVE_RUN="$RUN_STATE/active"
 KILL_GRACE="${FIXALL_KILL_GRACE_SECONDS:-5}"
@@ -145,6 +148,15 @@ Log: \`~/Library/Logs/astrid-fixall.log\`"
   echo "$count $alerted $since" > "$STALL_STATE" 2>/dev/null
   echo "RESULT: SKIPPED — $reason"
 }
+
+# ── Before anything uses them: keep the helpers' checkout current ────────────
+# Every helper below runs from astrid-web, and nothing moved that checkout: on 2026-11-27 it was
+# twelve days and 1,394 commits behind what was deployed (ADEV-354). The script fast-forwards a
+# clean checkout that no live session is using, says nothing when it is already current, and
+# puts it back if the update does not build. Never fatal to the loop.
+if [ -n "$WEB_UPDATE" ] && [ -x "$WEB_UPDATE" ]; then
+  "$WEB_UPDATE" 2>&1 | sed 's/^/  /'
+fi
 
 # ── Before the guards: keep ios-prod / mac-prod on what the App Store serves ──
 # (AITD-434 / AITD-435.) Every tick, even one that skips below: it moves refs on the remote and

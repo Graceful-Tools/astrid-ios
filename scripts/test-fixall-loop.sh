@@ -122,6 +122,7 @@ run() {  # run <claude-exit> <queue-exit>   → $OUT (loop output), $CALLS (argv
   FIXALL_TSX="$TMP/bin/tsx" \
   FIXALL_PROD_SYNC= \
   FIXALL_CLOSE_BUILT= \
+  FIXALL_WEB_UPDATE="${TEST_WEB_UPDATE:-}" \
   CLAUDE_BIN="${TEST_CLAUDE_BIN:-$TMP/bin/claude}" \
   FIXALL_MAX_MINUTES=1 \
   FIXALL_MAX_USD= \
@@ -271,6 +272,7 @@ run_sandbox() {  # run_sandbox [claude-bin]  → $OUT, $STATUS, $CALLS
   FIXALL_TSX="$TMP/bin/tsx" \
   FIXALL_PROD_SYNC= \
   FIXALL_CLOSE_BUILT= \
+  FIXALL_WEB_UPDATE= \
   CLAUDE_BIN="${1:-$TMP/bin/claude}" \
   FIXALL_MAX_MINUTES=1 \
   FIXALL_MAX_USD= \
@@ -771,6 +773,13 @@ called "the run gets the core worktrees folder as an added directory" "claude -p
 if [ -d "$TMP/workspace/astrid-core-worktrees" ]; then ok
 else bad "the worktrees folder exists before the run starts"; fi
 rm -rf "$TMP/workspace/astrid-core" "$TMP/workspace/astrid-core-worktrees"
+
+# --- ADEV-354: every tick keeps the helpers' checkout current, before the queue is read --------
+printf '#!/bin/sh\necho "web-tooling: fast-forwarded 3 commit(s)"\n' > "$TMP/bin/web-update"
+chmod +x "$TMP/bin/web-update"
+TEST_WEB_UPDATE="$TMP/bin/web-update" run 0 3
+if echo "$OUT" | grep -q "web-tooling: fast-forwarded 3"; then ok
+else bad "a quiet tick still runs the web tooling update" "$OUT"; fi
 
 echo ""
 if [ "$FAIL" = 0 ]; then echo "✓ fixall-loop: $PASS checks passed"; exit 0; fi

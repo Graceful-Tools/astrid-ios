@@ -48,6 +48,13 @@ consume another harness's attention.
 `ASTRID_WEB_DIR` may name an absolute path to that device's shared `astrid-web` tooling
 checkout; otherwise the launcher keeps the sibling-checkout default. It is exported to the
 agent too. In the commands below, substitute that path for `../astrid-web` when configured.
+**The loop keeps that checkout on `origin/main`** (ADEV-354): every tick,
+`scripts/update-web-tooling.sh` fast-forwards it when it is clean, detached or on `main`, and no
+live session holds either tree. It runs `npm ci` when the lockfile changed, rebuilds the MCP
+server, and puts the checkout back if any of that fails. So do not leave work in progress or a
+feature branch in the tooling checkout: it stops the updates, and `npm run fixall:status` will
+show it falling behind.
+
 Run the working-tree lock from the **iOS** checkout; run OAuth helpers from the **web tooling**
 checkout. Configure the session's existing Astrid MCP connection to use that same tooling;
 setting the path does not install dependencies, build MCP, or provision credentials.
