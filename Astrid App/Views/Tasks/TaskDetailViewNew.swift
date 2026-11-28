@@ -612,7 +612,7 @@ struct TaskDetailViewNew: View {
                 // Fixed comment input above keyboard (like messaging apps).
                 // Collapsed (state kept) while another input owns the keyboard.
                 if !isReadOnly {
-                  VStack(spacing: 0) {
+                  VStack(spacing: Theme.spacing4) {
                     ReplyHandBackButton(taskId: task.id) { task = $0; editedAssigneeId = $0.assigneeId } // ADEV-360
                         .padding(.horizontal, Theme.spacing16).padding(.top, Theme.spacing4)
                     RichTextInput(
