@@ -35,6 +35,7 @@ struct EditProjectSheet: View {
         _color = State(initialValue: project.color ?? "")
     }
 
+    #if os(iOS)
     var body: some View {
         NavigationStack {
             Form {
@@ -75,12 +76,58 @@ struct EditProjectSheet: View {
             .onAppear { nameFocused = true }
             .task(id: project.id) { await loadGoals() }
         }
-        #if os(iOS)
         .presentationDetents([.medium, .large])
-        #else
-        .frame(minWidth: 380, minHeight: 300)
-        #endif
     }
+    #else
+    /// The Mac: the shared settings page (ADEV-395), web's settings design: a header, labeled
+    /// fields in titled cards, one readable column, Cancel and Save pinned below it, sized like
+    /// List Settings and in the Mac text size throughout.
+    var body: some View {
+        MacSettingsPage(systemImage: "folder",
+                        title: NSLocalizedString("projects.edit_title", comment: ""),
+                        subtitle: project.name) {
+            MacSettingsCard(systemImage: "pencil", title: NSLocalizedString("projects.details", comment: "")) {
+                MacSettingsField(label: NSLocalizedString("projects.project_name", comment: "")) {
+                    TextField("", text: $name)
+                        .textFieldStyle(.roundedBorder)
+                        .labelsHidden()
+                        .focused($nameFocused)
+                        .onSubmit(save)
+                        .accessibilityIdentifier("projects.editName")
+                }
+                MacSettingsField(label: NSLocalizedString("projects.description", comment: "")) {
+                    TextField("", text: $description, axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+                        .labelsHidden()
+                        .lineLimit(3...8)
+                        .accessibilityIdentifier("projects.editDescription")
+                }
+            }
+            MacSettingsCard(systemImage: "paintpalette", title: NSLocalizedString("projects.color", comment: "")) {
+                ListColorSwatches(color: color) { color = $0 }
+            }
+            if let draft = goalsDraft {
+                ProjectGoalsEditor(draft: Binding(get: { draft }, set: { goalsDraft = $0 }), projectId: project.id)
+            }
+            if goalsSaveFailed {
+                Text(NSLocalizedString("project_goals.save_failed", comment: ""))
+                    .macFont(.callout)
+                    .foregroundStyle(Theme.errorInk)
+            }
+        } actions: {
+            Button(NSLocalizedString("actions.cancel", comment: "")) { dismiss() }
+                .keyboardShortcut(.cancelAction)
+            Button(NSLocalizedString("actions.save", comment: ""), action: save)
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+                .disabled((edit == nil && !goalsChanged) || saving)
+                .accessibilityIdentifier("projects.editSave")
+        }
+        .frame(width: MacSettingsLayout.windowSize.width, height: MacSettingsLayout.windowSize.height)
+        .onAppear { nameFocused = true }
+        .task(id: project.id) { await loadGoals() }
+    }
+    #endif
 
     private var edit: ProjectEdit? {
         ListProjectControl.edit(of: project, name: name, description: description, color: color)

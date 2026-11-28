@@ -35,6 +35,8 @@ enum MacLayout {
     /// A sheet that holds a long settings form of its own — the agent policy (ADEV-333).
     static let formSheetMinWidth: CGFloat = 520
     static let formSheetMinHeight: CGFloat = 600
+    /// A settings page's readable column (ADEV-395): web's settings `max-w-2xl`, 42rem.
+    static let settingsColumnMaxWidth: CGFloat = 672
 
     /// Total width the floating pop-out occupies, margins included.
     static var detailPopoutWidth: CGFloat {

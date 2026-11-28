@@ -16,6 +16,10 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
     var assigneeIds: [String]?
     var creatorId: String?  // Optional - MCP API doesn't return this, only creator object
     var creator: User?
+    /// Who gave the task its current assignee, and when (ADEV-393; the server reads its
+    /// `TaskEvent` trail). Nil from a server older than the fields, or when nobody else did.
+    var assignedBy: User?
+    var assignedAt: Date?
     var dueDateTime: Date?  // The due date/time (single source of truth)
     var isAllDay: Bool  // Whether this is an all-day task (true = all-day, false = timed)
     var reminderTime: Date?
@@ -156,7 +160,7 @@ nonisolated struct Task: Identifiable, Codable, Equatable, Hashable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, title, description, assigneeId, assignee, assigneeIds, creatorId, creator
+        case id, title, description, assigneeId, assignee, assigneeIds, creatorId, creator, assignedBy, assignedAt
         case dueDateTime  // Primary datetime field
         case isAllDay  // All-day task flag
         case reminderTime, reminderSent, reminderType

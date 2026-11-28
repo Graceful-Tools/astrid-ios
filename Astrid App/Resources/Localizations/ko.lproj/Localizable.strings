@@ -1681,6 +1681,7 @@
 "projects.edit_title" = "프로젝트 편집";
 "projects.description" = "설명";
 "projects.color" = "색상";
+"projects.details" = "세부 정보";
 "projects.edit_forbidden" = "프로젝트 소유자와 관리자만 변경할 수 있습니다.";
 "projects.color_invalid" = "이 색상은 사용할 수 없습니다. 견본 중에서 선택하세요.";
 "projects.name_required" = "프로젝트에는 이름이 필요합니다.";

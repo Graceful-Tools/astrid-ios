@@ -25,21 +25,61 @@ enum ReplyHandBack {
         var statusRole: String? { isAgent ? "ready" : nil }
     }
 
+    /// - `assignedBy`/`assignedAt`: who gave the task its current assignee and when (the server's
+    ///   `TaskEvent` trail, ADEV-393). An agent that assigns you a task without a word is still
+    ///   the one to hand it back to.
     static func target(assigneeId: String?, currentUserId: String?, completed: Bool,
-                       comments: [Comment]) -> Target? {
+                       comments: [Comment], assignedBy: User? = nil, assignedAt: Date? = nil) -> Target? {
         guard !completed, let me = currentUserId, !me.isEmpty, assigneeId == me else { return nil }
         // Oldest first by time; the core's order breaks ties, so an untimed row keeps its place.
         let ordered = comments.enumerated().sorted { a, b in
             let ta = a.element.createdAt ?? .distantPast, tb = b.element.createdAt ?? .distantPast
             return ta == tb ? a.offset < b.offset : ta < tb
         }.map(\.element)
-        guard let asked = ordered.last(where: { comment in
-            guard let author = comment.authorId, !author.isEmpty else { return false }
-            return author != me
-        }), let askerId = asked.authorId else { return nil }
-        return Target(userId: askerId,
-                      name: asked.author?.displayName ?? asked.authorDisplayName ?? askerId,
-                      isAgent: asked.author?.isAIAgent == true)
+        var asked: (target: Target, at: Date)?
+        for comment in ordered.reversed() {
+            if let found = asker(of: comment, me: me) {
+                asked = (found, comment.createdAt ?? .distantPast)
+                break
+            }
+        }
+        // The assignment, when someone else made it, and it is at least as new as that comment.
+        if let by = assignedBy, !by.id.isEmpty, by.id != me {
+            let at = assignedAt ?? .distantPast
+            if asked == nil || at >= asked!.at {
+                return Target(userId: by.id, name: by.displayName, isAgent: by.isAIAgent == true)
+            }
+        }
+        return asked?.target
+    }
+
+    /// Who a comment counts as asking: an agent's `AGENT-HANDBACK: <mailbox>` line names it
+    /// whoever the comment is signed as (an agent posting with its owner's credentials signs as
+    /// them, ADEV-393); otherwise its author, unless that is you or nobody (a system line).
+    private static func asker(of comment: Comment, me: String) -> Target? {
+        if let mailbox = handbackMailbox(comment.content) {
+            let id = "ai-agent-\(mailbox)"
+            if id == me { return nil }
+            let name = comment.authorId == id
+                ? (comment.author?.displayName ?? comment.authorDisplayName ?? id)
+                : mailbox.prefix(1).uppercased() + mailbox.dropFirst() + " Agent"
+            return Target(userId: id, name: name, isAgent: true)
+        }
+        guard let author = comment.authorId, !author.isEmpty, author != me else { return nil }
+        return Target(userId: author,
+                      name: comment.author?.displayName ?? comment.authorDisplayName ?? author,
+                      isAgent: comment.author?.isAIAgent == true)
+    }
+
+    /// The mailbox an `AGENT-HANDBACK: <mailbox>` line names (astrid-core `questions::marker_mailbox`).
+    static func handbackMailbox(_ content: String) -> String? {
+        for line in content.split(whereSeparator: \.isNewline) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard trimmed.hasPrefix("AGENT-HANDBACK:") else { continue }
+            let mailbox = trimmed.dropFirst("AGENT-HANDBACK:".count).trimmingCharacters(in: .whitespaces)
+            if !mailbox.isEmpty { return mailbox }
+        }
+        return nil
     }
 
     /// The words on the one blue button (Jon: "like Gmail's Send & Archive"): what a tap does,

@@ -44,7 +44,8 @@ struct ReplyHandBackButton: View {
         return ReplyHandBack.target(assigneeId: task.assigneeId,
                                     currentUserId: AuthManager.shared.userId,
                                     completed: task.completed,
-                                    comments: commentService.cachedComments[taskId] ?? [])
+                                    comments: commentService.cachedComments[taskId] ?? [],
+                                    assignedBy: task.assignedBy, assignedAt: task.assignedAt)
     }
 }
 

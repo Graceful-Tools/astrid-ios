@@ -39,16 +39,30 @@ struct ProjectGoalsEditor: View {
     @ThemedPalette private var palette
 
     var body: some View {
+        sections
+            .task(id: projectId) {
+                guard let projectId else { return }
+                metricConnectors = await GoalSignalsService.shared.connectors(projectId: projectId, kind: "metric")
+            }
+    }
+
+    /// Two Form sections on iPhone and iPad; on the Mac, two settings cards (ADEV-395), the design
+    /// every Mac settings surface shares (`MacSettingsPage`).
+    @ViewBuilder private var sections: some View {
+        #if os(macOS)
+        VStack(alignment: .leading, spacing: Theme.spacing16) {
+            MacSettingsCard(systemImage: "target", title: NSLocalizedString("project_goals.goals_heading", comment: ""),
+                            description: NSLocalizedString("project_goals.intro", comment: "")) {
+                goalRows
+            }
+            MacSettingsCard(systemImage: "shield", title: NSLocalizedString("project_goals.guardrails_heading", comment: ""),
+                            description: NSLocalizedString("project_goals.kind_hint", comment: "")) {
+                guardrailRows
+            }
+        }
+        #else
         Section {
-            ForEach($draft.goals) { $row in
-                goalRow($row)
-            }
-            Button {
-                draft.goals.append(.init(value: ProjectGoal(id: nil, statement: "")))
-            } label: {
-                Label(NSLocalizedString("project_goals.add_goal", comment: ""), systemImage: "plus")
-            }
-            .accessibilityIdentifier("projectGoals.addGoal")
+            goalRows
         } header: {
             Text(NSLocalizedString("project_goals.goals_heading", comment: ""))
         } footer: {
@@ -56,24 +70,43 @@ struct ProjectGoalsEditor: View {
         }
 
         Section {
-            ForEach($draft.guardrails) { $row in
-                guardrailRow($row)
-            }
-            Button {
-                draft.guardrails.append(.init(value: ProjectGuardrail(id: nil, statement: "")))
-            } label: {
-                Label(NSLocalizedString("project_goals.add_guardrail", comment: ""), systemImage: "plus")
-            }
-            .accessibilityIdentifier("projectGoals.addGuardrail")
+            guardrailRows
         } header: {
             Text(NSLocalizedString("project_goals.guardrails_heading", comment: ""))
         } footer: {
             Text(NSLocalizedString("project_goals.kind_hint", comment: ""))
         }
-        .task(id: projectId) {
-            guard let projectId else { return }
-            metricConnectors = await GoalSignalsService.shared.connectors(projectId: projectId, kind: "metric")
+        #endif
+    }
+
+    @ViewBuilder private var goalRows: some View {
+        ForEach($draft.goals) { $row in
+            goalRow($row)
+            #if os(macOS)
+            Divider()
+            #endif
         }
+        Button {
+            draft.goals.append(.init(value: ProjectGoal(id: nil, statement: "")))
+        } label: {
+            Label(NSLocalizedString("project_goals.add_goal", comment: ""), systemImage: "plus")
+        }
+        .accessibilityIdentifier("projectGoals.addGoal")
+    }
+
+    @ViewBuilder private var guardrailRows: some View {
+        ForEach($draft.guardrails) { $row in
+            guardrailRow($row)
+            #if os(macOS)
+            Divider()
+            #endif
+        }
+        Button {
+            draft.guardrails.append(.init(value: ProjectGuardrail(id: nil, statement: "")))
+        } label: {
+            Label(NSLocalizedString("project_goals.add_guardrail", comment: ""), systemImage: "plus")
+        }
+        .accessibilityIdentifier("projectGoals.addGuardrail")
     }
 
     // MARK: A goal card (ADEV-365)
@@ -213,7 +246,7 @@ struct ProjectGoalsEditor: View {
                 }
                 if !check.isComplete {
                     Text(NSLocalizedString("project_goals.check.incomplete", comment: ""))
-                        .font(Theme.Typography.caption1())
+                        .goalsFont(.caption)
                         .foregroundColor(palette.textMuted)
                 }
                 Button(role: .destructive) { rail.wrappedValue.metricCheck = nil } label: {
@@ -239,7 +272,7 @@ struct ProjectGoalsEditor: View {
     /// "Goal 1" / "Guardrail 1" and the remove button.
     private func cardHeader(_ title: String, remove: @escaping () -> Void) -> some View {
         HStack {
-            Text(verbatim: title).font(Theme.Typography.headline())
+            Text(verbatim: title).goalsFont(.headline)
             Spacer()
             removeButton(label: "project_goals.remove", remove)
         }
@@ -249,7 +282,7 @@ struct ProjectGoalsEditor: View {
     private func field<Content: View>(_ labelKey: String, @ViewBuilder _ content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: Theme.spacing2) {
             Text(NSLocalizedString(labelKey, comment: ""))
-                .font(Theme.Typography.caption1())
+                .goalsFont(.caption)
                 .foregroundColor(palette.textSecondary)
             content()
         }
@@ -308,5 +341,25 @@ enum ProjectGoalsEditorText {
 
     static func guardrailTitle(_ index: Int) -> String {
         String(format: NSLocalizedString("project_goals.guardrail_n", comment: "Guardrail 1"), index + 1)
+    }
+}
+
+/// The editor's fonts: the iOS type styles, and on the Mac the same styles through `.macFont`, so
+/// View ▸ Bigger / Smaller reaches them (ADEV-395).
+private enum GoalsFont { case headline, caption }
+
+private extension View {
+    @ViewBuilder func goalsFont(_ style: GoalsFont) -> some View {
+        #if os(macOS)
+        switch style {
+        case .headline: macFont(.headline)
+        case .caption: macFont(.caption)
+        }
+        #else
+        switch style {
+        case .headline: font(Theme.Typography.headline())
+        case .caption: font(Theme.Typography.caption1())
+        }
+        #endif
     }
 }

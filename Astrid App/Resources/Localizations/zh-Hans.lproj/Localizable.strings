@@ -1679,6 +1679,7 @@
 "projects.edit_title" = "编辑项目";
 "projects.description" = "描述";
 "projects.color" = "颜色";
+"projects.details" = "详细信息";
 "projects.edit_forbidden" = "只有项目的所有者和管理员可以更改它。";
 "projects.color_invalid" = "无法使用该颜色。请从色板中选择。";
 "projects.name_required" = "项目需要一个名称。";
