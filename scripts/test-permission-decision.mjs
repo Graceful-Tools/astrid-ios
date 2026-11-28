@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  requestSignature, decisionComment, readAnswer, nextStep, hookOutput, taskFromClaims, approversOf, AGENT_ID,
+  requestSignature, decisionComment, readAnswer, nextStep, hookOutput, taskFromClaims, approversOf, plainForm, AGENT_ID,
 } from './lib/permission-decision.mjs';
 
 const bash = { tool_name: 'Bash', tool_input: { command: 'curl -s https://example.com', description: 'Fetch it' } };
@@ -108,4 +108,57 @@ test('ADEV-249 the hook prints the PermissionRequest decision shape', () => {
 test('ADEV-249 the task asked on is the run\'s latest claim', () => {
   assert.equal(taskFromClaims('a\nb\n'), 'b');
   assert.equal(taskFromClaims(''), null);
+});
+
+// --- What stalled ADEV-328 for 13 hours (2026-11-27) -------------------------------------------
+// Two requests waited 20 minutes each for a command that was allowed in its plain form, and the
+// answer "Allow." was then read as a deny.
+
+test('ADEV-328 stall: a typed option name is the answer, with or without a full stop', () => {
+  assert.deepEqual(readAnswer('Allow.'), { choice: 1 });
+  assert.deepEqual(readAnswer('allow once'), { choice: 1 });
+  assert.deepEqual(readAnswer('Allow for this task'), { choice: 2 });
+  assert.deepEqual(readAnswer('Deny!'), { choice: 3 });
+  assert.deepEqual(readAnswer('yes'), { choice: 1 });
+  assert.deepEqual(readAnswer('No'), { choice: 3 });
+  // A sentence is still words: it may say something other than the option it starts with.
+  assert.deepEqual(readAnswer('Allow core work and allow bash for this session'),
+    { words: 'Allow core work and allow bash for this session' });
+  assert.deepEqual(readAnswer('allow, but only the fetch'), { words: 'allow, but only the fetch' });
+});
+
+test('ADEV-328 stall: the question says a typed allow or deny counts', () => {
+  assert.match(decisionComment(bash), /Typing \*\*allow\*\* or \*\*deny\*\* works too/);
+});
+
+const parent = '/Users/someone/code';
+const cmd = command => ({ tool_name: 'Bash', tool_input: { command } });
+
+test('ADEV-328 stall: an absolute path to a sibling checkout is sent back as the relative one', () => {
+  const hint = plainForm(cmd(`git -C ${parent}/astrid-core grep -n goal_links origin/main -- crates`), { parentDir: parent });
+  assert.match(hint, /\.\.\/astrid-core/);
+  assert.ok(!hint.includes(parent), 'the hint does not repeat the machine path');
+  assert.equal(plainForm(cmd('git -C ../astrid-core fetch origin'), { parentDir: parent }), null);
+});
+
+test('ADEV-328 stall: a chained, piped or redirected command is sent back to be split', () => {
+  for (const c of [
+    'git -C ../astrid-core fetch origin -q && git -C ../astrid-core grep -n x origin/main | head -60',
+    'cargo test; echo done',
+    'git log --oneline > /tmp/out.txt',
+    'echo $(git rev-parse HEAD)',
+    'git status\ngit diff',
+  ]) assert.match(plainForm(cmd(c), { parentDir: parent }), /one plain command/, c);
+});
+
+test('ADEV-328 stall: operators inside quotes are not operators, and other tools get no hint', () => {
+  assert.equal(plainForm(cmd(`git -C ../astrid-core grep -n -e "a|b" -e 'x && y' origin/main`), { parentDir: parent }), null);
+  assert.equal(plainForm(cmd('git commit -m "fix; and more > less"'), { parentDir: parent }), null);
+  assert.equal(plainForm({ tool_name: 'WebFetch', tool_input: { url: 'https://example.com/a|b' } }, { parentDir: parent }), null);
+  assert.equal(plainForm(cmd('curl -s https://example.com'), { parentDir: parent }), null);
+});
+
+test('ADEV-328 stall: the board helpers\' own `cd ../astrid-web &&` form is left alone', () => {
+  assert.equal(plainForm(cmd('cd ../astrid-web && npx tsx scripts/post-list-message.ts abc "two\nlines"'), { parentDir: parent }), null);
+  assert.match(plainForm(cmd('cd ../astrid-web && npx tsx scripts/ready-tasks.ts | tail -5'), { parentDir: parent }), /one plain command/);
 });

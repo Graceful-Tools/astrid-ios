@@ -510,8 +510,16 @@ fi
 # in astrid-core. Without these directories the session may only `cd` inside astrid-ios, so every
 # scheduled run since d7a183f9 stopped before its claim (ADEV-224, ADEV-225). Adding a directory
 # lets the session reach it; which commands may run there is still .claude/settings.json's call.
+#
+# Core WORK happens in worktrees, never in that shared checkout, and a worktree made mid-run is
+# not a directory the session was started with: every edit and `cd` in it was an approval request
+# (ADEV-328 waited 13 hours on the first). So they all live under one folder, created here and
+# added before the run starts; scripts/core/worktree.sh makes them there.
+CORE_DIR="${ASTRID_CORE_DIR:-$REPO/../astrid-core}"
+CORE_TREES="${ASTRID_CORE_WORKTREES:-${CORE_DIR%/}-worktrees}"
+[ -d "$CORE_DIR" ] && mkdir -p "$CORE_TREES" 2>/dev/null
 ADD_DIR_ARGS=()
-for dir in "$WEB" "${ASTRID_CORE_DIR:-$REPO/../astrid-core}"; do
+for dir in "$WEB" "$CORE_DIR" "$CORE_TREES"; do
   [ -d "$dir" ] && ADD_DIR_ARGS+=(--add-dir "${dir:A}")
 done
 

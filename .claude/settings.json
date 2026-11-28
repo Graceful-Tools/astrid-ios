@@ -46,6 +46,7 @@
       "Bash(printenv ASTRID_FIXALL_LOCK_HELD)",
       "Bash(node scripts/asc-appstore.mjs:*)",
       "Bash(scripts/core/release-xcframework.sh:*)",
+      "Bash(scripts/core/worktree.sh:*)",
       "Bash(cargo:*)"
     ]
   }

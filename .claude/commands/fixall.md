@@ -269,12 +269,33 @@ posts the request on the run's claimed task as a decision signed by Claude: **1.
 Allow for this task / 3. Deny**. It then waits up to 20 minutes (`FIXALL_APPROVAL_WAIT_SECONDS`)
 for Jon to tap an answer on the phone, web or Mac.
 
+**Most requests never need to be asked, so write commands the allowlist can match.** It matches a
+command by its first words. The same work passes or stalls depending on how it is spelled:
+
+- **One plain command per call.** No `&&`, `;`, pipes, redirects, `$( )` or second lines. Use the
+  Read and Grep tools in place of `head`, `tail`, `sed` and `grep`. The one chain that is allowed
+  is the board helpers' own `cd ../astrid-web && npx tsx scripts/<helper>.ts …`.
+- **Relative paths to the sibling checkouts** (`../astrid-web`, `../astrid-core`), never absolute
+  ones. `git -C ../astrid-core fetch origin` is allowed; the same command with the absolute path
+  is not.
+- **In an astrid-core worktree, go through `scripts/core/worktree.sh`** (§astrid-core). Never
+  `cd` into one.
+
+A request that breaks the first two rules is not put to Jon the first time. The hook sends it
+straight back with the rewrite, and the run re-issues it in the plain form. Sending the identical
+request a second time does ask. ADEV-328 is why: two requests waited 20 minutes each on
+`git -C <absolute path> fetch && … | head`, the task was handed back twice, and it sat 13 hours
+on commands that were allowed all along.
+
 What the run sees:
 
+- **Sent back with its plain form:** re-issue it as the message says. Nobody was asked.
 - **Allowed:** the call runs.
 - **Denied:** the call fails with a reason. Do not retry it; find another way, or say why in the
   report.
-- **Answered in words:** the call is denied and you are told to read the task's latest comments.
+- **A typed `allow`, `yes`, `allow for this task`, `deny` or `no`** counts as the option it
+  names, when it is the whole reply ("Allow." used to be read as a deny).
+- **Answered in any other words:** the call is denied and you are told to read the task's latest comments.
   Do that, and treat the comment like any of Jon's instructions on the task.
 - **No answer in time:** do not retry it. Hand the task back as §Questions describes, saying the
   run is waiting on that request. The question comment is already the Decision, so the handback
@@ -430,22 +451,45 @@ iOS, never blocked on Windows*. What it means here:
    the Windows board**, and never park an Apple task waiting on a Windows one.
 2. **When an Apple task needs a core change, do the core half here.** Don't file it somewhere else
    and wait. Work the core PR first, then the Apple half against the new pin.
-3. **How — in astrid-core:**
-   - Make a worktree of `../astrid-core` from fresh `origin/main`
-     (`git -C ../astrid-core fetch origin && git -C ../astrid-core worktree add ../astrid-core-<slug> -b fix/<slug> origin/main`).
-     **Never edit or check out the shared `../astrid-core` checkout.** Other loops read it, and a
-     checkout there detaches its HEAD under their local commits.
+3. **How — in astrid-core, through `scripts/core/worktree.sh`:**
+
+   ```bash
+   scripts/core/worktree.sh start  <slug>          # fresh origin/main -> ../astrid-core-worktrees/<slug>, branch fix/<slug>
+   scripts/core/worktree.sh run    <slug> cargo test -p astrid-core adev_123
+   scripts/core/worktree.sh run    <slug> cargo xtask gen-schema
+   scripts/core/worktree.sh gate   <slug>          # the whole local gate, one RESULT: line
+   scripts/core/worktree.sh run    <slug> git add -A
+   scripts/core/worktree.sh run    <slug> git commit -F ../<slug>.msg
+   scripts/core/worktree.sh run    <slug> git push -u origin fix/<slug>
+   gh pr create --repo Graceful-Tools/astrid-core --head fix/<slug> --title "…" --body-file ../astrid-core-worktrees/<slug>.pr.md
+   gh pr checks <n> --repo Graceful-Tools/astrid-core --watch
+   gh pr merge  <n> --repo Graceful-Tools/astrid-core --merge --delete-branch
+   scripts/core/worktree.sh finish <slug>
+   ```
+
+   - **Why the script.** A scheduled run may only edit and `cd` inside the folders it was started
+     with. The loop adds `../astrid-core-worktrees` before the run, and the script is the one
+     allowlisted way to run `cargo`, `git` or `gh` inside a worktree there. A worktree anywhere
+     else (the old `../astrid-core-<slug>`) costs an approval request per edit and per command.
+   - Edit files in the worktree with the Edit and Write tools, by path
+     (`scripts/core/worktree.sh path <slug>` prints it).
+   - Write a commit message or PR body with the Write tool to `../astrid-core-worktrees/<slug>.msg`
+     / `<slug>.pr.md`, beside the worktree and not in it, and pass the file. A multi-line `-m` is
+     not a plain command.
+   - **Never edit or check out the shared `../astrid-core` checkout.** Other loops read it, and a
+     checkout there detaches its HEAD under their local commits. `start` only fetches there.
    - Read astrid-core's `CLAUDE.md`. Its rules apply: `astrid-rules` stays pure, contracts are
      fixtures (web first), and iOS wins a divergence.
    - Write a RED test that names the task id, then make it green.
-   - Run its local gate, all green: `cargo fmt --all -- --check`,
-     `cargo clippy --all-targets --all-features -- -D warnings`, `cargo test --workspace`, the
-     `cargo xtask check-*` commands, and the wasm build.
+   - **`gate` runs astrid-core's whole local gate** in its order: fmt, clippy, the tests with and
+     without default features, the `cargo xtask check-*` commands and the wasm build. It checks
+     contracts against astrid-web's `origin/main`, as CI does, so a stale local web checkout
+     cannot fail it. It stops at the first red step and names it.
    - A wire type change means `cargo xtask gen-schema`. Read that diff, because it lists what the
      clients must follow.
-   - Open a PR on `Graceful-Tools/astrid-core` and wait for CI to go green. CI covers the Android
-     NDK and wasm builds, so no special toolchain is needed locally.
-   - Merge with a **merge commit**, then remove the worktree and its branch.
+   - Open the PR and wait for CI to go green. CI covers the Android NDK and wasm builds, so no
+     special toolchain is needed locally.
+   - Merge with a **merge commit**, then `finish`.
    - astrid-core has no deploy: merged to `main` is done for the core half. Say so on the task,
      with the PR and the merge sha.
 4. **Then bump the Apple pin here, as its own change.** Run
@@ -524,6 +568,17 @@ Then **one `RESULT:` line** in the terminal and nothing else. `RESULT: OK — <n
 - **This holds interactively too** (Jon, 2026-09-15). The chat wrap-up is gone from every
   `/fixall` run, watched or not: the board is where he looks, and a summary that only exists in
   a terminal is gone as soon as the window is.
+
+## "Status?" is one command
+
+```bash
+npm run fixall:status
+```
+
+Read-only, no session needed. It prints who holds the tree and what is unpushed, what the queue
+holds, each Doing task and whether a VALID build carries it yet, the latest Xcode Cloud runs, how
+far the astrid-web tooling checkout is behind `origin/main`, and the loop's last results. Answer
+a status question from it; do not rebuild it from five calls.
 
 ## Interactive mode (`/fixstuff`, "let's fix stuff")
 

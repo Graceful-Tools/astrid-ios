@@ -61,7 +61,8 @@ npm run predeploy             # Run standard checks before pushing
 | `npm run predeploy` | Quick + partner-brand audit + unit tests (with the per-directory coverage table, failing below `scripts/coverage-floor.json`) + script self-tests + `test:core` — **the standard gate before pushing** |
 | `npm run predeploy:full` | Standard + iOS UI tests (mints a per-run test account) + Mac unit tests + Mac UI tests |
 | `npm run check:version` | Refuse a `MARKETING_VERSION` the App Store has already released, iOS and Mac (skips offline) |
-| `npm run test:scripts` | Self-tests for the shell scripts (`check-version.sh`, `check-app-version-table.sh`, `fixall-loop.sh`, `make-brand-variant.sh` and the brand-variant smoke's checks, `monkey-test.sh`'s verdict, the source-contract rules) |
+| `npm run test:scripts` | Self-tests for the shell scripts (`check-version.sh`, `check-app-version-table.sh`, `fixall-loop.sh`, `core/worktree.sh`, `make-brand-variant.sh` and the brand-variant smoke's checks, `monkey-test.sh`'s verdict, the source-contract rules) |
+| `npm run fixall:status` | Read-only answer to "status?": the tree lock and unpushed commits, the iOS queue, each Doing task and whether a VALID build carries it, the latest Xcode Cloud runs, how stale the astrid-web tooling checkout is, the loop's last results |
 | `npm run test` | Unit tests |
 | `npm run test:ui` | UI tests only |
 | `npm run test:mac` | Mac unit tests (`Astrid MacTests`), unsandboxed and with coverage against the same floor; never alongside `predeploy`, whose brand audit rewrites the Info.plists |

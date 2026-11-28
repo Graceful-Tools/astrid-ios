@@ -10,14 +10,16 @@
 //
 // Env: ASTRID_FIXALL_CLAIMS_FILE (set by the loop), ASTRID_WEB_DIR (astrid-web, for the OAuth
 // pair in .env.local), FIXALL_APPROVAL_WAIT_SECONDS (1200), FIXALL_APPROVAL_POLL_SECONDS (15),
-// FIXALL_APPROVALS_USED (file of used Allow-once answers), ASTRID_API (https://www.astrid.cc).
+// FIXALL_APPROVALS_USED (file of used Allow-once answers), FIXALL_APPROVALS_HINTED (file of
+// requests already sent back once with their plain form; default: beside the claims file, so it
+// lasts one run), ASTRID_API (https://www.astrid.cc).
 
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  AGENT_ID, approversOf, decisionComment, hookOutput, nextStep, requestSignature, taskFromClaims, timeoutMessage,
+  AGENT_ID, approversOf, decisionComment, hookOutput, nextStep, plainForm, requestSignature, taskFromClaims, timeoutMessage,
 } from './lib/permission-decision.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -44,8 +46,29 @@ try {
 }
 log(`${request.tool_name} ${requestSignature(request)} ${JSON.stringify(request.tool_input ?? {}).slice(0, 200)}`);
 
+// A request with a plain form is sent back with the rewrite, once, before anyone is asked: the
+// 20-minute wait is for decisions, not for a command that was allowed under another spelling.
+const claimsFile = process.env.ASTRID_FIXALL_CLAIMS_FILE || '';
+const HINTED = process.env.FIXALL_APPROVALS_HINTED
+  || (claimsFile ? path.join(path.dirname(claimsFile), 'permission-hinted') : `${USED}-hinted`);
+const hint = plainForm(request, { parentDir: path.dirname(REPO) });
+if (hint) {
+  const sig = requestSignature(request);
+  const hinted = (() => { try { return fs.readFileSync(HINTED, 'utf8').split('\n'); } catch { return []; } })();
+  if (!hinted.includes(sig)) {
+    try {
+      fs.mkdirSync(path.dirname(HINTED), { recursive: true });
+      fs.appendFileSync(HINTED, `${sig}\n`);
+      log(`sent back with its plain form: ${sig}`);
+      answer('deny', hint);
+    } catch (e) {
+      log(`could not record the hint (${e.message}); asking instead`);  // never hint twice blind
+    }
+  }
+}
+
 const claims = (() => {
-  try { return fs.readFileSync(process.env.ASTRID_FIXALL_CLAIMS_FILE || '', 'utf8'); } catch { return ''; }
+  try { return fs.readFileSync(claimsFile, 'utf8'); } catch { return ''; }
 })();
 const claimed = taskFromClaims(claims);
 if (!claimed) {

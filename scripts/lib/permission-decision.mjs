@@ -1,8 +1,11 @@
 // permission-decision.mjs: what the scheduled loop does with a command its allowlist does not cover
 // (ADEV-249). Instead of being refused, the request is asked on the claimed task as a decision
 // (astrid-web docs/DECISIONS.md), so the person answers it with a tap on the phone, web or Mac:
-//   1. Allow once   2. Allow for this task   3. Deny   (or a reply in words: denied, and the
-//   agent is sent to read that comment the way it reads any instruction on the task)
+//   1. Allow once   2. Allow for this task   3. Deny   (a typed "allow" or "deny" counts too; any
+//   other reply in words is a deny, and the agent is sent to read that comment the way it reads
+//   any instruction on the task)
+// A request that has a plain form the allowlist already covers is not asked at all the first
+// time: it is sent straight back with the rewrite (`plainForm`), which costs no one 20 minutes.
 // This file is the pure part: the comment, reading the thread, and the hook's answer. The hook
 // that calls the API is scripts/fixall-permission-hook.mjs.
 
@@ -35,16 +38,72 @@ export function decisionComment(request, waitMinutes = 20) {
     // A bold number opens each option, or no client draws the cards (ADEV-336, DECISIONS.md).
     ...CHOICES.map((c, i) => `- **${i + 1}.** ${c}`),
     '',
-    `${why}Request \`${requestSignature(request)}\`. A reply in words denies it, and the agent reads your comment on the task instead. ` +
+    `${why}Request \`${requestSignature(request)}\`. Typing **allow** or **deny** works too. Any other reply denies it, and the agent reads your comment on the task instead. ` +
       `With no answer in ${waitMinutes} minutes the run stops asking and hands the task back to you.`,
   ].join('\n');
 }
 
-/** A tapped card posts `1 — Allow once`; a typed `2` counts too. Anything else is words. */
+/** The option names, typed. Only the whole reply counts: a sentence that starts with "allow"
+ *  may go on to say something else (ADEV-328: "Allow." was read as a deny and cost a night). */
+const TYPED = {
+  allow: 1, 'allow once': 1, 'allow it': 1, yes: 1, ok: 1, approve: 1, approved: 1,
+  'allow for this task': 2, 'allow for task': 2,
+  deny: 3, denied: 3, no: 3,
+};
+
+/** A tapped card posts `1 — Allow once`; a typed `2` or `allow` counts too. Anything else is words. */
 export function readAnswer(content) {
   const text = String(content ?? '').trim();
   const m = text.match(/^([1-3])\s*(?:[—–\-.:)]|$)/);
-  return m ? { choice: Number(m[1]) } : { words: text };
+  if (m) return { choice: Number(m[1]) };
+  const typed = TYPED[text.toLowerCase().replace(/[.!\s]+$/, '').replace(/\s+/g, ' ')];
+  return typed ? { choice: typed } : { words: text };
+}
+
+/** Shell operators outside quotes: chaining, pipes, redirects, substitution, a second line. */
+function hasShellOperator(command) {
+  let quote = null;
+  for (let i = 0; i < command.length; i++) {
+    const ch = command[i];
+    if (quote) {
+      if (ch === '\\' && quote === '"') i++;
+      else if (ch === quote) quote = null;
+      else if (quote === '"' && (ch === '`' || (ch === '$' && command[i + 1] === '('))) return true;
+      continue;
+    }
+    if (ch === '\\') { i++; continue; }
+    if (ch === '"' || ch === "'") { quote = ch; continue; }
+    if (';|&<>`\n'.includes(ch) || (ch === '$' && command[i + 1] === '(')) return true;
+  }
+  return false;
+}
+
+/**
+ * The plain form of a Bash request, when it has one: null, or what to tell the agent instead of
+ * asking a person. The allowlist matches a command by its first words, so the same work passes
+ * when it is one command per call with relative paths, and stalls for 20 minutes when it is not
+ * (ADEV-328: `git -C /abs/astrid-core fetch && … | head` was asked twice; `git -C ../astrid-core
+ * fetch` was allowed all along). `parentDir` is the folder the checkouts sit in.
+ */
+export function plainForm({ tool_name, tool_input = {} }, { parentDir } = {}) {
+  if (tool_name !== 'Bash') return null;
+  const command = String(tool_input.command ?? '').trim();
+  const fixes = [];
+  const prefix = parentDir ? `${String(parentDir).replace(/\/+$/, '')}/` : null;
+  if (prefix && command.includes(prefix)) {
+    const sibling = command.slice(command.indexOf(prefix) + prefix.length).split(/[\/\s'"]/)[0];
+    fixes.push(`name the sibling checkout by its relative path (../${sibling}), as the allowlist does, not by an absolute one`);
+  }
+  // The board helpers are allowlisted as `cd ../astrid-web && npx tsx scripts/…`: that one chain
+  // is the plain form, so it is not what gets split.
+  if (hasShellOperator(command.replace(/^cd \.\.\/astrid-web && /, ''))) {
+    fixes.push('send one plain command per call: no &&, ;, pipes, redirects, $( ) or second lines. ' +
+      'Use the Read and Grep tools in place of head, tail, sed and grep');
+  }
+  if (fixes.length === 0) return null;
+  return `Not asked: this has a plain form the allowlist most likely covers. ${fixes.join('; and ')}. ` +
+    'In astrid-core worktrees use scripts/core/worktree.sh (see .claude/commands/fixall.md). ' +
+    'If it truly cannot be written that way, send the identical request again and it will be put to the person.';
 }
 
 const isPerson = c => c.authorId !== AGENT_ID && !c.author?.isAIAgent;

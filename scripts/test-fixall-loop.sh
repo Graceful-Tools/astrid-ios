@@ -763,6 +763,15 @@ called "FIXALL_APPROVALS=0 runs without the hook" "claude -p" "!--settings"
 run 0 0
 called "the run gets astrid-web as an added directory (ADEV-225)" "claude -p" "--add-dir" "astrid-web"
 
+# --- ADEV-328 stall: core worktrees are made mid-run, so their folder is added up front ------
+called "no core checkout, no worktrees folder" "claude -p" "!astrid-core-worktrees"
+mkdir -p "$TMP/workspace/astrid-core"
+run 0 0
+called "the run gets the core worktrees folder as an added directory" "claude -p" "--add-dir" "astrid-core-worktrees"
+if [ -d "$TMP/workspace/astrid-core-worktrees" ]; then ok
+else bad "the worktrees folder exists before the run starts"; fi
+rm -rf "$TMP/workspace/astrid-core" "$TMP/workspace/astrid-core-worktrees"
+
 echo ""
 if [ "$FAIL" = 0 ]; then echo "✓ fixall-loop: $PASS checks passed"; exit 0; fi
 echo "✗ fixall-loop: $FAIL failed, $PASS passed"; exit 1
