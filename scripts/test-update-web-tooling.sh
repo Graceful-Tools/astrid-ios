@@ -41,8 +41,9 @@ out=$("$SCRIPT"); has "behind: it fast-forwards and says so" "$out" "fast-forwar
 check "the detached checkout is on origin/main" "$(head_)" "$new"
 check "no npm ci when the lockfile did not change; the MCP server is rebuilt" "$(cat "$CALLS")" "run -s build:mcp:oauth"
 
+echo leftover > "$WEB/old-bundle"   # untracked, as a build output dropped from .gitignore is
 new=$(advance package-lock.json); : > "$CALLS"
-"$SCRIPT" >/dev/null; check "a lockfile change moves it too" "$(head_)" "$new"
+"$SCRIPT" >/dev/null; check "a lockfile change moves it too, past an untracked file" "$(head_)" "$new"
 has "a lockfile change runs npm ci" "$(cat "$CALLS")" "ci --no-audit --no-fund"
 
 before=$(head_); advance README.md >/dev/null
@@ -69,7 +70,7 @@ touch "$TMP/npm-fails"
 out=$("$SCRIPT"); has "a failed build says FAILED" "$out" "FAILED — the MCP build did not work"
 has "…and says it went back" "$out" "back at"
 check "…and the checkout is back where it was" "$(head_)" "$before"
-check "…with nothing left dirty" "$(git -C "$WEB" status --porcelain)" ""
+check "…with nothing left dirty" "$(git -C "$WEB" status --porcelain --untracked-files=no)" ""
 rm "$TMP/npm-fails" "$TMP/npm-failed-once"
 
 "$SCRIPT" >/dev/null; check "the next tick takes the update" "$(head_)" "$(git -C "$ORIGIN" rev-parse HEAD)"

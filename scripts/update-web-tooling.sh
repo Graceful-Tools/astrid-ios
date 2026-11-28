@@ -7,7 +7,7 @@
 #
 # It fast-forwards and nothing else. It leaves the checkout alone, saying why in one line, when:
 #   - a live /fixall session holds this tree or that one (its helpers are in use)
-#   - the checkout has uncommitted changes
+#   - the checkout has uncommitted changes to tracked files
 #   - it is on a branch other than main (someone is working there)
 #   - it has commits origin/main lacks (a fast-forward is not possible)
 # After moving it: `npm ci` when package-lock.json changed, the MCP server is rebuilt, and one
@@ -37,7 +37,10 @@ if [ -x "$TSX" ]; then
   done
 fi
 
-[ -z "$(git_ status --porcelain)" ] || { say "left alone — uncommitted changes in $WEB"; exit 0; }
+# Tracked files only. An untracked file does not stop a fast-forward (git refuses the merge
+# itself if one is in the way), and a leftover build bundle the newer .gitignore no longer names
+# would otherwise stop every update for good: mcp/astrid-mcp-oauth-http did, the first time.
+[ -z "$(git_ status --porcelain --untracked-files=no)" ] || { say "left alone — uncommitted changes in $WEB"; exit 0; }
 branch=$(git_ symbolic-ref -q --short HEAD || true)
 [ -z "$branch" ] || [ "$branch" = main ] || { say "left alone — on branch $branch"; exit 0; }
 
