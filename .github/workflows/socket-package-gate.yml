@@ -1,0 +1,18 @@
+name: Socket package gate
+
+# ADEV-339: no package version lands unless Socket (socket.dev) has analyzed it and reports no
+# blocking risk. The gate's code lives once, in astrid-web; this calls it. The token comes from
+# the Graceful-Tools organisation secrets SOCKET_API_TOKEN / SOCKET_ORG_SLUG (Actions and
+# Dependabot). Without them, or for a version Socket has not analyzed yet, the check fails
+# closed. Rules: astrid-web docs/CLI_OPERATIONS.md, "the Socket gate".
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  socket:
+    uses: Graceful-Tools/astrid-web/.github/workflows/socket-gate-reusable.yml@main
+    secrets: inherit
