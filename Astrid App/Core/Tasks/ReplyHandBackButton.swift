@@ -21,7 +21,7 @@ struct ReplyHandBackButton: View {
     var body: some View {
         if let target {
             Button { onTap(target) } label: {
-                VStack(spacing: 0) {
+                VStack(spacing: Theme.spacing2) {
                     Text(NSLocalizedString(ReplyHandBack.titleKey(for: target, hasReply: hasReply), comment: ""))
                         .font(Theme.Typography.headline())
                     Text(String(format: NSLocalizedString("comments.hand_back_to", comment: "to <name>"), target.name))
