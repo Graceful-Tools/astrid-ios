@@ -613,8 +613,6 @@ struct TaskDetailViewNew: View {
                 // Collapsed (state kept) while another input owns the keyboard.
                 if !isReadOnly {
                   VStack(spacing: Theme.spacing4) {
-                    ReplyHandBackButton(taskId: task.id) { task = $0; editedAssigneeId = $0.assigneeId } // ADEV-360
-                        .padding(.horizontal, Theme.spacing16).padding(.top, Theme.spacing4)
                     RichTextInput(
                         placeholder: "Add a comment...",
                         listId: task.listIds?.first,
@@ -624,7 +622,8 @@ struct TaskDetailViewNew: View {
                         },
                         onTimerTap: { showTimer = true },
                         onAskForDecision: isReadOnly ? nil : { showingDecisionComposer = true }, // ADEV-189
-                        focusReport: $commentInputFocused
+                        focusReport: $commentInputFocused,
+                        handBack: .init(taskId: task.id, post: submitCommentFromRichInput) { task = $0; editedAssigneeId = $0.assigneeId } // ADEV-360
                     )
                         .sheet(isPresented: $showingDecisionComposer) {
                             DecisionComposerView { md, to in _Concurrency.Task { await addDecision(md, to: to) } }

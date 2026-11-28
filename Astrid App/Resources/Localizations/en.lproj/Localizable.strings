@@ -1956,3 +1956,8 @@
 
 /* Reply, then return the task to whoever asked (ADEV-360) */
 "comments.hand_back" = "Hand back to %@";
+"comments.reply_reassign_ready" = "Reply, Reassign & Ready";
+"comments.reassign_ready" = "Reassign & Ready";
+"comments.reply_reassign" = "Reply & Reassign";
+"comments.reassign" = "Reassign";
+"comments.hand_back_to" = "to %@";

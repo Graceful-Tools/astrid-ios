@@ -1948,3 +1948,8 @@
 
 /* Reply, then return the task to whoever asked (ADEV-360) */
 "comments.hand_back" = "%@ に戻す";
+"comments.reply_reassign_ready" = "返信・再割り当て・準備完了";
+"comments.reassign_ready" = "再割り当て・準備完了";
+"comments.reply_reassign" = "返信・再割り当て";
+"comments.reassign" = "再割り当て";
+"comments.hand_back_to" = "%@ へ";

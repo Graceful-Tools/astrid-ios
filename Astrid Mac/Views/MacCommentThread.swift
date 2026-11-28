@@ -209,6 +209,7 @@ struct MacCommentComposerBar<Accessory: View, Idle: View>: View {
     /// reached a SwiftUI paste modifier at all.
     @State private var pasteMonitor: Any?
     @State private var composingDecision = false
+    @State private var handingBack = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -226,9 +227,11 @@ struct MacCommentComposerBar<Accessory: View, Idle: View>: View {
                 .background(Theme.bgSecondary).clipShape(RoundedRectangle(cornerRadius: 6))
                 .padding(.horizontal, 8)
             }
-            // Answered a question? Give the task back to whoever asked (ADEV-360) — the same
-            // button and rule the iPhone draws, so both surfaces that compose here get it.
-            ReplyHandBackButton(taskId: taskId)
+            // Reply, Reassign & Ready (ADEV-360): the same blue button and rule the iPhone draws,
+            // so task details and the board card, which both compose here, get it.
+            ReplyHandBackButton(taskId: taskId,
+                                hasReply: MacCommentSend.showsSend(text: draft.text, stagedCount: draft.stagedFiles.count),
+                                onTap: replyAndHandBack, busy: handingBack)
                 .padding(.horizontal, Theme.spacing12)
                 .padding(.top, Theme.spacing8)
             stagedAttachments
@@ -275,6 +278,23 @@ struct MacCommentComposerBar<Accessory: View, Idle: View>: View {
 
     private func addComment() {
         draft.addComment(taskId: taskId, onPosted: onPosted)
+    }
+
+    /// Post what's typed (if anything), then hand the task back. The hand-back waits for the post
+    /// to succeed: a failed reply keeps the draft and the task (ADEV-360).
+    private func replyAndHandBack(_ target: ReplyHandBack.Target) {
+        let handBack: @MainActor () async -> Void = { [taskId] in
+            handingBack = true
+            defer { handingBack = false }
+            do { try await ReplyHandBack.perform(target, taskId: taskId) } catch {
+                AppLog.debug("❌ [ReplyHandBack] Hand back refused: \(error)")
+            }
+        }
+        if MacCommentSend.canPost(text: draft.text.trimmingCharacters(in: .whitespaces), stagedCount: draft.stagedFiles.count) {
+            draft.addComment(taskId: taskId) { [onPosted] in await onPosted(); await handBack() }
+        } else {
+            _Concurrency.Task { await handBack() }
+        }
     }
 
     /// Watch for ⌘V while this composer is on screen. The event is CONSUMED only when the paste

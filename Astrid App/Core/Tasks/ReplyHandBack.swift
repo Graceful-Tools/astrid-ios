@@ -42,6 +42,27 @@ enum ReplyHandBack {
                       isAgent: asked.author?.isAIAgent == true)
     }
 
+    /// The words on the one blue button (Jon: "like Gmail's Send & Archive"): what a tap does,
+    /// given whether something is typed. A person keeps the column, so their button never says Ready.
+    static func titleKey(for target: Target, hasReply: Bool) -> String {
+        switch (hasReply, target.isAgent) {
+        case (true, true): return "comments.reply_reassign_ready"
+        case (false, true): return "comments.reassign_ready"
+        case (true, false): return "comments.reply_reassign"
+        case (false, false): return "comments.reassign"
+        }
+    }
+
+    /// One tap: the reply first, then the hand-back, so whoever gets the task finds the answer
+    /// already there when it lands in their queue. Nothing typed is a plain hand-back. A reply
+    /// that fails stops it: the task never goes back without the answer it was waiting for.
+    @MainActor
+    static func replyThenHandBack(_ target: Target, reply: (() async throws -> Void)?,
+                                  handBack: (Target) async throws -> Void) async throws {
+        if let reply { try await reply() }
+        try await handBack(target)
+    }
+
     /// The task, reassigned to `target` — one edit through the service layer, so it journals and
     /// goes out offline like any other.
     @MainActor

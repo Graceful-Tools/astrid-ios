@@ -64,4 +64,33 @@ final class ReplyHandBackTests: XCTestCase {
         XCTAssertNil(ReplyHandBack.target(assigneeId: me, currentUserId: me, completed: false,
                                           comments: comments))
     }
+
+    // Jon on ADEV-360: "The ui is text but we want a button on all platform. Kind of like
+    // 'send & Archive' with Gmail." One blue button posts the reply AND hands the task back; its
+    // words say exactly what the tap will do.
+    func testADEV360_theButtonSaysWhatOneTapDoes() {
+        let agent = ReplyHandBack.Target(userId: "a", name: "Claude Agent", isAgent: true)
+        let person = ReplyHandBack.Target(userId: "p", name: "Sam", isAgent: false)
+        XCTAssertEqual(ReplyHandBack.titleKey(for: agent, hasReply: true), "comments.reply_reassign_ready")
+        XCTAssertEqual(ReplyHandBack.titleKey(for: agent, hasReply: false), "comments.reassign_ready")
+        XCTAssertEqual(ReplyHandBack.titleKey(for: person, hasReply: true), "comments.reply_reassign")
+        XCTAssertEqual(ReplyHandBack.titleKey(for: person, hasReply: false), "comments.reassign")
+        for key in ["comments.reply_reassign_ready", "comments.reassign_ready", "comments.reply_reassign",
+                    "comments.reassign", "comments.hand_back_to"] {
+            XCTAssertNotEqual(NSLocalizedString(key, comment: ""), key, "\(key) is in Localizable.strings")
+        }
+    }
+
+    @MainActor
+    func testADEV360_replyIsPostedBeforeTheHandBack() async throws {
+        var order: [String] = []
+        let target = ReplyHandBack.Target(userId: "a", name: "Claude Agent", isAgent: true)
+        try await ReplyHandBack.replyThenHandBack(target, reply: { order.append("reply") },
+                                                  handBack: { t in order.append("handBack \(t.userId) \(t.statusRole ?? "-")") })
+        XCTAssertEqual(order, ["reply", "handBack a ready"])
+
+        order = []
+        try await ReplyHandBack.replyThenHandBack(target, reply: nil, handBack: { _ in order.append("handBack") })
+        XCTAssertEqual(order, ["handBack"], "nothing typed: just the hand-back")
+    }
 }
