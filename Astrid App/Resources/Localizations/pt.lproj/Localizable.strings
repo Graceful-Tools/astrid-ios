@@ -1948,3 +1948,8 @@
 
 /* Reply, then return the task to whoever asked (ADEV-360) */
 "comments.hand_back" = "Devolver para %@";
+"comments.reply_reassign_ready" = "Responder, reatribuir e pronto";
+"comments.reassign_ready" = "Reatribuir e pronto";
+"comments.reply_reassign" = "Responder e reatribuir";
+"comments.reassign" = "Reatribuir";
+"comments.hand_back_to" = "para %@";

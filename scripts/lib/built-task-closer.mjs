@@ -17,6 +17,9 @@ export const AWAITING_BUILD = /\*\*Awaiting build:\*\*\s*`([0-9a-f]{7,40})`/i;
  * reopened task still carries the marker for the fix that missed, and closing it on that build
  * would undo the reopen before anyone had worked it.
  *
+ * A person's comment newer than the marker that no agent has answered holds the close (ADEV-360):
+ * the run that answers it either posts a new marker or replies, and the replied-to marker counts.
+ *
  * Any author's marker counts unless `authorId` is given. Interactive sessions post through the
  * astrid MCP or the OAuth comment script, and both write as Jon, so an agent-only rule left
  * their tasks in Doing after the build was VALID (AITD-454/458/459, 2026-10-04).
@@ -31,6 +34,12 @@ export function awaitingSha(comments, authorId) {
     .sort((a, b) => at(b) - at(a));
   const newest = markers[0];
   if (!newest || at(newest) <= lastCompleted) return null;
+  // A person spoke after the marker and no agent has answered yet: they may be asking for more
+  // than the build carries (ADEV-360, "we want a button on all platforms"). Leave it for a session.
+  const lastSpoken = comments
+    .filter(c => c.authorId && !c.systemEventType && at(c) > at(newest))
+    .sort((a, b) => at(b) - at(a))[0];
+  if (lastSpoken && !String(lastSpoken.authorId).startsWith('ai-agent-')) return null;
   return newest.content.match(AWAITING_BUILD)[1].toLowerCase();
 }
 

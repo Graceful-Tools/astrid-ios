@@ -26,10 +26,13 @@ struct RichTextInput: View {
     /// Task detail only: the paperclip menu also offers to write a decision (ADEV-189).
     var onAskForDecision: (() -> Void)? = nil
     var focusReport: Binding<Bool>? = nil  // Reports the text field's focus to the host view
+    /// Task detail only: the blue Reply, Reassign & Ready button above the input (ADEV-360).
+    var handBack: ReplyHandBackHost? = nil
 
     // Text state (can be bound externally or managed internally)
     @State private var text = ""
     @State private var isSubmitting = false
+    @State private var isHandingBack = false
     @FocusState private var isFocused: Bool
 
     // Autocomplete state
@@ -77,6 +80,19 @@ struct RichTextInput: View {
                     .foregroundColor(palette.errorInk)
                     .padding(.horizontal, Theme.spacing12)
                     .padding(.bottom, Theme.spacing4)
+            }
+
+            // Reply, Reassign & Ready: posts what's typed and hands the task back (ADEV-360).
+            if let handBack {
+                ReplyHandBackButton(taskId: handBack.taskId, hasReply: canSend, onTap: { target in
+                    let draft = takeDraft()
+                    isHandingBack = true
+                    _Concurrency.Task {
+                        await handBack.send(draft, to: target)
+                        isHandingBack = false
+                    }
+                }, busy: isHandingBack || isSubmitting)
+                .padding(.bottom, Theme.spacing8)
             }
 
             // Main input row: [text field] [paperclip] [send]
@@ -284,6 +300,16 @@ struct RichTextInput: View {
     // MARK: - Send
 
     private func send() {
+        guard !isSubmitting, let draft = takeDraft() else { return }
+        isSubmitting = true
+        defer { isSubmitting = false }
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        onSend?(draft.content, draft.type, draft.fileIds)
+    }
+
+    /// The typed reply with its references and files, ready to post, and the input cleared; nil
+    /// when there is nothing to send.
+    private func takeDraft() -> (content: String, type: Comment.CommentType, fileIds: [String])? {
         let refs = insertedReferences
         var content = text
         let sorted = refs.sorted { $0.displayText.count > $1.displayText.count }
@@ -295,11 +321,7 @@ struct RichTextInput: View {
         }
         content = content.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard ChatComposer.canSend(text: content, hasAttachments: !attachedFiles.isEmpty) else { return }
-        guard !isSubmitting else { return }
-
-        isSubmitting = true
-        defer { isSubmitting = false }
+        guard ChatComposer.canSend(text: content, hasAttachments: !attachedFiles.isEmpty) else { return nil }
 
         let fileIds = attachedFiles.map(\.fileId)
         let messageType: Comment.CommentType = attachedFiles.isEmpty ? .TEXT : .ATTACHMENT
@@ -309,9 +331,7 @@ struct RichTextInput: View {
         attachedFiles = []
         uploadError = nil
         clearAutocomplete()
-
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-        onSend?(content, messageType, fileIds)
+        return (content, messageType, fileIds)
     }
 
     // MARK: - Autocomplete

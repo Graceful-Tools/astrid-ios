@@ -1964,3 +1964,8 @@
 
 /* Reply, then return the task to whoever asked (ADEV-360) */
 "comments.hand_back" = "Rendre à %@";
+"comments.reply_reassign_ready" = "Répondre, réattribuer et prêt";
+"comments.reassign_ready" = "Réattribuer et prêt";
+"comments.reply_reassign" = "Répondre et réattribuer";
+"comments.reassign" = "Réattribuer";
+"comments.hand_back_to" = "à %@";

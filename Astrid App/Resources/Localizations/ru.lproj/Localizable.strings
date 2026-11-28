@@ -1948,3 +1948,8 @@
 
 /* Reply, then return the task to whoever asked (ADEV-360) */
 "comments.hand_back" = "Вернуть: %@";
+"comments.reply_reassign_ready" = "Ответить, переназначить и готово";
+"comments.reassign_ready" = "Переназначить и готово";
+"comments.reply_reassign" = "Ответить и переназначить";
+"comments.reassign" = "Переназначить";
+"comments.hand_back_to" = "для %@";

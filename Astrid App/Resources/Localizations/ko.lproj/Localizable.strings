@@ -1950,3 +1950,8 @@
 
 /* Reply, then return the task to whoever asked (ADEV-360) */
 "comments.hand_back" = "%@에게 돌려주기";
+"comments.reply_reassign_ready" = "답장, 재할당 및 준비";
+"comments.reassign_ready" = "재할당 및 준비";
+"comments.reply_reassign" = "답장 및 재할당";
+"comments.reassign" = "재할당";
+"comments.hand_back_to" = "%@에게";

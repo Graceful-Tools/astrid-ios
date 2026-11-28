@@ -1950,3 +1950,8 @@
 
 /* Reply, then return the task to whoever asked (ADEV-360) */
 "comments.hand_back" = "交還給 %@";
+"comments.reply_reassign_ready" = "回覆、重新指派並就緒";
+"comments.reassign_ready" = "重新指派並就緒";
+"comments.reply_reassign" = "回覆並重新指派";
+"comments.reassign" = "重新指派";
+"comments.hand_back_to" = "給 %@";
