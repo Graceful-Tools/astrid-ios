@@ -1679,6 +1679,7 @@
 "projects.edit_title" = "Modifica progetto";
 "projects.description" = "Descrizione";
 "projects.color" = "Colore";
+"projects.details" = "Dettagli";
 "projects.edit_forbidden" = "Solo il proprietario e gli amministratori del progetto possono modificarlo.";
 "projects.color_invalid" = "Questo colore non si può usare. Scegline uno tra i campioni.";
 "projects.name_required" = "Un progetto deve avere un nome.";

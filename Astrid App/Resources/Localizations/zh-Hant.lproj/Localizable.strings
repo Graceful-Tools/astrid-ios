@@ -1681,6 +1681,7 @@
 "projects.edit_title" = "編輯專案";
 "projects.description" = "描述";
 "projects.color" = "顏色";
+"projects.details" = "詳細資訊";
 "projects.edit_forbidden" = "只有專案的擁有者和管理員可以更改它。";
 "projects.color_invalid" = "無法使用該顏色。請從色票中選擇。";
 "projects.name_required" = "專案需要一個名稱。";

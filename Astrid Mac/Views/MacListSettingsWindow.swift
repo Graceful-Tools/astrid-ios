@@ -84,9 +84,11 @@ struct MacListSettingsWindow: View {
     /// and the tab's own content takes the rest, scrolling inside it — never the reverse.
     var content: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(String(format: NSLocalizedString("mac.list_settings_title", comment: ""),
-                        currentList.name))
-                .macFont(.headline).foregroundStyle(Theme.textPrimary)
+            // The shared settings header (ADEV-395, `MacSettingsPage`): Project Settings opens
+            // with the same one, so the two read as one design.
+            MacSettingsHeader(systemImage: "list.bullet.rectangle",
+                              title: String(format: NSLocalizedString("mac.list_settings_title", comment: ""),
+                                            currentList.name))
 
             Picker("", selection: $tab) {
                 Text(NSLocalizedString("lists.filters", comment: "")).tag(Tab.sortFilters)

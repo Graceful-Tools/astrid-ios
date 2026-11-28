@@ -1679,6 +1679,7 @@
 "projects.edit_title" = "Project bewerken";
 "projects.description" = "Beschrijving";
 "projects.color" = "Kleur";
+"projects.details" = "Details";
 "projects.edit_forbidden" = "Alleen de eigenaar en beheerders van het project kunnen het wijzigen.";
 "projects.color_invalid" = "Die kleur kan niet. Kies een van de stalen.";
 "projects.name_required" = "Een project heeft een naam nodig.";
