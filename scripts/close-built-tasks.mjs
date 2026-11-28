@@ -63,7 +63,7 @@ for (const t of doing) {
   const name = t.identifier || t.id.slice(0, 8);
   const { comments = [] } = await astrid(`/api/v1/tasks/${t.id}/comments`).catch(e => fail(e.message));
   const sha = awaitingSha(comments);
-  if (!sha) { console.log(`close-built: ${name} — no Awaiting build marker, left for a session`); continue; }
+  if (!sha) { console.log(`close-built: ${name} — no live Awaiting build marker (none, reopened, or a person spoke after it), left for a session`); continue; }
   waiting.push({ task: t, name, sha });
 }
 if (waiting.length === 0) process.exit(0);

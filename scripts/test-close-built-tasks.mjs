@@ -55,6 +55,31 @@ test('a new marker after the reopen counts again', () => {
   ], AGENT), 'ccccccc');
 });
 
+// ADEV-360: Jon answered the agent's completion comment with "we want a button on all
+// platforms", and the next tick would have closed the task on the build he was asking to change.
+// A person's comment newer than the marker, with no agent reply after it, holds the close.
+test('ADEV-360: an unanswered person\'s comment after the marker holds the close', () => {
+  assert.equal(awaitingSha([
+    c('2026-11-28T07:30:00Z', marker('a6aec22')),
+    c('2026-11-28T07:55:00Z', 'The ui is text but we want a button', { authorId: 'person' }),
+  ]), null);
+});
+
+test('ADEV-360: once an agent answers the person, the marker counts again', () => {
+  assert.equal(awaitingSha([
+    c('2026-11-28T07:30:00Z', marker('a6aec22')),
+    c('2026-11-28T07:45:00Z', 'Test', { authorId: 'person' }),
+    c('2026-11-28T07:48:00Z', 'Your "Test" comment came through.'),
+  ]), 'a6aec22');
+});
+
+test('ADEV-360: system events after the marker do not hold the close', () => {
+  assert.equal(awaitingSha([
+    c('2026-11-28T07:30:00Z', marker('a6aec22')),
+    c('2026-11-28T07:40:00Z', 'Jon Paris changed the due date', { authorId: null }),
+  ]), 'a6aec22');
+});
+
 const builds = [
   { number: '1074', state: 'VALID', sha: 'run1074' },
   { number: '1072', state: 'VALID', sha: 'run1072' },
